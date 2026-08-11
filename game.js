@@ -20,7 +20,11 @@ const CONFIG = {
   baseWoodCap: 50,        // wood you can store before a Woodshed; surplus rots
   storageAdd: 100,        // extra cap per storage building
   buildSpeed: 1.0,        // global construction pace (seconds of progress per real second)
-  conflictBaseChance: 0.0006,  // per-second base raid chance, before population scaling
+  conflictBaseChance: 0.0018,  // per-second base raid chance, before population scaling -- tripled
+                                // after playtesting: original value averaged ~19min at pop 15, and
+                                // a real session of well over an hour saw zero organic raids (a few
+                                // percent likely by chance alone, but not the intended feel). This
+                                // targets ~6-7min at pop 15, similar cadence to Sickness (~11min).
   conflictPopScale: 0.03,      // each point of population adds this fraction to the base chance
   offlineCapHours: 4,
   saveKey: "idleCiv.v6",

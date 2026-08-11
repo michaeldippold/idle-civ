@@ -74,37 +74,29 @@ button { font-family: var(--mono); cursor: pointer; }
 .res-rate.pos { color: var(--good); }
 .res-rate.neg { color: var(--danger); }
 
-/* ---------- Fixed layout ---------- */
+/* ---------- Fixed layout: 2 rows x 4 columns ---------- */
+/* Your People  | Settlement   | Build Queue | Chronicle
+   Training     | Construction | Upgrades    | (spans both rows) */
 #mainArea {
   flex: 1 1 auto;
-  display: flex;
-  gap: 12px;
-  min-height: 0;         /* required for children to be allowed to scroll instead of overflow */
-}
-#leftArea {
-  flex: 1 1 auto;
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: 1fr 1.8fr;   /* roster row smaller, action row larger -- tune by feel */
   gap: 12px;
   min-height: 0;
 }
-#col1, #col2 {
-  flex: 1 1 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-height: 0;
-}
-#col1 > #panel-village { flex: 1 1 0; }
-#col1 > #panel-build   { flex: 2 1 0; }
-#col2 > #panel-holdings,
-#col2 > #panel-queue,
-#col2 > #panel-upgrades { flex: 1 1 0; }
+#panel-village   { grid-column: 1; grid-row: 1; }
+#panel-training  { grid-column: 1; grid-row: 2; }
+#panel-holdings  { grid-column: 2; grid-row: 1; }
+#panel-build     { grid-column: 2; grid-row: 2; }
+#panel-queue     { grid-column: 3; grid-row: 1; }
+#panel-upgrades  { grid-column: 3; grid-row: 2; }
+#panel-log       { grid-column: 4; grid-row: 1 / 3; }
 
-#panel-log {
-  flex: 0 0 25%;
-  width: 25%;
-  min-height: 0;
-}
+/* A roster panel expands to fill its whole column while its paired
+   action-panel has nothing revealed yet, instead of leaving a blank cell. */
+#panel-village.span-both,
+#panel-holdings.span-both { grid-row: 1 / 3; }
 
 /* ---------- Block (panel) shell ---------- */
 .block {
@@ -163,7 +155,7 @@ button { font-family: var(--mono); cursor: pointer; }
 
 /* ---------- Settlement / holdings ---------- */
 .holdings-empty { font-size: 12px; color: var(--ink-faint); font-style: italic; margin: 0; }
-.holdings-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.holdings-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
 .holding {
   display: flex; flex-direction: column; align-items: center;
   gap: 2px;
@@ -235,9 +227,6 @@ body.dead .block { opacity: .7; }
 
 @media (max-width: 700px) {
   body { overflow: auto; height: auto; min-height: 100%; }
-  #mainArea, #leftArea, #col1, #col2 { flex-direction: column; height: auto; }
-  #mainArea, #leftArea { display: block; }
-  #col1, #col2 { display: block; margin-bottom: 12px; }
-  .block { flex: none; max-height: 50vh; margin-bottom: 12px; }
-  #panel-log { width: 100%; flex: none; max-height: 50vh; }
+  #mainArea { display: block; height: auto; }
+  .block { max-height: 50vh; margin-bottom: 12px; }
 }

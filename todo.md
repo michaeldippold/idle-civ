@@ -8,34 +8,13 @@
 
 ## Todo
 
-### In progress: Military & 4-column layout
-Full design consensus reached and recorded in `design.md` (Military & Defense) and `tech.md`
-(Units & Military, Layout & Visual System). Implementation checklist, roughly in dependency order:
-
-- [ ] **Data model**: `cap` field on building defs (Barracks: `cap: 1`, enforced in both `build()`
-      and rendering); `popCost` field on unit defs; new `UNITS` array + `S.units` state bucket;
-      `defById` searches all three tables; `civilians()`/`reserved()` derived values; `idle()`
-      updated to subtract both.
-- [ ] **Content**: Barracks (building, capped at 1), Soldier (unit, `popCost: 1`, reveal on
-      `barracks >= 1`), Flint-Tipped Spears + Hide Armor (one-time upgrades, weapon/armor tiers —
-      deliberately Stone-Age-named, not "Sword," since Bronze Age itself is still parked).
-- [ ] **Conflict event**: new `resolve(S, dt)` escape-hatch archetype on `EVENTS` (generic engine
-      change, not Conflict-specific). Raid-size roll, ratio-based repel check, tiered consequences,
-      population-scaled frequency, allowed to zero out population (`removeSettler(true)`) unlike
-      Sickness. Full algorithm recorded in `tech.md`.
-- [ ] **Layout**: rebuild `index.html`/`styles.css` as a real 2-row × 4-column CSS Grid (Your
-      People/Settlement/Build Queue/Chronicle over Training/Construction/Upgrades/Chronicle-spans).
-      Dynamic row-span so a roster panel fills its column until its paired action-panel has
-      anything revealed, instead of leaving an unexplained blank cell.
-- [ ] **Your People tiles**: Settler/Soldier as icon+count tiles (reusing the Settlement holdings
-      visual style), Settler count = civilians only, idle/housing stay as plain numbers.
-- [ ] Extend the headless harness for all of the above; live-browser-verify the new layout, a
-      trained Soldier, and a forced Conflict roll (both outcomes).
-
 ### Next up
-- [ ] Playtest the whole build for feel once Military lands — pacing, whether Sickness *and*
-      Conflict together feel fair, whether losing a standing army mid-game creates the "real
-      pressure" that was the point.
+- [ ] Playtest the whole build for feel now that Military has landed — pacing, whether Sickness
+      *and* Conflict together feel fair, whether losing a standing army mid-game creates the "real
+      pressure" that was the point. `CONFIG.conflictBaseChance`/`conflictPopScale`/raid-size weights
+      are all first-guess (see `tech.md`, Known Limitations) — expect to retune once actually played.
+- [ ] Consider a second weapon/armor tier once Sword-equivalent content makes sense — right now
+      Flint-Tipped Spears / Hide Armor are the only tiers, both Stone-Age-flavored on purpose.
 
 ### Backlog
 - [ ] **More events** — positive windfalls (a trader passes through, extra food/wood), rare
@@ -126,3 +105,42 @@ reveal threshold (trivially easy — e.g. spending wood on the very Hut that rev
 make the entire Construction/Settlement/Upgrades panel vanish mid-game. Fixed with `isRevealed()`,
 which makes reveals permanently sticky via the existing `S.seen` mechanism, consistent with how every
 other reveal in the game already behaves.
+
+**v6 — Military system + 4-column layout.** The big one: a full design pass (recorded in
+`design.md`/`tech.md`) resolving both remaining open questions about hazards and implemented end to
+end. **Barracks** (a new *capped* building — the first of a third category alongside scaling
+buildings and one-time upgrades: `cap: 1`, greys out to "Maxed" once built, same visual slot as an
+owned Upgrade). **Soldier** (a new *unit* kind — trainable through the same shared build queue, but
+`popCost: 1` permanently reserves an idle civilian the instant the order is queued, not when it
+completes, and conversion is one-way; ownership lives in `S.units`, deliberately separate from
+`S.builds`, so it renders in Your People instead of Settlement). **Flint-Tipped Spears** and **Hide
+Armor** (one-time Upgrades — weapon tier raises repel odds, armor tier softens casualties —
+deliberately Stone-Age-named rather than "Sword," since Bronze Age itself is still a parked design
+question). **Conflict**, the second hazard on the Events engine: raid size rolls independently
+(small and common vs. large and rare), a ratio-based repel check (`defense / (defense + raidSize)`,
+so never 0% or 100% no matter how invested), and tiered consequences (clean repel / costly repel /
+raid succeeds with Soldier losses, resource theft, and — if defense was thin — a civilian death too).
+Needed a new `resolve(S, dt)` escape-hatch archetype on `EVENTS` since Conflict's multi-stage
+resolution didn't fit the generic `chancePerSecond`+`counter` shape Sickness uses — a generic engine
+addition, not a special case. Unlike Sickness (floored at 1 survivor), **Conflict is allowed to zero
+out population outright** — a deliberate second failure state, on purpose, per design discussion.
+
+Also shipped: **Your People now shows person-type tiles** (Settler, Soldier — icon+count, reusing
+the Settlement holdings visual style but living in a different panel/state bucket, since "who your
+people are" and "what you've built" are different questions) instead of a bare "settlers" number.
+And the **whole layout was rebuilt as a real 2-row × 4-column CSS Grid** — Your
+People/Settlement/Build Queue/Chronicle over Training/Construction/Upgrades/(Chronicle spans both
+rows) — replacing the earlier nested-flex-column approach, which couldn't cleanly express "two
+independent stacked panels per column, four equal columns." Roster panels (Your People, Settlement)
+dynamically expand to fill their whole column while their paired action-panel has nothing revealed
+yet, rather than leaving an unexplained blank grid cell — genuinely useful for a while in practice,
+since Barracks is a mid-game unlock and Training stays empty until then.
+
+Verified via an extensively rewritten headless harness (cap enforcement, popCost reservation math
+including cancel-refunds freeing it, `removeSoldier` vs. `removeSettler` distinction, weapon/armor
+math, every Conflict outcome branch, the Sickness-floors/Conflict-doesn't asymmetry) plus live
+browser testing of the full progression (Hut → Barracks → Soldier → a forced raid, both a
+thin-defense wipe-out-adjacent loss and a full population wipe-out) — including catching that a
+hand-traced RNG sequence for one test was wrong because Sickness's own trigger roll, sitting earlier
+in `EVENTS`, was silently consuming `Math.random()` calls before Conflict's turn; fixed by testing
+Conflict's `resolve()` directly rather than through the full `resolveEvents()` iteration.

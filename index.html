@@ -39,64 +39,41 @@
     </div>
   </div>
 
+  <!-- 2 rows x 4 columns: roster panels on top, action panels beneath each,
+       Chronicle spans both rows in the last column. Roster panels can grow to
+       span both rows themselves while their paired action-panel is empty --
+       see updateSpans() in game.js. -->
   <div id="mainArea">
-    <div id="leftArea">
 
-      <div id="col1">
-        <!-- Visible from the start: your settlers and the work they can do. -->
-        <section class="block" id="panel-village">
-          <h2>Your People</h2>
-          <div class="block-body">
-            <div class="pop-summary">
-              <div class="pop-stat"><span class="pop-num" id="popTotal">3</span><span class="pop-lbl">settlers</span></div>
-              <div class="pop-stat"><span class="pop-num" id="popIdle">3</span><span class="pop-lbl">idle</span></div>
-              <div class="pop-stat"><span class="pop-num" id="popCap">3</span><span class="pop-lbl">housing</span></div>
-            </div>
-            <div class="growthline" id="growthLine"></div>
-            <div id="jobList" class="job-list"></div>
-          </div>
-        </section>
-
-        <!-- Hidden until you've gathered a little wood. Buildings that scale --
-             you can own many of one for a stacking benefit. -->
-        <section class="block hidden" id="panel-build">
-          <h2>Construction</h2>
-          <div class="block-body">
-            <div id="buildingList" class="build-list"></div>
-          </div>
-        </section>
+    <!-- Row 1 -->
+    <section class="block" id="panel-village">
+      <h2>Your People</h2>
+      <div class="block-body">
+        <div id="personTiles" class="holdings-grid"></div>
+        <div class="pop-summary">
+          <div class="pop-stat"><span class="pop-num" id="popIdle">3</span><span class="pop-lbl">idle</span></div>
+          <div class="pop-stat"><span class="pop-num" id="popCap">3</span><span class="pop-lbl">housing</span></div>
+        </div>
+        <div class="growthline" id="growthLine"></div>
+        <div id="jobList" class="job-list"></div>
       </div>
+    </section>
 
-      <div id="col2">
-        <!-- What you've actually built, at a glance -- no map needed. -->
-        <section class="block hidden" id="panel-holdings">
-          <h2>Settlement</h2>
-          <div class="block-body">
-            <p class="holdings-empty" id="holdingsEmpty">Nothing built yet.</p>
-            <div id="holdingsBody" class="holdings-grid hidden"></div>
-          </div>
-        </section>
-
-        <!-- Always present -- fills as things are queued, empties as they finish. -->
-        <section class="block" id="panel-queue">
-          <h2>Build Queue</h2>
-          <div class="block-body">
-            <p class="holdings-empty" id="queueEmpty">Nothing queued.</p>
-            <div id="queueBody" class="queue-list hidden"></div>
-          </div>
-        </section>
-
-        <!-- One-time upgrades -- bought once, never scale. Hidden until you've
-             gathered a little wood, same as Construction. -->
-        <section class="block hidden" id="panel-upgrades">
-          <h2>Upgrades</h2>
-          <div class="block-body">
-            <div id="upgradeList" class="build-list"></div>
-          </div>
-        </section>
+    <section class="block hidden" id="panel-holdings">
+      <h2>Settlement</h2>
+      <div class="block-body">
+        <p class="holdings-empty" id="holdingsEmpty">Nothing built yet.</p>
+        <div id="holdingsBody" class="holdings-grid hidden"></div>
       </div>
+    </section>
 
-    </div>
+    <section class="block" id="panel-queue">
+      <h2>Build Queue</h2>
+      <div class="block-body">
+        <p class="holdings-empty" id="queueEmpty">Nothing queued.</p>
+        <div id="queueBody" class="queue-list hidden"></div>
+      </div>
+    </section>
 
     <section class="block" id="panel-log">
       <h2>Chronicle</h2>
@@ -104,6 +81,29 @@
         <div id="log" class="log"></div>
       </div>
     </section>
+
+    <!-- Row 2 -->
+    <section class="block hidden" id="panel-training">
+      <h2>Training</h2>
+      <div class="block-body">
+        <div id="trainingList" class="build-list"></div>
+      </div>
+    </section>
+
+    <section class="block hidden" id="panel-build">
+      <h2>Construction</h2>
+      <div class="block-body">
+        <div id="buildingList" class="build-list"></div>
+      </div>
+    </section>
+
+    <section class="block hidden" id="panel-upgrades">
+      <h2>Upgrades</h2>
+      <div class="block-body">
+        <div id="upgradeList" class="build-list"></div>
+      </div>
+    </section>
+
   </div>
 
   <script src="game.js"></script>

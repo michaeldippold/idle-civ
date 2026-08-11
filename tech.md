@@ -42,17 +42,20 @@ The entire simulation lives in one module-level object, `S` (see `freshState()` 
 | Field | Type | Purpose |
 |---|---|---|
 | `res` | `{food, wood, stone}` | Current resource stockpiles |
-| `jobs` | `{forager, woodcutter, miner}` | Settlers assigned per gather job |
-| `builds` | `{hut, woodshed, granary, dryingRack, lumberCamp, stonePit, infirmary}` | Completed building counts (repeatable) |
+| `jobs` | `{forager, woodcutter, miner}` | Civilians assigned per gather job |
+| `builds` | `{hut, woodshed, granary, dryingRack, lumberCamp, stonePit, infirmary, barracks}` | Completed building counts (repeatable, unless `cap`ped) |
+| `units` | `{soldier}` | Trained person-types owned. Separate from `builds` specifically so it renders in Your People, not Settlement |
 | `upgrades` | `{[upgradeId]: true}` | One-time upgrades owned; key presence = owned |
-| `buildQueue` | `[{id, kind, uid, total, remaining, cost}]` | FIFO queue shared by buildings and upgrades; only index `[0]` progresses. `cost` is the exact price paid, stored for cancel-refunds |
+| `buildQueue` | `[{id, kind, uid, total, remaining, cost}]` | FIFO queue shared by buildings, upgrades, and units; only index `[0]` progresses. `cost` is the exact price paid, stored for cancel-refunds |
 | `buildSeq` | `number` | Monotonic counter for queue item `uid`s (DOM diffing key) |
-| `pop` | `number` | Current population |
+| `pop` | `number` | Total population, **including** Soldiers — they still eat and occupy housing |
 | `bought` | `number` | Total settlers grown via the wanderer event; drives escalating growth cost |
 | `era` | `string` | Currently always `"stone"`; gates which `EVENTS` are eligible |
 | `seen` | `{[revealId]: true}` | One-time UI reveal hints already shown |
 | `dead` | `boolean` | Game-over flag |
 | `lastSeed` | `number` | `Date.now()` at last save, used for offline catch-up |
+
+Population is **not** `S.jobs` summed plus idle — a person can now be in one of three states: assigned to a civilian job, idle (civilian, unassigned), or converted to a unit (`S.units.soldier`, permanently outside the job-assignable pool). See Military & Units, below, for the derived-value math that keeps these consistent.
 
 ## `step(dt)` — Order of Operations
 
@@ -60,9 +63,10 @@ The entire simulation lives in one module-level object, `S` (see `freshState()` 
 2. Compute `rates()` (production, upkeep, net food).
 3. Apply production/upkeep to `res` (scaled by `dt`).
 4. Clamp `food`/`wood` to their storage caps (`caps()`) — silent; a one-time Chronicle hint covers it via `REVEALS`.
-5. Starvation check: if `food <= 0` and net food rate is negative, either halt (`SIM_STOP`, offline) or call `die()` (live).
+5. Starvation check: if `food <= 0` and net food rate is negative, either halt (`SIM_STOP`, offline) or call `die("starvation")` (live).
 6. Advance the front of `buildQueue` by `CONFIG.buildSpeed * dt`; on completion, `shift()` it and call `completeConstruction()`.
-7. Call `resolveEvents(dt)` — population growth, sickness, and anything else on the `EVENTS` list.
+7. Call `resolveEvents(dt)` — population growth, sickness, conflict, and anything else on the `EVENTS` list.
+8. Wipe-out check: if `S.pop <= 0`, call `die("conflict")`. Unlike starvation this can only happen via Conflict (Sickness floors at 1 survivor by design — see Military & Units), but the check itself is generic rather than attributed to a specific event, since in principle anything could tip population to zero.
 
 ## Resource System
 
@@ -85,9 +89,45 @@ Buildings are **not** modeled as in-place worker-assignable sites (an earlier ve
 
 `BUILDINGS` is a flat data array; each entry has `id`, `name`, `kind: "building"`, `desc`, `base` cost, `scale` (per-owned-unit cost multiplier), `buildTime` (seconds once at the front of the queue), and `reveal()` — a predicate deciding whether the buy-card exists yet (see `isRevealed()` below for how this is made sticky). This is the mechanism behind "the interface unravels": a card is created in the DOM the first time it reveals and never removed.
 
-`UPGRADES` is the same shape minus `scale` (flat cost, never repeats) and tagged `kind: "upgrade"`. `defById(id)` searches both arrays, so the rest of the engine (`completeConstruction`, `renderQueue`, `cancelBuild`) never needs to know or care which list a queued item came from — it branches on `def.kind` only where the two genuinely differ (state update on completion: `S.builds[id]++` vs `S.upgrades[id] = true`).
+`UPGRADES` is the same shape minus `scale` (flat cost, never repeats) and tagged `kind: "upgrade"`. `UNITS` (see Units & Military, below) is a third array, `kind: "unit"`, also flat-cost. `defById(id)` searches all three arrays, so the rest of the engine (`completeConstruction`, `renderQueue`, `cancelBuild`) never needs to know or care which list a queued item came from — it branches on `def.kind` only where they genuinely differ: `buildCost()` scales only for `kind: "building"` (everything else is flat), and completion writes to a different bucket per kind (`S.builds[id]++` / `S.upgrades[id] = true` / `S.units[id]++`).
 
-`BUILDING_ICONS` maps each building id to a small inline `<svg>` line-art doodle (stroke-only, `currentColor`, no fill except two intentional dot accents on Stone Pit) — used in the Settlement/holdings panel so owned buildings are visually distinct tiles, not just numbers in the buy menu. Upgrades don't currently appear in that panel — they're a different kind of thing (a permanent trait, not a countable holding) and have no icon.
+Buildings may also carry an optional `cap` (e.g. Barracks: `cap: 1`). Once `(S.builds[id] || 0) + pendingCount(id) >= cap`, the card is disabled and shows "Maxed" in place of a cost — same visual slot Upgrades already use for "owned". `build()` itself also refuses a capped purchase (not just the UI), so this is enforced at the data layer, not just rendering.
+
+`BUILDING_ICONS` maps each building id to a small inline `<svg>` line-art doodle (stroke-only, `currentColor`, no fill except two intentional dot accents on Stone Pit) — used in the Settlement/holdings panel so owned buildings are visually distinct tiles, not just numbers in the buy menu. Upgrades don't currently appear in that panel — they're a different kind of thing (a permanent trait, not a countable holding) and have no icon. `PERSON_ICONS` is the equivalent map for person-types (Settler, Soldier), used by Your People's tiles the same way.
+
+## Units & Military
+
+`UNITS` (currently just Soldier) is a third buildable-defs array. Unlike `BUILDINGS`/`UPGRADES`, a unit def carries `popCost` — the number of civilians it permanently consumes. This changes the derived-value math for population:
+
+```js
+function civilians()   { return S.pop - Object.values(S.units).reduce((a, b) => a + b, 0); }
+function reserved()    { return S.buildQueue.reduce((sum, q) => sum + (defById(q.id).popCost || 0), 0); }
+function jobsUsed()    { return S.jobs.forager + S.jobs.woodcutter + S.jobs.miner; }
+function idle()        { return civilians() - jobsUsed() - reserved(); }
+```
+
+`civilians()` excludes anyone already converted to a unit. `reserved()` sums `popCost` across the **entire queue**, front and waiting alike — a civilian is pulled out of the available pool the instant a unit order is queued (matching "it takes one civ out, runs a progress bar, then you get a soldier"), not when it completes. `build()` checks `idle() >= (def.popCost || 0)` alongside the normal resource-affordability check, so recruiting competes directly with job assignment for the same pool. On completion, `completeConstruction()` writes to `S.units[id]` rather than `S.builds[id]` — the civilian was already subtracted via `reserved()` while queued, and now permanently exits `civilians()` via `S.units` instead of returning to the idle pool.
+
+A unit's ongoing food upkeep needs no new code — `S.pop` already includes units, and `rates()`'s upkeep line is just `S.pop * CONFIG.upkeep`.
+
+`removeSoldier()` is the "a Soldier dies" helper (used by Conflict): decrements both `S.units.soldier` and `S.pop` together (the person is gone entirely, not reassigned — contrast with `removeSettler()`, which keeps the person's death within the civilian/job-reassignment system).
+
+### Conflict
+
+Conflict doesn't fit the generic `chancePerSecond` + single `counter` shape Sickness uses — it needs its own population-scaled trigger chance, a variable raid size, a two-stage outcome (repel check, then a consequence roll), and outcome-dependent flavor text. Rather than contort the generic shape, `EVENTS` entries may define `resolve(S, dt)` instead of `canFire`/`chancePerSecond` — a full escape hatch that owns its own trigger roll and effect application; `resolveEvents()` just calls it every tick if present. This is a generic engine change (any future event with this much internal complexity can use the same escape hatch), not a Conflict-specific special case.
+
+Conflict's `resolve()`:
+
+1. **Trigger** — `chance = CONFIG.conflictBaseChance * (1 + S.pop * CONFIG.conflictPopScale)`, converted to a per-`dt` roll the same way Sickness's flat chance is. Frequency scales continuously with population (a bigger settlement is a bigger target), rather than Sickness's one-time threshold gate. Also gated behind `S.pop >= 4`, matching Sickness's early grace period.
+2. **Raid size** — a weighted random pick from `RAID_SIZES` (small/common, large/rare), independent of everything else. This is what makes a raid "sometimes 2 scouts, sometimes 10."
+3. **Defense** — `militaryStrength() = (S.units.soldier || 0) * weaponMultiplier()`, where `weaponMultiplier()` is `1.6` if the Flint-Tipped Spears upgrade is owned, else `1.0`. Zero Soldiers means zero defense, full stop.
+4. **Repel check** — `repelChance = defense / (defense + raidSize)`. A ratio, not a threshold: always some chance either way, more investment always shifts the odds, nothing ever reaches exactly 0% or 100%.
+5. **Consequences**, banded by outcome:
+   - **Repelled, clean** — no losses.
+   - **Repelled, costly** — rolled separately (`raidSize / (defense + raidSize)`, softened by the Hide Armor upgrade); if it lands, one Soldier is lost (`removeSoldier()`).
+   - **Raid succeeds** — `1 + floor(raidSize / 5)` Soldiers lost (capped at however many exist), a fraction of current resource stockpiles stolen (`stealResources()`, fraction scales with raid size, capped at 50%), and — only if defense was especially thin relative to the raid (roughly `defense < raidSize / 2`, including the `defense === 0` case) — one civilian lost via `removeSettler(true)`.
+
+`removeSettler()` takes an optional `allowZero` param (default `false`, used by Sickness, which floors at 1 survivor by design) — Conflict passes `true`, since it's the one hazard allowed to end a run outright (see `design.md`, Failure). The generic `S.pop <= 0` check in `step()` is what actually ends the game in that case, not Conflict itself — keeping "what happens when population hits zero" in one place regardless of cause.
 
 ## Events Engine
 
@@ -99,6 +139,7 @@ Buildings are **not** modeled as in-place worker-assignable sites (an earlier ve
   // exactly one of:
   canFire: (S) => boolean,        // deterministic, re-checked & fired repeatedly per tick
   chancePerSecond: number,        // probabilistic, converted to a per-dt roll
+  resolve: (S, dt) => { ... },    // full escape hatch -- owns its own trigger + effect + flavor
   condition: (S) => boolean,      // optional extra gate (e.g. sickness needs pop >= 4)
   counter: { building, reducePerUnit },  // optional negation source
   effect: (S) => { /* mutate state */ },
@@ -109,10 +150,11 @@ Buildings are **not** modeled as in-place worker-assignable sites (an earlier ve
 `resolveEvents(dt)`, called once per `step()`:
 
 1. Skips events whose `eras` doesn't include `S.era`, or whose `condition` fails.
-2. **Deterministic events** (`canFire`): loop-fires the effect repeatedly (guarded at 50 iterations) while the condition holds — this is how population growth can produce several births in one large `dt` (e.g. after offline catch-up).
-3. **Probabilistic events** (`chancePerSecond`): one roll per `step()` at the dt-adjusted probability. If it lands, `negateChance(ev)` (`min(1, counterBuildingCount * reducePerUnit)`) gets a second roll; negated events log the `negated` flavor line (always styled `"good"` — averting bad news is good news) and skip the effect entirely, otherwise the effect applies and the `hit` flavor line logs at the event's own `sev`.
+2. **`resolve`-based events** (Conflict, currently the only one): called directly with `(S, dt)` and left entirely to their own devices — no generic trigger roll, negation, or flavor logging happens around them. See Units & Military for Conflict's specific algorithm.
+3. **Deterministic events** (`canFire`): loop-fires the effect repeatedly (guarded at 50 iterations) while the condition holds — this is how population growth can produce several births in one large `dt` (e.g. after offline catch-up).
+4. **Probabilistic events** (`chancePerSecond`): one roll per `step()` at the dt-adjusted probability. If it lands, `negateChance(ev)` (`min(1, counterBuildingCount * reducePerUnit)`) gets a second roll; negated events log the `negated` flavor line (always styled `"good"` — averting bad news is good news) and skip the effect entirely, otherwise the effect applies and the `hit` flavor line logs at the event's own `sev`.
 
-`removeSettler()` (used by sickness's effect) is the shared "a person dies" helper: decrements `pop` (floored at 1), then — if that leaves more workers assigned than people alive — pulls the excess back to idle, wood/stone jobs first, food last, so a death never leaves `jobsUsed() > pop` (which would otherwise make `idle()` go negative).
+`removeSettler(allowZero = false)` (used by Sickness's effect, and by Conflict's civilian-casualty case with `allowZero: true`) is the shared "a civilian dies" helper: decrements `pop` (floored at 1 unless `allowZero`), then — if that leaves more workers assigned than people alive — pulls the excess back to idle, wood/stone jobs first, food last, so a death never leaves `jobsUsed() > civilians()` (which would otherwise make `idle()` go negative). Contrast with `removeSoldier()` (Units & Military), which removes a unit rather than a civilian and needs no job-reassignment since units were never in `S.jobs`.
 
 Flavor lines are picked at random from each pool (`pick()`) for light variety across repeat occurrences.
 
@@ -128,9 +170,22 @@ Visibility is reveal-driven: panels/rows carry a `hidden` class toggled based on
 
 The Build Queue panel is the one deliberate exception to reveal-gating: it's always present from the very first frame (empty-state message when `S.buildQueue.length === 0`), per design intent — a stable, always-visible anchor rather than something that unravels in.
 
+**Your People** renders person-type tiles (Settler, Soldier) the same create-once-update-in-place way Settlement renders building tiles — reusing the `.holding` visual style, but living in a different panel and a different state bucket (`S.units`, not `S.builds`), since "who your people are" and "what you've built" are deliberately kept as separate questions (see `design.md`). Settler count shown is `civilians()`, not `S.pop` — Soldiers get their own tile instead of being folded into the total.
+
+**Dynamic row-span**: Your People/Settlement can each visually expand to fill their whole grid column (both rows) when their paired action-panel (Training/Construction) has nothing revealed yet, rather than leaving an unexplained blank grid cell. This is driven by the same reveal-state check already used for `hidden` toggling, just applied to a `.span-both` class on the roster panel instead: `panel-village` gets it when no `UNITS` entry `isRevealed`, `panel-holdings` gets it when no `BUILDINGS` entry `isRevealed`. In practice Settlement/Construction rarely shows this state (Hut reveals almost immediately), but Your People/Training does for a real stretch of early play, since Barracks is a mid-game unlock — this was the deliberate motivation for building it generically rather than special-casing just one panel.
+
 ## Layout & Visual System
 
-`styles.css` implements a fixed-viewport flex grid — `body` is `overflow: hidden` (the page itself never scrolls), and each panel (`.block`) is a flex column with a fixed-position header (`h2`) and a separately-scrolling `.block-body` (`overflow-y: auto`). Panel proportions are set via flex-grow ratios (not percentages, to avoid rounding/gap math): column 1 splits "Your People" / "Construction" 1:2; column 2 currently splits "Settlement" / "Build Queue" / "Upgrades" evenly (1:1:1). Column 2 previously ended in a bare `.spacer` div reserving deliberate blank space for panels that didn't exist yet — removed now that real panels filled it, per `design.md`'s "more boxes will go later."
+`styles.css` implements a fixed-viewport **CSS Grid** — `body` is `overflow: hidden` (the page itself never scrolls). `#mainArea` is `display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: 1fr 2fr;` (roster row smaller, action row larger, tunable) — seven `.block` panels are placed explicitly by `grid-column`/`grid-row`:
+
+```
+Your People   | Settlement  | Build Queue | Chronicle
+Training      | Construction| Upgrades    | (spans both rows)
+```
+
+Each `.block` is still internally a flex column with a fixed-position header (`h2`) and a separately-scrolling `.block-body` (`overflow-y: auto`) — the grid only controls placement between panels, not what happens inside one. `panel-log` (Chronicle) sets `grid-row: 1 / 3` to span both rows in its column. The `.span-both` class (see Rendering, above) overrides a roster panel's own `grid-row` the same way, when its paired panel is empty.
+
+This replaced an earlier nested-flex-columns layout (fixed 25%-width Chronicle + two asymmetric flex columns) that couldn't cleanly express "two independent stacked panels per column, four equal columns" without either duplicating flex-ratio logic per column or accepting mismatched proportions — real CSS Grid does this natively.
 
 Color is a small semantic system, not a decorative palette: `--good` (green, genuinely new positive information), `--danger` (red, anything requiring attention), `--milestone` (amber, rare achievement lines), and otherwise everything is a shade of `--ink` on `--bg`. This mapping is enforced at the call site — `log(text, cls)` takes an explicit severity class, never inferred from content.
 
@@ -140,6 +195,7 @@ No test framework; verification is a headless Node harness (in the session scrat
 
 ## Known Limitations
 
+- Conflict's numbers (`conflictBaseChance`, `conflictPopScale`, raid-size weights, the `repelChance` ratio, casualty/theft fractions) are first-guess, same as the rest of `CONFIG` — expect these to move once the system is actually played against.
 - Holdings tiles show a flat count with no compaction (`1234` renders as literally `1234`) — fine at current scale, flagged in `design.md` as a concern for later, much-larger numbers.
 - Upgrades don't appear anywhere once owned except the buy-card itself (relabeled "owned", permanently disabled) and the Chronicle completion line — there's no dedicated "traits you have" surface the way Settlement is for buildings.
 - `era` exists on state and is read by the events engine, but nothing ever sets it to anything other than `"stone"` — there is no era-transition system yet.

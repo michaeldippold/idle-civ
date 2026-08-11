@@ -8,16 +8,36 @@
 
 ## Todo
 
+### In progress: Military & 4-column layout
+Full design consensus reached and recorded in `design.md` (Military & Defense) and `tech.md`
+(Units & Military, Layout & Visual System). Implementation checklist, roughly in dependency order:
+
+- [ ] **Data model**: `cap` field on building defs (Barracks: `cap: 1`, enforced in both `build()`
+      and rendering); `popCost` field on unit defs; new `UNITS` array + `S.units` state bucket;
+      `defById` searches all three tables; `civilians()`/`reserved()` derived values; `idle()`
+      updated to subtract both.
+- [ ] **Content**: Barracks (building, capped at 1), Soldier (unit, `popCost: 1`, reveal on
+      `barracks >= 1`), Flint-Tipped Spears + Hide Armor (one-time upgrades, weapon/armor tiers —
+      deliberately Stone-Age-named, not "Sword," since Bronze Age itself is still parked).
+- [ ] **Conflict event**: new `resolve(S, dt)` escape-hatch archetype on `EVENTS` (generic engine
+      change, not Conflict-specific). Raid-size roll, ratio-based repel check, tiered consequences,
+      population-scaled frequency, allowed to zero out population (`removeSettler(true)`) unlike
+      Sickness. Full algorithm recorded in `tech.md`.
+- [ ] **Layout**: rebuild `index.html`/`styles.css` as a real 2-row × 4-column CSS Grid (Your
+      People/Settlement/Build Queue/Chronicle over Training/Construction/Upgrades/Chronicle-spans).
+      Dynamic row-span so a roster panel fills its column until its paired action-panel has
+      anything revealed, instead of leaving an unexplained blank cell.
+- [ ] **Your People tiles**: Settler/Soldier as icon+count tiles (reusing the Settlement holdings
+      visual style), Settler count = civilians only, idle/housing stay as plain numbers.
+- [ ] Extend the headless harness for all of the above; live-browser-verify the new layout, a
+      trained Soldier, and a forced Conflict roll (both outcomes).
+
 ### Next up
-- [ ] Playtest the current build for feel — pacing, whether sickness lands at a fair frequency,
-      whether the queue/no-worker construction model feels right now that it's been played more.
-- [ ] Decide the open design questions in `design.md` before building further on top of them
-      (can hazards zero out population? what is a "soldier"? does growth cost ever come back down?).
+- [ ] Playtest the whole build for feel once Military lands — pacing, whether Sickness *and*
+      Conflict together feel fair, whether losing a standing army mid-game creates the "real
+      pressure" that was the point.
 
 ### Backlog
-- [ ] **Conflict event** — an attack that costs people and/or resources, mitigated by some kind
-      of defensive counter. Blocked on deciding what a "soldier" is (job vs. building vs. population
-      cost) — see `design.md` open questions.
 - [ ] **More events** — positive windfalls (a trader passes through, extra food/wood), rare
       "special" events with no counter (the asteroid-style 0.5%-chance idea). The engine already
       supports both shapes; this is just content.

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Idle Civ — prototype</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <div id="titleRow">
+    <div id="titleLeft">
+      <span id="titleName">Idle Civ</span>
+      <span id="ageBadge">[Stone Age]</span>
+    </div>
+    <div id="titleRight">
+      <button id="saveBtn" class="link" title="Progress also saves automatically">[ Save ]</button>
+      <button id="resetBtn" class="link" title="Wipe all progress">[ Reset ]</button>
+    </div>
+  </div>
+
+  <!-- Resource tracker. Rows reveal the first time you produce that resource. -->
+  <div id="resourceBar">
+    <span id="emptyStores">— stores are nearly empty —</span>
+    <div class="res hidden" id="res-food">
+      <span class="res-name">Food</span>
+      <span class="res-val" id="val-food">0</span>
+      <span class="res-rate" id="rate-food"></span>
+    </div>
+    <div class="res hidden" id="res-wood">
+      <span class="res-name">Wood</span>
+      <span class="res-val" id="val-wood">0</span>
+      <span class="res-rate" id="rate-wood"></span>
+    </div>
+    <div class="res hidden" id="res-stone">
+      <span class="res-name">Stone</span>
+      <span class="res-val" id="val-stone">0</span>
+      <span class="res-rate" id="rate-stone"></span>
+    </div>
+  </div>
+
+  <div id="mainArea">
+    <div id="leftArea">
+
+      <div id="col1">
+        <!-- Visible from the start: your settlers and the work they can do. -->
+        <section class="block" id="panel-village">
+          <h2>Your People</h2>
+          <div class="block-body">
+            <div class="pop-summary">
+              <div class="pop-stat"><span class="pop-num" id="popTotal">3</span><span class="pop-lbl">settlers</span></div>
+              <div class="pop-stat"><span class="pop-num" id="popIdle">3</span><span class="pop-lbl">idle</span></div>
+              <div class="pop-stat"><span class="pop-num" id="popCap">3</span><span class="pop-lbl">housing</span></div>
+            </div>
+            <div class="growthline" id="growthLine"></div>
+            <div id="jobList" class="job-list"></div>
+          </div>
+        </section>
+
+        <!-- Hidden until you've gathered a little wood. Buildings that scale --
+             you can own many of one for a stacking benefit. -->
+        <section class="block hidden" id="panel-build">
+          <h2>Construction</h2>
+          <div class="block-body">
+            <div id="buildingList" class="build-list"></div>
+          </div>
+        </section>
+      </div>
+
+      <div id="col2">
+        <!-- What you've actually built, at a glance -- no map needed. -->
+        <section class="block hidden" id="panel-holdings">
+          <h2>Settlement</h2>
+          <div class="block-body">
+            <p class="holdings-empty" id="holdingsEmpty">Nothing built yet.</p>
+            <div id="holdingsBody" class="holdings-grid hidden"></div>
+          </div>
+        </section>
+
+        <!-- Always present -- fills as things are queued, empties as they finish. -->
+        <section class="block" id="panel-queue">
+          <h2>Build Queue</h2>
+          <div class="block-body">
+            <p class="holdings-empty" id="queueEmpty">Nothing queued.</p>
+            <div id="queueBody" class="queue-list hidden"></div>
+          </div>
+        </section>
+
+        <!-- One-time upgrades -- bought once, never scale. Hidden until you've
+             gathered a little wood, same as Construction. -->
+        <section class="block hidden" id="panel-upgrades">
+          <h2>Upgrades</h2>
+          <div class="block-body">
+            <div id="upgradeList" class="build-list"></div>
+          </div>
+        </section>
+      </div>
+
+    </div>
+
+    <section class="block" id="panel-log">
+      <h2>Chronicle</h2>
+      <div class="block-body">
+        <div id="log" class="log"></div>
+      </div>
+    </section>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>

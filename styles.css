@@ -1,0 +1,243 @@
+/* Idle Civ — prototype styles.
+   Spartan, monochrome-first, paper-and-pen. No shadows, no gradients.
+   Panels are fixed to the viewport; each scrolls internally if it must. */
+
+:root {
+  --bg:        #f7f6f1;   /* off-white paper */
+  --ink:       #17160f;   /* near-black */
+  --ink-dim:   #5c5747;
+  --ink-faint: #99927d;
+  --good:      #3a6b28;   /* green — genuinely new/positive info, positive rates */
+  --danger:    #a3311f;   /* red — warnings: danger, spoilage, can't-afford */
+  --milestone: #a15b12;   /* amber — rare big/achievement lines only */
+  --radius:    3px;
+  --mono: "SFMono-Regular", "Consolas", "Liberation Mono", "Menlo", monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; margin: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;         /* the page itself never scrolls -- panels do */
+}
+
+button { font-family: var(--mono); cursor: pointer; }
+
+/* ---------- Title row ---------- */
+#titleRow {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--ink);
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+}
+#titleLeft { display: flex; align-items: baseline; gap: 8px; }
+#titleName { font-weight: 700; letter-spacing: 0.5px; font-size: 14px; }
+#ageBadge { color: var(--ink-dim); font-size: 12px; }
+#ageBadge.fallen { color: var(--danger); font-weight: 700; }
+#titleRight { display: flex; gap: 10px; }
+
+.link {
+  background: none; border: none; color: var(--ink-dim);
+  font-family: var(--mono); font-size: 12px; padding: 0;
+}
+.link:hover { color: var(--ink); text-decoration: underline; }
+
+/* ---------- Resource ledger ---------- */
+#resourceBar {
+  flex: 0 0 auto;
+  display: flex; flex-wrap: wrap;
+  align-items: baseline; gap: 16px;
+  border-bottom: 1px solid var(--ink);
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+  min-height: 18px;
+}
+#emptyStores { color: var(--ink-faint); font-style: italic; font-size: 12px; }
+.res { display: flex; align-items: baseline; gap: 6px; }
+.res-name { color: var(--ink-dim); font-size: 12px; }
+.res-val { font-weight: 700; }
+.res-val .cap { color: var(--ink-faint); font-weight: 400; }
+.res-val.full { color: var(--danger); }
+.res-rate { font-size: 11px; color: var(--ink-dim); }
+.res-rate.pos { color: var(--good); }
+.res-rate.neg { color: var(--danger); }
+
+/* ---------- Fixed layout ---------- */
+#mainArea {
+  flex: 1 1 auto;
+  display: flex;
+  gap: 12px;
+  min-height: 0;         /* required for children to be allowed to scroll instead of overflow */
+}
+#leftArea {
+  flex: 1 1 auto;
+  display: flex;
+  gap: 12px;
+  min-height: 0;
+}
+#col1, #col2 {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+#col1 > #panel-village { flex: 1 1 0; }
+#col1 > #panel-build   { flex: 2 1 0; }
+#col2 > #panel-holdings,
+#col2 > #panel-queue,
+#col2 > #panel-upgrades { flex: 1 1 0; }
+
+#panel-log {
+  flex: 0 0 25%;
+  width: 25%;
+  min-height: 0;
+}
+
+/* ---------- Block (panel) shell ---------- */
+.block {
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;      /* header stays put; .block-body scrolls internally */
+}
+.block h2 {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 8px 12px 6px;
+  font-size: 12px;
+  font-weight: 700;
+  border-bottom: 1px solid var(--ink-faint);
+}
+.block-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 10px 12px;
+}
+
+/* ---------- People ---------- */
+.pop-summary { display: flex; gap: 16px; margin-bottom: 8px; }
+.pop-stat { display: flex; flex-direction: column; align-items: flex-start; }
+.pop-num { font-size: 18px; font-weight: 700; line-height: 1; }
+.pop-lbl { font-size: 10px; color: var(--ink-dim); margin-top: 2px; }
+.growthline { font-size: 11px; color: var(--ink-dim); margin-bottom: 10px; min-height: 14px; }
+.growthline .cost { color: var(--ink); font-weight: 700; }
+
+.job-list { display: flex; flex-direction: column; gap: 5px; }
+.job {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 7px;
+  border: 1px solid var(--ink-faint);
+  border-radius: var(--radius);
+}
+.job-name { flex: 1; font-size: 12px; }
+.job-out { font-size: 10px; color: var(--ink-dim); min-width: 62px; text-align: right; }
+.job-count { min-width: 18px; text-align: center; font-size: 13px; font-weight: 700; }
+
+.stepper {
+  width: 20px; height: 20px;
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--bg); color: var(--ink);
+  font-size: 13px; line-height: 1; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.stepper:hover:not(:disabled) { background: var(--ink); color: var(--bg); }
+.stepper:disabled { opacity: .3; cursor: not-allowed; }
+
+/* ---------- Settlement / holdings ---------- */
+.holdings-empty { font-size: 12px; color: var(--ink-faint); font-style: italic; margin: 0; }
+.holdings-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.holding {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 2px;
+  border: 1px solid var(--ink-faint);
+  border-radius: var(--radius);
+  padding: 6px 8px;
+  min-width: 60px;
+}
+.holding .h-icon { width: 24px; height: 24px; color: var(--ink); }
+.holding .h-icon svg { width: 100%; height: 100%; display: block; }
+.holding .h-name { font-size: 10px; color: var(--ink-dim); text-align: center; }
+.holding .h-count { font-size: 14px; font-weight: 700; }
+
+/* ---------- Build queue ---------- */
+.queue-list { display: flex; flex-direction: column; gap: 10px; }
+.queue-card + .queue-card { padding-top: 10px; border-top: 1px solid var(--ink-faint); }
+.queue-card.queued { opacity: .55; }
+.site-name {
+  display: flex; align-items: baseline; justify-content: space-between;
+  font-size: 12px; font-weight: 700;
+}
+.site-name .b-of { color: var(--ink-dim); font-weight: 400; }
+.q-cancel {
+  background: none; border: none; color: var(--ink-faint);
+  font-size: 14px; line-height: 1; padding: 0 2px;
+}
+.q-cancel:hover { color: var(--danger); }
+.progress {
+  height: 9px; border: 1px solid var(--ink); border-radius: var(--radius);
+  overflow: hidden; background: var(--bg); margin-top: 4px;
+}
+.progress > span { display: block; height: 100%; background: var(--ink); width: 0%; }
+.site-meta { margin-top: 4px; }
+.eta { font-size: 11px; color: var(--ink-dim); }
+
+/* ---------- Construction (buy) list ---------- */
+.build-list { display: flex; flex-direction: column; gap: 6px; }
+.building {
+  text-align: left; width: 100%;
+  background: var(--bg); color: var(--ink);
+  border: 1px solid var(--ink-faint);
+  border-radius: var(--radius);
+  padding: 7px 9px;
+}
+.building:hover:not(:disabled) { background: rgba(23,22,15,0.05); border-color: var(--ink); }
+.building:disabled { opacity: .5; cursor: not-allowed; }
+.building .b-top { display: flex; justify-content: space-between; align-items: baseline; }
+.building .b-name { font-size: 12px; font-weight: 700; }
+.building .b-owned { font-size: 10px; color: var(--ink-faint); }
+.building .b-pending { color: var(--ink-dim); }
+.building .b-desc { font-size: 11px; color: var(--ink-dim); margin: 2px 0 4px; }
+.building .b-cost { font-size: 11px; }
+.building .b-cost .short { color: var(--danger); }
+.building .b-time { font-size: 10px; color: var(--ink-faint); margin-left: 6px; }
+
+/* ---------- Log ---------- */
+.log { display: flex; flex-direction: column; gap: 4px; }
+.log .entry {
+  font-size: 12px; color: var(--ink-dim);
+  padding-left: 8px; border-left: 2px solid var(--ink-faint);
+}
+.log .entry.good { color: var(--good); border-left-color: var(--good); }
+.log .entry.bad  { color: var(--danger); border-left-color: var(--danger); }
+.log .entry.big  { color: var(--milestone); font-weight: 700; font-size: 13px; border-left-color: var(--milestone); }
+
+/* ---------- Misc ---------- */
+.hidden { display: none !important; }
+body.dead .block { opacity: .7; }
+
+@media (max-width: 700px) {
+  body { overflow: auto; height: auto; min-height: 100%; }
+  #mainArea, #leftArea, #col1, #col2 { flex-direction: column; height: auto; }
+  #mainArea, #leftArea { display: block; }
+  #col1, #col2 { display: block; margin-bottom: 12px; }
+  .block { flex: none; max-height: 50vh; margin-bottom: 12px; }
+  #panel-log { width: 100%; flex: none; max-height: 50vh; }
+}

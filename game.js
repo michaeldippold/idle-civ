@@ -18,7 +18,9 @@ const CONFIG = {
   growthScale: 1.30,      // each settler costs this much more food
   baseFoodCap: 50,        // food you can store before a Granary; surplus spoils
   baseWoodCap: 50,        // wood you can store before a Woodshed; surplus rots
+  baseStoneCap: 50,       // stone you can store before a Stone Yard; surplus is lost, unorganized
   storageAdd: 100,        // extra cap per storage building
+  stoneToolsBonus: 0.08,  // flat additive bump to ALL gather multipliers from the Stone Tools upgrade
   buildSpeed: 1.0,        // global construction pace (seconds of progress per real second)
   conflictBaseChance: 0.0018,  // per-second base raid chance, before population scaling -- tripled
                                 // after playtesting: original value averaged ~19min at pop 15, and
@@ -57,6 +59,11 @@ const BUILDINGS = [
     reveal: () => S.res.food >= CONFIG.baseFoodCap * 0.7 || S.builds.granary > 0,
   },
   {
+    id: "stoneYard", name: "Stone Yard", kind: "building", desc: "Store +100 stone (else the surplus is lost, unorganized).",
+    base: { wood: 25, stone: 10 }, scale: 1.55, buildTime: 16,
+    reveal: () => S.res.stone >= CONFIG.baseStoneCap * 0.7 || S.builds.stoneYard > 0,
+  },
+  {
     id: "dryingRack", name: "Drying Racks", kind: "building", desc: "Foragers gather +12% food.",
     base: { wood: 22 }, scale: 1.5, buildTime: 20,
     reveal: () => S.builds.hut >= 1,
@@ -89,10 +96,22 @@ const BUILDINGS = [
 // list era transitions (Bronze Age, etc.) will eventually live in.
 const UPGRADES = [
   {
+    id: "stoneTools", name: "Stone Tools", kind: "upgrade",
+    desc: "Permanently improves all gathering by 8%.",
+    base: { wood: 10 }, buildTime: 10,
+    reveal: () => S.res.wood >= 5 || S.builds.hut > 0,
+  },
+  {
     id: "fireMastery", name: "Fire Mastery", kind: "upgrade",
     desc: "Permanently reduces food upkeep by 15%.",
     base: { wood: 30, food: 10 }, buildTime: 25,
     reveal: () => S.builds.hut >= 1,
+  },
+  {
+    id: "herbalMedicine", name: "Herbal Medicine", kind: "upgrade",
+    desc: "Increases how much each Infirmary reduces the chance sickness claims a life.",
+    base: { wood: 20, food: 20 }, buildTime: 20,
+    reveal: () => S.builds.infirmary >= 1,
   },
   {
     id: "flintSpears", name: "Flint-Tipped Spears", kind: "upgrade",
@@ -127,6 +146,7 @@ const BUILDING_ICONS = {
   hut:        `<svg ${ICON_ATTRS}><path d="M4 12 L12 5 L20 12 M6 12 V20 H18 V12 M11 20 V15 H13 V20"/></svg>`,
   woodshed:   `<svg ${ICON_ATTRS}><path d="M4 20 V10 L12 5 L20 10 V20 M4 20 H20 M7 13 H10 M7 16 H10"/></svg>`,
   granary:    `<svg ${ICON_ATTRS}><path d="M7 20 V9 A5 4 0 0 1 17 9 V20 M7 9 H17 M7 13 H17"/></svg>`,
+  stoneYard:  `<svg ${ICON_ATTRS}><path d="M4 20 H20 M5 20 V10 H19 V20"/><circle cx="9" cy="15" r="1" fill="currentColor" stroke="none"/><circle cx="13" cy="17" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="14" r="1" fill="currentColor" stroke="none"/></svg>`,
   dryingRack: `<svg ${ICON_ATTRS}><path d="M4 8 H20 M4 8 V20 M20 8 V20 M8 8 L6.5 14 M12 8 V15 M16 8 L17.5 14"/></svg>`,
   lumberCamp: `<svg ${ICON_ATTRS}><circle cx="8" cy="16" r="3"/><circle cx="14" cy="16" r="3"/><circle cx="11" cy="10" r="3"/></svg>`,
   stonePit:   `<svg ${ICON_ATTRS}><path d="M4 8 H20 L16 20 H8 Z"/><circle cx="10.5" cy="13" r="0.8" fill="currentColor" stroke="none"/><circle cx="14" cy="15.5" r="0.8" fill="currentColor" stroke="none"/></svg>`,
@@ -149,7 +169,7 @@ function freshState() {
   return {
     res:   { food: CONFIG.startFood, wood: 0, stone: 0 },
     jobs:  { forager: 0, woodcutter: 0, miner: 0 },
-    builds:{ hut: 0, woodshed: 0, granary: 0, dryingRack: 0, lumberCamp: 0, stonePit: 0, infirmary: 0, barracks: 0 },
+    builds:{ hut: 0, woodshed: 0, granary: 0, stoneYard: 0, dryingRack: 0, lumberCamp: 0, stonePit: 0, infirmary: 0, barracks: 0 },
     units: { soldier: 0 },  // trained person-types owned; separate from builds -- renders in Your People
     upgrades: {},     // { [upgradeId]: true } -- presence means owned, one-time
     buildQueue: [],   // FIFO: [{ id, kind, uid, total, remaining, cost }, ...] -- only [0] progresses
@@ -179,10 +199,11 @@ function reserved() {
 function idle() { return civilians() - jobsUsed() - reserved(); }
 
 function mults() {
+  const tools = S.upgrades.stoneTools ? CONFIG.stoneToolsBonus : 0;
   return {
-    food:  1 + S.builds.dryingRack * CONFIG.buildingBonus,
-    wood:  1 + S.builds.lumberCamp * CONFIG.buildingBonus,
-    stone: 1 + S.builds.stonePit  * CONFIG.buildingBonus,
+    food:  1 + S.builds.dryingRack * CONFIG.buildingBonus + tools,
+    wood:  1 + S.builds.lumberCamp * CONFIG.buildingBonus + tools,
+    stone: 1 + S.builds.stonePit  * CONFIG.buildingBonus + tools,
   };
 }
 
@@ -190,7 +211,7 @@ function caps() {
   return {
     food: CONFIG.baseFoodCap + S.builds.granary * CONFIG.storageAdd,
     wood: CONFIG.baseWoodCap + S.builds.woodshed * CONFIG.storageAdd,
-    stone: Infinity,
+    stone: CONFIG.baseStoneCap + S.builds.stoneYard * CONFIG.storageAdd,
   };
 }
 
@@ -268,10 +289,35 @@ const EVENTS = [
     flavor: { hit: ["A wanderer joins your settlement."] },
   },
   {
+    id: "greatHunt", eras: ["stone"], sev: "good",
+    chancePerSecond: 0.002,                         // ~8.3 real minutes average -- small, frequent
+    effect: (S) => { S.res.food += Math.round(8 + S.pop * 1.2); },
+    flavor: {
+      hit: [
+        "A hunting party returns with more than they hoped for -- there is meat enough to share.",
+        "A lucky strike brings down a boar. The camp eats well tonight.",
+      ],
+    },
+  },
+  {
+    id: "trader", eras: ["stone"], sev: "good",
+    chancePerSecond: 0.0009,                        // ~18.5 real minutes average -- rarer, bigger
+    effect: (S) => {
+      const bonus = Math.round(12 + S.pop * 1.5);
+      S.res.wood += bonus; S.res.stone += bonus;
+    },
+    flavor: {
+      hit: [
+        "A trader passes through and leaves goods behind in exchange for hospitality.",
+        "A stranger arrives with a laden pack, and departs with an empty one.",
+      ],
+    },
+  },
+  {
     id: "sickness", eras: ["stone"], sev: "bad",
     condition: (S) => S.pop >= 4,
     chancePerSecond: 0.0015,                        // ~11 real minutes average, unmitigated
-    counter: { building: "infirmary", reducePerUnit: 0.35 },
+    counter: { building: "infirmary", reducePerUnit: (S) => S.upgrades.herbalMedicine ? 0.35 : 0.2 },
     effect: (S) => removeSettler(),
     flavor: {
       hit: [
@@ -364,10 +410,14 @@ function stealResources(raidSize) {
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
 // How likely a landed hazard is deflected, based on its counter-building count.
+// `reducePerUnit` may be a flat number or (S) => number, for counters whose
+// strength itself can be upgraded (e.g. Herbal Medicine boosting Infirmary).
 function negateChance(ev) {
   if (!ev.counter) return 0;
   const n = S.builds[ev.counter.building] || 0;
-  return Math.min(1, n * ev.counter.reducePerUnit);
+  const reduce = typeof ev.counter.reducePerUnit === "function"
+    ? ev.counter.reducePerUnit(S) : ev.counter.reducePerUnit;
+  return Math.min(1, n * reduce);
 }
 
 // A civilian dies: population drops, and if that leaves more workers assigned
@@ -434,10 +484,11 @@ function step(dt) {
   S.res.wood  += r.wood    * dt;
   S.res.stone += r.stone   * dt;
 
-  // Storage caps: surplus spoils/rots (silent; a one-time hint fires via reveals).
+  // Storage caps: surplus spoils/rots/is lost (silent; a one-time hint fires via reveals).
   const c = caps();
   if (S.res.food > c.food) S.res.food = c.food;
   if (S.res.wood > c.wood) S.res.wood = c.wood;
+  if (S.res.stone > c.stone) S.res.stone = c.stone;
 
   // Starvation: food hits zero while the settlement can't feed itself.
   if (S.res.food <= 0 && r.foodNet < 0) {
@@ -560,6 +611,8 @@ const REVEALS = [
     msg: "Your food stores are full — the surplus spoils in the open. Build a Granary." },
   { id: "rotWood", when: () => S.res.wood >= caps().wood - 0.01,
     msg: "Your woodpile is full — extra timber rots in the rain. Build a Woodshed." },
+  { id: "rotStone", when: () => S.res.stone >= caps().stone - 0.01,
+    msg: "Loose stone is piling up faster than anyone can stack it — the excess is lost. Build a Stone Yard." },
   { id: "sicknessWarn", when: () => S.pop >= 4,
     msg: "More mouths, more risk — crowded camps invite sickness. An infirmary would ease their fears." },
   { id: "conflictWarn", when: () => S.pop >= 4,
@@ -616,7 +669,6 @@ function renderResources() {
   const empty = document.getElementById("emptyStores");
   if (empty) empty.classList.toggle("hidden", any);
 
-  const capped = { food: c.food, wood: c.wood, stone: Infinity };
   const netRate = { food: r.foodNet, wood: r.wood, stone: r.stone };
 
   for (const res of ["food", "wood", "stone"]) {
@@ -627,7 +679,7 @@ function renderResources() {
     if (!show) continue;
 
     const valEl = document.getElementById("val-" + res);
-    const cap = capped[res];
+    const cap = c[res];
     const full = isFinite(cap) && S.res[res] >= cap - 0.01;
     valEl.innerHTML = isFinite(cap)
       ? `${fmt(S.res[res])}<span class="cap"> / ${fmt(cap)}</span>`

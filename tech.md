@@ -20,7 +20,7 @@ This was a deliberate choice (discussed and confirmed against an alternative): a
 
 ## Persistence
 
-`localStorage`, under a single versioned key (`CONFIG.saveKey`, currently `"idleCiv.v3"`). Load uses a defensive merge pattern so the schema can grow additively without a migration step:
+`localStorage`, under a single versioned key (`CONFIG.saveKey`, currently `"idleCiv.v6"`). Load uses a defensive merge pattern so the schema can grow additively without a migration step:
 
 ```js
 S = Object.assign(freshState(), data);       // fresh defaults, then override with saved data
@@ -43,7 +43,7 @@ The entire simulation lives in one module-level object, `S` (see `freshState()` 
 |---|---|---|
 | `res` | `{food, wood, stone}` | Current resource stockpiles |
 | `jobs` | `{forager, woodcutter, miner}` | Civilians assigned per gather job |
-| `builds` | `{hut, woodshed, granary, dryingRack, lumberCamp, stonePit, infirmary, barracks}` | Completed building counts (repeatable, unless `cap`ped) |
+| `builds` | `{hut, woodshed, granary, stoneYard, dryingRack, lumberCamp, stonePit, infirmary, barracks}` | Completed building counts (repeatable, unless `cap`ped) |
 | `units` | `{soldier}` | Trained person-types owned. Separate from `builds` specifically so it renders in Your People, not Settlement |
 | `upgrades` | `{[upgradeId]: true}` | One-time upgrades owned; key presence = owned |
 | `buildQueue` | `[{id, kind, uid, total, remaining, cost}]` | FIFO queue shared by buildings, upgrades, and units; only index `[0]` progresses. `cost` is the exact price paid, stored for cancel-refunds |
@@ -62,7 +62,7 @@ Population is **not** `S.jobs` summed plus idle — a person can now be in one o
 1. Bail immediately if `S.dead`.
 2. Compute `rates()` (production, upkeep, net food).
 3. Apply production/upkeep to `res` (scaled by `dt`).
-4. Clamp `food`/`wood` to their storage caps (`caps()`) — silent; a one-time Chronicle hint covers it via `REVEALS`.
+4. Clamp `food`/`wood`/`stone` to their storage caps (`caps()`) — silent; a one-time Chronicle hint covers it via `REVEALS`.
 5. Starvation check: if `food <= 0` and net food rate is negative, either halt (`SIM_STOP`, offline) or call `die("starvation")` (live).
 6. Advance the front of `buildQueue` by `CONFIG.buildSpeed * dt`; on completion, `shift()` it and call `completeConstruction()`.
 7. Call `resolveEvents(dt)` — population growth, sickness, conflict, and anything else on the `EVENTS` list.
@@ -71,8 +71,8 @@ Population is **not** `S.jobs` summed plus idle — a person can now be in one o
 ## Resource System
 
 - `rates()` returns per-second production for each resource plus `upkeep` (`pop * CONFIG.upkeep`) and `foodNet` (production minus upkeep — the only resource with an upkeep drain).
-- `mults()` returns each job's production multiplier: `1 + (boost building count) * CONFIG.buildingBonus`.
-- `caps()` returns current storage ceilings: `CONFIG.baseFoodCap/baseWoodCap + (storage building count) * CONFIG.storageAdd`. Stone is uncapped (`Infinity`) — no storage building exists for it yet.
+- `mults()` returns each job's production multiplier: `1 + (boost building count) * CONFIG.buildingBonus + (Stone Tools owned ? CONFIG.stoneToolsBonus : 0)`. Stone Tools is a flat additive term applied to all three, stacking with the per-job boost buildings rather than replacing them.
+- `caps()` returns current storage ceilings: `CONFIG.baseFoodCap/baseWoodCap/baseStoneCap + (matching storage building count) * CONFIG.storageAdd`. All three resources are capped now (Stone Yard closed the gap where Stone alone had no ceiling).
 
 ## Construction Queue
 
@@ -141,7 +141,9 @@ Conflict's `resolve()`:
   chancePerSecond: number,        // probabilistic, converted to a per-dt roll
   resolve: (S, dt) => { ... },    // full escape hatch -- owns its own trigger + effect + flavor
   condition: (S) => boolean,      // optional extra gate (e.g. sickness needs pop >= 4)
-  counter: { building, reducePerUnit },  // optional negation source
+  counter: { building, reducePerUnit },  // optional negation source; reducePerUnit may be
+                                          // a flat number or (S) => number, for counters whose
+                                          // own strength is itself upgradeable (Herbal Medicine)
   effect: (S) => { /* mutate state */ },
   flavor: { hit: [...strings], negated: [...strings] },  // negated only used if `counter` present
 }
@@ -157,6 +159,8 @@ Conflict's `resolve()`:
 `removeSettler(allowZero = false)` (used by Sickness's effect, and by Conflict's civilian-casualty case with `allowZero: true`) is the shared "a civilian dies" helper: decrements `pop` (floored at 1 unless `allowZero`), then — if that leaves more workers assigned than people alive — pulls the excess back to idle, wood/stone jobs first, food last, so a death never leaves `jobsUsed() > civilians()` (which would otherwise make `idle()` go negative). Contrast with `removeSoldier()` (Units & Military), which removes a unit rather than a civilian and needs no job-reassignment since units were never in `S.jobs`.
 
 Flavor lines are picked at random from each pool (`pick()`) for light variety across repeat occurrences.
+
+**Great Hunt** and **Trader** are the first positive-only entries using the plain `chancePerSecond` + `effect` shape (no `counter`, no `condition`, no `resolve`) — proof the generic shape was never inherently hazard-specific, it just happened to only have hazards using it until now. Both just add resources in `effect()` and log a `"good"`-severity `flavor.hit` line; the negation branch in `resolveEvents()` is skipped automatically since `negateChance()` returns `0` when `ev.counter` is absent.
 
 ## Progressive Reveal Hints
 

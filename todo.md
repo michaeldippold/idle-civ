@@ -9,22 +9,23 @@
 ## Todo
 
 ### Next up
-- [ ] Playtest the whole build for feel now that Military has landed — pacing, whether Sickness
-      *and* Conflict together feel fair, whether losing a standing army mid-game creates the "real
-      pressure" that was the point. `CONFIG.conflictBaseChance`/`conflictPopScale`/raid-size weights
-      are all first-guess (see `tech.md`, Known Limitations) — expect to retune once actually played.
+- [ ] Playtest the whole build for feel now that the Stone Age content pack has landed — Herbal
+      Medicine/Stone Tools/Stone Yard cost-and-effect numbers are all first-guess like everything
+      else in `CONFIG`, deliberately tuned toward "too hard, walk it back" per standing principle.
+      `conflictBaseChance` was already retuned once from real playtest data (tripled); expect other
+      numbers to move too once actually played against.
 - [ ] Consider a second weapon/armor tier once Sword-equivalent content makes sense — right now
       Flint-Tipped Spears / Hide Armor are the only tiers, both Stone-Age-flavored on purpose.
+- [ ] A rare "special" event with no counter (the asteroid-style 0.5%-chance idea) — the engine
+      already supports this shape (just a `chancePerSecond` event with no `counter`), it's still
+      just content, same as Great Hunt/Trader were.
 
 ### Backlog
-- [ ] **More events** — positive windfalls (a trader passes through, extra food/wood), rare
-      "special" events with no counter (the asteroid-style 0.5%-chance idea). The engine already
-      supports both shapes; this is just content.
-- [ ] **A second production/storage tier** — right now Stone is the only uncapped, unboosted
-      resource; consider whether it needs its own storage building and production boost to match
-      Food/Wood, or whether that's intentionally asymmetric.
-- [ ] Balance pass on `CONFIG` now that there's more to balance around (upkeep vs. sickness odds
-      vs. build times vs. growth cost) — most of these numbers are still first-guess.
+- [ ] A third person-type beyond Settler/Soldier — explicitly deferred until era advancement (see
+      Deferred, below); "1-2 more types" was the stated plan for whenever the next era lands.
+- [ ] Balance pass on `CONFIG` now that there's more to balance around (upkeep vs. sickness/conflict
+      odds vs. build times vs. growth cost vs. the new windfall/upgrade numbers) — most of these
+      numbers are still first-guess.
 
 ### Deferred on purpose
 - [ ] **Eras/ages system** — `S.era` exists and the events engine already filters on it, but there
@@ -144,3 +145,34 @@ thin-defense wipe-out-adjacent loss and a full population wipe-out) — includin
 hand-traced RNG sequence for one test was wrong because Sickness's own trigger roll, sitting earlier
 in `EVENTS`, was silently consuming `Math.random()` calls before Conflict's turn; fixed by testing
 Conflict's `resolve()` directly rather than through the full `resolveEvents()` iteration.
+
+**Conflict retuned from real playtest data.** A long, attentive online session saw zero organic
+raids — confirmed via forced-trigger testing that the code path itself worked correctly, ruling out
+a bug, then ruled out the leading offline-invisibility theory once the player confirmed the session
+was online-only. Concluded the rate itself was too rare for the intended "persistent, checkable
+threat" feel. `conflictBaseChance` tripled (0.0006 → 0.0018), bringing the expected wait at a
+mid-game population from ~19min down to ~6-7min, similar cadence to Sickness rather than meaningfully
+rarer than it.
+
+**v7 — Stone Age content pack.** A design brainstorm ("what else belongs in Stone Age before we
+touch eras") turned into five small, well-scoped additions, each reusing existing systems rather
+than adding new ones: **Herbal Medicine** (Upgrade) raises how much *each* Infirmary reduces
+Sickness's odds — the first time a counter's own strength (not just its owned count) became
+upgradeable, which needed `negateChance()`'s `reducePerUnit` to accept a function as well as a flat
+number. Deliberately shipped with Infirmary's *base* effectiveness lowered (0.35 → 0.2) so the
+Upgrade is a real improvement rather than padding, per the standing "tune hard, walk back" principle.
+**Stone Yard** closes a real asymmetry — Food and Wood both rotted past their cap, Stone never had
+one — Stone is now capped and clamped exactly like the other two (flavored as "unorganized, lost"
+rather than "rots," since stone doesn't decay; gameplay symmetry won out over strict realism, a
+deliberate call). **Stone Tools** (Upgrade) is the first of a pattern meant to repeat every era: one
+broad, cheap, early, flat-percent bump to *all* gathering, revealed almost immediately (`wood >= 5`)
+so it competes directly with your very first Hut for early wood — intentional tension. **Great Hunt**
+and **Trader** are the first positive-only probabilistic events (small/frequent food windfall,
+larger/rarer wood+stone windfall) — until now every `chancePerSecond` event was a hazard; these
+prove the shape was never hazard-specific, it just hadn't been used for good news yet. Neither is
+gated behind a population threshold, unlike the hazards — no fairness reason to delay good news.
+Verified via harness (including a flaky-test fix: a windfall landing on the very last tick of a
+600-second test loop can be observed a tick before its cap-clamp runs, exactly as it would in real
+play for one frame — not a game bug, just meant the test needed one extra flush tick before
+asserting) plus live browser testing of the full chain, including watching Trader fire organically
+mid-session.

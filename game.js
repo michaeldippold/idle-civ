@@ -739,15 +739,24 @@ function renderPeople() {
   }
 }
 
-// Always-present: renders the queue as a stack of cards (empty-state message
-// when there's nothing in it). [0] is actively building, the rest wait their
-// turn. Each card's ETA is cumulative (its own remaining plus everything
-// still ahead of it), so the wait visibly counts down too. Every card gets a
-// cancel button -- refunds exactly what was paid, even mid-construction.
+// Hidden until first used, then sticky-visible forever (empty-state message
+// on any later empty stretch, rather than disappearing again). [0] is actively
+// building, the rest wait their turn. Each card's ETA is cumulative (its own
+// remaining plus everything still ahead of it), so the wait visibly counts
+// down too. Every card gets a cancel button -- refunds exactly what was paid,
+// even mid-construction.
 function renderQueue() {
+  const panel = document.getElementById("panel-queue");
   const wrap = document.getElementById("queueBody");
   const emptyMsg = document.getElementById("queueEmpty");
   if (!wrap) return;
+
+  // Hidden (not just empty) until the first time anything is queued, then
+  // sticky-visible forever after -- matches how every other panel unravels in.
+  if (S.buildQueue.length > 0) S.seen.queueUsed = true;
+  panel.classList.toggle("hidden", !S.seen.queueUsed);
+  if (!S.seen.queueUsed) return;
+
   emptyMsg.classList.toggle("hidden", S.buildQueue.length > 0);
   wrap.classList.toggle("hidden", S.buildQueue.length === 0);
 
@@ -940,6 +949,7 @@ function renderTraining() {
 function updateSpans() {
   document.getElementById("panel-village").classList.toggle("span-both", !UNITS.some(isRevealed));
   document.getElementById("panel-holdings").classList.toggle("span-both", !BUILDINGS.some(isRevealed));
+  document.getElementById("panel-queue").classList.toggle("span-both", !UPGRADES.some(isRevealed));
 }
 
 function renderAll() {

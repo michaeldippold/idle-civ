@@ -636,9 +636,15 @@ function log(text, cls) {
   const div = document.createElement("div");
   div.className = "entry" + (cls ? " " + cls : "");
   div.textContent = text;
-  el.appendChild(div);
-  while (el.children.length > 60) el.removeChild(el.firstChild);
-  el.scrollTop = el.scrollHeight;
+
+  // Only the newest entry ever carries "latest" -- hand it off from whoever had it.
+  const prevLatest = el.querySelector(".entry.latest");
+  if (prevLatest) prevLatest.classList.remove("latest");
+  div.classList.add("latest");
+
+  el.prepend(div);                                    // newest at the top, no scrolling needed to see it
+  while (el.children.length > 60) el.removeChild(el.lastChild);  // oldest is now at the bottom -- trim there
+  el.scrollTop = 0;                                    // keep the latest in view even if new lines keep coming
 }
 
 // ---------- Rendering ---------------------------------------

@@ -221,6 +221,7 @@ button { font-family: var(--mono); cursor: pointer; }
 .log .entry.good { color: var(--good); border-left-color: var(--good); }
 .log .entry.bad  { color: var(--danger); border-left-color: var(--danger); }
 .log .entry.big  { color: var(--milestone); font-weight: 700; font-size: 13px; border-left-color: var(--milestone); }
+.log .entry.latest { font-size: 15px; }  /* newest entry -- sized up so it reads at a glance, no scrolling */
 
 /* ---------- Misc ---------- */
 .hidden { display: none !important; }

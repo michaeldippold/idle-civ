@@ -290,3 +290,14 @@ game-over screen. This resolves an open question that had been sitting in `desig
 military pass. The remaining (separate) question is whether the ×1.30 curve is too *steep* — it
 doubles the price roughly every 2.6 settlers, stalling growth near pop 17–18 unless you build
 Granaries purely to hold enough food to afford the next person.
+
+**Era advancement moved into the modal.** Reaching a new age now opens an announcement panel — flavor
+lead, a "What changed" list quoting real before/after numbers (housing 15 → 23), and a "Now
+available" list derived from the defs themselves so it can't go stale. No buttons; dismissed like any
+other modal. A single milestone line still goes to the Chronicle. This is where the "every age must
+land as a visible *whoa* moment" rule from `design.md` actually gets staged — previously the
+transition was three Chronicle lines that scrolled past.
+
+**Playtest milestone:** reached the Bronze Age in ~35 minutes of real play, on the *old* (harsher,
+pre-fix) settler cost curve. Transition verified end to end in a real session: housing jumped to 23,
+buildings reflavored correctly, Bronze Tools unlocked and purchased.

@@ -699,15 +699,16 @@ function onComplete(def) {
 // The one and only place S.era is ever assigned. Everything the transition
 // visibly changes -- panel titles, building names, housing per hut -- is
 // derived from S.era at render time, so flipping it is the whole operation.
-// The Chronicle lines exist so the reflavor reads as a ceremony rather than
-// stats quietly rearranging themselves (see design.md).
+// The full announcement lives in a modal; a single milestone line still goes
+// to the Chronicle so the settlement's own record contains the moment.
 function advanceEra(era) {
-  const housingBefore = housing();
+  const before = { housing: housing() };
   S.era = era;
+  // Silent during offline catch-up -- simulateOffline() announces it instead,
+  // rather than firing a modal at someone the instant the page loads.
   if (SIM) return;
-  log("Copper and tin are married in fire. The first bronze is poured.", "big");
-  log(`Your huts are rebuilt in stone — housing rises from ${housingBefore} to ${housing()}.`, "good");
-  log("The settlement has grown into a village.", "good");
+  log(`The ${ERA_NAMES[era]} begins.`, "big");
+  openEraModal(era, before);
 }
 
 // ---------- Progressive reveal / one-time hints -------------
@@ -1142,6 +1143,38 @@ function openInfoPanel() {
       });
     });
   });
+}
+
+// Hand-authored per era: the flavor and the "what changed" list. The "now
+// available" list underneath is derived from the defs themselves so it can't
+// go stale as content is added. Every age is supposed to land as a visible
+// "whoa, look at this" moment (design.md) -- this is where that gets staged.
+const ERA_TRANSITIONS = {
+  bronze: {
+    lead: "Copper and tin are married in fire. The first bronze is poured, and everything your people know how to make changes with it.",
+    changes: (before) => [
+      `Your huts are rebuilt in stone — housing rises from ${before.housing} to ${housing()}.`,
+      "The settlement has grown into a village.",
+      "Your healers move out of the tent and into a proper infirmary.",
+    ],
+  },
+};
+
+function openEraModal(era, before) {
+  const t = ERA_TRANSITIONS[era];
+  if (!t) return;
+  const changes = (typeof t.changes === "function" ? t.changes(before) : t.changes) || [];
+  const unlocked = [].concat(BUILDINGS, UNITS, UPGRADES)
+    .filter((d) => defEra(d) === era)
+    .map((d) => `${displayName(d)} — ${displayDesc(d)}`);
+
+  const list = (items) => `<ul class="era-list">${items.map((i) => `<li>${i}</li>`).join("")}</ul>`;
+  let html = `<p class="modal-lead">${t.lead}</p>`;
+  if (changes.length) html += `<h3 class="info-h">What changed</h3>${list(changes)}`;
+  if (unlocked.length) html += `<h3 class="info-h">Now available</h3>${list(unlocked)}`;
+
+  // No action buttons -- dismiss via the ×, the backdrop, or Escape.
+  openModal(`The ${ERA_NAMES[era]} Begins`, html);
 }
 
 function openGameOverModal(cause) {

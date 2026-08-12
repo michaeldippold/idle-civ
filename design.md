@@ -150,7 +150,8 @@ The explicit note attached to this idea: **it's worth pursuing even if it means 
 
 Things flagged during the build that need a real decision before they're implemented, not just a default:
 
-- **Does the cost of the next settler ever come back down** after a population loss, or is the escalating growth-cost curve permanently cumulative regardless of deaths? Currently the latter, untested for feel.
-- **How do eras actually transition** — a resource threshold, a building, a deliberate player action, a tech tree? Not designed yet; the player has ideas here not yet captured in writing.
+- **Does the settler cost curve need flattening as well as un-ratcheting?** Now that cost tracks current population (see below), the curve's *steepness* is the remaining question: at ×1.30 per settler the price roughly doubles every ~2.6 people, so growth stalls around pop 17–18 unless you keep pouring resources into Granaries purely to hold enough food to afford the next person. That might be a fine natural ceiling for the Stone Age, or it might want a gentler scale. Undecided until played against.
 
-Resolved this session: whether hazards can zero out population (yes, for Conflict specifically — see Military & Defense / Failure), and what a "soldier" is (a permanent conscription via the build queue, not a reassignable job).
+Resolved by playtesting: **the next settler's cost is priced off current population, not lifetime settlers grown.** The original lifetime counter never decreased, so losing people to a raid or plague left you still paying the price for the dead — turning a single bad roll into a permanent handicap and making recovery strictly harder than the original climb. Pricing off current population makes the settlement self-stabilising instead: it grows to whatever the food economy supports, shrinks when something goes wrong, and can climb back. Losses still cost you real people, resources, and time — they just no longer poison your future.
+
+Also resolved earlier: whether hazards can zero out population (yes, for Conflict specifically — see Military & Defense / Failure), what a "soldier" is (a permanent conscription via the build queue, not a reassignable job), and how eras transition (a hidden capstone Upgrade — see Eras).

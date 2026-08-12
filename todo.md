@@ -279,3 +279,14 @@ Hut is still there in Bronze, just displayed as "Stone House"). Replaced with
 optional `untilEra` to retire things (used now by age capstones, and the hook a future consolidating
 age will need). Also caught in live play: `body.dead .block { opacity: .7 }` was dimming the
 game-over modal itself, since the modal panel is also a `.block` — now scoped to the board only.
+
+**Settler cost un-ratcheted.** Playtest finding: `growthCost()` was priced off `S.bought`, a lifetime
+counter of every settler ever grown that never decreased — so after a raid or plague you kept paying
+the price for people who were already dead. A single bad roll became a permanent handicap, and
+recovery was strictly harder than the original climb had been. Now priced off *current* population,
+which makes the settlement self-stabilising: it grows to whatever the food economy supports, shrinks
+when something goes wrong, and can climb back. `S.bought` survives purely as a lifetime stat on the
+game-over screen. This resolves an open question that had been sitting in `design.md` since the
+military pass. The remaining (separate) question is whether the ×1.30 curve is too *steep* — it
+doubles the price roughly every 2.6 settlers, stalling growth near pop 17–18 unless you build
+Granaries purely to hold enough food to afford the next person.

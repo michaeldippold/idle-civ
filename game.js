@@ -213,7 +213,7 @@ function freshState() {
     buildQueue: [],   // FIFO: [{ id, kind, uid, total, remaining, cost }, ...] -- only [0] progresses
     buildSeq: 0,
     pop: CONFIG.startPop,
-    bought: 0,
+    bought: 0,        // lifetime settlers grown -- a stat only; see growthCost()
     era: "stone",     // gates which EVENTS are eligible; ages system lands later
     playtime: 0,      // seconds the simulation has actually advanced -- see step()
     seen: {},
@@ -273,8 +273,17 @@ function rates() {
   return { food: prod.food, wood: prod.wood, stone: prod.stone, upkeep, foodNet: prod.food - upkeep };
 }
 
+// Priced off CURRENT population, not lifetime settlers grown. Using the
+// lifetime counter meant losing people to a raid or plague left you still
+// paying the price for the dead -- a ratchet that punished the recovery
+// specifically, turning one bad roll into a permanent handicap. Keyed to
+// current pop, the cost falls back when you shrink, so population becomes
+// self-stabilising: it climbs to whatever your food economy supports, drops
+// when something goes wrong, and can climb back. `S.bought` survives purely
+// as a lifetime stat for the game-over screen.
 function growthCost() {
-  return Math.round(CONFIG.growthBase * Math.pow(CONFIG.growthScale, S.bought));
+  const grown = Math.max(0, S.pop - CONFIG.startPop);
+  return Math.round(CONFIG.growthBase * Math.pow(CONFIG.growthScale, grown));
 }
 
 // How many of this building/upgrade/unit are already owned or waiting in the

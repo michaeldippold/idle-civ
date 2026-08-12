@@ -240,24 +240,32 @@ const UPGRADES = [
 // raid type it excels against (see RAID_TYPES). Soldiers stay the cheap
 // generalist -- and notably the only one costing no bronze, so they remain
 // buildable when the Forge is starved.
+//
+// `casualtyWeight` is how exposed a unit is when someone has to die: it scales
+// that type's share of the casualty draw (see removeRandomUnit). Foot soldiers
+// hold the line and take the brunt; horsemen can withdraw; archers shoot from
+// the back and are hit least. Every weight is deliberately ABOVE ZERO -- this
+// bends the odds, it never grants immunity, so an archer can always be the one
+// who falls and an all-archer army has no protection at all.
 const UNITS = [
   {
     id: "soldier", name: "Soldier", kind: "unit", popCost: 1, strength: 1.0,
-    desc: "A settler permanently trained for defense. Eats like anyone else; produces nothing but safety.",
+    casualtyWeight: 1.0,
+    desc: "A settler permanently trained for defense. Holds the line, and takes the worst of it.",
     base: { wood: 12 }, buildTime: 15,
     reveal: () => S.builds.barracks >= 1,
   },
   {
     id: "archer", name: "Archer", kind: "unit", era: "bronze", popCost: 1,
-    strength: 1.0, counters: "massed",
-    desc: "Deadly against a massed charge, where a wall of bodies makes an easy target.",
+    strength: 1.0, counters: "massed", casualtyWeight: 0.35,
+    desc: "Deadly against a massed charge, and safer than most — they fight from behind the line.",
     base: { wood: 14, bronze: 6 }, buildTime: 18,
     reveal: () => S.builds.archeryRange >= 1,
   },
   {
     id: "horseman", name: "Horseman", kind: "unit", era: "bronze", popCost: 1,
-    strength: 1.5, counters: "riders",
-    desc: "Strong in any fight, and the only thing quick enough to run down mounted raiders.",
+    strength: 1.5, counters: "riders", casualtyWeight: 0.6,
+    desc: "Strong in any fight, quick enough to run down mounted raiders, and quick enough to withdraw.",
     base: { wood: 20, bronze: 14 }, buildTime: 24,
     reveal: () => S.builds.stables >= 1,
   },
@@ -718,15 +726,34 @@ function removeSettler(allowZero) {
 // flavor), or null if there was nobody left to lose. Casualties are drawn at
 // random, weighted by how many of each type are actually fielded.
 function removeRandomUnit() {
-  const pool = [];
+  // Weighted by headcount AND exposure (`casualtyWeight`), so the front line
+  // absorbs most losses. Because every weight is > 0, no type is ever immune:
+  // this only bends the odds. With one type fielded it degenerates to "that
+  // type dies," which is why an all-archer army gets no protection at all.
+  const weightOf = (def) => (S.units[def.id] || 0) * (def.casualtyWeight || 1);
+  const total = UNITS.reduce((sum, def) => sum + weightOf(def), 0);
+  if (total <= 0) return null;
+
+  let roll = Math.random() * total;
   for (const def of UNITS) {
-    for (let i = 0; i < (S.units[def.id] || 0); i++) pool.push(def);
+    const w = weightOf(def);
+    if (roll < w) {
+      S.units[def.id] -= 1;
+      S.pop -= 1;
+      return displayName(def);
+    }
+    roll -= w;
   }
-  if (!pool.length) return null;
-  const def = pool[Math.floor(Math.random() * pool.length)];
-  S.units[def.id] -= 1;
-  S.pop -= 1;
-  return displayName(def);
+  // Floating-point guard: if rounding walked `roll` past the end, take from
+  // whichever type still has someone left rather than returning null.
+  for (let i = UNITS.length - 1; i >= 0; i--) {
+    if ((S.units[UNITS[i].id] || 0) > 0) {
+      S.units[UNITS[i].id] -= 1;
+      S.pop -= 1;
+      return displayName(UNITS[i]);
+    }
+  }
+  return null;
 }
 
 function resolveEvents(dt) {

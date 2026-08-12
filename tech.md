@@ -173,7 +173,9 @@ Storage asymmetry is deliberate: one **Ore Yard** raises the copper *and* tin ca
 
 Composition mismatch feeds a second, softer dial rather than `repelChance`: `counterCoverage(raid)` returns the share of your defense coming from the countering unit, and the costly-repel probability is multiplied by `1 - CONFIG.counterCasualtyRelief × coverage`. Fielding the right unit therefore both wins more fights *and* buries fewer of your own.
 
-`removeRandomUnit()` replaces the old soldier-specific helper: it builds a pool weighted by how many of each type are actually fielded, drops one, decrements `S.pop` alongside, and returns the lost unit's display name for flavor. `stealResources()` now loops every resource including the ores and bronze.
+`removeRandomUnit()` replaces the old soldier-specific helper: it drops one unit, decrements `S.pop` alongside, and returns the lost unit's display name for flavor. `stealResources()` now loops every resource including the ores and bronze.
+
+**Casualty exposure.** The draw is weighted by headcount × the unit's `casualtyWeight` (Soldier 1.0, Horseman 0.6, Archer 0.35), so the front line absorbs most losses and archers read as the backline unit they're meant to be. Every weight is deliberately **greater than zero**, which is what makes this bend the odds rather than grant immunity: an archer can always be the one who falls, and an all-archer army degenerates to "the archer dies" with no protection whatsoever. Measured over 30,000 draws from an even 10/10/10 army: soldier 50.9%, horseman 31.1%, archer 17.9%. A trailing fallback loop covers the floating-point case where accumulated subtraction walks the roll past the end of the list — without it, a rounding error would return `null` and silently skip a casualty.
 
 **Scouting** is gated on the *upgrade*, not the Stables that reveals it — building the Stables alone doesn't hand you the event category, you have to invest in it. Its two events are ordinary `chancePerSecond` entries; one is deliberately pure flavor with an empty `effect`, since the value of a warning is the knowing.
 

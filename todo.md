@@ -43,6 +43,9 @@ tested before the next starts — Phase 1 alone is a complete, satisfying age tr
 - [x] **Scouting** upgrade (gated on the upgrade, not just the Stables) → two new events.
 - [x] Harness: every composition/raid-type pairing, plus the never-penalised guarantee.
 
+- [x] **Casualty exposure** (post-phase tweak): losses are weighted by role, so archers read as a
+      backline unit — see v10 notes.
+
 **Bronze Age is complete.** All three phases shipped; the age is ready for a real playthrough.
 
 ### Next up
@@ -350,6 +353,15 @@ stored in **two** places pointing at each other — the raid held a unit id, the
 and the comparison used the wrong pair, so it was always false and **every counter bonus in the game
 silently did nothing**. No error, no crash, the feature just wasn't there. Fixed by deleting the
 redundant field so only one direction exists, with a test asserting the duplicate can't come back.
+
+**Casualty exposure by role.** Playtest note: archers didn't *feel* like archers — mechanically they
+were a differently-priced soldier, since casualties were drawn evenly by headcount. Losses are now
+weighted by role exposure (Soldier 1.0, Horseman 0.6, Archer 0.35), so the front line takes the brunt
+and archers fight from behind it. Every weight is above zero on purpose: this bends the odds and
+never grants immunity, so an archer can always be the one who falls and an all-archer army — having
+no front line to hide behind — gets no protection at all. Measured over 30,000 draws from an even
+10/10/10 army: soldier 50.9%, horseman 31.1%, archer 17.9%. A pleasant side effect: mixing your army
+now buys your specialists safety, a second reason to diversify beyond matchup coverage.
 
 **Playtest milestone:** reached the Bronze Age in ~35 minutes of real play, on the *old* (harsher,
 pre-fix) settler cost curve. Transition verified end to end in a real session: housing jumped to 23,

@@ -68,6 +68,22 @@ For a while, every *probabilistic* event was bad news — Sickness and Conflict 
 
 An Infirmary's mitigation strength itself turned out to be upgradeable, not just its count — **Herbal Medicine** raises how much *each* Infirmary reduces Sickness's odds, rather than adding a new counter-building. That's a genuinely different lever than "own more of the building," and worth remembering as a pattern for other counters later (Barracks/Soldier-style scaling isn't the only option).
 
+#### Settled: population growth is not an event
+
+**Settlers cost nothing and arrive on a timer.** While housing has room, a new person shows up every N seconds — full stop. No food price, no saving up, no stalling ten under the cap waiting to afford someone.
+
+This replaces the original model, where a settler was *bought* with a lump of food at a price escalating 30% per person. That failed on three counts: the implication was strange (you pay a wanderer to join?), it stalled growth for long stretches, and — because the purchase fired automatically the instant it was affordable — food could never accumulate past the settler price at all. Your practical food ceiling was the price of the next person, not your storage cap, which meant the Bronze Age capstone's 300 food was unreachable before roughly pop 17 unless you deliberately stopped building housing. None of that was intended.
+
+The important structural point: **growth is a background process, not an event.** Every other entry in the events system is a *surprise* — something that happens to you, where randomness is the point. Growth is a steady tick. Folding it into a random table would make population lumpy and luck-driven, and would force it to compete with hazards for the same probability budget: making settlers common would necessarily make raids rarer. Keeping it out of the table lets "how fast do we grow" and "how dangerous is the world" stay independent dials.
+
+Food keeps its pressure through **upkeep**, which scales with population, so the tension moves from a stock problem (can I save a lump sum?) to a flow problem (can I sustain these people?). That's the better question, and it makes housing the sole lever on population: if you don't want more mouths, don't build more housing.
+
+#### Settled: each era declares its own slate of events
+
+Events are **owned by eras**, not tagged with them. Each era declares the complete list of what can happen during it. An event that spans two eras appears in both slates; an era that wants a clean break just declares a different list.
+
+This replaces per-event `eras: [...]` tags, which were error-prone in a specific and nasty way: forgetting to add a new era to an existing event's tag list would silently stop that event from ever firing again, with no error — a settlement that quietly stops having births or raids. Declaring the slate per era makes omission visible, and makes "scrap everything and start fresh" a one-line change, which later eras will want.
+
 ### Military & Defense
 The answer to "what is a soldier": a **permanent conscription**, not a reassignable job. Training a Soldier goes through the same build queue as everything else (pay resources, wait a build time, get the unit) with one addition — it also permanently consumes one idle civilian, reserved the moment you queue the order (not when it completes), and that person never returns to the gatherable labor pool by player choice. The only way a Soldier count goes down is combat losses. This is deliberate: a freely reassignable defense stat is a costless toggle you'd flip up before trouble and down right after, which defeats the point. Soldiers still eat (ordinary population upkeep already covers this — no new formula needed) and still occupy housing; they just don't produce anything but the safety they provide. That's the commitment.
 

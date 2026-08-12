@@ -32,7 +32,14 @@
       is no transition logic, UI, or content beyond Stone Age. Player has design ideas for this not
       yet written down. Do not start implementing until that design pass happens. Bronze Age itself
       is the obvious first entry on `UPGRADES` once this lands — the one-time-upgrade infrastructure
-      is ready for it, deliberately not wired to do anything era-related yet.
+      is ready for it, deliberately not wired to do anything era-related yet. Concrete pacing target
+      now exists too (see `design.md`, "Active early, idle late"): a Stone Age Soldier trains in
+      ~10s, a Starship many eras later should cost something like 6h -- same interface, wildly
+      different pace. Remember when building that: `CONFIG.offlineCapHours` (currently 4) caps how
+      much offline time a single catch-up simulates, so a 6h build literally cannot finish in one
+      away-session under the current value -- it'll need to scale alongside build times, or very
+      long late-game orders will require multiple check-ins instead of one, undercutting the "walk
+      away for hours" fantasy the pacing target is going for.
 - [ ] **Tick-counter for cooldowns/authored beats** — considered adopting `dispatch`'s discrete
       fixed-tick architecture wholesale; decided against a full port (wrong fit for an idle game's
       continuous/offline-progress model — see `tech.md`). A lightweight `S.tick` counter *alongside*

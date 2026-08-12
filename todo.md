@@ -363,6 +363,18 @@ no front line to hide behind — gets no protection at all. Measured over 30,000
 10/10/10 army: soldier 50.9%, horseman 31.1%, archer 17.9%. A pleasant side effect: mixing your army
 now buys your specialists safety, a second reason to diversify beyond matchup coverage.
 
+**Bug fix: `idle` could go negative.** Reported from a full Bronze-age playthrough — the idle count
+displayed **-1**, and clicking a job's minus button then "absorbed" the deficit, which looked like a
+worker being deleted. Root cause: a civilian can be committed in two ways, assigned to a job *or*
+reserved by a queued unit order, and the death handler only balanced against jobs. A death while a
+Soldier sat in the queue therefore left the books short by exactly the reserved worker. Replaced with
+`reconcileWorkforce()`, which balances against jobs *and* reservations, releasing workers first and
+then — if more orders are queued than there are survivors to fill them — abandoning the newest orders
+with a full refund. Writing the repro also surfaced a second, unreported bug: `removeSettler()` could
+push population below the number of trained units, making `civilians()` negative; it now no-ops when
+there are no civilians left to take. Both are covered by a 400-settlement fuzz test asserting neither
+value can go negative.
+
 **Playtest milestone:** reached the Bronze Age in ~35 minutes of real play, on the *old* (harsher,
-pre-fix) settler cost curve. Transition verified end to end in a real session: housing jumped to 23,
+pre-fix) settler cost curve. A later full playthrough built every unit and building in the age. Transition verified end to end in a real session: housing jumped to 23,
 buildings reflavored correctly, Bronze Tools unlocked and purchased.

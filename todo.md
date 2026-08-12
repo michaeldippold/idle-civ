@@ -8,10 +8,9 @@
 
 ## Todo
 
-### In progress: Bronze Age
-Full design consensus reached; recorded in `design.md` (Eras → Bronze Age) and `tech.md`
-(Eras → Bronze Age architecture). Shipping in three phases, each independently playable and
-tested before the next starts — Phase 1 alone is a complete, satisfying age transition.
+### Bronze Age — ✅ complete
+Shipped in three phases, each independently playable and tested. Checklists preserved below for
+the record; see What's Working (v8–v10) for the full account.
 
 **Phase 1 — The Transition** — ✅ **DONE** *(see What's Working, v8)*
 - [x] `displayName`/`displayDesc` helpers + `names`/`descs` era maps; all rendering and log lines
@@ -48,6 +47,46 @@ tested before the next starts — Phase 1 alone is a complete, satisfying age tr
 
 **Bronze Age is complete.** All three phases shipped; the age is ready for a real playthrough.
 
+### In progress: growth rework + the manifest refactor
+Full consensus reached; contracts recorded in `tech.md` (Settled But Not Yet Built) and rationale in
+`design.md` (Settled: population growth is not an event / The Era Manifest Model). **Implement from
+those documents, not from memory** — they mark exactly which details are settled and which are
+flagged *to be decided during implementation*.
+
+**Standalone (independent of the phases, can land first) — free timed growth**
+- [ ] Remove the `wanderer` entry from `EVENTS`; growth becomes a background accrual in `step()`
+      (progress += dt while `pop < housing()`; settler at `CONFIG.settlerIntervalSeconds`, first
+      guess ~45s). Chronicle line stays — births are still story — it just names no price.
+- [ ] Delete `growthCost()`, `CONFIG.growthBase`, `CONFIG.growthScale`; sweep for references.
+- [ ] Your People growth line becomes a countdown ("Next settler arrives in Ns" / "Housing is full").
+- [ ] Decide freeze-vs-reset for accrued progress at full housing (docs lean freeze).
+- [ ] Harness: no food spent on growth, cadence honored, housing-gated, works under offline
+      catch-up, `bought` still counts lifetime settlers.
+
+**Phase A — parity refactor** *(content reorganization only; zero state-schema change)*
+- [ ] Re-author Stone + Bronze as deltas compiled to full manifests; `active()` indirection
+      replaces every direct read of the global content tables.
+- [ ] Dissolve into manifest data: `names`/`descs` maps, `era`/`untilEra`, `eras` tags on events,
+      `HOUSING_PER_HUT`, `PANEL_TITLES`, `ERA_NAMES`, era checks inside `reveal()` predicates.
+- [ ] Parity suite in the harness: identical visible content, costs, caps, rates, and reveal
+      behavior per era, before vs. after; a pre-refactor save loads and plays identically.
+
+**Phase B — transition machinery**
+- [ ] Boot-time validator (full checklist enumerated in `tech.md` — cost keys, converts keys,
+      capBuilding/boost refs, job.res, unit counters, event counters, delta-level target checks).
+- [ ] Migration runner: frozen pre-transition snapshot, `vanish`/`convertTo`/`fn` primitives,
+      `narrate` lines, `S.eraHistory` archive, removed-job workers released via
+      `reconcileWorkforce()`.
+- [ ] DOM purge on era flip (the resolution to "nothing can un-reveal").
+- [ ] Era modal derives added/removed/changed from the manifest diff; retire `ERA_TRANSITIONS`
+      as a hand-maintained change list.
+
+**Phase C — Iron Age** *(first real consumer; full content design happens when we get here)*
+- [ ] Authored as a delta: remove copper/tin/bronze economy (resources, jobs, Ore Yard); add iron
+      + gold; retarget Forge to iron → steel; Iron Weapons upgrade.
+- [ ] The era's actual content pass (buildings, events, flavor) designed at the time, per the
+      one-age-at-a-time rule.
+
 ### Next up
 - [ ] Playtest the whole build for feel now that the Stone Age content pack has landed — Herbal
       Medicine/Stone Tools/Stone Yard cost-and-effect numbers are all first-guess like everything
@@ -71,11 +110,10 @@ tested before the next starts — Phase 1 alone is a complete, satisfying age tr
 - [ ] **Ages past Bronze** — the age list in `design.md` is a flavor guide, not a backlog. One age
       at a time, each proven fun before the next is scoped. A widening age with no concrete reason
       to exist by the time it's scoped gets cut rather than forced.
-- [ ] **Retiring/consolidating buildings** — Bronze deliberately consolidates nothing, so it never
-      needs this. But `isRevealed()` stickiness means nothing can currently *un*-reveal, so the
-      first age that genuinely retires a building will need a real mechanism plus a one-time save
-      migration (folding several old building counts into one new one) — the first thing in this
-      project that the additive defensive-merge pattern won't handle for free.
+- [ ] ~~**Retiring/consolidating buildings**~~ — no longer deferred: this is exactly what the
+      manifest refactor (In progress, above) exists to solve. Removal becomes manifest absence,
+      un-reveal becomes the era-flip DOM purge, and state transformation becomes declared
+      migration instructions with an `S.eraHistory` safety net.
 - [ ] **`CONFIG.offlineCapHours` will need to scale with build times** — currently 4h, so a
       hypothetical 6h late-game build literally cannot finish in a single away-session, undercutting
       the "walk away for hours" pacing target (see `design.md`, "Active early, idle late": a Stone
@@ -390,5 +428,21 @@ Age capstone's 300 food is unreachable before ~pop 17 unless you deliberately st
 let population cap out. A real strategic lever that nothing currently hints at.
 
 **Playtest milestone:** reached the Bronze Age in ~35 minutes of real play, on the *old* (harsher,
-pre-fix) settler cost curve. A later full playthrough built every unit and building in the age. Transition verified end to end in a real session: housing jumped to 23,
-buildings reflavored correctly, Bronze Tools unlocked and purchased.
+pre-fix) settler cost curve. A later full playthrough built every unit and building in the age.
+Transition verified end to end in a real session: housing jumped to 23, buildings reflavored
+correctly, Bronze Tools unlocked and purchased.
+
+**Design consensus: free growth + the Era Manifest Architecture.** Two connected decisions, both
+born from the invisible-food-sink investigation. First: settlers become free and timed — the food
+cost is abolished, growth leaves the events system entirely, and housing becomes the sole lever on
+population. Second, and much larger: with Iron Age intending to *remove* the whole bronze economy,
+the era-tags-on-global-content approach was headed for a palimpsest, so the architecture inverts —
+each era declares a complete **manifest** of everything that exists while it's active, authored as
+a delta against the previous era, with absence-as-removal, snapshot-based migration instructions
+(the `rescale` primitive covers everything from melting bronze into iron salvage to eventually
+re-denominating billions of citizens into colonies), a boot-time validator that turns this
+project's signature silent-wrongness bug class into loud named errors, and an era modal whose
+factual lists derive from the manifest diff so they can never lie. Full contracts in `tech.md`
+(Settled But Not Yet Built); rationale in `design.md` (The Era Manifest Model). Sequenced as
+parity-refactor → transition machinery → Iron Age, so engine risk and content risk never travel
+together. Documentation-only milestone — no code changed.

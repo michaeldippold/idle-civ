@@ -260,3 +260,22 @@ accumulates across the whole pause and gets handed back (clamped to 2s) the mome
 quietly gifting production for frozen time. Verified live — a 9-second pause produces zero `step()`
 calls and resumes on a normal 0.202s tick. Pause is deliberately not saved (UI state, not game state)
 and deliberately not logged to the Chronicle (that's the settlement's memory, not a UI action log).
+
+**Modal system + game-over and Info panels.** A deliberately minimal overlay: one modal at a time,
+centered, 30% dim backdrop, dismissed by the header ×, a backdrop click, or Escape. No dragging,
+resizing, or minimizing. It reuses the `.block` shell so it matches the board for free, and opening
+one never pauses the game. **Game over** moved out of the Chronicle into a proper modal — narrative
+line, run stats (time survived, age reached, buildings raised, settlers grown), and a **Try Again**
+button; one terse line still lands in the Chronicle so the settlement's record ends with its own
+ending. **The Info panel** (`[ Info ]` in the topbar) is a full reference of every building, unit,
+and upgrade, grouped by era behind tabs — it intentionally shows everything regardless of what's been
+revealed, a deliberate exception to "unravel, don't dump" since a reference that hides things is
+useless.
+
+Building it surfaced a modeling error worth recording: filtering the reference by "defs whose era
+equals this tab" left the Bronze tab nearly empty, because most things *persist* once introduced (a
+Hut is still there in Bronze, just displayed as "Stone House"). Replaced with
+`availableInEra(def, era)` — availability runs from a def's introduction era forward, with an
+optional `untilEra` to retire things (used now by age capstones, and the hook a future consolidating
+age will need). Also caught in live play: `body.dead .block { opacity: .7 }` was dimming the
+game-over modal itself, since the modal panel is also a `.block` — now scoped to the board only.

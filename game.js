@@ -43,6 +43,7 @@ const JOBS = [
 // Only the display layer and a handful of tuning values vary by era. Ids never
 // change (saves key off them) -- a def's `names`/`descs` maps override how it
 // reads per era, falling back to its base `name`/`desc`. See tech.md.
+const ERA_ORDER = ["stone", "bronze"];   // chronological; drives era comparisons
 const ERA_NAMES = { stone: "Stone Age", bronze: "Bronze Age" };
 const HOUSING_PER_HUT = { stone: 3, bronze: 5 };
 const PANEL_TITLES = {
@@ -147,13 +148,13 @@ const UPGRADES = [
   // through its long build. That's deliberately where "and some luck" lives.
   // Its completion is the ONLY place S.era is ever assigned.
   {
-    id: "bronzeAge", name: "Bronze Age", kind: "upgrade",
+    id: "bronzeAge", name: "Bronze Age", kind: "upgrade", untilEra: "stone",
     desc: "Copper and tin, married in fire. Step out of the age of stone.",
     base: { food: 300, wood: 300, stone: 300 }, buildTime: 120,
     reveal: () => S.pop >= 10 && (S.units.soldier || 0) >= 1,
   },
   {
-    id: "bronzeTools", name: "Bronze Tools", kind: "upgrade",
+    id: "bronzeTools", name: "Bronze Tools", kind: "upgrade", era: "bronze",
     desc: "Permanently improves all gathering by 15%.",
     base: { wood: 60, stone: 40 }, buildTime: 30,
     reveal: () => S.era === "bronze",
@@ -303,8 +304,28 @@ function defById(id) {
 // A def's displayed name/description can vary by era; its id never does. All
 // rendering and all log lines go through these rather than reading def.name /
 // def.desc directly, so reflavoring a later age costs nothing structurally.
-function displayName(def) { return (def.names && def.names[S.era]) || def.name; }
-function displayDesc(def) { return (def.descs && def.descs[S.era]) || def.desc; }
+// `era` defaults to the current one; the Info panel passes an explicit era so a
+// Bronze tab reads with Bronze names even while you're still in the Stone Age.
+function displayName(def, era) { return (def.names && def.names[era || S.era]) || def.name; }
+function displayDesc(def, era) { return (def.descs && def.descs[era || S.era]) || def.desc; }
+
+// Which era a def is INTRODUCED in. Untagged defs are Stone Age, so only
+// later-era content needs an explicit `era` field.
+function defEra(def) { return def.era || "stone"; }
+function eraIndex(era) { const i = ERA_ORDER.indexOf(era); return i === -1 ? 0 : i; }
+
+// Whether a def exists at all in a given era. Most things persist once
+// introduced (a Hut is still there in the Bronze Age, just renamed Stone
+// House), so availability runs from `era` onward. An optional `untilEra`
+// marks something that stops being available -- currently only age capstones,
+// but this is also the hook a future consolidating age will need when it
+// genuinely retires a building.
+function availableInEra(def, era) {
+  const i = eraIndex(era);
+  if (i < eraIndex(defEra(def))) return false;
+  if (def.untilEra && i > eraIndex(def.untilEra)) return false;
+  return true;
+}
 
 // Once a building/upgrade/unit's reveal() condition has been true, it stays
 // visible forever -- otherwise a threshold-based reveal (e.g. "wood >= 8")
@@ -581,9 +602,11 @@ function step(dt) {
 
 function die(cause) {
   S.dead = true;
+  // One terse line so the Chronicle -- the settlement's memory -- still ends
+  // with its own ending. The dramatic version and the actionable bits live in
+  // the game-over modal instead.
   if (cause === "conflict") log("The last defenders fall. The settlement is overrun.", "big");
   else log("The last of your people starve. The settlement falls silent.", "big");
-  log("Reset to begin again.", "bad");
   const badge = document.getElementById("ageBadge");
   if (badge) { badge.textContent = "[Fallen]"; badge.classList.add("fallen"); }
   document.body && document.body.classList.add("dead");
@@ -592,6 +615,7 @@ function die(cause) {
   if (saveId) clearInterval(saveId);
   // Last render before the loop stops, so the clock shows the run's final time.
   renderAll();
+  openGameOverModal(cause);
 }
 
 // ---------- Actions -----------------------------------------
@@ -1039,6 +1063,101 @@ function updateSpans() {
   document.getElementById("panel-queue").classList.toggle("span-both", !UPGRADES.some(isRevealed));
 }
 
+// ---------- Modal ---------------------------------------------
+// One modal at a time, centered over a dimmed page. No dragging, resizing, or
+// minimizing by design -- opening one never pauses the game (game over is the
+// exception only because death already stops the loop on its own).
+function openModal(title, bodyHTML, actions, onMount) {
+  document.getElementById("modalTitle").textContent = title;
+  const body = document.getElementById("modalBody");
+  body.innerHTML = bodyHTML;
+  body.scrollTop = 0;
+
+  const bar = document.getElementById("modalActions");
+  bar.innerHTML = "";
+  bar.classList.toggle("hidden", !actions || !actions.length);
+  (actions || []).forEach((a) => {
+    const b = document.createElement("button");
+    b.className = "modal-btn";
+    b.textContent = a.label;
+    b.addEventListener("click", a.onClick);
+    bar.appendChild(b);
+  });
+
+  document.getElementById("modalOverlay").classList.remove("hidden");
+  if (onMount) onMount(body);
+}
+
+function closeModal() {
+  document.getElementById("modalOverlay").classList.add("hidden");
+}
+function modalIsOpen() {
+  return !document.getElementById("modalOverlay").classList.contains("hidden");
+}
+
+// Reference panel: everything in the game, grouped by era. Shows all content
+// regardless of what's been revealed -- it's a reference, and hiding things
+// would defeat the point (see design.md for the tension with "unravel").
+function infoPanelHTML() {
+  const eras = ERA_ORDER;
+  const tabs = eras.map((e) =>
+    `<button class="info-tab${e === S.era ? " active" : ""}" data-era="${e}">${ERA_NAMES[e]}</button>`
+  ).join("");
+
+  const sections = eras.map((e) => {
+    const group = (label, defs) => {
+      const items = defs.filter((d) => availableInEra(d, e));
+      if (!items.length) return "";
+      return `<h3 class="info-h">${label}</h3>` + items.map((d) =>
+        `<div class="info-item">` +
+          `<span class="info-name">${displayName(d, e)}</span>` +
+          `<span class="info-desc">${displayDesc(d, e)}</span>` +
+        `</div>`
+      ).join("");
+    };
+    const inner = group("Buildings", BUILDINGS) + group("People", UNITS) + group("Upgrades", UPGRADES);
+    return `<div class="info-era${e === S.era ? "" : " hidden"}" data-era="${e}">${inner}</div>`;
+  }).join("");
+
+  return `<div class="info-tabs">${tabs}</div>${sections}`;
+}
+
+function openInfoPanel() {
+  openModal("Reference", infoPanelHTML(), null, (body) => {
+    body.querySelectorAll(".info-tab").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const era = tab.dataset.era;
+        body.querySelectorAll(".info-tab").forEach((t) => t.classList.toggle("active", t === tab));
+        body.querySelectorAll(".info-era").forEach((s) => s.classList.toggle("hidden", s.dataset.era !== era));
+        body.scrollTop = 0;
+      });
+    });
+  });
+}
+
+function openGameOverModal(cause) {
+  const lead = cause === "conflict"
+    ? "The last defenders fall. Raiders move through the settlement unopposed, and by morning there is no one left to rebuild."
+    : "The stores run empty. One by one your people weaken, and the fires go out for the last time.";
+  const built = Object.values(S.builds).reduce((a, b) => a + b, 0);
+  const stats =
+    `<div class="modal-stats">` +
+      `<div>Time survived: <span class="s-val">${fmtTime(S.playtime || 0)}</span></div>` +
+      `<div>Age reached: <span class="s-val">${ERA_NAMES[S.era] || ERA_NAMES.stone}</span></div>` +
+      `<div>Buildings raised: <span class="s-val">${built}</span></div>` +
+      `<div>Settlers grown: <span class="s-val">${S.bought}</span></div>` +
+    `</div>`;
+  openModal("The Settlement Has Fallen", `<p class="modal-lead">${lead}</p>${stats}`, [
+    { label: "Try Again", onClick: () => {
+        // Same guard as the Reset button: reload fires beforeunload -> save(),
+        // which would rewrite the save we just cleared.
+        window.removeEventListener("beforeunload", save);
+        try { localStorage.removeItem(CONFIG.saveKey); } catch (e) {}
+        location.reload();
+      } },
+  ]);
+}
+
 function fmtTime(totalSec) {
   const t = Math.max(0, Math.floor(totalSec));
   const s = t % 60, m = Math.floor(t / 60) % 60, h = Math.floor(t / 3600);
@@ -1184,9 +1303,18 @@ function boot() {
   });
 
   document.getElementById("pauseBtn").addEventListener("click", () => setPaused(!paused));
-  // Space toggles pause. preventDefault stops it from re-activating whichever
-  // stepper/build button happens to still hold focus from the last click.
+  document.getElementById("infoBtn").addEventListener("click", openInfoPanel);
+  document.getElementById("modalClose").addEventListener("click", closeModal);
+  // Clicking the dimmed backdrop closes; clicks inside the panel bubble up to
+  // the overlay too, so check the target is the overlay itself.
+  document.getElementById("modalOverlay").addEventListener("click", (e) => {
+    if (e.target.id === "modalOverlay") closeModal();
+  });
+
   window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modalIsOpen()) { closeModal(); return; }
+    // Space toggles pause. preventDefault stops it from re-activating whichever
+    // stepper/build button happens to still hold focus from the last click.
     if (e.code !== "Space" && e.key !== " ") return;
     e.preventDefault();
     setPaused(!paused);

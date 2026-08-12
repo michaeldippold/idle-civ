@@ -229,9 +229,71 @@ button { font-family: var(--mono); cursor: pointer; }
 .log .entry.big  { color: var(--milestone); font-weight: 700; font-size: 13px; border-left-color: var(--milestone); }
 .log .entry.latest { font-size: 15px; }  /* newest entry -- sized up so it reads at a glance, no scrolling */
 
+/* ---------- Modal ---------- */
+#modalOverlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(0, 0, 0, 0.30);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+#modalPanel {
+  /* Inherits .block's border/background/flex-column shell. Sizes to content,
+     up to a ceiling; the body scrolls internally past that. */
+  max-width: min(680px, 92vw);
+  max-height: 82vh;
+  min-width: min(340px, 90vw);
+}
+#modalHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.modal-x {
+  background: none; border: none; color: var(--ink-faint);
+  font-size: 16px; line-height: 1; padding: 0 2px;
+}
+.modal-x:hover { color: var(--danger); }
+.modal-actions {
+  flex: 0 0 auto;
+  display: flex; justify-content: flex-end; gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--ink-faint);
+}
+.modal-btn {
+  background: var(--bg); color: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: var(--radius);
+  padding: 5px 14px; font-size: 12px; font-weight: 700;
+}
+.modal-btn:hover { background: var(--ink); color: var(--bg); }
+
+/* Game-over specifics */
+.modal-lead { font-size: 13px; margin: 0 0 10px; }
+.modal-stats { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--ink-dim); }
+.modal-stats .s-val { color: var(--ink); font-weight: 700; }
+
+/* Info reference panel */
+.info-tabs { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+.info-tab {
+  background: var(--bg); color: var(--ink-dim);
+  border: 1px solid var(--ink-faint);
+  border-radius: var(--radius);
+  padding: 4px 10px; font-size: 12px;
+}
+.info-tab:hover { color: var(--ink); border-color: var(--ink); }
+.info-tab.active { background: var(--ink); color: var(--bg); border-color: var(--ink); font-weight: 700; }
+.info-h {
+  margin: 12px 0 5px; font-size: 11px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase; color: var(--ink-dim);
+  border-bottom: 1px solid var(--ink-faint); padding-bottom: 3px;
+}
+.info-h:first-child { margin-top: 0; }
+.info-item { display: flex; gap: 8px; padding: 3px 0; font-size: 12px; }
+.info-name { font-weight: 700; flex: 0 0 130px; }
+.info-desc { color: var(--ink-dim); flex: 1; }
+
 /* ---------- Misc ---------- */
 .hidden { display: none !important; }
-body.dead .block { opacity: .7; }
+/* Scoped to the board specifically: the modal panel is also a .block, and an
+   unscoped rule here made the game-over modal (which only ever shows while
+   dead) render semi-transparent. */
+body.dead #mainArea .block { opacity: .7; }
 
 @media (max-width: 700px) {
   body { overflow: auto; height: auto; min-height: 100%; }

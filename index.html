@@ -16,6 +16,7 @@
     </div>
     <div id="titleRight">
       <span id="playClock" title="Time the settlement has actually advanced (frozen while paused)">0m 00s</span>
+      <button id="infoBtn" class="link" title="Reference: everything in the game, by era">[ Info ]</button>
       <button id="pauseBtn" class="link" title="Freeze the simulation (spacebar)">[ Pause ]</button>
       <button id="saveBtn" class="link" title="Progress also saves automatically">[ Save ]</button>
       <button id="resetBtn" class="link" title="Wipe all progress">[ Reset ]</button>
@@ -107,6 +108,19 @@
       </div>
     </section>
 
+  </div>
+
+  <!-- Single-at-a-time modal. Dismiss by X, by clicking the dim overlay, or Esc.
+       No dragging / resizing / minimizing by design -- see tech.md. -->
+  <div id="modalOverlay" class="hidden">
+    <section class="block" id="modalPanel">
+      <h2 id="modalHead">
+        <span id="modalTitle"></span>
+        <button id="modalClose" class="modal-x" title="Close">×</button>
+      </h2>
+      <div class="block-body" id="modalBody"></div>
+      <div id="modalActions" class="modal-actions hidden"></div>
+    </section>
   </div>
 
   <script src="game.js"></script>

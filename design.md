@@ -100,7 +100,7 @@ Right now there is exactly one era: Stone Age. The long-term shape of the game i
 
 **This game is meant to actually end.** Not a Cookie Clicker-style endless ascension with no finish line — Heat Death of the Universe (see the list below) is meant to be a real conclusion, one way or another. Very few civ-style games let you play until the universe itself runs out, which is exactly why it's the target.
 
-**One mechanic is already confirmed wanted, timing undecided:** a raw-material-to-refined-good conversion chain (ore → steel, timber → lumber, something along those lines) — nothing currently built transforms one resource into another, everything only produces or boosts. *When* it lands isn't settled; Bronze (alloying is a literal conversion) and Industrial or Mechanized (factories are the obvious fictional home) are all reasonable candidates. Feel it out when one of those ages is actually being designed rather than deciding now.
+**The conversion-chain mechanic lands in Bronze.** A raw-material-to-refined-good chain (nothing currently built *transforms* one resource into another — everything only produces or boosts) was long flagged as wanted-eventually. Bronze wins it because bronze is literally an alloy: copper + tin → bronze is the mechanic and the fiction in one. See the Bronze Age section below.
 
 ### The Age List (flavor guide — not canon, expect it to move)
 
@@ -119,6 +119,18 @@ A loose north star, not an implementation backlog. Ages get built and played one
 11. **Galactic Age** — starships, alien races
 12. **Kardashev Age** — *widening*; solar-system/galaxy scale, Dyson spheres
 13. **Heat Death of the Universe** — the game ends, one way or another
+
+### Bronze Age (designed, being built)
+
+The first age transition, and therefore the one that has to prove the whole concept works. A **deepening** age: it adds a genuinely new mechanic (resource conversion) plus real military depth, and it deliberately **consolidates nothing**. That's a rule for this age specifically — the first transition's emotional job is to be pure reward. "Your stuff got better" is a far better first impression than "your stuff got taken away and replaced," and consolidation is a tool for solving interface clutter that doesn't exist yet.
+
+**How you advance.** A hidden `Bronze Age` capstone Upgrade reveals once you have a population of ~10 *and* have trained at least one Soldier — the pop gate stops it triggering absurdly early, and the Soldier requirement ensures you haven't left an entire system (Barracks/military) unexplored. It costs 300 each of food, wood, and stone. That number was chosen partly for its knock-on effect: storage caps are 50 base +100 per storage building, so merely *holding* 300 of something requires three of its storage building — the resource cost silently forces broad economic build-out without a separate "must own X" check. It reveals well before it's affordable on purpose: seeing the requirement as a distant mountain is the point.
+
+**Reflavor-with-a-bump, never obsolete-and-rebuild.** This is the age that establishes the pattern for every future one. When Hut becomes **Stone House**, it isn't a new building sitting next to an obsolete one — it's the same building, renamed, now worth 5 housing instead of 3. Every hut you already own upgrades at once, so advancing produces an immediate, visible housing jump. Your existing investment got *elevated*, which is exactly the feeling an age transition should produce. (The Settlement panel becomes **Village** on the same principle — the fiction grows, the mechanics don't churn. Village → Town → City gives later ages clean rungs to climb.) One retroactive change rides along: Infirmary is renamed **Medicine Tent** in the Stone Age so that "Infirmary" is available as the Bronze-era upgrade of the same building.
+
+**The alloy.** Two new gather jobs (copper, tin) bring the total to five — still restrained next to a real RTS, which hands you four resources immediately. **Tin deliberately yields less per worker than copper**, making it the natural bottleneck, which is both a real balance lever and historically why bronze was precious enough to build trade routes over. The **Forge** is a new building *archetype*: it consumes copper and tin from your stockpiles and produces bronze automatically, with no workers assigned. It needs none — the opportunity cost is already paid by the miners feeding it, and there's no interesting decision in "would you like to stop converting?" when the inputs have no other use. It simply idles if either input runs dry. Bronze itself is then the currency for this age's upgrades and units.
+
+**Military composition.** Raids gain a *type* alongside their size: a generic warband, massed infantry (archers excel), or swift riders (cavalry excel). The critical design rule is that **units are never penalized for being the wrong type** — every unit always contributes its full base strength, and the matching type simply receives a bonus on top. An all-archer army is never worse than not having those bodies at all; it just misses the upside sometimes. This keeps a naive "build only one thing" playstyle viable rather than punishing, which matters for a game where you can't see the next raid coming. A second, softer dial carries the rest of the tension: a poorly-matched army raises the odds of a *costly* repel (you win, but you bury someone) without gutting your chance of winning at all.
 
 ## Interactive Events (captured idea, not started)
 

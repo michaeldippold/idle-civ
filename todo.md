@@ -8,6 +8,43 @@
 
 ## Todo
 
+### In progress: Bronze Age
+Full design consensus reached; recorded in `design.md` (Eras → Bronze Age) and `tech.md`
+(Eras → Bronze Age architecture). Shipping in three phases, each independently playable and
+tested before the next starts — Phase 1 alone is a complete, satisfying age transition.
+
+**Phase 1 — The Transition** *(plumbing + reflavor; highest risk, touches saves/reveals/naming globally)*
+- [ ] `displayName(def)` helper + optional `names: { [era]: "..." }` on any def; route ALL rendering
+      through it. Ids never change — saves key off them.
+- [ ] Retroactive: Infirmary displays as **Medicine Tent** in Stone Age (frees "Infirmary" for Bronze).
+- [ ] Capstone `bronzeAge` Upgrade: reveal at `pop >= 10 && soldier >= 1`, cost 300 food/wood/stone,
+      long build time. Completion is the only place `S.era` is ever assigned.
+- [ ] Age badge + a milestone-severity Chronicle moment on transition.
+- [ ] Bronze-era reflavors: Settlement panel → **Village**, Hut → **Stone House** (housing 3 → 5 per
+      unit, retroactive so existing huts all jump at once), Medicine Tent → **Infirmary**.
+- [ ] **Bronze Tools** upgrade (per-era broad gather bump, mirrors Stone Tools).
+- [ ] Harness: era flip, sticky reveals across the transition, housing recalc, old saves still load.
+
+**Phase 2 — The Alloy** *(new building archetype: the converter)*
+- [ ] New resources `copper`/`tin`/`bronze` in `S.res`; make `caps()` table-driven rather than a
+      hand-written literal before adding three more entries to it.
+- [ ] Two new gather jobs (copper, tin) → 5 total. Tin yields less per worker than copper.
+- [ ] **Forge**: `converts: { in, out, rate }` on a building def, processed in `step()` after
+      production and before the storage clamp. Clamped by available inputs, idles cleanly at zero.
+      No workers.
+- [ ] **Ore Yard** (raises copper + tin caps together). Bronze: generous base cap, no building.
+- [ ] **Bronze Weapons** upgrade, paid in bronze.
+- [ ] Harness: partial-throughput conversion, input starvation, cap interaction.
+
+**Phase 3 — The Army** *(military composition)*
+- [ ] **Archery Range** → **Archer** unit; **Stables** → **Horseman** unit.
+- [ ] Raid types (warband / massed infantry / swift riders) alongside raid size.
+- [ ] `militaryStrength()` becomes composition-aware. Non-matching multiplier is **1, never below** —
+      units are never penalized for being the wrong type, only un-bonused.
+- [ ] Composition mismatch feeds the costly-repel dial, not `repelChance`.
+- [ ] **Scouting** upgrade (requires Stables ≥ 1) → unlocks a new event category.
+- [ ] Harness: every composition/raid-type pairing, and confirm all-one-type is never worse than none.
+
 ### Next up
 - [ ] Playtest the whole build for feel now that the Stone Age content pack has landed — Herbal
       Medicine/Stone Tools/Stone Yard cost-and-effect numbers are all first-guess like everything
@@ -21,25 +58,26 @@
       just content, same as Great Hunt/Trader were.
 
 ### Backlog
-- [ ] A third person-type beyond Settler/Soldier — explicitly deferred until era advancement (see
-      Deferred, below); "1-2 more types" was the stated plan for whenever the next era lands.
+- [ ] Additional person-types beyond Settler/Soldier — partly answered by Bronze Phase 3 (Archer,
+      Horseman). "Citizen" as a Settler rename is explicitly saved for a later age, not Bronze.
 - [ ] Balance pass on `CONFIG` now that there's more to balance around (upkeep vs. sickness/conflict
       odds vs. build times vs. growth cost vs. the new windfall/upgrade numbers) — most of these
       numbers are still first-guess.
 
 ### Deferred on purpose
-- [ ] **Eras/ages system** — `S.era` exists and the events engine already filters on it, but there
-      is no transition logic, UI, or content beyond Stone Age. Player has design ideas for this not
-      yet written down. Do not start implementing until that design pass happens. Bronze Age itself
-      is the obvious first entry on `UPGRADES` once this lands — the one-time-upgrade infrastructure
-      is ready for it, deliberately not wired to do anything era-related yet. Concrete pacing target
-      now exists too (see `design.md`, "Active early, idle late"): a Stone Age Soldier trains in
-      ~10s, a Starship many eras later should cost something like 6h -- same interface, wildly
-      different pace. Remember when building that: `CONFIG.offlineCapHours` (currently 4) caps how
-      much offline time a single catch-up simulates, so a 6h build literally cannot finish in one
-      away-session under the current value -- it'll need to scale alongside build times, or very
-      long late-game orders will require multiple check-ins instead of one, undercutting the "walk
-      away for hours" fantasy the pacing target is going for.
+- [ ] **Ages past Bronze** — the age list in `design.md` is a flavor guide, not a backlog. One age
+      at a time, each proven fun before the next is scoped. A widening age with no concrete reason
+      to exist by the time it's scoped gets cut rather than forced.
+- [ ] **Retiring/consolidating buildings** — Bronze deliberately consolidates nothing, so it never
+      needs this. But `isRevealed()` stickiness means nothing can currently *un*-reveal, so the
+      first age that genuinely retires a building will need a real mechanism plus a one-time save
+      migration (folding several old building counts into one new one) — the first thing in this
+      project that the additive defensive-merge pattern won't handle for free.
+- [ ] **`CONFIG.offlineCapHours` will need to scale with build times** — currently 4h, so a
+      hypothetical 6h late-game build literally cannot finish in a single away-session, undercutting
+      the "walk away for hours" pacing target (see `design.md`, "Active early, idle late": a Stone
+      Age Soldier trains in ~10s, a Starship should cost something like 6h). Not a problem at Bronze
+      scale; revisit when build times get genuinely long.
 - [ ] **Tick-counter for cooldowns/authored beats** — considered adopting `dispatch`'s discrete
       fixed-tick architecture wholesale; decided against a full port (wrong fit for an idle game's
       continuous/offline-progress model — see `tech.md`). A lightweight `S.tick` counter *alongside*

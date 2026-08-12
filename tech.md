@@ -95,6 +95,26 @@ Buildings may also carry an optional `cap` (e.g. Barracks: `cap: 1`). Once `(S.b
 
 `BUILDING_ICONS` maps each building id to a small inline `<svg>` line-art doodle (stroke-only, `currentColor`, no fill except two intentional dot accents on Stone Pit) — used in the Settlement/holdings panel so owned buildings are visually distinct tiles, not just numbers in the buy menu. Upgrades don't currently appear in that panel — they're a different kind of thing (a permanent trait, not a countable holding) and have no icon. `PERSON_ICONS` is the equivalent map for person-types (Settler, Soldier), used by Your People's tiles the same way.
 
+## Eras (Bronze Age architecture — planned, not yet built)
+
+Three pieces of plumbing, all additive to existing systems. Documented ahead of implementation because Phase 1 touches saves, reveals, and naming globally, and getting the contracts right first de-risks everything built on top.
+
+**Per-era display names.** Any def may carry an optional `names: { bronze: "Stone House", ... }` map alongside its base `name`; a `displayName(def)` helper returns `def.names?.[S.era] ?? def.name`. All rendering goes through that helper instead of reading `def.name` directly. **Ids never change, ever** — `hut` stays `hut` even when it displays as "Stone House", because save data keys off ids and renaming them would require a migration for every past save. This same mechanism covers the retroactive Stone-Age rename of Infirmary → "Medicine Tent" (a `names: { stone: ... }` entry), which frees "Infirmary" to be the Bronze-era display name of that same building.
+
+**Era-gated reveals.** `reveal: () => S.era === "bronze"` needs no new machinery — it's an ordinary predicate, and `isRevealed()`'s existing stickiness (caching into `S.seen["rev:" + id]`) means a def revealed by entering an era stays revealed. Note the interaction is one-directional by design: stickiness means nothing ever *un*-reveals, which is correct for Bronze since it consolidates nothing. Whenever a future age genuinely needs to retire a building, that will need a real mechanism — sticky reveals cannot express it.
+
+**The capstone Upgrade.** Advancing is an ordinary `UPGRADES` entry (`id: "bronzeAge"`), so it inherits the queue, the cost check, the build timer, cancel-and-refund, and the "owned" state for free. `reveal: () => S.pop >= 10 && (S.units.soldier || 0) >= 1` — the soldier check reads *current* count rather than a "was one ever trained" flag, because sticky reveals already handle the case where every soldier later dies. Its completion is the only place `S.era` is ever assigned: a special case in `onComplete()` that sets `S.era = "bronze"`, updates the age badge, and logs a milestone-severity Chronicle line. Because it sits in the normal queue, Sickness and Conflict keep resolving throughout its long build — that's the design's intended source of "and some luck," requiring no new code.
+
+### Converters (Phase 2)
+
+The Forge is a new building archetype: it *transforms* resources rather than producing or boosting them. Implemented as an optional `converts: { in: { copper: 2, tin: 1 }, out: { bronze: 1 }, rate: N }` field on a building def, processed in `step()` after production but before the storage clamp. Per tick it attempts `rate * dt * (count of that building)` conversions, clamped by whatever inputs are actually available — so it degrades smoothly to partial throughput and idles at zero rather than erroring when an input runs dry. No worker assignment (see `design.md` for why), so it needs no `popCost` or job wiring.
+
+New resources (`copper`, `tin`, `bronze`) are additive entries in `S.res` and pick up the existing rate/cap/clamp machinery automatically. Storage asymmetry is deliberate: one **Ore Yard** raises the copper *and* tin caps together (rather than two near-identical buildings), and bronze gets a generous base cap with no storage building at all, since it's spent on upgrades and units rather than stockpiled. `caps()` grows from a hand-written object literal into something table-driven at this point, or it'll get unwieldy.
+
+### Raid types & composition (Phase 3)
+
+`RAID_SIZES` gains a parallel notion of raid *type*; each type names at most one unit type that counters it (`warband` counters nothing). `militaryStrength()` changes from `soldiers * weaponMultiplier()` to a sum across all unit types of `count * baseStrength * weaponMultiplier() * (isCounter ? counterBonus : 1)`. The critical property, enforced by that formula's shape rather than by a special case: the non-matching multiplier is **1, never below** — units are never penalized for being the wrong type, only un-bonused, so any army always beats no army (see `design.md` for why this matters). Composition mismatch instead feeds a second, softer dial: it raises the existing costly-repel probability rather than reducing `repelChance`.
+
 ## Units & Military
 
 `UNITS` (currently just Soldier) is a third buildable-defs array. Unlike `BUILDINGS`/`UPGRADES`, a unit def carries `popCost` — the number of civilians it permanently consumes. This changes the derived-value math for population:

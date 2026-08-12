@@ -69,8 +69,8 @@ The entire simulation lives in one module-level object, `S` (see `freshState()` 
 
 | Field | Type | Purpose |
 |---|---|---|
-| `res` | `{food, wood, stone}` | Current resource stockpiles |
-| `jobs` | `{forager, woodcutter, miner}` | Civilians assigned per gather job |
+| `res` | one key per `RESOURCES` entry | Current resource stockpiles |
+| `jobs` | one key per `JOBS` entry | Civilians assigned per gather job |
 | `builds` | `{hut, woodshed, granary, stoneYard, dryingRack, lumberCamp, stonePit, infirmary, barracks}` | Completed building counts (repeatable, unless `cap`ped) |
 | `units` | `{soldier}` | Trained person-types owned. Separate from `builds` specifically so it renders in Your People, not Settlement |
 | `upgrades` | `{[upgradeId]: true}` | One-time upgrades owned; key presence = owned |
@@ -91,18 +91,21 @@ Population is **not** `S.jobs` summed plus idle — a person can now be in one o
 1. Bail immediately if `S.dead`.
 2. Advance `S.playtime` by `dt` (see Pause & the Playtime Clock).
 3. Compute `rates()` (production, upkeep, net food).
-4. Apply production/upkeep to `res` (scaled by `dt`).
-5. Clamp `food`/`wood`/`stone` to their storage caps (`caps()`) — silent; a one-time Chronicle hint covers it via `REVEALS`.
-6. Starvation check: if `food <= 0` and net food rate is negative, either halt (`SIM_STOP`, offline) or call `die("starvation")` (live).
-7. Advance the front of `buildQueue` by `CONFIG.buildSpeed * dt`; on completion, `shift()` it and call `completeConstruction()`.
-8. Call `resolveEvents(dt)` — population growth, sickness, conflict, and anything else on the `EVENTS` list.
-9. Wipe-out check: if `S.pop <= 0`, call `die("conflict")`. Unlike starvation this can only happen via Conflict (Sickness floors at 1 survivor by design — see Military & Units), but the check itself is generic rather than attributed to a specific event, since in principle anything could tip population to zero.
+4. Apply production/upkeep to every resource in `RESOURCES` (scaled by `dt`).
+5. Run `runConverters(dt)` — the Forge and anything else with a `converts` spec.
+6. Clamp every resource to its storage cap (`caps()`) — silent; a one-time Chronicle hint covers it via `REVEALS`.
+7. Starvation check: if `food <= 0` and net food rate is negative, either halt (`SIM_STOP`, offline) or call `die("starvation")` (live).
+8. Advance the front of `buildQueue` by `CONFIG.buildSpeed * dt`; on completion, `shift()` it and call `completeConstruction()`.
+9. Call `resolveEvents(dt)` — population growth, sickness, conflict, and anything else on the `EVENTS` list.
+10. Wipe-out check: if `S.pop <= 0`, call `die("conflict")`. Unlike starvation this can only happen via Conflict (Sickness floors at 1 survivor by design — see Military & Units), but the check itself is generic rather than attributed to a specific event, since in principle anything could tip population to zero.
 
 ## Resource System
 
-- `rates()` returns per-second production for each resource plus `upkeep` (`pop * CONFIG.upkeep`) and `foodNet` (production minus upkeep — the only resource with an upkeep drain).
-- `mults()` returns each job's production multiplier: `1 + (boost building count) * CONFIG.buildingBonus + (Stone Tools owned ? CONFIG.stoneToolsBonus : 0)`. Stone Tools is a flat additive term applied to all three, stacking with the per-job boost buildings rather than replacing them.
-- `caps()` returns current storage ceilings: `CONFIG.baseFoodCap/baseWoodCap/baseStoneCap + (matching storage building count) * CONFIG.storageAdd`. All three resources are capped now (Stone Yard closed the gap where Stone alone had no ceiling).
+All three iterate the `RESOURCES` / `JOBS` tables rather than naming resources individually — see "Table-driven resources and jobs" below.
+
+- `rates()` returns gross per-second production for every resource plus `upkeep` (`pop * CONFIG.upkeep`) and `foodNet` (production minus upkeep — food is the only resource with an upkeep drain). Converter consumption is *not* netted in here.
+- `mults()` returns each resource's production multiplier: `1 + (boost building count) * CONFIG.buildingBonus + tool bonuses`. Tool upgrades (Stone Tools, Bronze Tools) are flat additive terms applied to every resource and stack with each other and with the per-resource boost buildings.
+- `caps()` returns current storage ceilings from each resource's `baseCap` plus `(its capBuilding count) * CONFIG.storageAdd`. Every resource is capped; bronze simply has no `capBuilding`, so it sits at its (generous) base forever.
 
 ## Construction Queue
 
@@ -139,11 +142,28 @@ Two follow-on gotchas worth knowing, both found in practice:
 
 **The capstone Upgrade.** Advancing is an ordinary `UPGRADES` entry (`id: "bronzeAge"`), inheriting the queue, cost check, build timer, cancel-and-refund, and "owned" state for free. `reveal: () => S.pop >= 10 && (S.units.soldier || 0) >= 1` — the soldier check reads *current* count rather than an "ever trained" flag, because sticky reveals already handle the case where every soldier later dies. Completing it calls `advanceEra("bronze")`, the only place `S.era` is ever assigned; everything the transition visibly changes (panel titles via `PANEL_TITLES`, building names, `housingPerHut()`) is derived from `S.era` at render time, so flipping it *is* the entire operation. Because the capstone sits in the normal queue, Sickness and Conflict keep resolving throughout its long build — the design's intended source of "and some luck," requiring no new code. `advanceEra()` is silent under `SIM`; if an era flips during offline catch-up, `simulateOffline()` announces it separately so the milestone isn't swallowed.
 
-### Converters (Phase 2)
+### Table-driven resources and jobs (Phase 2)
 
-The Forge is a new building archetype: it *transforms* resources rather than producing or boosting them. Implemented as an optional `converts: { in: { copper: 2, tin: 1 }, out: { bronze: 1 }, rate: N }` field on a building def, processed in `step()` after production but before the storage clamp. Per tick it attempts `rate * dt * (count of that building)` conversions, clamped by whatever inputs are actually available — so it degrades smoothly to partial throughput and idles at zero rather than erroring when an input runs dry. No worker assignment (see `design.md` for why), so it needs no `popCost` or job wiring.
+Adding three resources forced a refactor first: `rates()`, `mults()`, `caps()`, `step()`'s clamp loop, `jobsUsed()`, `removeSettler()` and the resource-bar markup each hardcoded exactly three resources by name. All of them now iterate two tables:
 
-New resources (`copper`, `tin`, `bronze`) are additive entries in `S.res` and pick up the existing rate/cap/clamp machinery automatically. Storage asymmetry is deliberate: one **Ore Yard** raises the copper *and* tin caps together (rather than two near-identical buildings), and bronze gets a generous base cap with no storage building at all, since it's spent on upgrades and units rather than stockpiled. `caps()` grows from a hand-written object literal into something table-driven at this point, or it'll get unwieldy.
+- **`RESOURCES`** — `{ id, name, baseCap, capBuilding, reveal? }`. `capBuilding: null` means no storage building exists for it (bronze). Ledger rows are *generated* from this at render time rather than written into `index.html`, so a new resource needs no markup change.
+- **`JOBS`** — gains `rateMult` (tin yields ×0.5) and an optional `reveal`. Job rows are reveal-gated and sticky, same as everything else.
+
+`BOOST_BUILDING` maps a resource to the building that boosts it, so `mults()` no longer names resources individually. Tool upgrades apply to *all* gather rates including the ores. `RELEASE_ORDER` is derived from `JOBS` (reversed, with `forager` forced last) and drives `removeSettler()` — previously that unassigned from a hardcoded three-job list, which with five jobs could have left `jobsUsed() > civilians()` and driven `idle()` negative.
+
+### Converters
+
+The Forge is a new building archetype: it *transforms* resources rather than producing or boosting them. An optional `converts: { in: {...}, out: {...}, rate }` field on a building def, processed by `runConverters()` in `step()` after production and before the storage clamp. Throughput is clamped three ways so it degrades smoothly rather than erroring or destroying inputs:
+
+1. by `owned × rate × dt`,
+2. by the inputs actually in store — partial rate when short, idle at zero,
+3. **by headroom under the output's cap**, so a full bronze store stops the Forge instead of quietly eating copper and tin for nothing.
+
+No worker assignment (see `design.md`), so it needs no `popCost` or job wiring. Note `rates()` reports *gross* mining output — Forge consumption is applied in `step()`, not folded into the ledger's copper/tin rates.
+
+**The intended equilibrium**, which falls out of the numbers rather than being special-cased: copper mines at 0.20/s and tin at half that, so **2 copper miners : 1 tin miner** produce ore in exactly the 4:1 ratio the recipe consumes — no wasted ore — and **2 Forges** (0.05 bronze/s each) consume precisely that output. Verified live.
+
+Storage asymmetry is deliberate: one **Ore Yard** raises the copper *and* tin caps together rather than two near-identical buildings, and bronze gets a generous base cap with no storage building, since it's spent rather than stockpiled.
 
 ### Raid types & composition (Phase 3)
 

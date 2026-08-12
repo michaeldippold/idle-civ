@@ -16,9 +16,7 @@ const CONFIG = {
   baseHousing: 3,
   growthBase: 8,          // food cost of the first extra settler
   growthScale: 1.30,      // each settler costs this much more food
-  baseFoodCap: 50,        // food you can store before a Granary; surplus spoils
-  baseWoodCap: 50,        // wood you can store before a Woodshed; surplus rots
-  baseStoneCap: 50,       // stone you can store before a Stone Yard; surplus is lost, unorganized
+  // Per-resource base caps live on the RESOURCES table below, not here.
   storageAdd: 100,        // extra cap per storage building
   stoneToolsBonus: 0.08,  // flat additive bump to ALL gather multipliers from the Stone Tools upgrade
   bronzeToolsBonus: 0.15, // ditto, Bronze Tools -- stacks additively on top of Stone Tools
@@ -33,11 +31,39 @@ const CONFIG = {
   saveKey: "idleCiv.v6",
 };
 
-const JOBS = [
-  { id: "forager",    name: "Forage food",  res: "food" },
-  { id: "woodcutter", name: "Chop wood",    res: "wood" },
-  { id: "miner",      name: "Gather stone", res: "stone" },
+// Every resource in the game. `capBuilding` is the storage building that
+// raises its ceiling (null = no storage building, so it keeps its base cap);
+// `reveal` gates whether it appears in the ledger at all. Adding a resource
+// means adding a row here -- rates, caps, clamping and rendering all iterate
+// this rather than naming resources individually.
+const RESOURCES = [
+  { id: "food",   name: "Food",   baseCap: 50,  capBuilding: "granary"  },
+  { id: "wood",   name: "Wood",   baseCap: 50,  capBuilding: "woodshed" },
+  { id: "stone",  name: "Stone",  baseCap: 50,  capBuilding: "stoneYard" },
+  { id: "copper", name: "Copper", baseCap: 50,  capBuilding: "oreYard", reveal: () => S.era === "bronze" },
+  { id: "tin",    name: "Tin",    baseCap: 50,  capBuilding: "oreYard", reveal: () => S.era === "bronze" },
+  // Bronze is spent on upgrades rather than stockpiled, so it gets a generous
+  // ceiling and no storage building of its own.
+  { id: "bronze", name: "Bronze", baseCap: 200, capBuilding: null,      reveal: () => S.era === "bronze" },
 ];
+
+// `rateMult` scales a job's yield against CONFIG.baseRate. Tin deliberately
+// yields half of copper -- it's the scarce half of the alloy, which is both a
+// real balance lever and why bronze was worth building trade routes over.
+const JOBS = [
+  { id: "forager",     name: "Forage food",  res: "food"  },
+  { id: "woodcutter",  name: "Chop wood",    res: "wood"  },
+  { id: "miner",       name: "Gather stone", res: "stone" },
+  { id: "copperMiner", name: "Mine copper",  res: "copper", reveal: () => S.era === "bronze" },
+  { id: "tinMiner",    name: "Mine tin",     res: "tin", rateMult: 0.5, reveal: () => S.era === "bronze" },
+];
+
+// Which building boosts which resource's yield (see mults()).
+const BOOST_BUILDING = { food: "dryingRack", wood: "lumberCamp", stone: "stonePit" };
+
+// Order jobs are emptied in when the population shrinks (see removeSettler).
+// Foraging is released last so a shrinking settlement keeps feeding itself.
+const RELEASE_ORDER = JOBS.map((j) => j.id).filter((id) => id !== "forager").reverse().concat("forager");
 
 // ---------- Eras --------------------------------------------
 // Only the display layer and a handful of tuning values vary by era. Ids never
@@ -65,17 +91,17 @@ const BUILDINGS = [
   {
     id: "woodshed", name: "Woodshed", kind: "building", desc: "Store +100 wood (else it rots in the rain).",
     base: { wood: 20 }, scale: 1.55, buildTime: 16,
-    reveal: () => S.res.wood >= CONFIG.baseWoodCap * 0.7 || S.builds.woodshed > 0,
+    reveal: () => S.res.wood >= caps().wood * 0.7 || S.builds.woodshed > 0,
   },
   {
     id: "granary", name: "Granary", kind: "building", desc: "Store +100 food (else it spoils in the open).",
     base: { wood: 25 }, scale: 1.55, buildTime: 16,
-    reveal: () => S.res.food >= CONFIG.baseFoodCap * 0.7 || S.builds.granary > 0,
+    reveal: () => S.res.food >= caps().food * 0.7 || S.builds.granary > 0,
   },
   {
     id: "stoneYard", name: "Stone Yard", kind: "building", desc: "Store +100 stone (else the surplus is lost, unorganized).",
     base: { wood: 25, stone: 10 }, scale: 1.55, buildTime: 16,
-    reveal: () => S.res.stone >= CONFIG.baseStoneCap * 0.7 || S.builds.stoneYard > 0,
+    reveal: () => S.res.stone >= caps().stone * 0.7 || S.builds.stoneYard > 0,
   },
   {
     id: "dryingRack", name: "Drying Racks", kind: "building", desc: "Foragers gather +12% food.",
@@ -105,6 +131,23 @@ const BUILDINGS = [
     desc: "Lets your people train as Soldiers.",
     base: { wood: 40, stone: 15 }, scale: 1.5, buildTime: 30,
     reveal: () => S.builds.hut >= 1,
+  },
+  {
+    id: "oreYard", name: "Ore Yard", kind: "building", era: "bronze",
+    desc: "Store +100 copper and +100 tin (ores pile up unusable otherwise).",
+    base: { wood: 30, stone: 20 }, scale: 1.55, buildTime: 18,
+    reveal: () => S.era === "bronze",
+  },
+  {
+    // The first building that TRANSFORMS rather than produces or boosts.
+    // No workers: the opportunity cost is already paid by the miners feeding
+    // it, and "would you like to stop smelting?" isn't an interesting choice
+    // when neither input has another use.
+    id: "forge", name: "Forge", kind: "building", era: "bronze",
+    desc: "Smelts 4 copper + 1 tin into 1 bronze, continuously.",
+    base: { wood: 45, stone: 30 }, scale: 1.5, buildTime: 26,
+    converts: { in: { copper: 4, tin: 1 }, out: { bronze: 1 }, rate: 0.05 },
+    reveal: () => S.era === "bronze",
   },
 ];
 
@@ -156,8 +199,14 @@ const UPGRADES = [
   {
     id: "bronzeTools", name: "Bronze Tools", kind: "upgrade", era: "bronze",
     desc: "Permanently improves all gathering by 15%.",
-    base: { wood: 60, stone: 40 }, buildTime: 30,
+    base: { wood: 40, bronze: 25 }, buildTime: 30,
     reveal: () => S.era === "bronze",
+  },
+  {
+    id: "bronzeWeapons", name: "Bronze Weapons", kind: "upgrade", era: "bronze",
+    desc: "Cast blades outclass flint. A further improvement to your Soldiers' odds in a fight.",
+    base: { wood: 30, bronze: 40 }, buildTime: 30,
+    reveal: () => S.era === "bronze" && S.builds.barracks >= 1,
   },
 ];
 
@@ -186,6 +235,8 @@ const BUILDING_ICONS = {
   stonePit:   `<svg ${ICON_ATTRS}><path d="M4 8 H20 L16 20 H8 Z"/><circle cx="10.5" cy="13" r="0.8" fill="currentColor" stroke="none"/><circle cx="14" cy="15.5" r="0.8" fill="currentColor" stroke="none"/></svg>`,
   infirmary:  `<svg ${ICON_ATTRS}><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 8 V16 M8 12 H16"/></svg>`,
   barracks:   `<svg ${ICON_ATTRS}><path d="M4 20 H20 M6 20 V12 L12 7 L18 12 V20 M12 7 V2 M12 3 L17 4.5 L12 6"/></svg>`,
+  oreYard:    `<svg ${ICON_ATTRS}><path d="M4 20 H20 M7 20 L10 12 H14 L17 20"/><path d="M10 12 L12 8 L14 12"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/></svg>`,
+  forge:      `<svg ${ICON_ATTRS}><path d="M4 20 H20 M6 20 V13 A6 5 0 0 1 18 13 V20"/><path d="M12 13 V9 M9.5 11 L12 8 L14.5 11"/></svg>`,
 };
 const PERSON_ICONS = {
   settler: `<svg ${ICON_ATTRS}><circle cx="12" cy="7" r="3"/><path d="M6 20 C6 13 8.5 11 12 11 C15.5 11 18 13 18 20"/></svg>`,
@@ -205,9 +256,10 @@ let paused = false;
 
 function freshState() {
   return {
-    res:   { food: CONFIG.startFood, wood: 0, stone: 0 },
-    jobs:  { forager: 0, woodcutter: 0, miner: 0 },
-    builds:{ hut: 0, woodshed: 0, granary: 0, stoneYard: 0, dryingRack: 0, lumberCamp: 0, stonePit: 0, infirmary: 0, barracks: 0 },
+    res:   { food: CONFIG.startFood, wood: 0, stone: 0, copper: 0, tin: 0, bronze: 0 },
+    jobs:  { forager: 0, woodcutter: 0, miner: 0, copperMiner: 0, tinMiner: 0 },
+    builds:{ hut: 0, woodshed: 0, granary: 0, stoneYard: 0, dryingRack: 0, lumberCamp: 0, stonePit: 0,
+             infirmary: 0, barracks: 0, oreYard: 0, forge: 0 },
     units: { soldier: 0 },  // trained person-types owned; separate from builds -- renders in Your People
     upgrades: {},     // { [upgradeId]: true } -- presence means owned, one-time
     buildQueue: [],   // FIFO: [{ id, kind, uid, total, remaining, cost }, ...] -- only [0] progresses
@@ -230,7 +282,7 @@ function housingPerHut() { return HOUSING_PER_HUT[S.era] || HOUSING_PER_HUT.ston
 function housing() { return CONFIG.baseHousing + S.builds.hut * housingPerHut(); }
 function totalUnits() { return Object.values(S.units).reduce((a, b) => a + b, 0); }
 function civilians() { return S.pop - totalUnits(); }
-function jobsUsed() { return S.jobs.forager + S.jobs.woodcutter + S.jobs.miner; }
+function jobsUsed() { return JOBS.reduce((sum, j) => sum + (S.jobs[j.id] || 0), 0); }
 // Anyone currently reserved by an in-progress (or still-waiting) unit order --
 // consumed the instant it's queued, not when it completes.
 function reserved() {
@@ -241,36 +293,41 @@ function reserved() {
 }
 function idle() { return civilians() - jobsUsed() - reserved(); }
 
+// Tool upgrades lift every gather rate (including the ores -- better tools cut
+// ore too); boost buildings lift one resource each.
 function mults() {
   const tools = (S.upgrades.stoneTools  ? CONFIG.stoneToolsBonus  : 0)
               + (S.upgrades.bronzeTools ? CONFIG.bronzeToolsBonus : 0);
-  return {
-    food:  1 + S.builds.dryingRack * CONFIG.buildingBonus + tools,
-    wood:  1 + S.builds.lumberCamp * CONFIG.buildingBonus + tools,
-    stone: 1 + S.builds.stonePit  * CONFIG.buildingBonus + tools,
-  };
+  const out = {};
+  for (const r of RESOURCES) {
+    const boost = BOOST_BUILDING[r.id];
+    out[r.id] = 1 + (boost ? (S.builds[boost] || 0) * CONFIG.buildingBonus : 0) + tools;
+  }
+  return out;
 }
 
 function caps() {
-  return {
-    food: CONFIG.baseFoodCap + S.builds.granary * CONFIG.storageAdd,
-    wood: CONFIG.baseWoodCap + S.builds.woodshed * CONFIG.storageAdd,
-    stone: CONFIG.baseStoneCap + S.builds.stoneYard * CONFIG.storageAdd,
-  };
+  const out = {};
+  for (const r of RESOURCES) {
+    out[r.id] = r.baseCap + (r.capBuilding ? (S.builds[r.capBuilding] || 0) * CONFIG.storageAdd : 0);
+  }
+  return out;
 }
 
-// Production (per second) plus the food upkeep line. Upkeep is charged on
-// total population (S.pop), which already includes Soldiers -- no separate
-// formula needed for "units eat too."
+// Gross production per second, per resource, plus the food upkeep line. Upkeep
+// is charged on total population (S.pop), which already includes Soldiers --
+// no separate formula needed for "units eat too." Note this reports what
+// workers dig up; the Forge's consumption is applied in step(), not here, so
+// the ledger's copper/tin rates read as gross mining output.
 function rates() {
   const m = mults();
-  const prod = {
-    food:  S.jobs.forager    * CONFIG.baseRate * m.food,
-    wood:  S.jobs.woodcutter * CONFIG.baseRate * m.wood,
-    stone: S.jobs.miner      * CONFIG.baseRate * m.stone,
-  };
+  const prod = {};
+  for (const r of RESOURCES) prod[r.id] = 0;
+  for (const j of JOBS) {
+    prod[j.res] += (S.jobs[j.id] || 0) * CONFIG.baseRate * (j.rateMult || 1) * (m[j.res] || 1);
+  }
   const upkeep = S.pop * CONFIG.upkeep * (S.upgrades.fireMastery ? 0.85 : 1);
-  return { food: prod.food, wood: prod.wood, stone: prod.stone, upkeep, foodNet: prod.food - upkeep };
+  return Object.assign(prod, { upkeep, foodNet: prod.food - upkeep });
 }
 
 // Priced off CURRENT population, not lifetime settlers grown. Using the
@@ -480,7 +537,12 @@ function rollRaidSize() {
   }
   return RAID_SIZES[0].size;
 }
-function weaponMultiplier() { return S.upgrades.flintSpears ? 1.6 : 1.0; }
+// Weapon tiers replace each other rather than stacking -- highest owned wins.
+function weaponMultiplier() {
+  if (S.upgrades.bronzeWeapons) return 2.2;
+  if (S.upgrades.flintSpears) return 1.6;
+  return 1.0;
+}
 function armorFactor() { return S.upgrades.hideArmor ? 0.5 : 1.0; }
 function militaryStrength() { return (S.units.soldier || 0) * weaponMultiplier(); }
 function stealResources(raidSize) {
@@ -513,8 +575,12 @@ function removeSettler(allowZero) {
   if (S.pop <= floor) return;
   S.pop -= 1;
   let over = jobsUsed() - civilians();
-  for (const jid of ["woodcutter", "miner", "forager"]) {
-    while (over > 0 && S.jobs[jid] > 0) { S.jobs[jid]--; over--; }
+  // Derived from JOBS rather than hardcoded, so a new job can't be forgotten
+  // here and leave jobsUsed() > civilians() (which would make idle() negative).
+  // Reversed so the most specialised/latest jobs empty first, with foraging
+  // released last -- a shrinking settlement should keep feeding itself.
+  for (const jid of RELEASE_ORDER) {
+    while (over > 0 && (S.jobs[jid] || 0) > 0) { S.jobs[jid]--; over--; }
   }
 }
 
@@ -557,6 +623,31 @@ function resolveEvents(dt) {
   }
 }
 
+// Buildings carrying a `converts` spec transform stockpiled resources into
+// another, continuously and without workers. Throughput is clamped three ways
+// so it degrades smoothly instead of erroring or destroying inputs:
+//   - by how many buildings you own x their rate x dt
+//   - by the inputs actually in store (runs at partial rate, idles at zero)
+//   - by headroom under the OUTPUT's cap, so a full bronze store stops the
+//     Forge rather than quietly eating copper and tin for nothing.
+function runConverters(dt) {
+  const c = caps();
+  for (const def of BUILDINGS) {
+    if (!def.converts) continue;
+    const owned = S.builds[def.id] || 0;
+    if (owned <= 0) continue;
+
+    const spec = def.converts;
+    let batches = owned * spec.rate * dt;
+    for (const k in spec.in)  batches = Math.min(batches, (S.res[k] || 0) / spec.in[k]);
+    for (const k in spec.out) batches = Math.min(batches, ((c[k] || 0) - (S.res[k] || 0)) / spec.out[k]);
+    if (!(batches > 0)) continue;
+
+    for (const k in spec.in)  S.res[k] -= spec.in[k] * batches;
+    for (const k in spec.out) S.res[k] += spec.out[k] * batches;
+  }
+}
+
 // ---------- Core simulation ---------------------------------
 function step(dt) {
   if (S.dead) return;
@@ -568,15 +659,17 @@ function step(dt) {
   const r = rates();
 
   // Gather + eat. Food is a net line so upkeep can drive it negative -> death.
-  S.res.food  += r.foodNet * dt;
-  S.res.wood  += r.wood    * dt;
-  S.res.stone += r.stone   * dt;
+  for (const res of RESOURCES) {
+    S.res[res.id] += (res.id === "food" ? r.foodNet : r[res.id]) * dt;
+  }
+
+  runConverters(dt);
 
   // Storage caps: surplus spoils/rots/is lost (silent; a one-time hint fires via reveals).
   const c = caps();
-  if (S.res.food > c.food) S.res.food = c.food;
-  if (S.res.wood > c.wood) S.res.wood = c.wood;
-  if (S.res.stone > c.stone) S.res.stone = c.stone;
+  for (const res of RESOURCES) {
+    if (S.res[res.id] > c[res.id]) S.res[res.id] = c[res.id];
+  }
 
   // Starvation: food hits zero while the settlement can't feed itself.
   if (S.res.food <= 0 && r.foodNet < 0) {
@@ -727,6 +820,11 @@ const REVEALS = [
     msg: "More mouths, more risk — crowded camps invite sickness. An infirmary would ease their fears." },
   { id: "conflictWarn", when: () => S.pop >= 4,
     msg: "Word of raiders reaches the settlement. A Barracks would let your people take up arms." },
+  { id: "rotOre", when: () => S.era === "bronze" &&
+      (S.res.copper >= caps().copper - 0.01 || S.res.tin >= caps().tin - 0.01),
+    msg: "Ore is heaped up beyond what anyone can sort — the excess is lost. Build an Ore Yard." },
+  { id: "firstBronze", when: () => S.res.bronze > 0,
+    msg: "The first ingots cool in the mould. Bronze is yours to work with." },
   { id: "bronzeAvailable", when: () => S.era === "stone" && S.pop >= 10 && (S.units.soldier || 0) >= 1,
     msg: "Travellers speak of a harder metal, poured rather than chipped. Your people could reach it — with enough stores behind them." },
 ];
@@ -783,32 +881,45 @@ function renderTile(container, prefix, id, icon, name, count) {
   document.getElementById(`${prefix}${id}-count`).textContent = count;
 }
 
+// Rows are built from RESOURCES on first appearance rather than being written
+// into index.html, so adding a resource needs no markup change.
 function renderResources() {
+  const bar = document.getElementById("resourceBar");
   const r = rates();
   const c = caps();
-  const any = S.res.food > 0 || S.res.wood > 0 || S.res.stone > 0;
+  const any = RESOURCES.some((res) => S.res[res.id] > 0);
   const empty = document.getElementById("emptyStores");
   if (empty) empty.classList.toggle("hidden", any);
 
-  const netRate = { food: r.foodNet, wood: r.wood, stone: r.stone };
+  for (const res of RESOURCES) {
+    // Food is always shown (it's the thing that can kill you); everything else
+    // appears once you hold some, or once its era arrives. Reveals are sticky.
+    const show = S.res[res.id] > 0 || res.id === "food" || S.seen["res:" + res.id] ||
+      (res.reveal && res.reveal());
+    if (show) S.seen["res:" + res.id] = true;
 
-  for (const res of ["food", "wood", "stone"]) {
-    const row = document.getElementById("res-" + res);
-    if (!row) continue;
-    const show = S.res[res] > 0 || (res === "food") || S.seen[res];
+    let row = document.getElementById("res-" + res.id);
+    if (!row) {
+      if (!show) continue;
+      row = document.createElement("div");
+      row.className = "res";
+      row.id = "res-" + res.id;
+      row.innerHTML =
+        `<span class="res-name">${res.name}</span>` +
+        `<span class="res-val" id="val-${res.id}">0</span>` +
+        `<span class="res-rate" id="rate-${res.id}"></span>`;
+      bar.appendChild(row);
+    }
     row.classList.toggle("hidden", !show);
     if (!show) continue;
 
-    const valEl = document.getElementById("val-" + res);
-    const cap = c[res];
-    const full = isFinite(cap) && S.res[res] >= cap - 0.01;
-    valEl.innerHTML = isFinite(cap)
-      ? `${fmt(S.res[res])}<span class="cap"> / ${fmt(cap)}</span>`
-      : `${fmt(S.res[res])}`;
-    valEl.classList.toggle("full", full);
+    const cap = c[res.id];
+    const valEl = document.getElementById("val-" + res.id);
+    valEl.innerHTML = `${fmt(S.res[res.id])}<span class="cap"> / ${fmt(cap)}</span>`;
+    valEl.classList.toggle("full", S.res[res.id] >= cap - 0.01);
 
-    const rateEl = document.getElementById("rate-" + res);
-    const rate = netRate[res] || 0;
+    const rateEl = document.getElementById("rate-" + res.id);
+    const rate = (res.id === "food" ? r.foodNet : r[res.id]) || 0;
     rateEl.textContent = rate !== 0 ? fmtRate(rate) : "";
     rateEl.classList.toggle("pos", rate > 0);
     rateEl.classList.toggle("neg", rate < 0);
@@ -835,10 +946,14 @@ function renderPeople() {
 
   const list = document.getElementById("jobList");
   const r = rates();
-  const rateOut = { food: r.food, wood: r.wood, stone: r.stone };
   for (const job of JOBS) {
+    // Later-era jobs stay hidden until their era arrives; sticky once shown.
+    const show = !job.reveal || S.seen["job:" + job.id] || job.reveal();
+    if (show) S.seen["job:" + job.id] = true;
+
     let row = document.getElementById("job-" + job.id);
     if (!row) {
+      if (!show) continue;
       row = document.createElement("div");
       row.className = "job";
       row.id = "job-" + job.id;
@@ -852,10 +967,16 @@ function renderPeople() {
       row.querySelectorAll(".stepper").forEach((b) =>
         b.addEventListener("click", () => assign(b.dataset.job, Number(b.dataset.d))));
     }
-    document.getElementById("cnt-" + job.id).textContent = S.jobs[job.id];
+    row.classList.toggle("hidden", !show);
+    if (!show) continue;
+
+    document.getElementById("cnt-" + job.id).textContent = S.jobs[job.id] || 0;
+    // Per-job output, not the resource total -- two jobs never share a resource
+    // today, but showing the job's own contribution is the honest reading.
+    const own = (S.jobs[job.id] || 0) * CONFIG.baseRate * (job.rateMult || 1) * (mults()[job.res] || 1);
     document.getElementById("out-" + job.id).textContent =
-      S.jobs[job.id] > 0 ? fmtRate(rateOut[job.res]) : "";
-    row.querySelector('[data-d="-1"]').disabled = S.dead || S.jobs[job.id] <= 0;
+      (S.jobs[job.id] || 0) > 0 ? fmtRate(own) : "";
+    row.querySelector('[data-d="-1"]').disabled = S.dead || (S.jobs[job.id] || 0) <= 0;
     row.querySelector('[data-d="1"]').disabled = S.dead || idle() <= 0;
   }
 }
@@ -1156,6 +1277,7 @@ const ERA_TRANSITIONS = {
       `Your huts are rebuilt in stone — housing rises from ${before.housing} to ${housing()}.`,
       "The settlement has grown into a village.",
       "Your healers move out of the tent and into a proper infirmary.",
+      "Copper and tin can now be mined — tin yields slowly, and is the harder of the two to come by.",
     ],
   },
 };
@@ -1280,8 +1402,10 @@ function load() {
   try { data = JSON.parse(localStorage.getItem(CONFIG.saveKey)); } catch (e) {}
   if (!data) { S = freshState(); return false; }
   S = Object.assign(freshState(), data);
-  S.res = Object.assign({ food: 0, wood: 0, stone: 0 }, data.res);
-  S.jobs = Object.assign({ forager: 0, woodcutter: 0, miner: 0 }, data.jobs);
+  // Merged against freshState() rather than a literal, so a resource or job
+  // added later defaults to 0 in old saves without touching this line again.
+  S.res = Object.assign(freshState().res, data.res);
+  S.jobs = Object.assign(freshState().jobs, data.jobs);
   S.builds = Object.assign(freshState().builds, data.builds);
   S.units = Object.assign(freshState().units, data.units);
   S.upgrades = data.upgrades || {};

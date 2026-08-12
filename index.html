@@ -23,24 +23,10 @@
     </div>
   </div>
 
-  <!-- Resource tracker. Rows reveal the first time you produce that resource. -->
+  <!-- Resource tracker. Rows are generated from the RESOURCES table in game.js
+       and revealed the first time you hold that resource (or its era starts). -->
   <div id="resourceBar">
     <span id="emptyStores">— stores are nearly empty —</span>
-    <div class="res hidden" id="res-food">
-      <span class="res-name">Food</span>
-      <span class="res-val" id="val-food">0</span>
-      <span class="res-rate" id="rate-food"></span>
-    </div>
-    <div class="res hidden" id="res-wood">
-      <span class="res-name">Wood</span>
-      <span class="res-val" id="val-wood">0</span>
-      <span class="res-rate" id="rate-wood"></span>
-    </div>
-    <div class="res hidden" id="res-stone">
-      <span class="res-name">Stone</span>
-      <span class="res-val" id="val-stone">0</span>
-      <span class="res-rate" id="rate-stone"></span>
-    </div>
   </div>
 
   <!-- 2 rows x 4 columns: roster panels on top, action panels beneath each,

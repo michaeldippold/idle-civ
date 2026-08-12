@@ -26,16 +26,14 @@ tested before the next starts — Phase 1 alone is a complete, satisfying age tr
 - [ ] *Carry-over:* Bronze Tools currently costs wood+stone. Once Phase 2 lands, re-cost it to
       require actual bronze — it's thematically odd for it not to.
 
-**Phase 2 — The Alloy** *(new building archetype: the converter)*
-- [ ] New resources `copper`/`tin`/`bronze` in `S.res`; make `caps()` table-driven rather than a
-      hand-written literal before adding three more entries to it.
-- [ ] Two new gather jobs (copper, tin) → 5 total. Tin yields less per worker than copper.
-- [ ] **Forge**: `converts: { in, out, rate }` on a building def, processed in `step()` after
-      production and before the storage clamp. Clamped by available inputs, idles cleanly at zero.
-      No workers.
-- [ ] **Ore Yard** (raises copper + tin caps together). Bronze: generous base cap, no building.
-- [ ] **Bronze Weapons** upgrade, paid in bronze.
-- [ ] Harness: partial-throughput conversion, input starvation, cap interaction.
+**Phase 2 — The Alloy** — ✅ **DONE** *(see What's Working, v9)*
+- [x] `RESOURCES` and `JOBS` tables; `rates`/`mults`/`caps`/clamping/`jobsUsed`/`removeSettler` and
+      the ledger markup all iterate them instead of naming three resources by hand.
+- [x] New resources `copper`/`tin`/`bronze`; two new gather jobs → 5 total, tin at half rate.
+- [x] **Forge** converter, clamped by inputs *and* by output headroom. No workers.
+- [x] **Ore Yard** (copper + tin together). Bronze: generous base cap, no storage building.
+- [x] **Bronze Weapons**; **Bronze Tools** re-costed in bronze (Phase 1 carry-over, now closed).
+- [x] Harness: ratio, scaling, starvation, cap interaction, weapon tiers, job-release safety.
 
 **Phase 3 — The Army** *(military composition)*
 - [ ] **Archery Range** → **Archer** unit; **Stables** → **Horseman** unit.
@@ -306,6 +304,28 @@ actions, and the copy quotes the run's playtime so the consequence is concrete. 
 `hardReset()`, which was duplicated inline between the Reset button and game-over's Try Again — the
 subtle part it centralises is unregistering `beforeunload` *before* clearing, since the reload it
 triggers would otherwise fire `save()` and instantly rewrite the save being deleted.
+
+**v9 — Bronze Age, Phase 2: the alloy.** The conversion chain lands, and with it the first building
+archetype that *transforms* rather than produces or boosts. Adding three resources forced a refactor
+first: `rates()`, `mults()`, `caps()`, the clamp loop, `jobsUsed()`, `removeSettler()` and the ledger
+markup each hardcoded exactly three resources by name. All now iterate a `RESOURCES` table (with
+`baseCap`, `capBuilding`, `reveal`) and a `JOBS` table (gaining `rateMult` and `reveal`); ledger rows
+are generated rather than written into HTML, so future resources need no markup change.
+
+New content: **copper** and **tin** (tin yields half — the scarce half of the alloy, as it was
+historically), **bronze**, two new mining jobs, the **Forge** (4 copper + 1 tin → 1 bronze,
+continuously, no workers), the **Ore Yard** (one building lifting both ore caps), **Bronze Weapons**,
+and Bronze Tools re-costed in actual bronze — closing the Phase 1 carry-over that left it
+thematically odd. Weapon tiers replace rather than stack: highest owned wins.
+
+The Forge clamps throughput three ways — by forge count, by inputs in store, and **by headroom under
+the output cap**, so a full bronze store stops it rather than silently eating ore. The numbers were
+picked so a clean equilibrium exists to be found: 2 copper miners : 1 tin miner produces ore at
+exactly the recipe's 4:1 ratio, and 2 Forges consume exactly that. Verified live.
+
+Caught in passing: `removeSettler()` unassigned workers from a hardcoded three-job list, so with five
+jobs a dead copper miner could have left `jobsUsed() > civilians()` and driven `idle()` negative.
+Now derived from `JOBS`, reversed so specialised jobs empty first and foraging is released last.
 
 **Playtest milestone:** reached the Bronze Age in ~35 minutes of real play, on the *old* (harsher,
 pre-fix) settler cost curve. Transition verified end to end in a real session: housing jumped to 23,

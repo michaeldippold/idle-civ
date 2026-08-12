@@ -89,7 +89,33 @@ Two ways to lose now, not one. Starvation remains a hard stop (game ends, save c
 
 ## Eras (forward-looking)
 
-Right now there is exactly one era: Stone Age. The long-term shape of the game is that era progression is what carries you from "feed the fire" to "manage intergalactic trade" — new resources, new buildings, new events, even new *vocabulary* (a wanderer doesn't "join your settlement" once you're off-world). Critically, **the interface itself should not need to change shape** as eras advance — no map ever gets rendered, no unit ever gets drawn, no matter how far the tech tree goes. Events are already tagged by era so the engine is ready for this; the actual era-transition system (what triggers an era change, what it does to the UI, how old buildings/jobs carry forward or get replaced) is a separate design pass, intentionally not started yet.
+Right now there is exactly one era: Stone Age. The long-term shape of the game is that era progression is what carries you from "feed the fire" to "manage intergalactic trade" — new resources, new buildings, new events, even new *vocabulary* (a wanderer doesn't "join your settlement" once you're off-world). Critically, **the interface itself should not need to change shape** as eras advance — no map ever gets rendered, no unit ever gets drawn, no matter how far the tech tree goes. Events are already tagged by era so the engine is ready for this.
+
+**The transition mechanism is settled**, even though no era past Stone exists yet: advancing is a hidden, one-time capstone Upgrade (e.g. "Bronze Age") that reveals once its prerequisites are quietly met, and otherwise behaves exactly like every other Upgrade — it sits in the same build queue, costs real resources, takes real time, and completing it flips `S.era`. Nothing new needed there. Critically, **Sickness and Conflict keep rolling the entire time it's under construction** — that's deliberately where "and some luck" comes from (see below), not a separate mechanic bolted on for the purpose.
+
+**Two rules that apply to every future age, canonical:**
+
+1. **Every age must add a few new things, at a bare minimum.** The moment a capstone build completes, the interface changing should be a "whoa, look at this" moment, not a quiet reskin. If an age doesn't make the player want to poke around and see what's new, there's no reason for it to be an age.
+2. **Ages come in two flavors, and knowing which is which shapes what "a few new things" means.** **Deepening** ages introduce a genuinely new mechanic or system (Bronze's weapon/armor tiers, presumably Silicon's automation). **Widening** ages mostly consolidate and reflavor what already exists onto a bigger stage (Enlightenment, Global, Kardashev in the list below) — but per rule 1, even a widening age still needs a *few* real new things, just fewer/smaller ones than a deepening age gets. Neither flavor is a "total restart" — that's the entire point of the distinction: most of what you've built carries forward, just reframed or folded together, so progress is never erased, only recontextualized.
+
+**This game is meant to actually end.** Not a Cookie Clicker-style endless ascension with no finish line — Heat Death of the Universe (see the list below) is meant to be a real conclusion, one way or another. Very few civ-style games let you play until the universe itself runs out, which is exactly why it's the target.
+
+### The Age List (flavor guide — not canon, expect it to move)
+
+A loose north star, not an implementation backlog. Ages get built and played one at a time, each proven fun before the next is even scoped — this list exists so later decisions stay consistent with where the game is ultimately headed, not as a commitment to build all of it. Currently under active refinement (a mid-1900s "mechanized warfare" age covering tanks/bombers is being discussed as of this writing, which may reshape Industrial Age's scope rather than require cutting anything):
+
+1. **Stone Age** (neolithic) — current, only implemented era
+2. **Bronze Age**
+3. **Iron Age** — medieval, knights and siege engines
+4. **Enlightenment Age** — *widening*; cathedrals, monks, science
+5. **Gunpowder Age** — revolutionary war to old west
+6. **Industrial Age** — early-mid 1900s, lightly steampunk
+7. **Global Age** — *widening*; expands Industrial to a whole-world flavor
+8. **Silicon Age** — 2000 AD+, computers and robotics
+9. **Space Age** — *The Expanse*-ish, same solar system
+10. **Galactic Age** — starships, alien races
+11. **Kardashev Age** — *widening*; solar-system/galaxy scale, Dyson spheres
+12. **Heat Death of the Universe** — the game ends, one way or another
 
 ## Interactive Events (captured idea, not started)
 

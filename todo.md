@@ -298,6 +298,15 @@ other modal. A single milestone line still goes to the Chronicle. This is where 
 land as a visible *whoa* moment" rule from `design.md` actually gets staged — previously the
 transition was three Chronicle lines that scrolled past.
 
+**Reset uses the modal instead of `confirm()`.** Native dialogs are suppressed outright in some
+environments (they were being silently swallowed in the dev browser pane), and a real panel gives
+consistent styling and control. Cancel / Escape / backdrop are all equivalent and verified
+non-destructive; the destructive button renders in warning red via a new `danger` flag on modal
+actions, and the copy quotes the run's playtime so the consequence is concrete. Also DRY'd out
+`hardReset()`, which was duplicated inline between the Reset button and game-over's Try Again — the
+subtle part it centralises is unregistering `beforeunload` *before* clearing, since the reload it
+triggers would otherwise fire `save()` and instantly rewrite the save being deleted.
+
 **Playtest milestone:** reached the Bronze Age in ~35 minutes of real play, on the *old* (harsher,
 pre-fix) settler cost curve. Transition verified end to end in a real session: housing jumped to 23,
 buildings reflavored correctly, Bronze Tools unlocked and purchased.

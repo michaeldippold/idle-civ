@@ -1088,7 +1088,7 @@ function openModal(title, bodyHTML, actions, onMount) {
   bar.classList.toggle("hidden", !actions || !actions.length);
   (actions || []).forEach((a) => {
     const b = document.createElement("button");
-    b.className = "modal-btn";
+    b.className = "modal-btn" + (a.danger ? " danger" : "");
     b.textContent = a.label;
     b.addEventListener("click", a.onClick);
     bar.appendChild(b);
@@ -1177,6 +1177,26 @@ function openEraModal(era, before) {
   openModal(`The ${ERA_NAMES[era]} Begins`, html);
 }
 
+// Shared by the Reset button and the game-over "Try Again" button.
+function hardReset() {
+  // Reload fires beforeunload -> save(), which would silently re-write the very
+  // save we're clearing (S is still in memory). Drop the listener first.
+  window.removeEventListener("beforeunload", save);
+  try { localStorage.removeItem(CONFIG.saveKey); } catch (e) {}
+  location.reload();
+}
+
+function openResetModal() {
+  const lived = S.playtime > 0 ? ` You are ${fmtTime(S.playtime)} into this one.` : "";
+  openModal("Start Over?",
+    `<p class="modal-lead">This wipes the settlement completely — every building, every settler, ` +
+    `the whole Chronicle.${lived} There is no undo.</p>`,
+    [
+      { label: "Cancel", onClick: closeModal },
+      { label: "Wipe and Restart", onClick: hardReset, danger: true },
+    ]);
+}
+
 function openGameOverModal(cause) {
   const lead = cause === "conflict"
     ? "The last defenders fall. Raiders move through the settlement unopposed, and by morning there is no one left to rebuild."
@@ -1190,13 +1210,7 @@ function openGameOverModal(cause) {
       `<div>Settlers grown: <span class="s-val">${S.bought}</span></div>` +
     `</div>`;
   openModal("The Settlement Has Fallen", `<p class="modal-lead">${lead}</p>${stats}`, [
-    { label: "Try Again", onClick: () => {
-        // Same guard as the Reset button: reload fires beforeunload -> save(),
-        // which would rewrite the save we just cleared.
-        window.removeEventListener("beforeunload", save);
-        try { localStorage.removeItem(CONFIG.saveKey); } catch (e) {}
-        location.reload();
-      } },
+    { label: "Try Again", onClick: hardReset },
   ]);
 }
 
@@ -1335,14 +1349,9 @@ function boot() {
     save();
     log("Progress saved.");
   });
-  document.getElementById("resetBtn").addEventListener("click", () => {
-    if (!confirm("Wipe all progress and start over?")) return;
-    // Reload fires beforeunload -> save(), which would silently re-write the
-    // very save we're clearing (S is still in memory). Drop the listener first.
-    window.removeEventListener("beforeunload", save);
-    localStorage.removeItem(CONFIG.saveKey);
-    location.reload();
-  });
+  // Confirms in our own modal rather than a native confirm() -- consistent
+  // styling, and native dialogs are suppressed outright in some environments.
+  document.getElementById("resetBtn").addEventListener("click", openResetModal);
 
   document.getElementById("pauseBtn").addEventListener("click", () => setPaused(!paused));
   document.getElementById("infoBtn").addEventListener("click", openInfoPanel);

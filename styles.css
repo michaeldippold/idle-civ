@@ -262,6 +262,8 @@ button { font-family: var(--mono); cursor: pointer; }
   padding: 5px 14px; font-size: 12px; font-weight: 700;
 }
 .modal-btn:hover { background: var(--ink); color: var(--bg); }
+.modal-btn.danger { border-color: var(--danger); color: var(--danger); }
+.modal-btn.danger:hover { background: var(--danger); color: var(--bg); }
 
 /* Game-over specifics */
 .modal-lead { font-size: 13px; margin: 0 0 10px; }

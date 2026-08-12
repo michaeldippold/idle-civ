@@ -173,17 +173,12 @@ The result is a real, legible trade-off rather than a right answer: a specialist
 
 **Who dies is a second, quieter axis of role.** When a raid takes lives, casualties are drawn weighted by exposure rather than evenly: foot soldiers hold the line and take the brunt, horsemen can withdraw, and archers — shooting from behind the line — are hit least. This is what makes an Archer *feel* like an archer rather than a differently-priced soldier. Crucially it only ever bends the odds: no unit is immune, an archer can always be the one who falls, and an all-archer army has no front line to hide behind so it gets no protection at all. Mixing your army is what buys your specialists their safety, which is a nice second reason to do it beyond matchup coverage. **Scouting** rides on the Stables as a second reason to build them, unlocking a category of purely-positive discoveries; it's gated on the upgrade rather than the building, so it's an investment rather than a freebie.
 
-## Interactive Events (captured idea, not started)
-
-A future direction, deliberately parked — not being designed or built yet, just written down so it isn't lost. Every event today resolves itself with nobody in the room: the player is never required to be present for Sickness, Conflict, or a windfall to play out, which is exactly what makes the game idle-friendly. The idea is a genuinely different category of event that *requires* a real decision in the moment. Example given during design discussion: a rival king demands tribute (some amount of food, some amount of gold) — pay it and the event resolves cleanly, refuse and roll for consequences.
-
-The explicit note attached to this idea: **it's worth pursuing even if it means compromising how "idle" the game can be.** That's a real tension with the "Active early, idle late" principle above, not a minor implementation detail — an interactive event firing while the player is away raises real open questions (does it just wait for a response, indefinitely? auto-resolve to some default after a timeout? block other progress while pending?) that don't have an answer yet and shouldn't be guessed at until this is actually being designed.
-
 ## Explicitly Out of Scope
 
 - Any rendered map, grid, or spatial representation of the settlement.
 - Individual unit rendering, animation, or pathing.
 - Real-time reflex or twitch mechanics — this is a numbers game, not an RTS.
+- **Interactive events** — events that stop and demand a decision in the moment (a rival king demands tribute: pay or roll for consequences). This was previously a captured idea explicitly worth compromising idle-ness for; that stance is reversed. Requiring the player's presence pushes the game toward an *active* Civilization, which creates both design problems (what happens to a pending demand while you're away — wait forever? auto-resolve? block progress?) and technical ones, for a payoff that fights the identity. The settled identity is **idle Age of Empires**: you allocate, build, upgrade, and train as you have time, and the engine chugs along either way. Every event resolves itself with nobody in the room — that's a feature, not a limitation.
 - Multiplayer.
 - Mobile as a first-class target — it should not actively break, but desktop is the designed-for experience.
 

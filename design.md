@@ -91,6 +91,12 @@ Two ways to lose now, not one. Starvation remains a hard stop (game ends, save c
 
 Right now there is exactly one era: Stone Age. The long-term shape of the game is that era progression is what carries you from "feed the fire" to "manage intergalactic trade" — new resources, new buildings, new events, even new *vocabulary* (a wanderer doesn't "join your settlement" once you're off-world). Critically, **the interface itself should not need to change shape** as eras advance — no map ever gets rendered, no unit ever gets drawn, no matter how far the tech tree goes. Events are already tagged by era so the engine is ready for this; the actual era-transition system (what triggers an era change, what it does to the UI, how old buildings/jobs carry forward or get replaced) is a separate design pass, intentionally not started yet.
 
+## Interactive Events (captured idea, not started)
+
+A future direction, deliberately parked — not being designed or built yet, just written down so it isn't lost. Every event today resolves itself with nobody in the room: the player is never required to be present for Sickness, Conflict, or a windfall to play out, which is exactly what makes the game idle-friendly. The idea is a genuinely different category of event that *requires* a real decision in the moment. Example given during design discussion: a rival king demands tribute (some amount of food, some amount of gold) — pay it and the event resolves cleanly, refuse and roll for consequences.
+
+The explicit note attached to this idea: **it's worth pursuing even if it means compromising how "idle" the game can be.** That's a real tension with the "Active early, idle late" principle above, not a minor implementation detail — an interactive event firing while the player is away raises real open questions (does it just wait for a response, indefinitely? auto-resolve to some default after a timeout? block other progress while pending?) that don't have an answer yet and shouldn't be guessed at until this is actually being designed.
+
 ## Explicitly Out of Scope
 
 - Any rendered map, grid, or spatial representation of the settlement.

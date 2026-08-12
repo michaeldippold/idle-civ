@@ -474,9 +474,20 @@ function isRevealed(def) {
 // picked at random). Adding a new event never touches the engine, only this list.
 const EVENTS = [
   {
+    // The single largest transaction in the game, and it fires on its own the
+    // moment you can afford it. Reported in play as "building a Granary zeroed
+    // my food" -- the Granary had actually just raised the cap far enough for
+    // food to reach the settler price, which then bought one instantly. The
+    // line MUST state the cost or the biggest spend in the game is invisible.
     id: "wanderer", eras: ["stone", "bronze"], sev: "good",
     canFire: (S) => S.pop < housing() && S.res.food >= growthCost(),
-    effect: (S) => { S.res.food -= growthCost(); S.pop += 1; S.bought += 1; },
+    effect: (S) => {
+      const cost = growthCost();
+      S.res.food -= cost;
+      S.pop += 1;
+      S.bought += 1;
+      return `A wanderer joins your settlement — ${cost} food spent settling them in.`;
+    },
     flavor: { hit: ["A wanderer joins your settlement."] },
   },
   {
@@ -798,8 +809,10 @@ function resolveEvents(dt) {
     if (ev.canFire) {
       let guard = 0;
       while (ev.canFire(S) && guard++ < 50) {
-        ev.effect(S);
-        if (!SIM) log(pick(ev.flavor.hit), ev.sev);
+        // An effect may return its own line, for events whose message needs a
+        // number only the effect knows (e.g. what a settler actually cost).
+        const custom = ev.effect(S);
+        if (!SIM) log(custom || pick(ev.flavor.hit), ev.sev);
       }
       continue;
     }
@@ -810,8 +823,8 @@ function resolveEvents(dt) {
         if (Math.random() < negateChance(ev)) {
           if (!SIM) log(pick(ev.flavor.negated), "good");
         } else {
-          ev.effect(S);
-          if (!SIM) log(pick(ev.flavor.hit), ev.sev);
+          const custom = ev.effect(S);
+          if (!SIM) log(custom || pick(ev.flavor.hit), ev.sev);
         }
       }
     }

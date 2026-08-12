@@ -375,6 +375,20 @@ push population below the number of trained units, making `civilians()` negative
 there are no civilians left to take. Both are covered by a 400-settlement fuzz test asserting neither
 value can go negative.
 
+**Bug fix: the invisible food sink.** Reported as "building a Granary zeroed my food — 550 down to
+30, nothing in the Chronicle to explain it." No food was lost to the building. A settler costs food
+(escalating 30% per person; at pop 19 that's 532), growth is automatic the instant you can afford it,
+and the Chronicle line said only "A wanderer joins your settlement" — never the price. The Granary
+*did* cause it, indirectly: food had been parked at a cap below the settler price with nowhere to go,
+and raising the cap let food climb past the price, firing the purchase instantly. The event line now
+states the cost. Also gave the events engine a small generic capability: an `effect` may return its
+own log line, for events whose message needs a number only the effect knows.
+
+This surfaced a bigger design question, now logged in `design.md`: because growth auto-spends,
+**your practical food ceiling is the settler price, not your storage cap** — which means the Bronze
+Age capstone's 300 food is unreachable before ~pop 17 unless you deliberately stop building huts and
+let population cap out. A real strategic lever that nothing currently hints at.
+
 **Playtest milestone:** reached the Bronze Age in ~35 minutes of real play, on the *old* (harsher,
 pre-fix) settler cost curve. A later full playthrough built every unit and building in the age. Transition verified end to end in a real session: housing jumped to 23,
 buildings reflavored correctly, Bronze Tools unlocked and purchased.

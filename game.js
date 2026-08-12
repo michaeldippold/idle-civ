@@ -21,6 +21,7 @@ const CONFIG = {
   baseStoneCap: 50,       // stone you can store before a Stone Yard; surplus is lost, unorganized
   storageAdd: 100,        // extra cap per storage building
   stoneToolsBonus: 0.08,  // flat additive bump to ALL gather multipliers from the Stone Tools upgrade
+  bronzeToolsBonus: 0.15, // ditto, Bronze Tools -- stacks additively on top of Stone Tools
   buildSpeed: 1.0,        // global construction pace (seconds of progress per real second)
   conflictBaseChance: 0.0018,  // per-second base raid chance, before population scaling -- tripled
                                 // after playtesting: original value averaged ~19min at pop 15, and
@@ -38,6 +39,16 @@ const JOBS = [
   { id: "miner",      name: "Gather stone", res: "stone" },
 ];
 
+// ---------- Eras --------------------------------------------
+// Only the display layer and a handful of tuning values vary by era. Ids never
+// change (saves key off them) -- a def's `names`/`descs` maps override how it
+// reads per era, falling back to its base `name`/`desc`. See tech.md.
+const ERA_NAMES = { stone: "Stone Age", bronze: "Bronze Age" };
+const HOUSING_PER_HUT = { stone: 3, bronze: 5 };
+const PANEL_TITLES = {
+  "panel-holdings": { stone: "Settlement", bronze: "Village" },
+};
+
 // Buildings. `base` = cost of the first; each next costs *scale more (unless
 // `cap`ped, in which case there is no "next" -- see Barracks).
 // `buildTime` = seconds needed once a building reaches the front of the queue.
@@ -45,6 +56,8 @@ const JOBS = [
 const BUILDINGS = [
   {
     id: "hut", name: "Hut", kind: "building", desc: "Shelter for 3 more settlers.",
+    names: { bronze: "Stone House" },
+    descs: { bronze: "Shelter for 5 more settlers." },
     base: { wood: 15 }, scale: 1.6, buildTime: 12,
     reveal: () => S.res.wood >= 8 || S.builds.hut > 0,
   },
@@ -79,7 +92,10 @@ const BUILDINGS = [
     reveal: () => S.builds.hut >= 2,
   },
   {
+    // Displays as "Medicine Tent" in the Stone Age so that "Infirmary" is
+    // available as this same building's Bronze-era name. Id stays `infirmary`.
     id: "infirmary", name: "Infirmary", kind: "building", desc: "Reduces the chance sickness claims a life.",
+    names: { stone: "Medicine Tent" },
     base: { wood: 24, stone: 8 }, scale: 1.5, buildTime: 20,
     reveal: () => S.builds.hut >= 1,
   },
@@ -109,7 +125,8 @@ const UPGRADES = [
   },
   {
     id: "herbalMedicine", name: "Herbal Medicine", kind: "upgrade",
-    desc: "Increases how much each Infirmary reduces the chance sickness claims a life.",
+    desc: "Increases how much each Medicine Tent reduces the chance sickness claims a life.",
+    descs: { bronze: "Increases how much each Infirmary reduces the chance sickness claims a life." },
     base: { wood: 20, food: 20 }, buildTime: 20,
     reveal: () => S.builds.infirmary >= 1,
   },
@@ -124,6 +141,22 @@ const UPGRADES = [
     desc: "Simple hide armor improves your Soldiers' odds of surviving a fight.",
     base: { wood: 15, food: 15 }, buildTime: 20,
     reveal: () => S.builds.barracks >= 1,
+  },
+  // The age capstone. An ordinary upgrade in every respect -- same queue, same
+  // cancel/refund, same cost check -- so Sickness and Conflict keep rolling
+  // through its long build. That's deliberately where "and some luck" lives.
+  // Its completion is the ONLY place S.era is ever assigned.
+  {
+    id: "bronzeAge", name: "Bronze Age", kind: "upgrade",
+    desc: "Copper and tin, married in fire. Step out of the age of stone.",
+    base: { food: 300, wood: 300, stone: 300 }, buildTime: 120,
+    reveal: () => S.pop >= 10 && (S.units.soldier || 0) >= 1,
+  },
+  {
+    id: "bronzeTools", name: "Bronze Tools", kind: "upgrade",
+    desc: "Permanently improves all gathering by 15%.",
+    base: { wood: 60, stone: 40 }, buildTime: 30,
+    reveal: () => S.era === "bronze",
   },
 ];
 
@@ -184,7 +217,11 @@ function freshState() {
 }
 
 // ---------- Derived values ----------------------------------
-function housing() { return CONFIG.baseHousing + S.builds.hut * 3; }
+// Housing per hut is era-keyed, so advancing retroactively upgrades every hut
+// you already own into a Stone House -- an immediate, visible jump rather than
+// a new building sitting next to an obsolete one. See design.md.
+function housingPerHut() { return HOUSING_PER_HUT[S.era] || HOUSING_PER_HUT.stone; }
+function housing() { return CONFIG.baseHousing + S.builds.hut * housingPerHut(); }
 function totalUnits() { return Object.values(S.units).reduce((a, b) => a + b, 0); }
 function civilians() { return S.pop - totalUnits(); }
 function jobsUsed() { return S.jobs.forager + S.jobs.woodcutter + S.jobs.miner; }
@@ -199,7 +236,8 @@ function reserved() {
 function idle() { return civilians() - jobsUsed() - reserved(); }
 
 function mults() {
-  const tools = S.upgrades.stoneTools ? CONFIG.stoneToolsBonus : 0;
+  const tools = (S.upgrades.stoneTools  ? CONFIG.stoneToolsBonus  : 0)
+              + (S.upgrades.bronzeTools ? CONFIG.bronzeToolsBonus : 0);
   return {
     food:  1 + S.builds.dryingRack * CONFIG.buildingBonus + tools,
     wood:  1 + S.builds.lumberCamp * CONFIG.buildingBonus + tools,
@@ -257,6 +295,12 @@ function defById(id) {
   return BUILDINGS.find((b) => b.id === id) || UPGRADES.find((u) => u.id === id) || UNITS.find((u) => u.id === id);
 }
 
+// A def's displayed name/description can vary by era; its id never does. All
+// rendering and all log lines go through these rather than reading def.name /
+// def.desc directly, so reflavoring a later age costs nothing structurally.
+function displayName(def) { return (def.names && def.names[S.era]) || def.name; }
+function displayDesc(def) { return (def.descs && def.descs[S.era]) || def.desc; }
+
 // Once a building/upgrade/unit's reveal() condition has been true, it stays
 // visible forever -- otherwise a threshold-based reveal (e.g. "wood >= 8")
 // could flicker the whole panel back into hiding the moment that resource
@@ -278,18 +322,20 @@ function isRevealed(def) {
 //   resolve(S, dt)      -- full escape hatch: owns its own trigger roll,
 //                          effect, and flavor logging. For events too
 //                          multi-staged to fit the generic shape (Conflict).
-// Every event carries: eras (when it's eligible -- ready for the ages system),
+// Every event carries: eras (which ages it's eligible in -- NOTE: every new age
+// needs an audit of this list, since an event omitted from it silently stops
+// firing the moment the era flips),
 // effect(S) (the state mutation), and flavor.{hit,negated} (Chronicle lines,
 // picked at random). Adding a new event never touches the engine, only this list.
 const EVENTS = [
   {
-    id: "wanderer", eras: ["stone"], sev: "good",
+    id: "wanderer", eras: ["stone", "bronze"], sev: "good",
     canFire: (S) => S.pop < housing() && S.res.food >= growthCost(),
     effect: (S) => { S.res.food -= growthCost(); S.pop += 1; S.bought += 1; },
     flavor: { hit: ["A wanderer joins your settlement."] },
   },
   {
-    id: "greatHunt", eras: ["stone"], sev: "good",
+    id: "greatHunt", eras: ["stone", "bronze"], sev: "good",
     chancePerSecond: 0.002,                         // ~8.3 real minutes average -- small, frequent
     effect: (S) => { S.res.food += Math.round(8 + S.pop * 1.2); },
     flavor: {
@@ -300,7 +346,7 @@ const EVENTS = [
     },
   },
   {
-    id: "trader", eras: ["stone"], sev: "good",
+    id: "trader", eras: ["stone", "bronze"], sev: "good",
     chancePerSecond: 0.0009,                        // ~18.5 real minutes average -- rarer, bigger
     effect: (S) => {
       const bonus = Math.round(12 + S.pop * 1.5);
@@ -314,7 +360,7 @@ const EVENTS = [
     },
   },
   {
-    id: "sickness", eras: ["stone"], sev: "bad",
+    id: "sickness", eras: ["stone", "bronze"], sev: "bad",
     condition: (S) => S.pop >= 4,
     chancePerSecond: 0.0015,                        // ~11 real minutes average, unmitigated
     counter: { building: "infirmary", reducePerUnit: (S) => S.upgrades.herbalMedicine ? 0.35 : 0.2 },
@@ -325,13 +371,15 @@ const EVENTS = [
         "Sickness takes hold overnight. Your settlement wakes one fewer.",
       ],
       negated: [
-        "Sickness threatens the camp, but the infirmary keeps it at bay.",
-        "A fever passes through -- the infirmary sees everyone through it.",
+        // Deliberately era-neutral wording -- this building is a Medicine Tent
+        // in the Stone Age and an Infirmary in Bronze.
+        "Sickness threatens the camp, but your healers keep it at bay.",
+        "A fever passes through -- your healers see everyone through it.",
       ],
     },
   },
   {
-    id: "conflict", eras: ["stone"], sev: "bad",
+    id: "conflict", eras: ["stone", "bronze"], sev: "bad",
     condition: (S) => S.pop >= 4,
     resolve: (S, dt) => {
       const chance = CONFIG.conflictBaseChance * (1 + S.pop * CONFIG.conflictPopScale);
@@ -556,11 +604,11 @@ function build(def) {
   const wasEmpty = S.buildQueue.length === 0;
   S.buildQueue.push({ id: def.id, kind: def.kind, uid: ++S.buildSeq, total: def.buildTime, remaining: def.buildTime, cost });
   if (def.kind === "upgrade") {
-    log(wasEmpty ? `Work begins on ${def.name}.` : `${def.name} joins the queue (#${S.buildQueue.length}).`);
+    log(wasEmpty ? `Work begins on ${displayName(def)}.` : `${displayName(def)} joins the queue (#${S.buildQueue.length}).`);
   } else if (def.kind === "unit") {
-    log(wasEmpty ? `${def.name} training begins.` : `${def.name} training joins the queue (#${S.buildQueue.length}).`);
+    log(wasEmpty ? `${displayName(def)} training begins.` : `${displayName(def)} training joins the queue (#${S.buildQueue.length}).`);
   } else {
-    log(wasEmpty ? `Ground is broken for a ${def.name}.` : `A ${def.name} joins the queue (#${S.buildQueue.length}).`);
+    log(wasEmpty ? `Ground is broken for a ${displayName(def)}.` : `A ${displayName(def)} joins the queue (#${S.buildQueue.length}).`);
   }
   renderAll();
 }
@@ -576,7 +624,7 @@ function cancelBuild(uid) {
   const item = S.buildQueue[idx];
   for (const k in item.cost) S.res[k] = (S.res[k] || 0) + item.cost[k];
   S.buildQueue.splice(idx, 1);
-  log(`Construction of the ${defById(item.id).name} is called off; materials recovered.`);
+  log(`Construction of the ${displayName(defById(item.id))} is called off; materials recovered.`);
   renderAll();
 }
 
@@ -589,16 +637,32 @@ function completeConstruction(site) {
 }
 
 function onComplete(def) {
+  if (def.id === "bronzeAge") { advanceEra("bronze"); return; }
+
   if (def.id === "hut") {
     const n = S.builds.hut;
-    if (n === 1) log("A hut stands. There is room to grow.", "good");
-    else log(`Another hut raised. Housing now ${housing()}.`, "good");
-    if (n === 3) log("A cluster of huts — this is becoming a village.", "big");
+    if (n === 1) log(`A ${displayName(def).toLowerCase()} stands. There is room to grow.`, "good");
+    else log(`Another ${displayName(def).toLowerCase()} raised. Housing now ${housing()}.`, "good");
+    if (n === 3) log("A cluster of rooftops — this is becoming a real place.", "big");
   } else if (def.kind === "unit") {
     log(`A settler takes up the spear. Your Soldiers now number ${S.units[def.id]}.`, "good");
   } else {
-    log(`${def.name} complete. ${def.desc}`, "good");
+    log(`${displayName(def)} complete. ${displayDesc(def)}`, "good");
   }
+}
+
+// The one and only place S.era is ever assigned. Everything the transition
+// visibly changes -- panel titles, building names, housing per hut -- is
+// derived from S.era at render time, so flipping it is the whole operation.
+// The Chronicle lines exist so the reflavor reads as a ceremony rather than
+// stats quietly rearranging themselves (see design.md).
+function advanceEra(era) {
+  const housingBefore = housing();
+  S.era = era;
+  if (SIM) return;
+  log("Copper and tin are married in fire. The first bronze is poured.", "big");
+  log(`Your huts are rebuilt in stone — housing rises from ${housingBefore} to ${housing()}.`, "good");
+  log("The settlement has grown into a village.", "good");
 }
 
 // ---------- Progressive reveal / one-time hints -------------
@@ -617,6 +681,8 @@ const REVEALS = [
     msg: "More mouths, more risk — crowded camps invite sickness. An infirmary would ease their fears." },
   { id: "conflictWarn", when: () => S.pop >= 4,
     msg: "Word of raiders reaches the settlement. A Barracks would let your people take up arms." },
+  { id: "bronzeAvailable", when: () => S.era === "stone" && S.pop >= 10 && (S.units.soldier || 0) >= 1,
+    msg: "Travellers speak of a harder metal, poured rather than chipped. Your people could reach it — with enough stores behind them." },
 ];
 
 function checkReveals() {
@@ -661,10 +727,13 @@ function renderTile(container, prefix, id, icon, name, count) {
     tile.id = prefix + id;
     tile.innerHTML =
       `<span class="h-icon">${icon}</span>` +
-      `<span class="h-name">${name}</span>` +
+      `<span class="h-name" id="${prefix}${id}-name"></span>` +
       `<span class="h-count" id="${prefix}${id}-count"></span>`;
     container.appendChild(tile);
   }
+  // Name is refreshed every render, not just baked in at creation -- an era
+  // change renames existing tiles in place (Medicine Tent -> Infirmary).
+  document.getElementById(`${prefix}${id}-name`).textContent = name;
   document.getElementById(`${prefix}${id}-count`).textContent = count;
 }
 
@@ -705,7 +774,7 @@ function renderPeople() {
   renderTile(tiles, "ptile-", "settler", PERSON_ICONS.settler, "Settler", civilians());
   for (const def of UNITS) {
     if (!isRevealed(def)) continue;
-    renderTile(tiles, "ptile-", def.id, PERSON_ICONS[def.id] || "", def.name, S.units[def.id] || 0);
+    renderTile(tiles, "ptile-", def.id, PERSON_ICONS[def.id] || "", displayName(def), S.units[def.id] || 0);
   }
 
   document.getElementById("popIdle").textContent = idle();
@@ -792,7 +861,7 @@ function renderQueue() {
     }
     const pct = Math.max(0, Math.min(100, (1 - item.remaining / item.total) * 100));
     const verb = i === 0 ? (def.kind === "unit" ? "Training" : "Raising") : "Queued";
-    card.querySelector(".q-label").textContent = `${verb}: ${def.name}`;
+    card.querySelector(".q-label").textContent = `${verb}: ${displayName(def)}`;
     card.querySelector(".q-pct").textContent = `(${Math.floor(pct)}%)`;
     card.querySelector(".q-bar").style.width = pct + "%";
     card.querySelector(".q-eta").textContent =
@@ -817,7 +886,7 @@ function renderHoldings() {
   body.classList.toggle("hidden", owned.length === 0);
 
   for (const def of owned) {
-    renderTile(body, "hold-", def.id, BUILDING_ICONS[def.id] || "", def.name, S.builds[def.id]);
+    renderTile(body, "hold-", def.id, BUILDING_ICONS[def.id] || "", displayName(def), S.builds[def.id]);
   }
 }
 
@@ -856,9 +925,9 @@ function renderBuildings() {
         })();
 
     card.innerHTML =
-      `<div class="b-top"><span class="b-name">${def.name}</span>` +
+      `<div class="b-top"><span class="b-name">${displayName(def)}</span>` +
       `<span class="b-owned">${ownedStr}</span></div>` +
-      `<div class="b-desc">${def.desc}</div>` +
+      `<div class="b-desc">${displayDesc(def)}</div>` +
       bottom;
     card.disabled = S.dead || capped || !canAfford(buildCost(def));
   }
@@ -897,9 +966,9 @@ function renderUpgrades() {
           return `<span class="${short ? "short" : ""}">${cost[k]} ${k}</span>`;
         }).join(", ")}<span class="b-time">${def.buildTime}s build</span></div>`;
     card.innerHTML =
-      `<div class="b-top"><span class="b-name">${def.name}</span>` +
+      `<div class="b-top"><span class="b-name">${displayName(def)}</span>` +
       `<span class="b-owned">${statusStr}</span></div>` +
-      `<div class="b-desc">${def.desc}</div>` +
+      `<div class="b-desc">${displayDesc(def)}</div>` +
       bottom;
     card.disabled = S.dead || owned || pending || !canAfford(cost);
   }
@@ -938,9 +1007,9 @@ function renderTraining() {
       costParts.push(`<span class="${short ? "short" : ""}">${def.popCost} settler${def.popCost > 1 ? "s" : ""}</span>`);
     }
     card.innerHTML =
-      `<div class="b-top"><span class="b-name">${def.name}</span>` +
+      `<div class="b-top"><span class="b-name">${displayName(def)}</span>` +
       `<span class="b-owned">${S.units[def.id] || 0}</span></div>` +
-      `<div class="b-desc">${def.desc}</div>` +
+      `<div class="b-desc">${displayDesc(def)}</div>` +
       `<div class="b-cost">${costParts.join(", ")}<span class="b-time">${def.buildTime}s train</span></div>`;
     card.disabled = S.dead || !canAfford(cost) || (def.popCost && idle() < def.popCost);
   }
@@ -958,7 +1027,23 @@ function updateSpans() {
   document.getElementById("panel-queue").classList.toggle("span-both", !UPGRADES.some(isRevealed));
 }
 
+// Era-dependent chrome: the age badge and any panel whose title is reflavored.
+// Skipped once dead, since die() puts "[Fallen]" in the badge and that should
+// stick rather than being overwritten by a later render.
+function renderEraChrome() {
+  if (S.dead) return;
+  const badge = document.getElementById("ageBadge");
+  if (badge) badge.textContent = `[${ERA_NAMES[S.era] || ERA_NAMES.stone}]`;
+  for (const panelId in PANEL_TITLES) {
+    const title = PANEL_TITLES[panelId][S.era];
+    if (!title) continue;
+    const h2 = document.querySelector(`#${panelId} h2`);
+    if (h2) h2.textContent = title;
+  }
+}
+
 function renderAll() {
+  renderEraChrome();
   renderResources();
   renderPeople();
   renderHoldings();
@@ -997,6 +1082,7 @@ function simulateOffline() {
   if (capped < 5) return;
 
   const before = { ...S.res, pop: S.pop };
+  const eraBefore = S.era;
   SIM = true; SIM_STOP = false; SIM_STOP_CAUSE = null;
   let t = capped;
   while (t > 0 && !SIM_STOP) { const dt = Math.min(1, t); step(dt); t -= dt; }
@@ -1022,6 +1108,11 @@ function simulateOffline() {
     log(msg, "bad");
   } else if (parts.length) {
     log(`While you were away (${mins}m): ${parts.join(", ")}.`, "good");
+  }
+  // An era can flip mid-catch-up; advanceEra() stays silent under SIM, so the
+  // milestone gets announced here instead of passing without comment.
+  if (S.era !== eraBefore) {
+    log(`You return to a changed people — the ${ERA_NAMES[S.era]} began in your absence.`, "big");
   }
 }
 

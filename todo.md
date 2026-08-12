@@ -13,17 +13,18 @@ Full design consensus reached; recorded in `design.md` (Eras → Bronze Age) and
 (Eras → Bronze Age architecture). Shipping in three phases, each independently playable and
 tested before the next starts — Phase 1 alone is a complete, satisfying age transition.
 
-**Phase 1 — The Transition** *(plumbing + reflavor; highest risk, touches saves/reveals/naming globally)*
-- [ ] `displayName(def)` helper + optional `names: { [era]: "..." }` on any def; route ALL rendering
-      through it. Ids never change — saves key off them.
-- [ ] Retroactive: Infirmary displays as **Medicine Tent** in Stone Age (frees "Infirmary" for Bronze).
-- [ ] Capstone `bronzeAge` Upgrade: reveal at `pop >= 10 && soldier >= 1`, cost 300 food/wood/stone,
-      long build time. Completion is the only place `S.era` is ever assigned.
-- [ ] Age badge + a milestone-severity Chronicle moment on transition.
-- [ ] Bronze-era reflavors: Settlement panel → **Village**, Hut → **Stone House** (housing 3 → 5 per
-      unit, retroactive so existing huts all jump at once), Medicine Tent → **Infirmary**.
-- [ ] **Bronze Tools** upgrade (per-era broad gather bump, mirrors Stone Tools).
-- [ ] Harness: era flip, sticky reveals across the transition, housing recalc, old saves still load.
+**Phase 1 — The Transition** — ✅ **DONE** *(see What's Working, v8)*
+- [x] `displayName`/`displayDesc` helpers + `names`/`descs` era maps; all rendering and log lines
+      routed through them. Ids never change.
+- [x] Retroactive: Infirmary displays as **Medicine Tent** in Stone Age.
+- [x] Capstone `bronzeAge` Upgrade: reveal at `pop >= 10 && soldier >= 1`, 300 food/wood/stone, 120s.
+- [x] Age badge + `PANEL_TITLES` + a milestone Chronicle moment on transition.
+- [x] Bronze reflavors: Settlement → **Village**, Hut → **Stone House** (housing 3 → 5, retroactive),
+      Medicine Tent → **Infirmary**.
+- [x] **Bronze Tools** upgrade (+15%, stacks additively with Stone Tools).
+- [x] Harness coverage incl. the `EVENTS` era-audit and a legacy-save load.
+- [ ] *Carry-over:* Bronze Tools currently costs wood+stone. Once Phase 2 lands, re-cost it to
+      require actual bronze — it's thematically odd for it not to.
 
 **Phase 2 — The Alloy** *(new building archetype: the converter)*
 - [ ] New resources `copper`/`tin`/`bronze` in `S.res`; make `caps()` table-driven rather than a
@@ -221,3 +222,30 @@ Verified via harness (including a flaky-test fix: a windfall landing on the very
 play for one frame — not a game bug, just meant the test needed one extra flush tick before
 asserting) plus live browser testing of the full chain, including watching Trader fire organically
 mid-session.
+
+**v8 — Bronze Age, Phase 1: the transition.** The first age advance, and the plumbing every future
+one rides on. Advancing is a hidden **Bronze Age** capstone Upgrade (reveals at pop ≥ 10 with ≥1
+Soldier trained; 300 food/wood/stone; 120s build) that sits in the ordinary build queue — so Sickness
+and Conflict keep rolling the whole time it's under construction, which is exactly where "and some
+luck" was supposed to come from. Completing it calls `advanceEra()`, the only place `S.era` is ever
+assigned; everything the transition changes is derived from `S.era` at render time, so flipping it
+*is* the whole operation.
+
+Added a **per-era display layer**: optional `names`/`descs` maps on any def, read through
+`displayName()`/`displayDesc()`, with ids permanently fixed so saves never need migrating for a
+rename. On advancing: the Settlement panel becomes **Village**, Hut becomes **Stone House** worth 5
+housing instead of 3 *retroactively* (every hut you already own upgrades at once — in testing,
+housing jumped 12 → 18 and six wanderers immediately arrived to fill it, exactly the cascade the
+design wanted), Medicine Tent becomes **Infirmary**, and **Bronze Tools** (+15%, stacking with Stone
+Tools) unlocks. Infirmary was also retroactively renamed to **Medicine Tent** in the Stone Age to
+free the fancier word for Bronze.
+
+Two real bugs caught, one of which the harness structurally could not have found. First: every
+existing event was tagged `eras: ["stone"]`, so the instant the era flipped, **births, sickness,
+raids and both windfalls would have silently stopped forever** — no error, just a quietly dead
+economy. All five are now `["stone", "bronze"]`, and the harness asserts each explicitly so a future
+age can't regress it by omission. Second, found only in live play: `renderTile()` baked a tile's name
+in at creation and thereafter only updated its count, so after advancing, the Village tile still read
+"Medicine Tent" while its buy-card correctly read "Infirmary" — fixed to rewrite the name every
+render, with a targeted regression test. Also swept two bits of prose that hardcoded "infirmary" (one
+became a `descs` override, one was reworded era-neutral).

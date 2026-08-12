@@ -96,26 +96,29 @@ Right now there is exactly one era: Stone Age. The long-term shape of the game i
 **Two rules that apply to every future age, canonical:**
 
 1. **Every age must add a few new things, at a bare minimum.** The moment a capstone build completes, the interface changing should be a "whoa, look at this" moment, not a quiet reskin. If an age doesn't make the player want to poke around and see what's new, there's no reason for it to be an age.
-2. **Ages come in two flavors, and knowing which is which shapes what "a few new things" means.** **Deepening** ages introduce a genuinely new mechanic or system (Bronze's weapon/armor tiers, presumably Silicon's automation). **Widening** ages mostly consolidate and reflavor what already exists onto a bigger stage (Enlightenment, Global, Kardashev in the list below) — but per rule 1, even a widening age still needs a *few* real new things, just fewer/smaller ones than a deepening age gets. Neither flavor is a "total restart" — that's the entire point of the distinction: most of what you've built carries forward, just reframed or folded together, so progress is never erased, only recontextualized.
+2. **Ages come in two flavors, and knowing which is which shapes what "a few new things" means.** **Deepening** ages introduce a genuinely new mechanic or system (Bronze's weapon/armor tiers, presumably Silicon's automation). **Widening** ages mostly consolidate and reflavor what already exists onto a bigger stage (Enlightenment, Global, Kardashev in the list below) — but per rule 1, even a widening age still needs a *few* real new things, just fewer/smaller ones than a deepening age gets. Neither flavor is a "total restart" — that's the entire point of the distinction: most of what you've built carries forward, just reframed or folded together, so progress is never erased, only recontextualized. **A widening age with no concrete reason to exist by the time it's actually being scoped gets cut, not forced.** Several ages below are placeholders exactly because of this — they stay in the flavor guide as intent, but nothing obligates them to survive contact with actual design work.
 
 **This game is meant to actually end.** Not a Cookie Clicker-style endless ascension with no finish line — Heat Death of the Universe (see the list below) is meant to be a real conclusion, one way or another. Very few civ-style games let you play until the universe itself runs out, which is exactly why it's the target.
 
+**One mechanic is already confirmed wanted, timing undecided:** a raw-material-to-refined-good conversion chain (ore → steel, timber → lumber, something along those lines) — nothing currently built transforms one resource into another, everything only produces or boosts. *When* it lands isn't settled; Bronze (alloying is a literal conversion) and Industrial or Mechanized (factories are the obvious fictional home) are all reasonable candidates. Feel it out when one of those ages is actually being designed rather than deciding now.
+
 ### The Age List (flavor guide — not canon, expect it to move)
 
-A loose north star, not an implementation backlog. Ages get built and played one at a time, each proven fun before the next is even scoped — this list exists so later decisions stay consistent with where the game is ultimately headed, not as a commitment to build all of it. Currently under active refinement (a mid-1900s "mechanized warfare" age covering tanks/bombers is being discussed as of this writing, which may reshape Industrial Age's scope rather than require cutting anything):
+A loose north star, not an implementation backlog. Ages get built and played one at a time, each proven fun before the next is even scoped — this list exists so later decisions stay consistent with where the game is ultimately headed, not as a commitment to build all of it.
 
 1. **Stone Age** (neolithic) — current, only implemented era
 2. **Bronze Age**
 3. **Iron Age** — medieval, knights and siege engines
 4. **Enlightenment Age** — *widening*; cathedrals, monks, science
 5. **Gunpowder Age** — revolutionary war to old west
-6. **Industrial Age** — early-mid 1900s, lightly steampunk
-7. **Global Age** — *widening*; expands Industrial to a whole-world flavor
-8. **Silicon Age** — 2000 AD+, computers and robotics
-9. **Space Age** — *The Expanse*-ish, same solar system
-10. **Galactic Age** — starships, alien races
-11. **Kardashev Age** — *widening*; solar-system/galaxy scale, Dyson spheres
-12. **Heat Death of the Universe** — the game ends, one way or another
+6. **Industrial Age** — the real Industrial Revolution: Victorian, steam, rail, factories — this is properly where the steampunk flavor belongs
+7. **Mechanized Age** — tanks, bombers, mid-1900s mechanized total war; carved out from what used to be a vaguer "early-mid 1900s" Industrial Age once the steampunk/date mismatch got noticed
+8. **Global Age** — *widening*; expands Industrial/Mechanized to a whole-world flavor
+9. **Silicon Age** — 2000 AD+, computers and robotics
+10. **Space Age** — *The Expanse*-ish, same solar system
+11. **Galactic Age** — starships, alien races
+12. **Kardashev Age** — *widening*; solar-system/galaxy scale, Dyson spheres
+13. **Heat Death of the Universe** — the game ends, one way or another
 
 ## Interactive Events (captured idea, not started)
 

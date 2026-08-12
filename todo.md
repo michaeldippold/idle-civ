@@ -35,14 +35,15 @@ tested before the next starts — Phase 1 alone is a complete, satisfying age tr
 - [x] **Bronze Weapons**; **Bronze Tools** re-costed in bronze (Phase 1 carry-over, now closed).
 - [x] Harness: ratio, scaling, starvation, cap interaction, weapon tiers, job-release safety.
 
-**Phase 3 — The Army** *(military composition)*
-- [ ] **Archery Range** → **Archer** unit; **Stables** → **Horseman** unit.
-- [ ] Raid types (warband / massed infantry / swift riders) alongside raid size.
-- [ ] `militaryStrength()` becomes composition-aware. Non-matching multiplier is **1, never below** —
-      units are never penalized for being the wrong type, only un-bonused.
-- [ ] Composition mismatch feeds the costly-repel dial, not `repelChance`.
-- [ ] **Scouting** upgrade (requires Stables ≥ 1) → unlocks a new event category.
-- [ ] Harness: every composition/raid-type pairing, and confirm all-one-type is never worse than none.
+**Phase 3 — The Army** — ✅ **DONE** *(see What's Working, v10)*
+- [x] **Archery Range** → **Archer**; **Stables** → **Horseman**. Both buildings cap at 1.
+- [x] Raid types (warband / massed charge / band of riders) rolling alongside raid size.
+- [x] `militaryStrength(raid)` composition-aware; non-matching multiplier is **1, never below**.
+- [x] Composition mismatch feeds the costly-repel dial via `counterCoverage()`, not `repelChance`.
+- [x] **Scouting** upgrade (gated on the upgrade, not just the Stables) → two new events.
+- [x] Harness: every composition/raid-type pairing, plus the never-penalised guarantee.
+
+**Bronze Age is complete.** All three phases shipped; the age is ready for a real playthrough.
 
 ### Next up
 - [ ] Playtest the whole build for feel now that the Stone Age content pack has landed — Herbal
@@ -326,6 +327,29 @@ exactly the recipe's 4:1 ratio, and 2 Forges consume exactly that. Verified live
 Caught in passing: `removeSettler()` unassigned workers from a hardcoded three-job list, so with five
 jobs a dead copper miner could have left `jobsUsed() > civilians()` and driven `idle()` negative.
 Now derived from `JOBS`, reversed so specialised jobs empty first and foraging is released last.
+
+**v10 — Bronze Age, Phase 3: the army.** Completes the age. **Archery Range → Archer** and
+**Stables → Horseman** (both buildings capped at 1, both units costing bronze — Soldiers stay the
+cheap generalist and the only unit needing no bronze, so they're still buildable when the Forge is
+starved). Raids now roll a **type** alongside their size — warband, massed charge, band of riders —
+and `militaryStrength(raid)` sums each unit type's contribution with a counter bonus applied only to
+the unit that excels. The load-bearing rule holds: the non-matching multiplier is **1, never below**,
+so being the wrong unit costs you the bonus and never your base strength. Measured: 5 Archers are
+worth 10 against a massed charge and 5 against everything else; a specialist army swings 2.00×
+between matchups where a mixed one swings 1.43×.
+
+Composition mismatch feeds a *second* dial rather than the win chance — `counterCoverage()` softens
+the costly-repel roll, so the right units both win more fights and bury fewer of your own.
+**Scouting** rides on the Stables (gated on the upgrade, not the building) and unlocks two new
+events, one of which is deliberately pure flavor since the value of a warning is the knowing.
+`removeSoldier()` became `removeRandomUnit()`, drawing casualties weighted by what's actually
+fielded; `stealResources()` now raids the ores and bronze too.
+
+One genuine bug caught by the harness, and it was the invisible kind: the counter relationship was
+stored in **two** places pointing at each other — the raid held a unit id, the unit held a raid id —
+and the comparison used the wrong pair, so it was always false and **every counter bonus in the game
+silently did nothing**. No error, no crash, the feature just wasn't there. Fixed by deleting the
+redundant field so only one direction exists, with a test asserting the duplicate can't come back.
 
 **Playtest milestone:** reached the Bronze Age in ~35 minutes of real play, on the *old* (harsher,
 pre-fix) settler cost curve. Transition verified end to end in a real session: housing jumped to 23,

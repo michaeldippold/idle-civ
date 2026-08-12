@@ -165,9 +165,17 @@ No worker assignment (see `design.md`), so it needs no `popCost` or job wiring. 
 
 Storage asymmetry is deliberate: one **Ore Yard** raises the copper *and* tin caps together rather than two near-identical buildings, and bronze gets a generous base cap with no storage building, since it's spent rather than stockpiled.
 
-### Raid types & composition (Phase 3)
+### Raid types & composition
 
-`RAID_SIZES` gains a parallel notion of raid *type*; each type names at most one unit type that counters it (`warband` counters nothing). `militaryStrength()` changes from `soldiers * weaponMultiplier()` to a sum across all unit types of `count * baseStrength * weaponMultiplier() * (isCounter ? counterBonus : 1)`. The critical property, enforced by that formula's shape rather than by a special case: the non-matching multiplier is **1, never below** — units are never penalized for being the wrong type, only un-bonused, so any army always beats no army (see `design.md` for why this matters). Composition mismatch instead feeds a second, softer dial: it raises the existing costly-repel probability rather than reducing `repelChance`.
+`RAID_TYPES` rolls independently of `RAID_SIZES`. `militaryStrength(raid)` sums `unitStrength()` across all unit types, each contributing `count × strength × weaponMultiplier() × (matched ? CONFIG.counterBonus : 1)`. The critical property is enforced by that formula's shape rather than a special case: the non-matching multiplier is **1, never below** — units are never penalized for being the wrong type, only un-bonused, so any army always beats no army (see `design.md`).
+
+**The counter relationship is stored in exactly one place**: a unit def's `counters` field naming a raid id (`archer` counters `"massed"`). An earlier pass *also* put the reverse mapping on the raid type (`counter: "archer"`), and `unitStrength()` compared `def.counters === raid.counter` — a raid id against a unit id, always false, silently disabling every counter bonus in the game with no error. The redundant field is gone; `counterUnitFor(raid)` searches `UNITS` instead. A `warband` is simply a raid no unit names, so nothing counters it, with no null-handling needed.
+
+Composition mismatch feeds a second, softer dial rather than `repelChance`: `counterCoverage(raid)` returns the share of your defense coming from the countering unit, and the costly-repel probability is multiplied by `1 - CONFIG.counterCasualtyRelief × coverage`. Fielding the right unit therefore both wins more fights *and* buries fewer of your own.
+
+`removeRandomUnit()` replaces the old soldier-specific helper: it builds a pool weighted by how many of each type are actually fielded, drops one, decrements `S.pop` alongside, and returns the lost unit's display name for flavor. `stealResources()` now loops every resource including the ores and bronze.
+
+**Scouting** is gated on the *upgrade*, not the Stables that reveals it — building the Stables alone doesn't hand you the event category, you have to invest in it. Its two events are ordinary `chancePerSecond` entries; one is deliberately pure flavor with an empty `effect`, since the value of a warning is the knowing.
 
 ## Units & Military
 

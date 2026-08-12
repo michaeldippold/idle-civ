@@ -27,6 +27,10 @@ const CONFIG = {
                                 // percent likely by chance alone, but not the intended feel). This
                                 // targets ~6-7min at pop 15, similar cadence to Sickness (~11min).
   conflictPopScale: 0.03,      // each point of population adds this fraction to the base chance
+  counterBonus: 2.0,           // strength multiplier for the unit type that counters a raid.
+                               // NOTE: non-countering units multiply by 1, never below -- units
+                               // are never penalised for being the wrong type, only un-bonused.
+  counterCasualtyRelief: 0.5,  // how much a fully-countered raid softens the costly-repel roll
   offlineCapHours: 4,
   saveKey: "idleCiv.v6",
 };
@@ -133,6 +137,18 @@ const BUILDINGS = [
     reveal: () => S.builds.hut >= 1,
   },
   {
+    id: "archeryRange", name: "Archery Range", kind: "building", era: "bronze", cap: 1,
+    desc: "Lets your people train as Archers.",
+    base: { wood: 50, stone: 20 }, scale: 1.5, buildTime: 28,
+    reveal: () => S.era === "bronze" && S.builds.barracks >= 1,
+  },
+  {
+    id: "stables", name: "Stables", kind: "building", era: "bronze", cap: 1,
+    desc: "Lets your people train as Horsemen, and makes scouting possible.",
+    base: { wood: 60, stone: 25, bronze: 10 }, scale: 1.5, buildTime: 34,
+    reveal: () => S.era === "bronze" && S.builds.barracks >= 1,
+  },
+  {
     id: "oreYard", name: "Ore Yard", kind: "building", era: "bronze",
     desc: "Store +100 copper and +100 tin (ores pile up unusable otherwise).",
     base: { wood: 30, stone: 20 }, scale: 1.55, buildTime: 18,
@@ -208,18 +224,42 @@ const UPGRADES = [
     base: { wood: 30, bronze: 40 }, buildTime: 30,
     reveal: () => S.era === "bronze" && S.builds.barracks >= 1,
   },
+  {
+    id: "scouting", name: "Scouting", kind: "upgrade", era: "bronze",
+    desc: "Riders range beyond the valley and bring back word of what's out there.",
+    base: { food: 40, bronze: 15 }, buildTime: 25,
+    reveal: () => S.builds.stables >= 1,
+  },
 ];
 
 // Trainable person-types: like BUILDINGS (go through the same queue, same
 // flat/escalating cost machinery) but `popCost` permanently consumes a
 // civilian on completion, and ownership lives in S.units, not S.builds, so it
 // renders in Your People instead of Settlement. See design.md / tech.md.
+// `strength` is a unit's baseline contribution to defense; `counters` names the
+// raid type it excels against (see RAID_TYPES). Soldiers stay the cheap
+// generalist -- and notably the only one costing no bronze, so they remain
+// buildable when the Forge is starved.
 const UNITS = [
   {
-    id: "soldier", name: "Soldier", kind: "unit", popCost: 1,
+    id: "soldier", name: "Soldier", kind: "unit", popCost: 1, strength: 1.0,
     desc: "A settler permanently trained for defense. Eats like anyone else; produces nothing but safety.",
     base: { wood: 12 }, buildTime: 15,
     reveal: () => S.builds.barracks >= 1,
+  },
+  {
+    id: "archer", name: "Archer", kind: "unit", era: "bronze", popCost: 1,
+    strength: 1.0, counters: "massed",
+    desc: "Deadly against a massed charge, where a wall of bodies makes an easy target.",
+    base: { wood: 14, bronze: 6 }, buildTime: 18,
+    reveal: () => S.builds.archeryRange >= 1,
+  },
+  {
+    id: "horseman", name: "Horseman", kind: "unit", era: "bronze", popCost: 1,
+    strength: 1.5, counters: "riders",
+    desc: "Strong in any fight, and the only thing quick enough to run down mounted raiders.",
+    base: { wood: 20, bronze: 14 }, buildTime: 24,
+    reveal: () => S.builds.stables >= 1,
   },
 ];
 
@@ -237,10 +277,14 @@ const BUILDING_ICONS = {
   barracks:   `<svg ${ICON_ATTRS}><path d="M4 20 H20 M6 20 V12 L12 7 L18 12 V20 M12 7 V2 M12 3 L17 4.5 L12 6"/></svg>`,
   oreYard:    `<svg ${ICON_ATTRS}><path d="M4 20 H20 M7 20 L10 12 H14 L17 20"/><path d="M10 12 L12 8 L14 12"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/></svg>`,
   forge:      `<svg ${ICON_ATTRS}><path d="M4 20 H20 M6 20 V13 A6 5 0 0 1 18 13 V20"/><path d="M12 13 V9 M9.5 11 L12 8 L14.5 11"/></svg>`,
+  archeryRange: `<svg ${ICON_ATTRS}><path d="M6 3 A13 13 0 0 1 6 21"/><path d="M6 3 L6 21"/><path d="M6 12 H19 M16 9 L19 12 L16 15"/></svg>`,
+  stables:    `<svg ${ICON_ATTRS}><path d="M4 20 V11 L12 6 L20 11 V20 M4 20 H20"/><path d="M10 20 V15 H14 V20"/></svg>`,
 };
 const PERSON_ICONS = {
   settler: `<svg ${ICON_ATTRS}><circle cx="12" cy="7" r="3"/><path d="M6 20 C6 13 8.5 11 12 11 C15.5 11 18 13 18 20"/></svg>`,
   soldier: `<svg ${ICON_ATTRS}><circle cx="10" cy="7" r="3"/><path d="M4.5 20 C4.5 13 7 11 10 11 C13 11 15 13 15 20"/><path d="M8 3 L20 21"/></svg>`,
+  archer:  `<svg ${ICON_ATTRS}><circle cx="9" cy="6" r="2.6"/><path d="M4 20 C4 14 6 12 9 12 C12 12 14 14 14 20"/><path d="M17 3 A11 11 0 0 1 17 19"/><path d="M17 3 L17 19 M17 11 H10"/></svg>`,
+  horseman:`<svg ${ICON_ATTRS}><circle cx="9" cy="4.5" r="2.2"/><path d="M6 11 C6 8 7.5 7 9 7 C10.5 7 12 8 12 11"/><path d="M3 20 V16 C3 14 5 13 8 13 H14 L18 10 V13 C18 13 20 14 20 16 V20"/><path d="M7 20 V17 M16 20 V17"/></svg>`,
 };
 
 // ---------- State -------------------------------------------
@@ -259,8 +303,9 @@ function freshState() {
     res:   { food: CONFIG.startFood, wood: 0, stone: 0, copper: 0, tin: 0, bronze: 0 },
     jobs:  { forager: 0, woodcutter: 0, miner: 0, copperMiner: 0, tinMiner: 0 },
     builds:{ hut: 0, woodshed: 0, granary: 0, stoneYard: 0, dryingRack: 0, lumberCamp: 0, stonePit: 0,
-             infirmary: 0, barracks: 0, oreYard: 0, forge: 0 },
-    units: { soldier: 0 },  // trained person-types owned; separate from builds -- renders in Your People
+             infirmary: 0, barracks: 0, oreYard: 0, forge: 0, archeryRange: 0, stables: 0 },
+    // Trained person-types owned; separate from builds -- renders in Your People.
+    units: { soldier: 0, archer: 0, horseman: 0 },
     upgrades: {},     // { [upgradeId]: true } -- presence means owned, one-time
     buildQueue: [],   // FIFO: [{ id, kind, uid, total, remaining, cost }, ...] -- only [0] progresses
     buildSeq: 0,
@@ -479,42 +524,76 @@ const EVENTS = [
       if (Math.random() >= p) return;
 
       const raidSize = rollRaidSize();
-      const defense = militaryStrength();
+      const raid = rollRaidType();
+      const defense = militaryStrength(raid);
       const repelChance = defense / (defense + raidSize);
+      const say = (pool, sev) => { if (!SIM) log(pick(pool).replace("{raid}", raid.name), sev); };
 
       if (Math.random() < repelChance) {
-        const costlyChance = (raidSize / (defense + raidSize)) * armorFactor();
+        // Second dial: fielding the countering unit type doesn't just help you
+        // win, it means fewer of your own die when you do.
+        const relief = 1 - CONFIG.counterCasualtyRelief * counterCoverage(raid);
+        const costlyChance = (raidSize / (defense + raidSize)) * armorFactor() * relief;
         if (Math.random() < costlyChance) {
-          removeSoldier();
-          if (!SIM) log(pick(CONFLICT_FLAVOR.repelledCostly), "bad");
-        } else if (!SIM) {
-          log(pick(CONFLICT_FLAVOR.repelledClean), "good");
+          const lost = removeRandomUnit();
+          if (!SIM) log(`The ${raid.name} is driven off, but not without cost — a ${lost || "defender"} falls in the fighting.`, "bad");
+        } else {
+          say(CONFLICT_FLAVOR.repelledClean, "good");
         }
       } else {
-        const soldierLosses = Math.min(S.units.soldier || 0, 1 + Math.floor(raidSize / 5));
-        for (let i = 0; i < soldierLosses; i++) removeSoldier();
+        const losses = Math.min(totalUnits(), 1 + Math.floor(raidSize / 5));
+        for (let i = 0; i < losses; i++) removeRandomUnit();
         stealResources(raidSize);
-        if (!SIM) log(pick(CONFLICT_FLAVOR.raidSucceeds), "bad");
+        say(CONFLICT_FLAVOR.raidSucceeds, "bad");
         if (defense === 0 || defense < raidSize / 2) {
           removeSettler(true);   // conflict, unlike sickness, is allowed to zero out population
-          if (!SIM) log(pick(CONFLICT_FLAVOR.civilianLost), "bad");
+          say(CONFLICT_FLAVOR.civilianLost, "bad");
         }
       }
+    },
+  },
+  {
+    // Scouting unlocks a category of purely-positive discoveries. Gated on the
+    // upgrade rather than the Stables, so building the Stables alone doesn't
+    // hand it to you -- you have to actually invest in ranging out.
+    id: "scoutFind", eras: ["bronze"], sev: "good",
+    condition: (S) => !!S.upgrades.scouting,
+    chancePerSecond: 0.0016,
+    effect: (S) => {
+      const haul = Math.round(15 + S.pop * 2);
+      S.res.wood += haul; S.res.stone += haul;
+      S.res.copper += Math.round(haul * 0.4);
+    },
+    flavor: {
+      hit: [
+        "Your scouts find an abandoned camp in the hills, and strip it of everything worth carrying.",
+        "Riders return from the far valley with a cache nobody had claimed.",
+        "Scouts map a seam of ore in the uplands and bring back the first of it.",
+      ],
+    },
+  },
+  {
+    id: "scoutWarning", eras: ["bronze"], sev: "good",
+    condition: (S) => !!S.upgrades.scouting && S.pop >= 4,
+    chancePerSecond: 0.0012,
+    effect: () => {},   // pure flavor: the value is knowing, not a stat change
+    flavor: {
+      hit: [
+        "Scouts report smoke on the horizon. Something is moving out there, and it is moving this way.",
+        "Your riders find tracks at the valley mouth — many, and recent.",
+      ],
     },
   },
 ];
 
 const CONFLICT_FLAVOR = {
   repelledClean: [
-    "Raiders test your defenses and think better of it. Your Soldiers hold the line.",
-    "A raiding party is spotted and driven off before it reaches the settlement.",
-  ],
-  repelledCostly: [
-    "The raiders are driven off, but not without cost -- a Soldier falls in the fighting.",
+    "A {raid} tests your defenses and thinks better of it. Your line holds.",
+    "A {raid} is spotted and driven off before it reaches the settlement.",
   ],
   raidSucceeds: [
-    "Raiders breach your defenses. Stores are looted and your Soldiers pay the price.",
-    "The settlement is overrun before your Soldiers can hold them back.",
+    "A {raid} breaches your defenses. Stores are looted and your fighters pay the price.",
+    "The settlement is overrun by a {raid} before anyone can hold them back.",
   ],
   civilianLost: [
     "In the chaos, one of your people is caught and does not survive.",
@@ -537,6 +616,30 @@ function rollRaidSize() {
   }
   return RAID_SIZES[0].size;
 }
+
+// What kind of raid shows up. Which unit counters which raid is recorded in
+// ONE place only -- a unit def's `counters` field naming a raid id. (An earlier
+// pass also stored the reverse mapping on the raid, and comparing the wrong
+// pair of those two silently disabled every counter bonus.) A warband is simply
+// a raid no unit names, so nothing counters it. Types roll in every era; in the
+// Stone Age no counters exist yet, so they read as pure flavor until Bronze
+// makes them matter.
+const RAID_TYPES = [
+  { id: "warband", name: "warband",         weight: 50 },
+  { id: "massed",  name: "massed charge",   weight: 30 },
+  { id: "riders",  name: "band of riders",  weight: 20 },
+];
+function counterUnitFor(raid) { return raid ? UNITS.find((u) => u.counters === raid.id) : undefined; }
+function rollRaidType() {
+  const total = RAID_TYPES.reduce((s, r) => s + r.weight, 0);
+  let roll = Math.random() * total;
+  for (const r of RAID_TYPES) {
+    if (roll < r.weight) return r;
+    roll -= r.weight;
+  }
+  return RAID_TYPES[0];
+}
+
 // Weapon tiers replace each other rather than stacking -- highest owned wins.
 function weaponMultiplier() {
   if (S.upgrades.bronzeWeapons) return 2.2;
@@ -544,11 +647,36 @@ function weaponMultiplier() {
   return 1.0;
 }
 function armorFactor() { return S.upgrades.hideArmor ? 0.5 : 1.0; }
-function militaryStrength() { return (S.units.soldier || 0) * weaponMultiplier(); }
+
+// A single unit type's contribution to defense against a given raid.
+// The counter multiplier is either CONFIG.counterBonus or exactly 1 -- never
+// below. Being the "wrong" unit costs you the bonus, never your base strength,
+// so any army is always better than no army (see design.md).
+function unitStrength(def, raid) {
+  const n = S.units[def.id] || 0;
+  if (!n) return 0;
+  const matched = !!raid && def.counters === raid.id;
+  return n * (def.strength || 1) * weaponMultiplier() * (matched ? CONFIG.counterBonus : 1);
+}
+
+function militaryStrength(raid) {
+  return UNITS.reduce((sum, def) => sum + unitStrength(def, raid), 0);
+}
+
+// What share of your defense comes from the unit that counters this raid.
+// Drives how much the costly-repel roll is softened.
+function counterCoverage(raid) {
+  const def = counterUnitFor(raid);
+  if (!def) return 0;
+  const total = militaryStrength(raid);
+  if (total <= 0) return 0;
+  return Math.min(1, unitStrength(def, raid) / total);
+}
+
 function stealResources(raidSize) {
   const fraction = Math.min(0.5, raidSize * 0.03);
-  for (const k of ["food", "wood", "stone"]) {
-    S.res[k] -= Math.floor(S.res[k] * fraction);
+  for (const k of ["food", "wood", "stone", "copper", "tin", "bronze"]) {
+    S.res[k] -= Math.floor((S.res[k] || 0) * fraction);
   }
 }
 
@@ -584,13 +712,21 @@ function removeSettler(allowZero) {
   }
 }
 
-// A Soldier dies: unlike removeSettler, the person was never in S.jobs, so
-// there's no reassignment -- just remove them from the unit count and from
-// total population together.
-function removeSoldier() {
-  if ((S.units.soldier || 0) <= 0) return;
-  S.units.soldier -= 1;
+// A trained unit dies. Unlike removeSettler, the person was never in S.jobs,
+// so there's no reassignment -- just drop them from the unit count and from
+// total population together. Returns the display name of who was lost (for
+// flavor), or null if there was nobody left to lose. Casualties are drawn at
+// random, weighted by how many of each type are actually fielded.
+function removeRandomUnit() {
+  const pool = [];
+  for (const def of UNITS) {
+    for (let i = 0; i < (S.units[def.id] || 0); i++) pool.push(def);
+  }
+  if (!pool.length) return null;
+  const def = pool[Math.floor(Math.random() * pool.length)];
+  S.units[def.id] -= 1;
   S.pop -= 1;
+  return displayName(def);
 }
 
 function resolveEvents(dt) {
@@ -783,7 +919,7 @@ function onComplete(def) {
     else log(`Another ${displayName(def).toLowerCase()} raised. Housing now ${housing()}.`, "good");
     if (n === 3) log("A cluster of rooftops — this is becoming a real place.", "big");
   } else if (def.kind === "unit") {
-    log(`A settler takes up the spear. Your Soldiers now number ${S.units[def.id]}.`, "good");
+    log(`A settler trains as a ${displayName(def)}. You now field ${S.units[def.id]}.`, "good");
   } else {
     log(`${displayName(def)} complete. ${displayDesc(def)}`, "good");
   }
@@ -1278,6 +1414,7 @@ const ERA_TRANSITIONS = {
       "The settlement has grown into a village.",
       "Your healers move out of the tent and into a proper infirmary.",
       "Copper and tin can now be mined — tin yields slowly, and is the harder of the two to come by.",
+      "Raiders come in different shapes now, and some of your people are better suited to some fights than others.",
     ],
   },
 };

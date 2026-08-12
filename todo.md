@@ -249,3 +249,14 @@ in at creation and thereafter only updated its count, so after advancing, the Vi
 "Medicine Tent" while its buy-card correctly read "Infirmary" — fixed to rewrite the name every
 render, with a targeted regression test. Also swept two bits of prose that hardcoded "infirmary" (one
 became a `descs` override, one was reworded era-neutral).
+
+**Pause + playtime clock.** A `[ Pause ]` button (spacebar also works) freezes the simulation so the
+game state can be studied without moving, with a red `— PAUSED —` marker in the topbar. Alongside it,
+a playtime clock counting how long the settlement has actually been running. The clock lives inside
+`step()` rather than the tick loop, which means it freezes when paused, counts offline catch-up, and
+stops at death — all for free, no special cases. The non-obvious trap, caught by design rather than
+by accident: the tick loop has to keep advancing its `last` timestamp *while paused*, otherwise `dt`
+accumulates across the whole pause and gets handed back (clamped to 2s) the moment you resume,
+quietly gifting production for frozen time. Verified live — a 9-second pause produces zero `step()`
+calls and resumes on a normal 0.202s tick. Pause is deliberately not saved (UI state, not game state)
+and deliberately not logged to the Chronicle (that's the settlement's memory, not a UI action log).

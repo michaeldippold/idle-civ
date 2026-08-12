@@ -46,7 +46,13 @@ button { font-family: var(--mono); cursor: pointer; }
 #titleName { font-weight: 700; letter-spacing: 0.5px; font-size: 14px; }
 #ageBadge { color: var(--ink-dim); font-size: 12px; }
 #ageBadge.fallen { color: var(--danger); font-weight: 700; }
-#titleRight { display: flex; gap: 10px; }
+#titleRight { display: flex; align-items: baseline; gap: 10px; }
+#playClock {
+  color: var(--ink-dim); font-size: 12px;
+  font-variant-numeric: tabular-nums;   /* stops the topbar jittering as digits change */
+  min-width: 62px; text-align: right;
+}
+#pauseFlag { color: var(--danger); font-size: 12px; font-weight: 700; letter-spacing: 1px; }
 
 .link {
   background: none; border: none; color: var(--ink-dim);

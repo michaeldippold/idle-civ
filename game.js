@@ -197,6 +197,10 @@ let SIM = false;         // true while fast-simulating (suppresses log spam)
 let SIM_STOP = false;    // offline sim halts here instead of killing you
 let SIM_STOP_CAUSE = null;
 let loopId = null, saveId = null;
+// Deliberately NOT part of S: pause is UI state, not game state. Keeping it out
+// of the save means no schema change, and no loading into a frozen game and
+// wondering why nothing is happening.
+let paused = false;
 
 function freshState() {
   return {
@@ -210,6 +214,7 @@ function freshState() {
     pop: CONFIG.startPop,
     bought: 0,
     era: "stone",     // gates which EVENTS are eligible; ages system lands later
+    playtime: 0,      // seconds the simulation has actually advanced -- see step()
     seen: {},
     dead: false,
     lastSeed: Date.now(),
@@ -525,6 +530,11 @@ function resolveEvents(dt) {
 // ---------- Core simulation ---------------------------------
 function step(dt) {
   if (S.dead) return;
+  // Playtime lives here rather than in the tick loop so it measures exactly one
+  // thing: how far the world actually moved. Pausing skips step() entirely, so
+  // the clock freezes; offline catch-up calls step() repeatedly, so the hours
+  // it simulates are counted. Death stops it via the guard above.
+  S.playtime += dt;
   const r = rates();
 
   // Gather + eat. Food is a net line so upkeep can drive it negative -> death.
@@ -580,6 +590,8 @@ function die(cause) {
   try { localStorage.removeItem(CONFIG.saveKey); } catch (e) {}
   if (loopId) clearInterval(loopId);
   if (saveId) clearInterval(saveId);
+  // Last render before the loop stops, so the clock shows the run's final time.
+  renderAll();
 }
 
 // ---------- Actions -----------------------------------------
@@ -1027,6 +1039,32 @@ function updateSpans() {
   document.getElementById("panel-queue").classList.toggle("span-both", !UPGRADES.some(isRevealed));
 }
 
+function fmtTime(totalSec) {
+  const t = Math.max(0, Math.floor(totalSec));
+  const s = t % 60, m = Math.floor(t / 60) % 60, h = Math.floor(t / 3600);
+  return h > 0
+    ? `${h}h ${String(m).padStart(2, "0")}m`
+    : `${m}m ${String(s).padStart(2, "0")}s`;
+}
+
+// Not guarded on S.dead -- how long a run lasted is worth seeing afterward.
+function renderClock() {
+  const el = document.getElementById("playClock");
+  if (el) el.textContent = fmtTime(S.playtime || 0);
+}
+
+function setPaused(p) {
+  if (S.dead) return;
+  paused = p;
+  const btn = document.getElementById("pauseBtn");
+  if (btn) btn.textContent = paused ? "[ Resume ]" : "[ Pause ]";
+  const flag = document.getElementById("pauseFlag");
+  if (flag) flag.classList.toggle("hidden", !paused);
+  // Deliberately not logged: the Chronicle is the settlement's memory, not a
+  // record of the player's UI actions, and pausing is already obvious on screen.
+  renderAll();
+}
+
 // Era-dependent chrome: the age badge and any panel whose title is reflavored.
 // Skipped once dead, since die() puts "[Fallen]" in the badge and that should
 // stick rather than being overwritten by a later render.
@@ -1044,6 +1082,7 @@ function renderEraChrome() {
 
 function renderAll() {
   renderEraChrome();
+  renderClock();
   renderResources();
   renderPeople();
   renderHoldings();
@@ -1144,18 +1183,33 @@ function boot() {
     location.reload();
   });
 
+  document.getElementById("pauseBtn").addEventListener("click", () => setPaused(!paused));
+  // Space toggles pause. preventDefault stops it from re-activating whichever
+  // stepper/build button happens to still hold focus from the last click.
+  window.addEventListener("keydown", (e) => {
+    if (e.code !== "Space" && e.key !== " ") return;
+    e.preventDefault();
+    setPaused(!paused);
+  });
+
   let last = Date.now();
   loopId = setInterval(() => {
     if (S.dead) return;
     const now = Date.now();
     let dt = (now - last) / 1000;
+    // `last` advances even while paused -- otherwise dt would keep accruing
+    // through the whole pause and hand back a free (clamped) chunk of
+    // production the instant you resume.
     last = now;
+    if (paused) return;
     if (dt > 2) dt = 2;            // large gaps are handled by the offline sim
     step(dt);
     checkReveals();
     renderAll();
   }, CONFIG.tickMs);
 
+  // Autosave keeps running while paused, deliberately: it refreshes lastSeed,
+  // so time spent paused is never mistaken for offline time on the next load.
   saveId = setInterval(save, 10000);
   window.addEventListener("beforeunload", save);
 }

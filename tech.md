@@ -18,6 +18,14 @@ The game loop is a `setInterval` at `CONFIG.tickMs` (200ms) that computes real e
 
 This was a deliberate choice (discussed and confirmed against an alternative): a discrete fixed-tick model — like the one used in a sibling project, `dispatch`, where a `state.tick` integer counter drives everything and cooldowns/story-beats are expressed as tick counts — is a better fit for a scripted, time-of-day-driven simulation. Idle Civ's genre is the opposite: long unattended stretches and offline catch-up are core to how the game is played, which is exactly what continuous delta-time simulation is built for (it degrades gracefully to "however much time passed," rather than needing to replay potentially tens of thousands of discrete ticks). If a need for tick-counted bookkeeping (cooldowns, scripted beats at a specific moment) shows up later, the plan is to add a lightweight monotonic `S.tick` counter *alongside* the existing continuous economy, not replace it.
 
+## Pause & the Playtime Clock
+
+**Pause** is a module-level `let paused`, deliberately *not* part of `S`. It's UI state, not game state — keeping it out of the save means no schema change and no loading into a frozen game wondering why nothing is happening. The tick loop skips `step()` while paused but still runs its `last = now` bookkeeping. That last detail is the whole trick: if `last` froze along with the simulation, `dt` would accumulate across the entire pause and then be handed back (clamped to 2s) the instant you resumed, silently gifting production for time that was supposed to be frozen. Verified in a live browser test — a 9-second pause produces zero `step()` calls and resumes on a normal 0.202s tick.
+
+Interactions stay enabled while paused (reassigning jobs, queuing builds). There's no exploit available — nothing progresses and nothing accrues — and being able to plan while frozen is most of the point. Autosave also deliberately keeps running: it refreshes `lastSeed`, so time spent paused is never later mistaken for offline time. Pausing is intentionally *not* logged to the Chronicle; that log is the settlement's memory, not a record of the player's UI actions, and the paused state is already unmissable on screen.
+
+**The playtime clock** (`S.playtime`, seconds) is incremented inside `step()` rather than in the tick loop, so it measures exactly one thing: how far the world actually moved. That placement gets three behaviors for free — it freezes when paused (no `step()` calls), it counts the hours that offline catch-up simulates (which repeatedly calls `step()`), and it stops at death (`step()`'s early return). `die()` ends with a final `renderAll()` so the run's total time stays on screen after the loop stops.
+
 ## Persistence
 
 `localStorage`, under a single versioned key (`CONFIG.saveKey`, currently `"idleCiv.v6"`). Load uses a defensive merge pattern so the schema can grow additively without a migration step:
@@ -50,7 +58,8 @@ The entire simulation lives in one module-level object, `S` (see `freshState()` 
 | `buildSeq` | `number` | Monotonic counter for queue item `uid`s (DOM diffing key) |
 | `pop` | `number` | Total population, **including** Soldiers — they still eat and occupy housing |
 | `bought` | `number` | Total settlers grown via the wanderer event; drives escalating growth cost |
-| `era` | `string` | Currently always `"stone"`; gates which `EVENTS` are eligible |
+| `era` | `string` | `"stone"` or `"bronze"`; gates `EVENTS`, display names, and a few tuning values |
+| `playtime` | `number` | Seconds the simulation has actually advanced (frozen while paused) |
 | `seen` | `{[revealId]: true}` | One-time UI reveal hints already shown |
 | `dead` | `boolean` | Game-over flag |
 | `lastSeed` | `number` | `Date.now()` at last save, used for offline catch-up |
@@ -60,13 +69,14 @@ Population is **not** `S.jobs` summed plus idle — a person can now be in one o
 ## `step(dt)` — Order of Operations
 
 1. Bail immediately if `S.dead`.
-2. Compute `rates()` (production, upkeep, net food).
-3. Apply production/upkeep to `res` (scaled by `dt`).
-4. Clamp `food`/`wood`/`stone` to their storage caps (`caps()`) — silent; a one-time Chronicle hint covers it via `REVEALS`.
-5. Starvation check: if `food <= 0` and net food rate is negative, either halt (`SIM_STOP`, offline) or call `die("starvation")` (live).
-6. Advance the front of `buildQueue` by `CONFIG.buildSpeed * dt`; on completion, `shift()` it and call `completeConstruction()`.
-7. Call `resolveEvents(dt)` — population growth, sickness, conflict, and anything else on the `EVENTS` list.
-8. Wipe-out check: if `S.pop <= 0`, call `die("conflict")`. Unlike starvation this can only happen via Conflict (Sickness floors at 1 survivor by design — see Military & Units), but the check itself is generic rather than attributed to a specific event, since in principle anything could tip population to zero.
+2. Advance `S.playtime` by `dt` (see Pause & the Playtime Clock).
+3. Compute `rates()` (production, upkeep, net food).
+4. Apply production/upkeep to `res` (scaled by `dt`).
+5. Clamp `food`/`wood`/`stone` to their storage caps (`caps()`) — silent; a one-time Chronicle hint covers it via `REVEALS`.
+6. Starvation check: if `food <= 0` and net food rate is negative, either halt (`SIM_STOP`, offline) or call `die("starvation")` (live).
+7. Advance the front of `buildQueue` by `CONFIG.buildSpeed * dt`; on completion, `shift()` it and call `completeConstruction()`.
+8. Call `resolveEvents(dt)` — population growth, sickness, conflict, and anything else on the `EVENTS` list.
+9. Wipe-out check: if `S.pop <= 0`, call `die("conflict")`. Unlike starvation this can only happen via Conflict (Sickness floors at 1 survivor by design — see Military & Units), but the check itself is generic rather than attributed to a specific event, since in principle anything could tip population to zero.
 
 ## Resource System
 

@@ -1,6 +1,8 @@
 /* ============================================================
-   Idle Civ — prototype game logic (v6)
+   Idle Civ — prototype game logic (v6 save schema)
    Deliberately small. Tune the CONFIG block to change the feel.
+   Content is authored as per-era manifests (STONE + deltas) compiled at
+   load; the engine reads everything through active(). See tech.md.
    ============================================================ */
 
 "use strict";
@@ -16,7 +18,7 @@ const CONFIG = {
   baseHousing: 3,
   settlerIntervalSeconds: 45,  // a new settler arrives this often while housing has room -- free.
                                // THE growth-pacing dial; first guess, tune in play.
-  // Per-resource base caps live on the RESOURCES table below, not here.
+  // Per-resource base caps live on each era's resource list below, not here.
   storageAdd: 100,        // extra cap per storage building
   stoneToolsBonus: 0.08,  // flat additive bump to ALL gather multipliers from the Stone Tools upgrade
   bronzeToolsBonus: 0.15, // ditto, Bronze Tools -- stacks additively on top of Stone Tools
@@ -35,241 +37,549 @@ const CONFIG = {
   saveKey: "idleCiv.v6",
 };
 
-// Every resource in the game. `capBuilding` is the storage building that
-// raises its ceiling (null = no storage building, so it keeps its base cap);
-// `reveal` gates whether it appears in the ledger at all. Adding a resource
-// means adding a row here -- rates, caps, clamping and rendering all iterate
-// this rather than naming resources individually.
-const RESOURCES = [
-  { id: "food",   name: "Food",   baseCap: 50,  capBuilding: "granary"  },
-  { id: "wood",   name: "Wood",   baseCap: 50,  capBuilding: "woodshed" },
-  { id: "stone",  name: "Stone",  baseCap: 50,  capBuilding: "stoneYard" },
-  { id: "copper", name: "Copper", baseCap: 50,  capBuilding: "oreYard", reveal: () => S.era === "bronze" },
-  { id: "tin",    name: "Tin",    baseCap: 50,  capBuilding: "oreYard", reveal: () => S.era === "bronze" },
-  // Bronze is spent on upgrades rather than stockpiled, so it gets a generous
-  // ceiling and no storage building of its own.
-  { id: "bronze", name: "Bronze", baseCap: 200, capBuilding: null,      reveal: () => S.era === "bronze" },
-];
+// ---------- Eras: the manifest model ------------------------
+// Each era is a MANIFEST: the complete set of resources, jobs, buildings,
+// upgrades, units, events and hints that exist while that era is active, plus
+// a handful of era-scoped values (display name, housing per hut, panel titles,
+// raid types). The engine reads ALL content through active() -- nothing below
+// the compiler ever touches STONE or BRONZE_DELTA directly. If something is
+// not in the active manifest, it does not exist right now: it can't fire,
+// can't render, can't be built. Absence IS removal.
+//
+// Eras after the first are authored as DELTAS against their parent
+// (remove / override / add) and compiled into full manifests at load. What a
+// delta doesn't mention, it inherits unchanged -- with one deliberate
+// exception: the `events` and `hints` slates are declared wholesale in every
+// era, never inherited, because a forgotten event should be a loud authoring
+// decision, not a silent omission. (This bit us once: events tagged for the
+// wrong era simply stopped firing, with no error, ever.)
+//
+// Ids are permanent across eras -- saves, icons and DOM nodes key off them.
+// Names, descs, costs and everything else are era-facts that live in the
+// manifest, which is how a Hut becomes a Stone House without becoming a
+// different thing. See tech.md for the full contract.
+const ERA_ORDER = ["stone", "bronze"];   // chronological; drives compilation and era comparisons
 
-// `rateMult` scales a job's yield against CONFIG.baseRate. Tin deliberately
-// yields half of copper -- it's the scarce half of the alloy, which is both a
-// real balance lever and why bronze was worth building trade routes over.
-const JOBS = [
-  { id: "forager",     name: "Forage food",  res: "food"  },
-  { id: "woodcutter",  name: "Chop wood",    res: "wood"  },
-  { id: "miner",       name: "Gather stone", res: "stone" },
-  { id: "copperMiner", name: "Mine copper",  res: "copper", reveal: () => S.era === "bronze" },
-  { id: "tinMiner",    name: "Mine tin",     res: "tin", rateMult: 0.5, reveal: () => S.era === "bronze" },
-];
+// ---------- Event library -----------------------------------
+// Every event that exists in ANY era, keyed by id. Which of these are live is
+// decided by each manifest's `events` slate -- there are no era tags here.
+// Each entry is one of three shapes (see resolveEvents):
+//   canFire(S)         -- deterministic, re-checked and fired repeatedly per
+//                          tick while true. Currently unoccupied (population
+//                          growth moved out to accrueGrowth) but the archetype
+//                          stays: it's the generic deterministic shape.
+//   chancePerSecond    -- probabilistic hazard/windfall, converted to a
+//                          per-tick roll. If it lands, an optional `counter`
+//                          (a building) gets a second roll to negate it.
+//   resolve(S, dt)      -- full escape hatch: owns its own trigger roll,
+//                          effect, and flavor logging. For events too
+//                          multi-staged to fit the generic shape (Conflict).
+// Plus: condition(S) gating, effect(S) (may return a custom log line), and
+// flavor.{hit,negated} pools. Adding an event never touches the engine --
+// only this library and the slates that name it.
+const EVENT_LIB = {
+  greatHunt: {
+    sev: "good",
+    chancePerSecond: 0.002,                         // ~8.3 real minutes average -- small, frequent
+    effect: (S) => { S.res.food += Math.round(8 + S.pop * 1.2); },
+    flavor: {
+      hit: [
+        "A hunting party returns with more than they hoped for -- there is meat enough to share.",
+        "A lucky strike brings down a boar. The camp eats well tonight.",
+      ],
+    },
+  },
+  trader: {
+    sev: "good",
+    chancePerSecond: 0.0009,                        // ~18.5 real minutes average -- rarer, bigger
+    effect: (S) => {
+      const bonus = Math.round(12 + S.pop * 1.5);
+      S.res.wood += bonus; S.res.stone += bonus;
+    },
+    flavor: {
+      hit: [
+        "A trader passes through and leaves goods behind in exchange for hospitality.",
+        "A stranger arrives with a laden pack, and departs with an empty one.",
+      ],
+    },
+  },
+  sickness: {
+    sev: "bad",
+    condition: (S) => S.pop >= 4,
+    chancePerSecond: 0.0015,                        // ~11 real minutes average, unmitigated
+    counter: { building: "infirmary", reducePerUnit: (S) => S.upgrades.herbalMedicine ? 0.35 : 0.2 },
+    effect: (S) => removeSettler(),
+    flavor: {
+      hit: [
+        "A fever sweeps through the camp. One of your people does not recover.",
+        "Sickness takes hold overnight. Your settlement wakes one fewer.",
+      ],
+      negated: [
+        // Deliberately era-neutral wording -- this building is a Medicine Tent
+        // in the Stone Age and an Infirmary in Bronze.
+        "Sickness threatens the camp, but your healers keep it at bay.",
+        "A fever passes through -- your healers see everyone through it.",
+      ],
+    },
+  },
+  conflict: {
+    sev: "bad",
+    condition: (S) => S.pop >= 4,
+    resolve: (S, dt) => {
+      const chance = CONFIG.conflictBaseChance * (1 + S.pop * CONFIG.conflictPopScale);
+      const p = 1 - Math.pow(1 - chance, dt);
+      if (Math.random() >= p) return;
 
-// Which building boosts which resource's yield (see mults()).
-const BOOST_BUILDING = { food: "dryingRack", wood: "lumberCamp", stone: "stonePit" };
+      const raidSize = rollRaidSize();
+      const raid = rollRaidType();
+      const defense = militaryStrength(raid);
+      const repelChance = defense / (defense + raidSize);
+      const say = (pool, sev) => { if (!SIM) log(pick(pool).replace("{raid}", raid.name), sev); };
 
-// Order jobs are emptied in when the population shrinks (see removeSettler).
-// Foraging is released last so a shrinking settlement keeps feeding itself.
-const RELEASE_ORDER = JOBS.map((j) => j.id).filter((id) => id !== "forager").reverse().concat("forager");
-
-// ---------- Eras --------------------------------------------
-// Only the display layer and a handful of tuning values vary by era. Ids never
-// change (saves key off them) -- a def's `names`/`descs` maps override how it
-// reads per era, falling back to its base `name`/`desc`. See tech.md.
-const ERA_ORDER = ["stone", "bronze"];   // chronological; drives era comparisons
-const ERA_NAMES = { stone: "Stone Age", bronze: "Bronze Age" };
-const HOUSING_PER_HUT = { stone: 3, bronze: 5 };
-const PANEL_TITLES = {
-  "panel-holdings": { stone: "Settlement", bronze: "Village" },
+      if (Math.random() < repelChance) {
+        // Second dial: fielding the countering unit type doesn't just help you
+        // win, it means fewer of your own die when you do.
+        const relief = 1 - CONFIG.counterCasualtyRelief * counterCoverage(raid);
+        const costlyChance = (raidSize / (defense + raidSize)) * armorFactor() * relief;
+        if (Math.random() < costlyChance) {
+          const lost = removeRandomUnit();
+          if (!SIM) log(`The ${raid.name} is driven off, but not without cost — a ${lost || "defender"} falls in the fighting.`, "bad");
+        } else {
+          say(CONFLICT_FLAVOR.repelledClean, "good");
+        }
+      } else {
+        const losses = Math.min(totalUnits(), 1 + Math.floor(raidSize / 5));
+        for (let i = 0; i < losses; i++) removeRandomUnit();
+        stealResources(raidSize);
+        say(CONFLICT_FLAVOR.raidSucceeds, "bad");
+        if (defense === 0 || defense < raidSize / 2) {
+          removeSettler(true);   // conflict, unlike sickness, is allowed to zero out population
+          say(CONFLICT_FLAVOR.civilianLost, "bad");
+        }
+      }
+    },
+  },
+  scoutFind: {
+    // Scouting unlocks a category of purely-positive discoveries. Gated on the
+    // upgrade rather than the Stables, so building the Stables alone doesn't
+    // hand it to you -- you have to actually invest in ranging out.
+    sev: "good",
+    condition: (S) => !!S.upgrades.scouting,
+    chancePerSecond: 0.0016,
+    effect: (S) => {
+      const haul = Math.round(15 + S.pop * 2);
+      S.res.wood += haul; S.res.stone += haul;
+      S.res.copper += Math.round(haul * 0.4);
+    },
+    flavor: {
+      hit: [
+        "Your scouts find an abandoned camp in the hills, and strip it of everything worth carrying.",
+        "Riders return from the far valley with a cache nobody had claimed.",
+        "Scouts map a seam of ore in the uplands and bring back the first of it.",
+      ],
+    },
+  },
+  scoutWarning: {
+    sev: "good",
+    condition: (S) => !!S.upgrades.scouting && S.pop >= 4,
+    chancePerSecond: 0.0012,
+    effect: () => {},   // pure flavor: the value is knowing, not a stat change
+    flavor: {
+      hit: [
+        "Scouts report smoke on the horizon. Something is moving out there, and it is moving this way.",
+        "Your riders find tracks at the valley mouth — many, and recent.",
+      ],
+    },
+  },
 };
 
-// Buildings. `base` = cost of the first; each next costs *scale more (unless
-// `cap`ped, in which case there is no "next" -- see Barracks).
-// `buildTime` = seconds needed once a building reaches the front of the queue.
-// `reveal` decides when it first appears (the screen "unravels").
-const BUILDINGS = [
-  {
-    id: "hut", name: "Hut", kind: "building", desc: "Shelter for 3 more settlers.",
-    names: { bronze: "Stone House" },
-    descs: { bronze: "Shelter for 5 more settlers." },
-    base: { wood: 15 }, scale: 1.6, buildTime: 12,
-    reveal: () => S.res.wood >= 8 || S.builds.hut > 0,
-  },
-  {
-    id: "woodshed", name: "Woodshed", kind: "building", desc: "Store +100 wood (else it rots in the rain).",
-    base: { wood: 20 }, scale: 1.55, buildTime: 16,
-    reveal: () => S.res.wood >= caps().wood * 0.7 || S.builds.woodshed > 0,
-  },
-  {
-    id: "granary", name: "Granary", kind: "building", desc: "Store +100 food (else it spoils in the open).",
-    base: { wood: 25 }, scale: 1.55, buildTime: 16,
-    reveal: () => S.res.food >= caps().food * 0.7 || S.builds.granary > 0,
-  },
-  {
-    id: "stoneYard", name: "Stone Yard", kind: "building", desc: "Store +100 stone (else the surplus is lost, unorganized).",
-    base: { wood: 25, stone: 10 }, scale: 1.55, buildTime: 16,
-    reveal: () => S.res.stone >= caps().stone * 0.7 || S.builds.stoneYard > 0,
-  },
-  {
-    id: "dryingRack", name: "Drying Racks", kind: "building", desc: "Foragers gather +12% food.",
-    base: { wood: 22 }, scale: 1.5, buildTime: 20,
-    reveal: () => S.builds.hut >= 1,
-  },
-  {
-    id: "lumberCamp", name: "Lumber Camp", kind: "building", desc: "Woodcutters gather +12% wood.",
-    base: { wood: 18, stone: 10 }, scale: 1.5, buildTime: 24,
-    reveal: () => S.builds.hut >= 1,
-  },
-  {
-    id: "stonePit", name: "Stone Pit", kind: "building", desc: "Gatherers mine +12% stone.",
-    base: { wood: 20, stone: 12 }, scale: 1.5, buildTime: 24,
-    reveal: () => S.builds.hut >= 2,
-  },
-  {
-    // Displays as "Medicine Tent" in the Stone Age so that "Infirmary" is
-    // available as this same building's Bronze-era name. Id stays `infirmary`.
-    id: "infirmary", name: "Infirmary", kind: "building", desc: "Reduces the chance sickness claims a life.",
-    names: { stone: "Medicine Tent" },
-    base: { wood: 24, stone: 8 }, scale: 1.5, buildTime: 20,
-    reveal: () => S.builds.hut >= 1,
-  },
-  {
-    id: "barracks", name: "Barracks", kind: "building", cap: 1,
-    desc: "Lets your people train as Soldiers.",
-    base: { wood: 40, stone: 15 }, scale: 1.5, buildTime: 30,
-    reveal: () => S.builds.hut >= 1,
-  },
-  {
-    id: "archeryRange", name: "Archery Range", kind: "building", era: "bronze", cap: 1,
-    desc: "Lets your people train as Archers.",
-    base: { wood: 50, stone: 20 }, scale: 1.5, buildTime: 28,
-    reveal: () => S.era === "bronze" && S.builds.barracks >= 1,
-  },
-  {
-    id: "stables", name: "Stables", kind: "building", era: "bronze", cap: 1,
-    desc: "Lets your people train as Horsemen, and makes scouting possible.",
-    base: { wood: 60, stone: 25, bronze: 10 }, scale: 1.5, buildTime: 34,
-    reveal: () => S.era === "bronze" && S.builds.barracks >= 1,
-  },
-  {
-    id: "oreYard", name: "Ore Yard", kind: "building", era: "bronze",
-    desc: "Store +100 copper and +100 tin (ores pile up unusable otherwise).",
-    base: { wood: 30, stone: 20 }, scale: 1.55, buildTime: 18,
-    reveal: () => S.era === "bronze",
-  },
-  {
-    // The first building that TRANSFORMS rather than produces or boosts.
-    // No workers: the opportunity cost is already paid by the miners feeding
-    // it, and "would you like to stop smelting?" isn't an interesting choice
-    // when neither input has another use.
-    id: "forge", name: "Forge", kind: "building", era: "bronze",
-    desc: "Smelts 4 copper + 1 tin into 1 bronze, continuously.",
-    base: { wood: 45, stone: 30 }, scale: 1.5, buildTime: 26,
-    converts: { in: { copper: 4, tin: 1 }, out: { bronze: 1 }, rate: 0.05 },
-    reveal: () => S.era === "bronze",
-  },
-];
+// ---------- Hint library ------------------------------------
+// One-time Chronicle hints: fire once when `when()` first holds, then never
+// again (tracked in S.seen). Which hints are live in an era is the manifest's
+// `hints` slate -- slate membership replaced the S.era checks that used to
+// hide inside individual `when()` conditions.
+const HINT_LIB = {
+  wood:  { when: () => S.res.wood  > 0, msg: "You have wood enough to notice its worth." },
+  stone: { when: () => S.res.stone > 0, msg: "Stone piles up beside the wood." },
+  build: { when: () => S.res.wood >= 8, msg: "There is timber enough to build. Raise a hut for your people." },
+  tools: { when: () => S.builds.hut >= 1, msg: "With shelter secured, your people turn to better tools." },
+  rotFood: { when: () => S.res.food >= caps().food - 0.01,
+    msg: "Your food stores are full — the surplus spoils in the open. Build a Granary." },
+  rotWood: { when: () => S.res.wood >= caps().wood - 0.01,
+    msg: "Your woodpile is full — extra timber rots in the rain. Build a Woodshed." },
+  rotStone: { when: () => S.res.stone >= caps().stone - 0.01,
+    msg: "Loose stone is piling up faster than anyone can stack it — the excess is lost. Build a Stone Yard." },
+  sicknessWarn: { when: () => S.pop >= 4,
+    msg: "More mouths, more risk — crowded camps invite sickness. An infirmary would ease their fears." },
+  conflictWarn: { when: () => S.pop >= 4,
+    msg: "Word of raiders reaches the settlement. A Barracks would let your people take up arms." },
+  rotOre: { when: () => S.res.copper >= caps().copper - 0.01 || S.res.tin >= caps().tin - 0.01,
+    msg: "Ore is heaped up beyond what anyone can sort — the excess is lost. Build an Ore Yard." },
+  firstBronze: { when: () => S.res.bronze > 0,
+    msg: "The first ingots cool in the mould. Bronze is yours to work with." },
+  bronzeAvailable: { when: () => S.pop >= 10 && (S.units.soldier || 0) >= 1,
+    msg: "Travellers speak of a harder metal, poured rather than chipped. Your people could reach it — with enough stores behind them." },
+};
 
-// One-time upgrades: bought once, never scale, never repeat. Distinct from
-// BUILDINGS (which you can own many of for a stacking benefit) -- this is the
-// list era transitions (Bronze Age, etc.) will eventually live in.
-const UPGRADES = [
-  {
-    id: "stoneTools", name: "Stone Tools", kind: "upgrade",
-    desc: "Permanently improves all gathering by 8%.",
-    base: { wood: 10 }, buildTime: 10,
-    reveal: () => S.res.wood >= 5 || S.builds.hut > 0,
-  },
-  {
-    id: "fireMastery", name: "Fire Mastery", kind: "upgrade",
-    desc: "Permanently reduces food upkeep by 15%.",
-    base: { wood: 30, food: 10 }, buildTime: 25,
-    reveal: () => S.builds.hut >= 1,
-  },
-  {
-    id: "herbalMedicine", name: "Herbal Medicine", kind: "upgrade",
-    desc: "Increases how much each Medicine Tent reduces the chance sickness claims a life.",
-    descs: { bronze: "Increases how much each Infirmary reduces the chance sickness claims a life." },
-    base: { wood: 20, food: 20 }, buildTime: 20,
-    reveal: () => S.builds.infirmary >= 1,
-  },
-  {
-    id: "flintSpears", name: "Flint-Tipped Spears", kind: "upgrade",
-    desc: "Sharper spearheads improve your Soldiers' odds in a fight.",
-    base: { wood: 20, stone: 10 }, buildTime: 20,
-    reveal: () => S.builds.barracks >= 1,
-  },
-  {
-    id: "hideArmor", name: "Hide Armor", kind: "upgrade",
-    desc: "Simple hide armor improves your Soldiers' odds of surviving a fight.",
-    base: { wood: 15, food: 15 }, buildTime: 20,
-    reveal: () => S.builds.barracks >= 1,
-  },
-  // The age capstone. An ordinary upgrade in every respect -- same queue, same
-  // cancel/refund, same cost check -- so Sickness and Conflict keep rolling
-  // through its long build. That's deliberately where "and some luck" lives.
-  // Its completion is the ONLY place S.era is ever assigned.
-  {
-    id: "bronzeAge", name: "Bronze Age", kind: "upgrade", untilEra: "stone",
-    desc: "Copper and tin, married in fire. Step out of the age of stone.",
-    base: { food: 300, wood: 300, stone: 300 }, buildTime: 120,
-    reveal: () => S.pop >= 10 && (S.units.soldier || 0) >= 1,
-  },
-  {
-    id: "bronzeTools", name: "Bronze Tools", kind: "upgrade", era: "bronze",
-    desc: "Permanently improves all gathering by 15%.",
-    base: { wood: 40, bronze: 25 }, buildTime: 30,
-    reveal: () => S.era === "bronze",
-  },
-  {
-    id: "bronzeWeapons", name: "Bronze Weapons", kind: "upgrade", era: "bronze",
-    desc: "Cast blades outclass flint. A further improvement to your Soldiers' odds in a fight.",
-    base: { wood: 30, bronze: 40 }, buildTime: 30,
-    reveal: () => S.era === "bronze" && S.builds.barracks >= 1,
-  },
-  {
-    id: "scouting", name: "Scouting", kind: "upgrade", era: "bronze",
-    desc: "Riders range beyond the valley and bring back word of what's out there.",
-    base: { food: 40, bronze: 15 }, buildTime: 25,
-    reveal: () => S.builds.stables >= 1,
-  },
-];
+// ---------- The Stone Age (base manifest) -------------------
+// The first era is authored in full; every later era is a delta against the
+// one before it. Field notes, category by category:
+//   resources: `capBuilding` is the storage building that raises the ceiling
+//     (null = keeps its base cap); `reveal` gates the ledger row. Rates, caps,
+//     clamping and rendering all iterate this list.
+//   jobs: `rateMult` scales yield against CONFIG.baseRate.
+//   buildings: `base` = cost of the first; each next costs *scale more (unless
+//     `cap`ped, in which case there is no "next" -- see Barracks). `buildTime`
+//     = seconds at the front of the queue. `reveal` decides when it first
+//     appears (the screen "unravels").
+//   upgrades: bought once, never scale, never repeat. The list age capstones
+//     live in.
+//   units: trainable person-types -- same queue and cost machinery as
+//     buildings, but `popCost` permanently consumes a civilian and ownership
+//     lives in S.units, so they render in Your People. `strength` is baseline
+//     defense contribution; `counters` names the raid type they excel against;
+//     `casualtyWeight` is exposure when someone must die (see
+//     removeRandomUnit) -- every weight deliberately ABOVE ZERO, bending odds,
+//     never granting immunity.
+const STONE = {
+  name: "Stone Age",
+  housingPerHut: 3,
+  panelTitles: { "panel-holdings": "Settlement" },
 
-// Trainable person-types: like BUILDINGS (go through the same queue, same
-// flat/escalating cost machinery) but `popCost` permanently consumes a
-// civilian on completion, and ownership lives in S.units, not S.builds, so it
-// renders in Your People instead of Settlement. See design.md / tech.md.
-// `strength` is a unit's baseline contribution to defense; `counters` names the
-// raid type it excels against (see RAID_TYPES). Soldiers stay the cheap
-// generalist -- and notably the only one costing no bronze, so they remain
-// buildable when the Forge is starved.
-//
-// `casualtyWeight` is how exposed a unit is when someone has to die: it scales
-// that type's share of the casualty draw (see removeRandomUnit). Foot soldiers
-// hold the line and take the brunt; horsemen can withdraw; archers shoot from
-// the back and are hit least. Every weight is deliberately ABOVE ZERO -- this
-// bends the odds, it never grants immunity, so an archer can always be the one
-// who falls and an all-archer army has no protection at all.
-const UNITS = [
-  {
-    id: "soldier", name: "Soldier", kind: "unit", popCost: 1, strength: 1.0,
-    casualtyWeight: 1.0,
-    desc: "A settler permanently trained for defense. Holds the line, and takes the worst of it.",
-    base: { wood: 12 }, buildTime: 15,
-    reveal: () => S.builds.barracks >= 1,
+  resources: [
+    { id: "food",  name: "Food",  baseCap: 50, capBuilding: "granary"  },
+    { id: "wood",  name: "Wood",  baseCap: 50, capBuilding: "woodshed" },
+    { id: "stone", name: "Stone", baseCap: 50, capBuilding: "stoneYard" },
+  ],
+
+  jobs: [
+    { id: "forager",    name: "Forage food",  res: "food"  },
+    { id: "woodcutter", name: "Chop wood",    res: "wood"  },
+    { id: "miner",      name: "Gather stone", res: "stone" },
+  ],
+
+  buildings: [
+    {
+      id: "hut", name: "Hut", kind: "building", desc: "Shelter for 3 more settlers.",
+      base: { wood: 15 }, scale: 1.6, buildTime: 12,
+      reveal: () => S.res.wood >= 8 || S.builds.hut > 0,
+    },
+    {
+      id: "woodshed", name: "Woodshed", kind: "building", desc: "Store +100 wood (else it rots in the rain).",
+      base: { wood: 20 }, scale: 1.55, buildTime: 16,
+      reveal: () => S.res.wood >= caps().wood * 0.7 || S.builds.woodshed > 0,
+    },
+    {
+      id: "granary", name: "Granary", kind: "building", desc: "Store +100 food (else it spoils in the open).",
+      base: { wood: 25 }, scale: 1.55, buildTime: 16,
+      reveal: () => S.res.food >= caps().food * 0.7 || S.builds.granary > 0,
+    },
+    {
+      id: "stoneYard", name: "Stone Yard", kind: "building", desc: "Store +100 stone (else the surplus is lost, unorganized).",
+      base: { wood: 25, stone: 10 }, scale: 1.55, buildTime: 16,
+      reveal: () => S.res.stone >= caps().stone * 0.7 || S.builds.stoneYard > 0,
+    },
+    {
+      id: "dryingRack", name: "Drying Racks", kind: "building", desc: "Foragers gather +12% food.",
+      base: { wood: 22 }, scale: 1.5, buildTime: 20,
+      reveal: () => S.builds.hut >= 1,
+    },
+    {
+      id: "lumberCamp", name: "Lumber Camp", kind: "building", desc: "Woodcutters gather +12% wood.",
+      base: { wood: 18, stone: 10 }, scale: 1.5, buildTime: 24,
+      reveal: () => S.builds.hut >= 1,
+    },
+    {
+      id: "stonePit", name: "Stone Pit", kind: "building", desc: "Gatherers mine +12% stone.",
+      base: { wood: 20, stone: 12 }, scale: 1.5, buildTime: 24,
+      reveal: () => S.builds.hut >= 2,
+    },
+    {
+      // "Medicine Tent" here so that "Infirmary" is available as this same
+      // building's Bronze-era name (an override, not a new def). Id never changes.
+      id: "infirmary", name: "Medicine Tent", kind: "building", desc: "Reduces the chance sickness claims a life.",
+      base: { wood: 24, stone: 8 }, scale: 1.5, buildTime: 20,
+      reveal: () => S.builds.hut >= 1,
+    },
+    {
+      id: "barracks", name: "Barracks", kind: "building", cap: 1,
+      desc: "Lets your people train as Soldiers.",
+      base: { wood: 40, stone: 15 }, scale: 1.5, buildTime: 30,
+      reveal: () => S.builds.hut >= 1,
+    },
+  ],
+
+  upgrades: [
+    {
+      id: "stoneTools", name: "Stone Tools", kind: "upgrade",
+      desc: "Permanently improves all gathering by 8%.",
+      base: { wood: 10 }, buildTime: 10,
+      reveal: () => S.res.wood >= 5 || S.builds.hut > 0,
+    },
+    {
+      id: "fireMastery", name: "Fire Mastery", kind: "upgrade",
+      desc: "Permanently reduces food upkeep by 15%.",
+      base: { wood: 30, food: 10 }, buildTime: 25,
+      reveal: () => S.builds.hut >= 1,
+    },
+    {
+      id: "herbalMedicine", name: "Herbal Medicine", kind: "upgrade",
+      desc: "Increases how much each Medicine Tent reduces the chance sickness claims a life.",
+      base: { wood: 20, food: 20 }, buildTime: 20,
+      reveal: () => S.builds.infirmary >= 1,
+    },
+    {
+      id: "flintSpears", name: "Flint-Tipped Spears", kind: "upgrade",
+      desc: "Sharper spearheads improve your Soldiers' odds in a fight.",
+      base: { wood: 20, stone: 10 }, buildTime: 20,
+      reveal: () => S.builds.barracks >= 1,
+    },
+    {
+      id: "hideArmor", name: "Hide Armor", kind: "upgrade",
+      desc: "Simple hide armor improves your Soldiers' odds of surviving a fight.",
+      base: { wood: 15, food: 15 }, buildTime: 20,
+      reveal: () => S.builds.barracks >= 1,
+    },
+    // The age capstone. An ordinary upgrade in every respect -- same queue,
+    // same cancel/refund, same cost check -- so Sickness and Conflict keep
+    // rolling through its long build. That's deliberately where "and some
+    // luck" lives. Its completion is the ONLY place S.era is ever assigned.
+    // The Bronze delta REMOVES it: a capstone exists only in the era it ends.
+    {
+      id: "bronzeAge", name: "Bronze Age", kind: "upgrade",
+      desc: "Copper and tin, married in fire. Step out of the age of stone.",
+      base: { food: 300, wood: 300, stone: 300 }, buildTime: 120,
+      reveal: () => S.pop >= 10 && (S.units.soldier || 0) >= 1,
+    },
+  ],
+
+  units: [
+    {
+      id: "soldier", name: "Soldier", kind: "unit", popCost: 1, strength: 1.0,
+      casualtyWeight: 1.0,
+      desc: "A settler permanently trained for defense. Holds the line, and takes the worst of it.",
+      base: { wood: 12 }, buildTime: 15,
+      reveal: () => S.builds.barracks >= 1,
+    },
+  ],
+
+  // What kind of raid shows up (see rollRaidType). Which unit counters which
+  // raid is recorded in ONE place only -- a unit def's `counters` field naming
+  // a raid id. (An earlier pass also stored the reverse mapping on the raid,
+  // and comparing the wrong pair of those two silently disabled every counter
+  // bonus.) A warband is simply a raid no unit names, so nothing counters it.
+  // All three types roll in the Stone Age too; no counters exist yet, so they
+  // read as pure flavor until Bronze makes them matter.
+  raidTypes: [
+    { id: "warband", name: "warband",         weight: 50 },
+    { id: "massed",  name: "massed charge",   weight: 30 },
+    { id: "riders",  name: "band of riders",  weight: 20 },
+  ],
+
+  events: ["greatHunt", "trader", "sickness", "conflict"],
+  hints:  ["wood", "stone", "build", "tools", "rotFood", "rotWood", "rotStone",
+           "sicknessWarn", "conflictWarn", "bronzeAvailable"],
+};
+
+// ---------- The Bronze Age (delta) --------------------------
+// Everything the Bronze Age changes about the world, and nothing else.
+// Reading this delta IS reading the era's design: huts become stone houses
+// and hold more, the healers get a real building, ores and the Forge arrive,
+// two unit types join, the capstone that got us here is retired.
+const BRONZE_DELTA = {
+  name: "Bronze Age",
+  housingPerHut: 5,
+  panelTitles: { "panel-holdings": "Village" },
+
+  remove: ["bronzeAge"],
+
+  override: {
+    hut:        { name: "Stone House", desc: "Shelter for 5 more settlers." },
+    infirmary:  { name: "Infirmary" },
+    herbalMedicine: { desc: "Increases how much each Infirmary reduces the chance sickness claims a life." },
   },
-  {
-    id: "archer", name: "Archer", kind: "unit", era: "bronze", popCost: 1,
-    strength: 1.0, counters: "massed", casualtyWeight: 0.35,
-    desc: "Deadly against a massed charge, and safer than most — they fight from behind the line.",
-    base: { wood: 14, bronze: 6 }, buildTime: 18,
-    reveal: () => S.builds.archeryRange >= 1,
+
+  add: {
+    resources: [
+      // Present-in-era resources reveal immediately (`() => true`): the
+      // manifest is the gate now, where an S.era check used to be.
+      { id: "copper", name: "Copper", baseCap: 50,  capBuilding: "oreYard", reveal: () => true },
+      { id: "tin",    name: "Tin",    baseCap: 50,  capBuilding: "oreYard", reveal: () => true },
+      // Bronze is spent on upgrades rather than stockpiled, so it gets a
+      // generous ceiling and no storage building of its own.
+      { id: "bronze", name: "Bronze", baseCap: 200, capBuilding: null,      reveal: () => true },
+    ],
+    jobs: [
+      // Tin deliberately yields half of copper -- it's the scarce half of the
+      // alloy, which is both a real balance lever and why bronze was worth
+      // building trade routes over.
+      { id: "copperMiner", name: "Mine copper", res: "copper" },
+      { id: "tinMiner",    name: "Mine tin",    res: "tin", rateMult: 0.5 },
+    ],
+    buildings: [
+      {
+        id: "archeryRange", name: "Archery Range", kind: "building", cap: 1,
+        desc: "Lets your people train as Archers.",
+        base: { wood: 50, stone: 20 }, scale: 1.5, buildTime: 28,
+        reveal: () => S.builds.barracks >= 1,
+      },
+      {
+        id: "stables", name: "Stables", kind: "building", cap: 1,
+        desc: "Lets your people train as Horsemen, and makes scouting possible.",
+        base: { wood: 60, stone: 25, bronze: 10 }, scale: 1.5, buildTime: 34,
+        reveal: () => S.builds.barracks >= 1,
+      },
+      {
+        id: "oreYard", name: "Ore Yard", kind: "building",
+        desc: "Store +100 copper and +100 tin (ores pile up unusable otherwise).",
+        base: { wood: 30, stone: 20 }, scale: 1.55, buildTime: 18,
+        reveal: () => true,
+      },
+      {
+        // The first building that TRANSFORMS rather than produces or boosts.
+        // No workers: the opportunity cost is already paid by the miners
+        // feeding it, and "would you like to stop smelting?" isn't an
+        // interesting choice when neither input has another use.
+        id: "forge", name: "Forge", kind: "building",
+        desc: "Smelts 4 copper + 1 tin into 1 bronze, continuously.",
+        base: { wood: 45, stone: 30 }, scale: 1.5, buildTime: 26,
+        converts: { in: { copper: 4, tin: 1 }, out: { bronze: 1 }, rate: 0.05 },
+        reveal: () => true,
+      },
+    ],
+    upgrades: [
+      {
+        id: "bronzeTools", name: "Bronze Tools", kind: "upgrade",
+        desc: "Permanently improves all gathering by 15%.",
+        base: { wood: 40, bronze: 25 }, buildTime: 30,
+        reveal: () => true,
+      },
+      {
+        id: "bronzeWeapons", name: "Bronze Weapons", kind: "upgrade",
+        desc: "Cast blades outclass flint. A further improvement to your Soldiers' odds in a fight.",
+        base: { wood: 30, bronze: 40 }, buildTime: 30,
+        reveal: () => S.builds.barracks >= 1,
+      },
+      {
+        id: "scouting", name: "Scouting", kind: "upgrade",
+        desc: "Riders range beyond the valley and bring back word of what's out there.",
+        base: { food: 40, bronze: 15 }, buildTime: 25,
+        reveal: () => S.builds.stables >= 1,
+      },
+    ],
+    units: [
+      {
+        id: "archer", name: "Archer", kind: "unit", popCost: 1,
+        strength: 1.0, counters: "massed", casualtyWeight: 0.35,
+        desc: "Deadly against a massed charge, and safer than most — they fight from behind the line.",
+        base: { wood: 14, bronze: 6 }, buildTime: 18,
+        reveal: () => S.builds.archeryRange >= 1,
+      },
+      {
+        id: "horseman", name: "Horseman", kind: "unit", popCost: 1,
+        strength: 1.5, counters: "riders", casualtyWeight: 0.6,
+        desc: "Strong in any fight, quick enough to run down mounted raiders, and quick enough to withdraw.",
+        base: { wood: 20, bronze: 14 }, buildTime: 24,
+        reveal: () => S.builds.stables >= 1,
+      },
+    ],
   },
-  {
-    id: "horseman", name: "Horseman", kind: "unit", era: "bronze", popCost: 1,
-    strength: 1.5, counters: "riders", casualtyWeight: 0.6,
-    desc: "Strong in any fight, quick enough to run down mounted raiders, and quick enough to withdraw.",
-    base: { wood: 20, bronze: 14 }, buildTime: 24,
-    reveal: () => S.builds.stables >= 1,
-  },
-];
+
+  // Slates are wholesale, never inherited -- see the manifest-model note.
+  events: ["greatHunt", "trader", "sickness", "conflict", "scoutFind", "scoutWarning"],
+  hints:  ["wood", "stone", "build", "tools", "rotFood", "rotWood", "rotStone",
+           "sicknessWarn", "conflictWarn", "rotOre", "firstBronze"],
+};
+
+// ---------- Manifest compiler -------------------------------
+// Compiles the authoring above into MANIFESTS at load. Every def is
+// shallow-copied, so an override can never reach back and mutate the parent
+// era's copy. Unknown ids in remove/override, duplicate ids in add, unknown
+// slate entries, and a missing events/hints slate all THROW -- at load,
+// before a single frame renders. Silent wrongness from a dangling id is this
+// game's signature bug class; the compiler's job is to convert it into a
+// loud one. (Phase B adds a full cross-reference validator on top.)
+const DEF_CATEGORIES = ["resources", "jobs", "buildings", "upgrades", "units"];
+
+function resolveSlates(m, raw) {
+  if (!raw.events) throw new Error(`era "${m.name}": missing events slate (slates are never inherited)`);
+  if (!raw.hints)  throw new Error(`era "${m.name}": missing hints slate (slates are never inherited)`);
+  m.events = raw.events.map((id) => {
+    if (!EVENT_LIB[id]) throw new Error(`era "${m.name}": unknown event "${id}" in slate`);
+    return Object.assign({ id }, EVENT_LIB[id]);
+  });
+  m.hints = raw.hints.map((id) => {
+    if (!HINT_LIB[id]) throw new Error(`era "${m.name}": unknown hint "${id}" in slate`);
+    return Object.assign({ id }, HINT_LIB[id]);
+  });
+}
+
+function compileBase(raw) {
+  const m = {
+    name: raw.name,
+    housingPerHut: raw.housingPerHut,
+    panelTitles: Object.assign({}, raw.panelTitles),
+    raidTypes: raw.raidTypes.slice(),
+  };
+  for (const cat of DEF_CATEGORIES) m[cat] = raw[cat].map((d) => Object.assign({}, d));
+  resolveSlates(m, raw);
+  return m;
+}
+
+function extendEra(parent, delta) {
+  const m = {
+    name: delta.name || parent.name,
+    housingPerHut: delta.housingPerHut != null ? delta.housingPerHut : parent.housingPerHut,
+    panelTitles: Object.assign({}, parent.panelTitles, delta.panelTitles),
+    raidTypes: delta.raidTypes ? delta.raidTypes.slice() : parent.raidTypes,
+  };
+  const removes = new Set(delta.remove || []);
+  const overrides = delta.override || {};
+  const touched = new Set();   // remove/override targets actually found in the parent
+
+  for (const cat of DEF_CATEGORIES) {
+    const list = [];
+    for (const d of parent[cat]) {
+      if (removes.has(d.id)) { touched.add(d.id); continue; }
+      const copy = Object.assign({}, d);
+      if (overrides[d.id]) { Object.assign(copy, overrides[d.id]); touched.add(d.id); }
+      list.push(copy);
+    }
+    for (const d of (delta.add && delta.add[cat]) || []) {
+      if (list.some((x) => x.id === d.id)) throw new Error(`era "${m.name}": add duplicates id "${d.id}"`);
+      list.push(Object.assign({}, d));
+    }
+    m[cat] = list;
+  }
+
+  for (const id of removes) if (!touched.has(id)) throw new Error(`era "${m.name}": removes unknown id "${id}"`);
+  for (const id in overrides) if (!touched.has(id)) throw new Error(`era "${m.name}": overrides unknown id "${id}"`);
+  resolveSlates(m, delta);
+  return m;
+}
+
+const MANIFESTS = { stone: compileBase(STONE) };
+MANIFESTS.bronze = extendEra(MANIFESTS.stone, BRONZE_DELTA);
+
+// Latest-era def for every buildable id that has EVER existed, so things that
+// can outlive an era hop -- queue entries, log lines about them -- still
+// resolve after their def leaves the active manifest. Later eras overwrite
+// earlier ones, so an id reads with its most recent identity.
+const DEF_INDEX = {};
+for (const era of ERA_ORDER) {
+  for (const cat of ["buildings", "upgrades", "units"]) {
+    for (const d of MANIFESTS[era][cat]) DEF_INDEX[d.id] = d;
+  }
+}
+
+// THE indirection: every engine and render read of content goes through here.
+// The stone fallback is defensive only (a hand-edited save with a bogus era).
+function active() { return MANIFESTS[S.era] || MANIFESTS.stone; }
+
+// Which building boosts which resource's yield (see mults()). Global and
+// keyed by id -- era-neutral identity data, like icons. If a later era ever
+// remaps a boost, this graduates into the manifests.
+const BOOST_BUILDING = { food: "dryingRack", wood: "lumberCamp", stone: "stonePit" };
 
 // Minimal line-art doodles -- no map, just icons.
 const ICON_ATTRS = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"';
@@ -307,6 +617,10 @@ let loopId = null, saveId = null;
 let paused = false;
 
 function freshState() {
+  // State buckets span every era's ids, not just the starting era's -- the
+  // active manifest decides which of them the engine actually reads. The
+  // schema is deliberately unchanged by the manifest refactor: old saves load
+  // as-is.
   return {
     res:   { food: CONFIG.startFood, wood: 0, stone: 0, copper: 0, tin: 0, bronze: 0 },
     jobs:  { forager: 0, woodcutter: 0, miner: 0, copperMiner: 0, tinMiner: 0 },
@@ -320,7 +634,7 @@ function freshState() {
     pop: CONFIG.startPop,
     growth: 0,        // seconds accrued toward the next free settler; freezes while housing is full
     bought: 0,        // lifetime settlers grown -- a stat for the game-over screen
-    era: "stone",     // gates which EVENTS are eligible; ages system lands later
+    era: "stone",     // the key into MANIFESTS -- the whole era system is this one string
     playtime: 0,      // seconds the simulation has actually advanced -- see step()
     seen: {},
     dead: false,
@@ -332,11 +646,19 @@ function freshState() {
 // Housing per hut is era-keyed, so advancing retroactively upgrades every hut
 // you already own into a Stone House -- an immediate, visible jump rather than
 // a new building sitting next to an obsolete one. See design.md.
-function housingPerHut() { return HOUSING_PER_HUT[S.era] || HOUSING_PER_HUT.stone; }
+function housingPerHut() { return active().housingPerHut; }
 function housing() { return CONFIG.baseHousing + S.builds.hut * housingPerHut(); }
 function totalUnits() { return Object.values(S.units).reduce((a, b) => a + b, 0); }
 function civilians() { return S.pop - totalUnits(); }
-function jobsUsed() { return JOBS.reduce((sum, j) => sum + (S.jobs[j.id] || 0), 0); }
+function jobsUsed() { return active().jobs.reduce((sum, j) => sum + (S.jobs[j.id] || 0), 0); }
+
+// Order jobs are emptied in when the population shrinks (see removeSettler).
+// Derived from the active manifest (reversed, foraging last) so a shrinking
+// settlement keeps feeding itself, and a job added by a later era can't be
+// forgotten here.
+function releaseOrder() {
+  return active().jobs.map((j) => j.id).filter((id) => id !== "forager").reverse().concat("forager");
+}
 // Anyone currently reserved by an in-progress (or still-waiting) unit order --
 // consumed the instant it's queued, not when it completes.
 function reserved() {
@@ -353,7 +675,7 @@ function mults() {
   const tools = (S.upgrades.stoneTools  ? CONFIG.stoneToolsBonus  : 0)
               + (S.upgrades.bronzeTools ? CONFIG.bronzeToolsBonus : 0);
   const out = {};
-  for (const r of RESOURCES) {
+  for (const r of active().resources) {
     const boost = BOOST_BUILDING[r.id];
     out[r.id] = 1 + (boost ? (S.builds[boost] || 0) * CONFIG.buildingBonus : 0) + tools;
   }
@@ -362,7 +684,7 @@ function mults() {
 
 function caps() {
   const out = {};
-  for (const r of RESOURCES) {
+  for (const r of active().resources) {
     out[r.id] = r.baseCap + (r.capBuilding ? (S.builds[r.capBuilding] || 0) * CONFIG.storageAdd : 0);
   }
   return out;
@@ -376,8 +698,8 @@ function caps() {
 function rates() {
   const m = mults();
   const prod = {};
-  for (const r of RESOURCES) prod[r.id] = 0;
-  for (const j of JOBS) {
+  for (const r of active().resources) prod[r.id] = 0;
+  for (const j of active().jobs) {
     prod[j.res] += (S.jobs[j.id] || 0) * CONFIG.baseRate * (j.rateMult || 1) * (m[j.res] || 1);
   }
   const upkeep = S.pop * CONFIG.upkeep * (S.upgrades.fireMastery ? 0.85 : 1);
@@ -421,34 +743,16 @@ function isCapped(def) {
   return def.kind === "building" && def.cap != null &&
     (S.builds[def.id] || 0) + pendingCount(def.id) >= def.cap;
 }
+// Resolve a buildable id to its def. The active manifest wins -- that's what
+// gives a log line or a queue card its era-correct name -- with DEF_INDEX as
+// the fallback for ids that have left the manifest but can still be referred
+// to (a capstone finishing at the very moment it retires itself).
 function defById(id) {
-  return BUILDINGS.find((b) => b.id === id) || UPGRADES.find((u) => u.id === id) || UNITS.find((u) => u.id === id);
-}
-
-// A def's displayed name/description can vary by era; its id never does. All
-// rendering and all log lines go through these rather than reading def.name /
-// def.desc directly, so reflavoring a later age costs nothing structurally.
-// `era` defaults to the current one; the Info panel passes an explicit era so a
-// Bronze tab reads with Bronze names even while you're still in the Stone Age.
-function displayName(def, era) { return (def.names && def.names[era || S.era]) || def.name; }
-function displayDesc(def, era) { return (def.descs && def.descs[era || S.era]) || def.desc; }
-
-// Which era a def is INTRODUCED in. Untagged defs are Stone Age, so only
-// later-era content needs an explicit `era` field.
-function defEra(def) { return def.era || "stone"; }
-function eraIndex(era) { const i = ERA_ORDER.indexOf(era); return i === -1 ? 0 : i; }
-
-// Whether a def exists at all in a given era. Most things persist once
-// introduced (a Hut is still there in the Bronze Age, just renamed Stone
-// House), so availability runs from `era` onward. An optional `untilEra`
-// marks something that stops being available -- currently only age capstones,
-// but this is also the hook a future consolidating age will need when it
-// genuinely retires a building.
-function availableInEra(def, era) {
-  const i = eraIndex(era);
-  if (i < eraIndex(defEra(def))) return false;
-  if (def.untilEra && i > eraIndex(def.untilEra)) return false;
-  return true;
+  const m = active();
+  return m.buildings.find((b) => b.id === id) ||
+         m.upgrades.find((u) => u.id === id) ||
+         m.units.find((u) => u.id === id) ||
+         DEF_INDEX[id];
 }
 
 // Once a building/upgrade/unit's reveal() condition has been true, it stays
@@ -462,139 +766,10 @@ function isRevealed(def) {
   return false;
 }
 
-// ---------- Events ---------------------------------------------
-// The generic occurrence engine. Every entry is one of three shapes:
-//   canFire(S)         -- deterministic, re-checked and fired repeatedly per
-//                          tick while true (e.g. population growth).
-//   chancePerSecond    -- probabilistic hazard/windfall, converted to a
-//                          per-tick roll. If it lands, an optional `counter`
-//                          (a building) gets a second roll to negate it.
-//   resolve(S, dt)      -- full escape hatch: owns its own trigger roll,
-//                          effect, and flavor logging. For events too
-//                          multi-staged to fit the generic shape (Conflict).
-// Every event carries: eras (which ages it's eligible in -- NOTE: every new age
-// needs an audit of this list, since an event omitted from it silently stops
-// firing the moment the era flips),
-// effect(S) (the state mutation), and flavor.{hit,negated} (Chronicle lines,
-// picked at random). Adding a new event never touches the engine, only this list.
-const EVENTS = [
-  // NOTE: population growth is deliberately NOT an event -- it's a free,
-  // timed background process (see accrueGrowth). The canFire archetype below
-  // currently has no users but stays: it's the generic deterministic shape.
-  {
-    id: "greatHunt", eras: ["stone", "bronze"], sev: "good",
-    chancePerSecond: 0.002,                         // ~8.3 real minutes average -- small, frequent
-    effect: (S) => { S.res.food += Math.round(8 + S.pop * 1.2); },
-    flavor: {
-      hit: [
-        "A hunting party returns with more than they hoped for -- there is meat enough to share.",
-        "A lucky strike brings down a boar. The camp eats well tonight.",
-      ],
-    },
-  },
-  {
-    id: "trader", eras: ["stone", "bronze"], sev: "good",
-    chancePerSecond: 0.0009,                        // ~18.5 real minutes average -- rarer, bigger
-    effect: (S) => {
-      const bonus = Math.round(12 + S.pop * 1.5);
-      S.res.wood += bonus; S.res.stone += bonus;
-    },
-    flavor: {
-      hit: [
-        "A trader passes through and leaves goods behind in exchange for hospitality.",
-        "A stranger arrives with a laden pack, and departs with an empty one.",
-      ],
-    },
-  },
-  {
-    id: "sickness", eras: ["stone", "bronze"], sev: "bad",
-    condition: (S) => S.pop >= 4,
-    chancePerSecond: 0.0015,                        // ~11 real minutes average, unmitigated
-    counter: { building: "infirmary", reducePerUnit: (S) => S.upgrades.herbalMedicine ? 0.35 : 0.2 },
-    effect: (S) => removeSettler(),
-    flavor: {
-      hit: [
-        "A fever sweeps through the camp. One of your people does not recover.",
-        "Sickness takes hold overnight. Your settlement wakes one fewer.",
-      ],
-      negated: [
-        // Deliberately era-neutral wording -- this building is a Medicine Tent
-        // in the Stone Age and an Infirmary in Bronze.
-        "Sickness threatens the camp, but your healers keep it at bay.",
-        "A fever passes through -- your healers see everyone through it.",
-      ],
-    },
-  },
-  {
-    id: "conflict", eras: ["stone", "bronze"], sev: "bad",
-    condition: (S) => S.pop >= 4,
-    resolve: (S, dt) => {
-      const chance = CONFIG.conflictBaseChance * (1 + S.pop * CONFIG.conflictPopScale);
-      const p = 1 - Math.pow(1 - chance, dt);
-      if (Math.random() >= p) return;
-
-      const raidSize = rollRaidSize();
-      const raid = rollRaidType();
-      const defense = militaryStrength(raid);
-      const repelChance = defense / (defense + raidSize);
-      const say = (pool, sev) => { if (!SIM) log(pick(pool).replace("{raid}", raid.name), sev); };
-
-      if (Math.random() < repelChance) {
-        // Second dial: fielding the countering unit type doesn't just help you
-        // win, it means fewer of your own die when you do.
-        const relief = 1 - CONFIG.counterCasualtyRelief * counterCoverage(raid);
-        const costlyChance = (raidSize / (defense + raidSize)) * armorFactor() * relief;
-        if (Math.random() < costlyChance) {
-          const lost = removeRandomUnit();
-          if (!SIM) log(`The ${raid.name} is driven off, but not without cost — a ${lost || "defender"} falls in the fighting.`, "bad");
-        } else {
-          say(CONFLICT_FLAVOR.repelledClean, "good");
-        }
-      } else {
-        const losses = Math.min(totalUnits(), 1 + Math.floor(raidSize / 5));
-        for (let i = 0; i < losses; i++) removeRandomUnit();
-        stealResources(raidSize);
-        say(CONFLICT_FLAVOR.raidSucceeds, "bad");
-        if (defense === 0 || defense < raidSize / 2) {
-          removeSettler(true);   // conflict, unlike sickness, is allowed to zero out population
-          say(CONFLICT_FLAVOR.civilianLost, "bad");
-        }
-      }
-    },
-  },
-  {
-    // Scouting unlocks a category of purely-positive discoveries. Gated on the
-    // upgrade rather than the Stables, so building the Stables alone doesn't
-    // hand it to you -- you have to actually invest in ranging out.
-    id: "scoutFind", eras: ["bronze"], sev: "good",
-    condition: (S) => !!S.upgrades.scouting,
-    chancePerSecond: 0.0016,
-    effect: (S) => {
-      const haul = Math.round(15 + S.pop * 2);
-      S.res.wood += haul; S.res.stone += haul;
-      S.res.copper += Math.round(haul * 0.4);
-    },
-    flavor: {
-      hit: [
-        "Your scouts find an abandoned camp in the hills, and strip it of everything worth carrying.",
-        "Riders return from the far valley with a cache nobody had claimed.",
-        "Scouts map a seam of ore in the uplands and bring back the first of it.",
-      ],
-    },
-  },
-  {
-    id: "scoutWarning", eras: ["bronze"], sev: "good",
-    condition: (S) => !!S.upgrades.scouting && S.pop >= 4,
-    chancePerSecond: 0.0012,
-    effect: () => {},   // pure flavor: the value is knowing, not a stat change
-    flavor: {
-      hit: [
-        "Scouts report smoke on the horizon. Something is moving out there, and it is moving this way.",
-        "Your riders find tracks at the valley mouth — many, and recent.",
-      ],
-    },
-  },
-];
+// ---------- Events / combat helpers -------------------------
+// Event content lives in EVENT_LIB up top; which events are live is the
+// active manifest's `events` slate (see resolveEvents). What follows here is
+// the machinery those events call into.
 
 const CONFLICT_FLAVOR = {
   repelledClean: [
@@ -627,27 +802,18 @@ function rollRaidSize() {
   return RAID_SIZES[0].size;
 }
 
-// What kind of raid shows up. Which unit counters which raid is recorded in
-// ONE place only -- a unit def's `counters` field naming a raid id. (An earlier
-// pass also stored the reverse mapping on the raid, and comparing the wrong
-// pair of those two silently disabled every counter bonus.) A warband is simply
-// a raid no unit names, so nothing counters it. Types roll in every era; in the
-// Stone Age no counters exist yet, so they read as pure flavor until Bronze
-// makes them matter.
-const RAID_TYPES = [
-  { id: "warband", name: "warband",         weight: 50 },
-  { id: "massed",  name: "massed charge",   weight: 30 },
-  { id: "riders",  name: "band of riders",  weight: 20 },
-];
-function counterUnitFor(raid) { return raid ? UNITS.find((u) => u.counters === raid.id) : undefined; }
+// What kind of raid shows up is the active manifest's `raidTypes` list (the
+// counter-relationship notes live with it, in the Stone Age authoring).
+function counterUnitFor(raid) { return raid ? active().units.find((u) => u.counters === raid.id) : undefined; }
 function rollRaidType() {
-  const total = RAID_TYPES.reduce((s, r) => s + r.weight, 0);
+  const types = active().raidTypes;
+  const total = types.reduce((s, r) => s + r.weight, 0);
   let roll = Math.random() * total;
-  for (const r of RAID_TYPES) {
+  for (const r of types) {
     if (roll < r.weight) return r;
     roll -= r.weight;
   }
-  return RAID_TYPES[0];
+  return types[0];
 }
 
 // Weapon tiers replace each other rather than stacking -- highest owned wins.
@@ -670,7 +836,7 @@ function unitStrength(def, raid) {
 }
 
 function militaryStrength(raid) {
-  return UNITS.reduce((sum, def) => sum + unitStrength(def, raid), 0);
+  return active().units.reduce((sum, def) => sum + unitStrength(def, raid), 0);
 }
 
 // What share of your defense comes from the unit that counters this raid.
@@ -685,8 +851,8 @@ function counterCoverage(raid) {
 
 function stealResources(raidSize) {
   const fraction = Math.min(0.5, raidSize * 0.03);
-  for (const k of ["food", "wood", "stone", "copper", "tin", "bronze"]) {
-    S.res[k] -= Math.floor((S.res[k] || 0) * fraction);
+  for (const r of active().resources) {
+    S.res[r.id] -= Math.floor((S.res[r.id] || 0) * fraction);
   }
 }
 
@@ -730,10 +896,10 @@ function removeSettler(allowZero) {
 function reconcileWorkforce() {
   let over = jobsUsed() + reserved() - civilians();
 
-  // 1. Pull people out of jobs. RELEASE_ORDER is derived from JOBS (reversed,
-  //    foraging last) so a new job can't be forgotten here, and a shrinking
-  //    settlement keeps feeding itself for as long as possible.
-  for (const jid of RELEASE_ORDER) {
+  // 1. Pull people out of jobs, in releaseOrder() (reversed manifest order,
+  //    foraging last) so a shrinking settlement keeps feeding itself for as
+  //    long as possible.
+  for (const jid of releaseOrder()) {
     while (over > 0 && (S.jobs[jid] || 0) > 0) { S.jobs[jid]--; over--; }
   }
 
@@ -750,7 +916,7 @@ function reconcileWorkforce() {
     const def = defById(S.buildQueue[idx].id);
     dropQueueItem(idx);
     over -= def.popCost || 1;
-    if (!SIM) log(`${displayName(def)} training is abandoned — there is no one left to train.`, "bad");
+    if (!SIM) log(`${def.name} training is abandoned — there is no one left to train.`, "bad");
   }
 }
 
@@ -764,35 +930,37 @@ function removeRandomUnit() {
   // absorbs most losses. Because every weight is > 0, no type is ever immune:
   // this only bends the odds. With one type fielded it degenerates to "that
   // type dies," which is why an all-archer army gets no protection at all.
+  const units = active().units;
   const weightOf = (def) => (S.units[def.id] || 0) * (def.casualtyWeight || 1);
-  const total = UNITS.reduce((sum, def) => sum + weightOf(def), 0);
+  const total = units.reduce((sum, def) => sum + weightOf(def), 0);
   if (total <= 0) return null;
 
   let roll = Math.random() * total;
-  for (const def of UNITS) {
+  for (const def of units) {
     const w = weightOf(def);
     if (roll < w) {
       S.units[def.id] -= 1;
       S.pop -= 1;
-      return displayName(def);
+      return def.name;
     }
     roll -= w;
   }
   // Floating-point guard: if rounding walked `roll` past the end, take from
   // whichever type still has someone left rather than returning null.
-  for (let i = UNITS.length - 1; i >= 0; i--) {
-    if ((S.units[UNITS[i].id] || 0) > 0) {
-      S.units[UNITS[i].id] -= 1;
+  for (let i = units.length - 1; i >= 0; i--) {
+    if ((S.units[units[i].id] || 0) > 0) {
+      S.units[units[i].id] -= 1;
       S.pop -= 1;
-      return displayName(UNITS[i]);
+      return units[i].name;
     }
   }
   return null;
 }
 
 function resolveEvents(dt) {
-  for (const ev of EVENTS) {
-    if (ev.eras && !ev.eras.includes(S.era)) continue;
+  // The active manifest's slate IS the eligibility list -- an event absent
+  // from it doesn't exist right now. No per-event era tags to keep in sync.
+  for (const ev of active().events) {
     if (ev.condition && !ev.condition(S)) continue;
 
     if (ev.resolve) { ev.resolve(S, dt); continue; }
@@ -831,7 +999,7 @@ function resolveEvents(dt) {
 //     Forge rather than quietly eating copper and tin for nothing.
 function runConverters(dt) {
   const c = caps();
-  for (const def of BUILDINGS) {
+  for (const def of active().buildings) {
     if (!def.converts) continue;
     const owned = S.builds[def.id] || 0;
     if (owned <= 0) continue;
@@ -858,7 +1026,7 @@ function step(dt) {
   const r = rates();
 
   // Gather + eat. Food is a net line so upkeep can drive it negative -> death.
-  for (const res of RESOURCES) {
+  for (const res of active().resources) {
     S.res[res.id] += (res.id === "food" ? r.foodNet : r[res.id]) * dt;
   }
 
@@ -866,7 +1034,7 @@ function step(dt) {
 
   // Storage caps: surplus spoils/rots/is lost (silent; a one-time hint fires via reveals).
   const c = caps();
-  for (const res of RESOURCES) {
+  for (const res of active().resources) {
     if (S.res[res.id] > c[res.id]) S.res[res.id] = c[res.id];
   }
 
@@ -893,7 +1061,7 @@ function step(dt) {
   // A free settler every N seconds while housing has room.
   accrueGrowth(dt);
 
-  // Sickness, conflict, windfalls, and anything else on EVENTS.
+  // Sickness, conflict, windfalls -- whatever the active manifest's slate holds.
   resolveEvents(dt);
 
   // Conflict (and in principle anything else) can zero out population --
@@ -944,11 +1112,11 @@ function build(def) {
   const wasEmpty = S.buildQueue.length === 0;
   S.buildQueue.push({ id: def.id, kind: def.kind, uid: ++S.buildSeq, total: def.buildTime, remaining: def.buildTime, cost });
   if (def.kind === "upgrade") {
-    log(wasEmpty ? `Work begins on ${displayName(def)}.` : `${displayName(def)} joins the queue (#${S.buildQueue.length}).`);
+    log(wasEmpty ? `Work begins on ${def.name}.` : `${def.name} joins the queue (#${S.buildQueue.length}).`);
   } else if (def.kind === "unit") {
-    log(wasEmpty ? `${displayName(def)} training begins.` : `${displayName(def)} training joins the queue (#${S.buildQueue.length}).`);
+    log(wasEmpty ? `${def.name} training begins.` : `${def.name} training joins the queue (#${S.buildQueue.length}).`);
   } else {
-    log(wasEmpty ? `Ground is broken for a ${displayName(def)}.` : `A ${displayName(def)} joins the queue (#${S.buildQueue.length}).`);
+    log(wasEmpty ? `Ground is broken for a ${def.name}.` : `A ${def.name} joins the queue (#${S.buildQueue.length}).`);
   }
   renderAll();
 }
@@ -973,7 +1141,7 @@ function cancelBuild(uid) {
   const idx = S.buildQueue.findIndex((q) => q.uid === uid);
   if (idx === -1) return;
   const item = dropQueueItem(idx);
-  log(`Construction of the ${displayName(defById(item.id))} is called off; materials recovered.`);
+  log(`Construction of the ${defById(item.id).name} is called off; materials recovered.`);
   renderAll();
 }
 
@@ -990,19 +1158,20 @@ function onComplete(def) {
 
   if (def.id === "hut") {
     const n = S.builds.hut;
-    if (n === 1) log(`A ${displayName(def).toLowerCase()} stands. There is room to grow.`, "good");
-    else log(`Another ${displayName(def).toLowerCase()} raised. Housing now ${housing()}.`, "good");
+    if (n === 1) log(`A ${def.name.toLowerCase()} stands. There is room to grow.`, "good");
+    else log(`Another ${def.name.toLowerCase()} raised. Housing now ${housing()}.`, "good");
     if (n === 3) log("A cluster of rooftops — this is becoming a real place.", "big");
   } else if (def.kind === "unit") {
-    log(`A settler trains as a ${displayName(def)}. You now field ${S.units[def.id]}.`, "good");
+    log(`A settler trains as a ${def.name}. You now field ${S.units[def.id]}.`, "good");
   } else {
-    log(`${displayName(def)} complete. ${displayDesc(def)}`, "good");
+    log(`${def.name} complete. ${def.desc}`, "good");
   }
 }
 
-// The one and only place S.era is ever assigned. Everything the transition
-// visibly changes -- panel titles, building names, housing per hut -- is
-// derived from S.era at render time, so flipping it is the whole operation.
+// The one and only place S.era is ever assigned. S.era is nothing more than
+// the key into MANIFESTS -- every read of content goes through active() -- so
+// flipping it swaps the entire world in one assignment. `before` is captured
+// while the OLD manifest is still active (housing per hut is about to change).
 // The full announcement lives in a modal; a single milestone line still goes
 // to the Chronicle so the settlement's own record contains the moment.
 function advanceEra(era) {
@@ -1011,37 +1180,15 @@ function advanceEra(era) {
   // Silent during offline catch-up -- simulateOffline() announces it instead,
   // rather than firing a modal at someone the instant the page loads.
   if (SIM) return;
-  log(`The ${ERA_NAMES[era]} begins.`, "big");
+  log(`The ${active().name} begins.`, "big");
   openEraModal(era, before);
 }
 
 // ---------- Progressive reveal / one-time hints -------------
-const REVEALS = [
-  { id: "wood",  when: () => S.res.wood  > 0, msg: "You have wood enough to notice its worth." },
-  { id: "stone", when: () => S.res.stone > 0, msg: "Stone piles up beside the wood." },
-  { id: "build", when: () => S.res.wood >= 8, msg: "There is timber enough to build. Raise a hut for your people." },
-  { id: "tools", when: () => S.builds.hut >= 1, msg: "With shelter secured, your people turn to better tools." },
-  { id: "rotFood", when: () => S.res.food >= caps().food - 0.01,
-    msg: "Your food stores are full — the surplus spoils in the open. Build a Granary." },
-  { id: "rotWood", when: () => S.res.wood >= caps().wood - 0.01,
-    msg: "Your woodpile is full — extra timber rots in the rain. Build a Woodshed." },
-  { id: "rotStone", when: () => S.res.stone >= caps().stone - 0.01,
-    msg: "Loose stone is piling up faster than anyone can stack it — the excess is lost. Build a Stone Yard." },
-  { id: "sicknessWarn", when: () => S.pop >= 4,
-    msg: "More mouths, more risk — crowded camps invite sickness. An infirmary would ease their fears." },
-  { id: "conflictWarn", when: () => S.pop >= 4,
-    msg: "Word of raiders reaches the settlement. A Barracks would let your people take up arms." },
-  { id: "rotOre", when: () => S.era === "bronze" &&
-      (S.res.copper >= caps().copper - 0.01 || S.res.tin >= caps().tin - 0.01),
-    msg: "Ore is heaped up beyond what anyone can sort — the excess is lost. Build an Ore Yard." },
-  { id: "firstBronze", when: () => S.res.bronze > 0,
-    msg: "The first ingots cool in the mould. Bronze is yours to work with." },
-  { id: "bronzeAvailable", when: () => S.era === "stone" && S.pop >= 10 && (S.units.soldier || 0) >= 1,
-    msg: "Travellers speak of a harder metal, poured rather than chipped. Your people could reach it — with enough stores behind them." },
-];
-
+// Hint content lives in HINT_LIB up top; which hints are live is the active
+// manifest's `hints` slate.
 function checkReveals() {
-  for (const rv of REVEALS) {
+  for (const rv of active().hints) {
     if (S.seen[rv.id]) continue;
     if (rv.when()) {
       S.seen[rv.id] = true;
@@ -1092,17 +1239,18 @@ function renderTile(container, prefix, id, icon, name, count) {
   document.getElementById(`${prefix}${id}-count`).textContent = count;
 }
 
-// Rows are built from RESOURCES on first appearance rather than being written
-// into index.html, so adding a resource needs no markup change.
+// Rows are built from the manifest's resource list on first appearance rather
+// than being written into index.html, so adding a resource needs no markup change.
 function renderResources() {
   const bar = document.getElementById("resourceBar");
   const r = rates();
   const c = caps();
-  const any = RESOURCES.some((res) => S.res[res.id] > 0);
+  const resources = active().resources;
+  const any = resources.some((res) => S.res[res.id] > 0);
   const empty = document.getElementById("emptyStores");
   if (empty) empty.classList.toggle("hidden", any);
 
-  for (const res of RESOURCES) {
+  for (const res of resources) {
     // Food is always shown (it's the thing that can kill you); everything else
     // appears once you hold some, or once its era arrives. Reveals are sticky.
     const show = S.res[res.id] > 0 || res.id === "food" || S.seen["res:" + res.id] ||
@@ -1140,9 +1288,9 @@ function renderResources() {
 function renderPeople() {
   const tiles = document.getElementById("personTiles");
   renderTile(tiles, "ptile-", "settler", PERSON_ICONS.settler, "Settler", civilians());
-  for (const def of UNITS) {
+  for (const def of active().units) {
     if (!isRevealed(def)) continue;
-    renderTile(tiles, "ptile-", def.id, PERSON_ICONS[def.id] || "", displayName(def), S.units[def.id] || 0);
+    renderTile(tiles, "ptile-", def.id, PERSON_ICONS[def.id] || "", def.name, S.units[def.id] || 0);
   }
 
   document.getElementById("popIdle").textContent = idle();
@@ -1158,8 +1306,8 @@ function renderPeople() {
 
   const list = document.getElementById("jobList");
   const r = rates();
-  for (const job of JOBS) {
-    // Later-era jobs stay hidden until their era arrives; sticky once shown.
+  for (const job of active().jobs) {
+    // A job in the manifest is normally just shown; `reveal` can defer it.
     const show = !job.reveal || S.seen["job:" + job.id] || job.reveal();
     if (show) S.seen["job:" + job.id] = true;
 
@@ -1240,7 +1388,7 @@ function renderQueue() {
     }
     const pct = Math.max(0, Math.min(100, (1 - item.remaining / item.total) * 100));
     const verb = i === 0 ? (def.kind === "unit" ? "Training" : "Raising") : "Queued";
-    card.querySelector(".q-label").textContent = `${verb}: ${displayName(def)}`;
+    card.querySelector(".q-label").textContent = `${verb}: ${def.name}`;
     card.querySelector(".q-pct").textContent = `(${Math.floor(pct)}%)`;
     card.querySelector(".q-bar").style.width = pct + "%";
     card.querySelector(".q-eta").textContent =
@@ -1256,16 +1404,17 @@ function renderHoldings() {
   const body = document.getElementById("holdingsBody");
   const emptyMsg = document.getElementById("holdingsEmpty");
 
-  const conceptRevealed = BUILDINGS.some(isRevealed);
+  const buildings = active().buildings;
+  const conceptRevealed = buildings.some(isRevealed);
   panel.classList.toggle("hidden", !conceptRevealed);
   if (!conceptRevealed) return;
 
-  const owned = BUILDINGS.filter((d) => (S.builds[d.id] || 0) > 0);
+  const owned = buildings.filter((d) => (S.builds[d.id] || 0) > 0);
   emptyMsg.classList.toggle("hidden", owned.length > 0);
   body.classList.toggle("hidden", owned.length === 0);
 
   for (const def of owned) {
-    renderTile(body, "hold-", def.id, BUILDING_ICONS[def.id] || "", displayName(def), S.builds[def.id]);
+    renderTile(body, "hold-", def.id, BUILDING_ICONS[def.id] || "", def.name, S.builds[def.id]);
   }
 }
 
@@ -1274,7 +1423,7 @@ function renderBuildings() {
   const list = document.getElementById("buildingList");
   let anyRevealed = false;
 
-  for (const def of BUILDINGS) {
+  for (const def of active().buildings) {
     const revealed = isRevealed(def);
     let card = document.getElementById("bcard-" + def.id);
     if (revealed && !card) {
@@ -1304,9 +1453,9 @@ function renderBuildings() {
         })();
 
     card.innerHTML =
-      `<div class="b-top"><span class="b-name">${displayName(def)}</span>` +
+      `<div class="b-top"><span class="b-name">${def.name}</span>` +
       `<span class="b-owned">${ownedStr}</span></div>` +
-      `<div class="b-desc">${displayDesc(def)}</div>` +
+      `<div class="b-desc">${def.desc}</div>` +
       bottom;
     card.disabled = S.dead || capped || !canAfford(buildCost(def));
   }
@@ -1321,7 +1470,7 @@ function renderUpgrades() {
   const list = document.getElementById("upgradeList");
   let anyRevealed = false;
 
-  for (const def of UPGRADES) {
+  for (const def of active().upgrades) {
     const revealed = isRevealed(def);
     let card = document.getElementById("bcard-" + def.id);
     if (revealed && !card) {
@@ -1345,9 +1494,9 @@ function renderUpgrades() {
           return `<span class="${short ? "short" : ""}">${cost[k]} ${k}</span>`;
         }).join(", ")}<span class="b-time">${def.buildTime}s build</span></div>`;
     card.innerHTML =
-      `<div class="b-top"><span class="b-name">${displayName(def)}</span>` +
+      `<div class="b-top"><span class="b-name">${def.name}</span>` +
       `<span class="b-owned">${statusStr}</span></div>` +
-      `<div class="b-desc">${displayDesc(def)}</div>` +
+      `<div class="b-desc">${def.desc}</div>` +
       bottom;
     card.disabled = S.dead || owned || pending || !canAfford(cost);
   }
@@ -1363,7 +1512,7 @@ function renderTraining() {
   const list = document.getElementById("trainingList");
   let anyRevealed = false;
 
-  for (const def of UNITS) {
+  for (const def of active().units) {
     const revealed = isRevealed(def);
     let card = document.getElementById("bcard-" + def.id);
     if (revealed && !card) {
@@ -1386,9 +1535,9 @@ function renderTraining() {
       costParts.push(`<span class="${short ? "short" : ""}">${def.popCost} settler${def.popCost > 1 ? "s" : ""}</span>`);
     }
     card.innerHTML =
-      `<div class="b-top"><span class="b-name">${displayName(def)}</span>` +
+      `<div class="b-top"><span class="b-name">${def.name}</span>` +
       `<span class="b-owned">${S.units[def.id] || 0}</span></div>` +
-      `<div class="b-desc">${displayDesc(def)}</div>` +
+      `<div class="b-desc">${def.desc}</div>` +
       `<div class="b-cost">${costParts.join(", ")}<span class="b-time">${def.buildTime}s train</span></div>`;
     card.disabled = S.dead || !canAfford(cost) || (def.popCost && idle() < def.popCost);
   }
@@ -1401,9 +1550,10 @@ function renderTraining() {
 // nothing revealed yet -- an unexplained blank cell reads as a bug, a taller
 // single panel reads as intentional.
 function updateSpans() {
-  document.getElementById("panel-village").classList.toggle("span-both", !UNITS.some(isRevealed));
-  document.getElementById("panel-holdings").classList.toggle("span-both", !BUILDINGS.some(isRevealed));
-  document.getElementById("panel-queue").classList.toggle("span-both", !UPGRADES.some(isRevealed));
+  const m = active();
+  document.getElementById("panel-village").classList.toggle("span-both", !m.units.some(isRevealed));
+  document.getElementById("panel-holdings").classList.toggle("span-both", !m.buildings.some(isRevealed));
+  document.getElementById("panel-queue").classList.toggle("span-both", !m.upgrades.some(isRevealed));
 }
 
 // ---------- Modal ---------------------------------------------
@@ -1441,24 +1591,25 @@ function modalIsOpen() {
 // Reference panel: everything in the game, grouped by era. Shows all content
 // regardless of what's been revealed -- it's a reference, and hiding things
 // would defeat the point (see design.md for the tension with "unravel").
+// Each tab reads straight from that era's compiled manifest, so a Bronze tab
+// shows Bronze names and descs even while you're still in the Stone Age.
 function infoPanelHTML() {
-  const eras = ERA_ORDER;
-  const tabs = eras.map((e) =>
-    `<button class="info-tab${e === S.era ? " active" : ""}" data-era="${e}">${ERA_NAMES[e]}</button>`
+  const tabs = ERA_ORDER.map((e) =>
+    `<button class="info-tab${e === S.era ? " active" : ""}" data-era="${e}">${MANIFESTS[e].name}</button>`
   ).join("");
 
-  const sections = eras.map((e) => {
-    const group = (label, defs) => {
-      const items = defs.filter((d) => availableInEra(d, e));
+  const sections = ERA_ORDER.map((e) => {
+    const m = MANIFESTS[e];
+    const group = (label, items) => {
       if (!items.length) return "";
       return `<h3 class="info-h">${label}</h3>` + items.map((d) =>
         `<div class="info-item">` +
-          `<span class="info-name">${displayName(d, e)}</span>` +
-          `<span class="info-desc">${displayDesc(d, e)}</span>` +
+          `<span class="info-name">${d.name}</span>` +
+          `<span class="info-desc">${d.desc}</span>` +
         `</div>`
       ).join("");
     };
-    const inner = group("Buildings", BUILDINGS) + group("People", UNITS) + group("Upgrades", UPGRADES);
+    const inner = group("Buildings", m.buildings) + group("People", m.units) + group("Upgrades", m.upgrades);
     return `<div class="info-era${e === S.era ? "" : " hidden"}" data-era="${e}">${inner}</div>`;
   }).join("");
 
@@ -1499,9 +1650,18 @@ function openEraModal(era, before) {
   const t = ERA_TRANSITIONS[era];
   if (!t) return;
   const changes = (typeof t.changes === "function" ? t.changes(before) : t.changes) || [];
-  const unlocked = [].concat(BUILDINGS, UNITS, UPGRADES)
-    .filter((d) => defEra(d) === era)
-    .map((d) => `${displayName(d)} — ${displayDesc(d)}`);
+
+  // "Now available" is a manifest diff -- everything buildable in the new era
+  // that wasn't in the previous one -- so it can't go stale as content moves.
+  const pi = ERA_ORDER.indexOf(era) - 1;
+  const prevM = pi >= 0 ? MANIFESTS[ERA_ORDER[pi]] : null;
+  const m = MANIFESTS[era];
+  const unlocked = [];
+  for (const cat of ["buildings", "units", "upgrades"]) {
+    for (const d of m[cat]) {
+      if (!prevM || !prevM[cat].some((p) => p.id === d.id)) unlocked.push(`${d.name} — ${d.desc}`);
+    }
+  }
 
   const list = (items) => `<ul class="era-list">${items.map((i) => `<li>${i}</li>`).join("")}</ul>`;
   let html = `<p class="modal-lead">${t.lead}</p>`;
@@ -1509,7 +1669,7 @@ function openEraModal(era, before) {
   if (unlocked.length) html += `<h3 class="info-h">Now available</h3>${list(unlocked)}`;
 
   // No action buttons -- dismiss via the ×, the backdrop, or Escape.
-  openModal(`The ${ERA_NAMES[era]} Begins`, html);
+  openModal(`The ${m.name} Begins`, html);
 }
 
 // Shared by the Reset button and the game-over "Try Again" button.
@@ -1540,7 +1700,7 @@ function openGameOverModal(cause) {
   const stats =
     `<div class="modal-stats">` +
       `<div>Time survived: <span class="s-val">${fmtTime(S.playtime || 0)}</span></div>` +
-      `<div>Age reached: <span class="s-val">${ERA_NAMES[S.era] || ERA_NAMES.stone}</span></div>` +
+      `<div>Age reached: <span class="s-val">${active().name}</span></div>` +
       `<div>Buildings raised: <span class="s-val">${built}</span></div>` +
       `<div>Settlers grown: <span class="s-val">${S.bought}</span></div>` +
     `</div>`;
@@ -1581,12 +1741,11 @@ function setPaused(p) {
 function renderEraChrome() {
   if (S.dead) return;
   const badge = document.getElementById("ageBadge");
-  if (badge) badge.textContent = `[${ERA_NAMES[S.era] || ERA_NAMES.stone}]`;
-  for (const panelId in PANEL_TITLES) {
-    const title = PANEL_TITLES[panelId][S.era];
-    if (!title) continue;
+  if (badge) badge.textContent = `[${active().name}]`;
+  const titles = active().panelTitles;
+  for (const panelId in titles) {
     const h2 = document.querySelector(`#${panelId} h2`);
-    if (h2) h2.textContent = title;
+    if (h2) h2.textContent = titles[panelId];
   }
 }
 
@@ -1663,7 +1822,7 @@ function simulateOffline() {
   // An era can flip mid-catch-up; advanceEra() stays silent under SIM, so the
   // milestone gets announced here instead of passing without comment.
   if (S.era !== eraBefore) {
-    log(`You return to a changed people — the ${ERA_NAMES[S.era]} began in your absence.`, "big");
+    log(`You return to a changed people — the ${active().name} began in your absence.`, "big");
   }
 }
 

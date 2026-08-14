@@ -62,13 +62,18 @@ flagged *to be decided during implementation*.
 - [x] Freeze-vs-reset decided: **freeze** — partial progress survives a full-housing stretch.
 - [x] Harness: no food spent, cadence exact, housing-gated, freeze semantics, `bought` lifetime.
 
-**Phase A — parity refactor** *(content reorganization only; zero state-schema change)*
-- [ ] Re-author Stone + Bronze as deltas compiled to full manifests; `active()` indirection
-      replaces every direct read of the global content tables.
-- [ ] Dissolve into manifest data: `names`/`descs` maps, `era`/`untilEra`, `eras` tags on events,
-      `HOUSING_PER_HUT`, `PANEL_TITLES`, `ERA_NAMES`, era checks inside `reveal()` predicates.
-- [ ] Parity suite in the harness: identical visible content, costs, caps, rates, and reveal
-      behavior per era, before vs. after; a pre-refactor save loads and plays identically.
+**Phase A — parity refactor** — ✅ **DONE** *(see What's Working, v12)*
+- [x] Stone authored as a full base manifest, Bronze as a delta (`remove`/`override`/`add` +
+      wholesale slates), compiled at load by `compileBase`/`extendEra`; `active()` indirection
+      replaces every direct read of the old global content tables.
+- [x] Dissolved into manifest data: `names`/`descs` maps, `era`/`untilEra`, `eras` tags on events,
+      `HOUSING_PER_HUT`, `PANEL_TITLES`, `ERA_NAMES`, `RELEASE_ORDER`, `displayName`/`displayDesc`/
+      `defEra`/`availableInEra`, and every `S.era` check inside `reveal()` predicates.
+- [x] Compiler throws (load-time, pre-render) on unknown remove/override targets, duplicate adds,
+      missing slates, unknown slate ids — the delta-level slice of the Phase B validator, early.
+- [x] Parity suite in the harness: identical content, costs, caps, rates, and reveal behavior per
+      era; compiler error cases; parent-isolation; DEF_INDEX semantics. Verified live end-to-end:
+      fresh stone game, real capstone → era flip (diff-derived modal), forge, save/reload in bronze.
 
 **Phase B — transition machinery**
 - [ ] Boot-time validator (full checklist enumerated in `tech.md` — cost keys, converts keys,
@@ -449,6 +454,23 @@ factual lists derive from the manifest diff so they can never lie. Full contract
 (Settled But Not Yet Built); rationale in `design.md` (The Era Manifest Model). Sequenced as
 parity-refactor → transition machinery → Iron Age, so engine risk and content risk never travel
 together. Documentation-only milestone — no code changed.
+
+**v12 — The Era Manifest Architecture, Phase A.** The entire content layer is rewritten: the Stone
+Age is a full base manifest (resources, jobs, buildings, upgrades, units, raid types, era-scoped
+values, and wholesale `events`/`hints` slates), and the Bronze Age is a **delta** — remove the
+capstone, override three defs, add its content, redeclare its slates. A compiler builds both into
+full manifests at load and **throws before a frame renders** on any dangling id: unknown
+remove/override targets, duplicate adds, missing or misspelled slates. Everything the engine or
+renderer reads now goes through `active()` — flipping `S.era` swaps the whole world in one
+assignment. The old era scatter (`names`/`descs` maps, `era`/`untilEra` tags, `eras` allowlists,
+`ERA_NAMES`, `HOUSING_PER_HUT`, `PANEL_TITLES`, era checks inside reveals) is gone; era-gating is
+now *membership* — bronze content isn't hidden in stone, it doesn't exist there. The era modal's
+"Now available" list is a manifest diff, so it can never go stale. Zero state-schema change: old
+saves load untouched, and the whole thing was verified live — fresh stone game, real capstone
+build → era flip with all nine additions in the modal, forge smelting, and a bronze-era
+save/reload (offline catch-up even ran the Forge during the gap). Harness rewritten against
+manifests + a new compiler suite: 255 checks, 20/20 runs. This is the machine that makes new ages
+cheap: authoring the Iron Age is now writing one delta and reading the compiler's complaints.
 
 **v11 — Free timed population growth.** The wanderer event and its escalating food price are gone.
 Settlers now arrive free, every 45 seconds (`CONFIG.settlerIntervalSeconds` — deliberately a single

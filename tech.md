@@ -330,11 +330,11 @@ Recorded here as the standing contract every future era must honor — rationale
 
 **Explicit non-goals, still:** no ECS, no event-sourcing, no reactive state framework. The simulation is small; the pain was content lifecycle, and manifests solve exactly that with plain data.
 
-### Phase C — the Iron Age (designed; being built in two slices)
+### Phase C — the Iron Age (designed; C1 shipped, C2 next)
 
 Content decisions and rationale in `design.md` (Iron Age / Adversaries & Expeditions). The technical contract:
 
-**C1 — the economy flip.**
+**C1 — the economy flip.** ✅ **Shipped** exactly as specified below, plus: `CAPSTONES` (id → era map) replaced the hardcoded capstone check in `onComplete()`; armor tiers got the same lowest-wins structure weapons already had; iron-era hints (`rotIron`, `firstSteel`, `firstGold`) and the `ironAvailable` bronze hint landed with it. Verified live: the full bronze→iron transition with a running economy — all three narrated migrations, ore-job workers released, every retired card/row/tile purged, gold seeded from the heirloom sale, the Forge smelting steel on the far side. Harness at 318 checks, 20/20 runs.
 - Bronze manifest gains the `ironAge` capstone (reveal `pop >= 16 && (archer || horseman) >= 1`; cost 400 food / 400 wood / 400 stone / 50 bronze; 180s) and an `ironAvailable` hint. `onComplete` maps it to `advanceEra("iron")`. `ERA_ORDER` gains `"iron"`; `ERA_TRANSITIONS.iron` gets its lead sentence.
 - `IRON_DELTA`, the first delta with a real `remove` list: copper, tin, bronze; copperMiner, tinMiner; oreYard; bronzeTools, bronzeWeapons, scouting, flintSpears (first two and scouting are priced in a dead resource — the validator forces this removal, which is it working as designed; flintSpears is superseded). Overrides: hut → **Longhouse** (housing 7), Forge `converts` → `{in: {iron: 3, wood: 2}, out: {steel: 1}, rate: 0.05}` with a new desc; panel title → **Town**; archer/horseman costs re-priced out of bronze into iron.
 - Adds: resources iron (job-mined, full rate), steel (converted; cap 200, no storage building), gold (**no job produces it** — enters only via migration, plunder, trade); job ironMiner; buildings **Iron Yard** (+100 iron) and **Treasury** (+100 gold); upgrades **Iron Tools** (+0.22 additive), **Iron Weapons** (weapon tier 3.0), **Steel Armor** (armor tier 0.3). New `scoutFindIron` event in `EVENT_LIB` (the bronze `scoutFind` pays copper, which would be inert writes in iron); iron's slates redeclared wholesale as always.

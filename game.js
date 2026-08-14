@@ -22,6 +22,7 @@ const CONFIG = {
   storageAdd: 100,        // extra cap per storage building
   stoneToolsBonus: 0.08,  // flat additive bump to ALL gather multipliers from the Stone Tools upgrade
   bronzeToolsBonus: 0.15, // ditto, Bronze Tools -- stacks additively on top of Stone Tools
+  ironToolsBonus: 0.22,   // ditto, Iron Tools -- the tool tiers stack additively forever
   buildSpeed: 1.0,        // global construction pace (seconds of progress per real second)
   conflictBaseChance: 0.0018,  // per-second base raid chance, before population scaling -- tripled
                                 // after playtesting: original value averaged ~19min at pop 15, and
@@ -58,7 +59,7 @@ const CONFIG = {
 // Names, descs, costs and everything else are era-facts that live in the
 // manifest, which is how a Hut becomes a Stone House without becoming a
 // different thing. See tech.md for the full contract.
-const ERA_ORDER = ["stone", "bronze"];   // chronological; drives compilation and era comparisons
+const ERA_ORDER = ["stone", "bronze", "iron"];   // chronological; drives compilation and era comparisons
 
 // ---------- Event library -----------------------------------
 // Every event that exists in ANY era, keyed by id. Which of these are live is
@@ -191,6 +192,26 @@ const EVENT_LIB = {
       ],
     },
   },
+  scoutFindIron: {
+    // The Iron Age's version of scoutFind: same shape, era-correct loot.
+    // (The bronze one pays copper, which would be an inert write in iron --
+    // events are content, so the new era declares its own.)
+    sev: "good",
+    condition: (S) => !!S.upgrades.scouting,
+    chancePerSecond: 0.0016,
+    effect: (S) => {
+      const haul = Math.round(15 + S.pop * 2);
+      S.res.wood += haul; S.res.stone += haul;
+      S.res.iron += Math.round(haul * 0.4);
+    },
+    flavor: {
+      hit: [
+        "Your scouts find an abandoned bloomery in the hills, and strip it of everything worth carrying.",
+        "Riders return from the far valley with a cache nobody had claimed.",
+        "Scouts map a seam of iron in the uplands and bring back the first of it.",
+      ],
+    },
+  },
 };
 
 // ---------- Hint library ------------------------------------
@@ -219,6 +240,14 @@ const HINT_LIB = {
     msg: "The first ingots cool in the mould. Bronze is yours to work with." },
   bronzeAvailable: { when: () => S.pop >= 10 && (S.units.soldier || 0) >= 1,
     msg: "Travellers speak of a harder metal, poured rather than chipped. Your people could reach it — with enough stores behind them." },
+  ironAvailable: { when: () => S.pop >= 16 && ((S.units.archer || 0) >= 1 || (S.units.horseman || 0) >= 1),
+    msg: "The smiths grumble that tin grows dearer every season. There is a duller, stubborner metal in your own hills — if your people learn to work it." },
+  rotIron: { when: () => S.res.iron >= caps().iron - 0.01,
+    msg: "Raw iron blooms are heaped up rusting in the open — the excess is lost. Build an Iron Yard." },
+  firstSteel: { when: () => S.res.steel > 0,
+    msg: "The Forge runs hotter than it ever did for bronze. The first steel is yours." },
+  firstGold: { when: () => S.res.gold > 0,
+    msg: "Gold. No one in your town has ever dug up an ounce of it — it only ever arrives from somewhere else." },
 };
 
 // ---------- The Stone Age (base manifest) -------------------
@@ -466,6 +495,18 @@ const BRONZE_DELTA = {
         base: { food: 40, bronze: 15 }, buildTime: 25,
         reveal: () => S.builds.stables >= 1,
       },
+      // The age capstone (see the stone manifest's bronzeAge for the pattern
+      // notes). The pop gate scales up from Bronze's 10; the unit gate wants
+      // an Archer OR Horseman fielded, so the composition system -- this
+      // age's whole lesson -- was actually explored. The 50 bronze makes the
+      // Forge load-bearing one last time before it changes jobs (canonical
+      // rule: a capstone is priced in the signature currency of its age).
+      {
+        id: "ironAge", name: "Iron Age", kind: "upgrade",
+        desc: "The far mines grow distant and dear. Turn to the stubborn metal in your own hills.",
+        base: { food: 400, wood: 400, stone: 400, bronze: 50 }, buildTime: 180,
+        reveal: () => S.pop >= 16 && ((S.units.archer || 0) >= 1 || (S.units.horseman || 0) >= 1),
+      },
     ],
     units: [
       {
@@ -488,7 +529,109 @@ const BRONZE_DELTA = {
   // Slates are wholesale, never inherited -- see the manifest-model note.
   events: ["greatHunt", "trader", "sickness", "conflict", "scoutFind", "scoutWarning"],
   hints:  ["wood", "stone", "build", "tools", "rotFood", "rotWood", "rotStone",
-           "sicknessWarn", "conflictWarn", "rotOre", "firstBronze"],
+           "sicknessWarn", "conflictWarn", "rotOre", "firstBronze", "ironAvailable"],
+};
+
+// ---------- The Iron Age (delta) ----------------------------
+// The first delta with a real `remove` list -- an entire economy retires.
+// The story is the Late Bronze Age collapse: the copper-and-tin trade dies,
+// and iron wins by being LOCAL. Bronze-priced upgrades leave the shop (the
+// validator forces this -- their costs name a dead resource); anything
+// already OWNED keeps working, because a bought upgrade is a trait read from
+// state, not the shop shelf. Gold is the era's genuinely new idea: no job
+// produces it, ever -- it arrives only from outside (the heirloom sell-off
+// below, and in time plunder and trade), so the era's wealth is structurally
+// tied to its outward verbs. See design.md, Iron Age.
+const IRON_DELTA = {
+  name: "Iron Age",
+  housingPerHut: 7,
+  panelTitles: { "panel-holdings": "Town" },
+
+  remove: [
+    "copper", "tin", "bronze",            // the alloy economy, wholesale
+    "copperMiner", "tinMiner",            // its jobs (workers walk home -- default policy)
+    "oreYard",                            // its storage
+    "bronzeTools", "bronzeWeapons", "scouting",  // stranded: priced in a dead resource
+    "flintSpears",                        // superseded twice over
+    "ironAge",                            // a capstone exists only in the era it ends
+  ],
+
+  override: {
+    hut: { name: "Longhouse", desc: "Shelter for 7 more settlers." },
+    forge: {
+      desc: "Burns wood to work iron into steel — 3 iron + 2 wood into 1 steel, continuously.",
+      converts: { in: { iron: 3, wood: 2 }, out: { steel: 1 }, rate: 0.05 },
+    },
+    // Re-priced out of the dead resource. Iron is cheaper than bronze was --
+    // it's everywhere; that's the whole point of the era.
+    stables: { base: { wood: 60, stone: 25, iron: 12 } },
+    archer: { base: { wood: 14, iron: 8 } },
+    horseman: { base: { wood: 20, iron: 16 } },
+  },
+
+  add: {
+    resources: [
+      { id: "iron",  name: "Iron",  baseCap: 50,  capBuilding: "ironYard", reveal: () => true },
+      // Steel, like bronze before it, is spent rather than stockpiled.
+      { id: "steel", name: "Steel", baseCap: 200, capBuilding: null,       reveal: () => true },
+      // Gold cannot be mined. It enters only from outside.
+      { id: "gold",  name: "Gold",  baseCap: 50,  capBuilding: "treasury", reveal: () => true },
+    ],
+    jobs: [
+      // Full rate, no tin-style scarcity -- scarcity was bronze's story.
+      { id: "ironMiner", name: "Mine iron", res: "iron" },
+    ],
+    buildings: [
+      {
+        id: "ironYard", name: "Iron Yard", kind: "building",
+        desc: "Store +100 iron (raw blooms rust and scatter otherwise).",
+        base: { wood: 35, stone: 25 }, scale: 1.55, buildTime: 18,
+        reveal: () => true,
+      },
+      {
+        id: "treasury", name: "Treasury", kind: "building",
+        desc: "Store +100 gold, under guard and under stone.",
+        base: { wood: 40, stone: 40, iron: 10 }, scale: 1.6, buildTime: 22,
+        reveal: () => true,
+      },
+    ],
+    upgrades: [
+      {
+        id: "ironTools", name: "Iron Tools", kind: "upgrade",
+        desc: "Permanently improves all gathering by 22%.",
+        base: { iron: 40, gold: 15 }, buildTime: 30,
+        reveal: () => true,
+      },
+      {
+        id: "ironWeapons", name: "Iron Weapons", kind: "upgrade",
+        desc: "Steel edges hold where bronze bends. A further improvement to your fighters' odds in any fight.",
+        base: { steel: 40, gold: 20 }, buildTime: 35,
+        reveal: () => S.builds.barracks >= 1,
+      },
+      {
+        id: "steelArmor", name: "Steel Armor", kind: "upgrade",
+        desc: "Plate over hide. Improves your fighters' odds of surviving a fight, again.",
+        base: { steel: 30, gold: 25 }, buildTime: 30,
+        reveal: () => S.builds.barracks >= 1,
+      },
+    ],
+  },
+
+  // The collapse, narrated. Bronze -- suddenly antique -- sells to
+  // collectors and temple-makers, seeding the first gold and teaching the
+  // new resource in one line.
+  migrations: [
+    { bucket: "res", id: "copper", vanish: true,
+      narrate: "The copper road falls silent. What is left in the yard is scrap." },
+    { bucket: "res", id: "tin", vanish: true,
+      narrate: "No tin has come up the river in a season. None will again." },
+    { bucket: "res", id: "bronze", convertTo: "gold", ratio: 0.25,
+      narrate: "Bronze is suddenly antique — collectors and temple-makers pay gold for your stock of it." },
+  ],
+
+  events: ["greatHunt", "trader", "sickness", "conflict", "scoutFindIron", "scoutWarning"],
+  hints:  ["wood", "stone", "build", "tools", "rotFood", "rotWood", "rotStone",
+           "sicknessWarn", "conflictWarn", "rotIron", "firstSteel", "firstGold"],
 };
 
 // ---------- Manifest compiler -------------------------------
@@ -565,6 +708,7 @@ function extendEra(parent, delta) {
 
 const MANIFESTS = { stone: compileBase(STONE) };
 MANIFESTS.bronze = extendEra(MANIFESTS.stone, BRONZE_DELTA);
+MANIFESTS.iron = extendEra(MANIFESTS.bronze, IRON_DELTA);
 
 // Latest-era def for every buildable id that has EVER existed, so things that
 // can outlive an era hop -- queue entries, log lines about them -- still
@@ -684,6 +828,8 @@ const BUILDING_ICONS = {
   forge:      `<svg ${ICON_ATTRS}><path d="M4 20 H20 M6 20 V13 A6 5 0 0 1 18 13 V20"/><path d="M12 13 V9 M9.5 11 L12 8 L14.5 11"/></svg>`,
   archeryRange: `<svg ${ICON_ATTRS}><path d="M6 3 A13 13 0 0 1 6 21"/><path d="M6 3 L6 21"/><path d="M6 12 H19 M16 9 L19 12 L16 15"/></svg>`,
   stables:    `<svg ${ICON_ATTRS}><path d="M4 20 V11 L12 6 L20 11 V20 M4 20 H20"/><path d="M10 20 V15 H14 V20"/></svg>`,
+  ironYard:   `<svg ${ICON_ATTRS}><path d="M4 20 H20 M6 20 V14 H18 V20 M8 14 V10 H16 V14"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/></svg>`,
+  treasury:   `<svg ${ICON_ATTRS}><rect x="4" y="8" width="16" height="12" rx="1"/><path d="M4 12 H20 M12 12 V15"/><path d="M8 8 V6 A4 3 0 0 1 16 6 V8"/></svg>`,
 };
 const PERSON_ICONS = {
   settler: `<svg ${ICON_ATTRS}><circle cx="12" cy="7" r="3"/><path d="M6 20 C6 13 8.5 11 12 11 C15.5 11 18 13 18 20"/></svg>`,
@@ -709,10 +855,12 @@ function freshState() {
   // schema is deliberately unchanged by the manifest refactor: old saves load
   // as-is.
   return {
-    res:   { food: CONFIG.startFood, wood: 0, stone: 0, copper: 0, tin: 0, bronze: 0 },
-    jobs:  { forager: 0, woodcutter: 0, miner: 0, copperMiner: 0, tinMiner: 0 },
+    res:   { food: CONFIG.startFood, wood: 0, stone: 0, copper: 0, tin: 0, bronze: 0,
+             iron: 0, steel: 0, gold: 0 },
+    jobs:  { forager: 0, woodcutter: 0, miner: 0, copperMiner: 0, tinMiner: 0, ironMiner: 0 },
     builds:{ hut: 0, woodshed: 0, granary: 0, stoneYard: 0, dryingRack: 0, lumberCamp: 0, stonePit: 0,
-             infirmary: 0, barracks: 0, oreYard: 0, forge: 0, archeryRange: 0, stables: 0 },
+             infirmary: 0, barracks: 0, oreYard: 0, forge: 0, archeryRange: 0, stables: 0,
+             ironYard: 0, treasury: 0 },
     // Trained person-types owned; separate from builds -- renders in Your People.
     units: { soldier: 0, archer: 0, horseman: 0 },
     upgrades: {},     // { [upgradeId]: true } -- presence means owned, one-time
@@ -761,7 +909,8 @@ function idle() { return civilians() - jobsUsed() - reserved(); }
 // ore too); boost buildings lift one resource each.
 function mults() {
   const tools = (S.upgrades.stoneTools  ? CONFIG.stoneToolsBonus  : 0)
-              + (S.upgrades.bronzeTools ? CONFIG.bronzeToolsBonus : 0);
+              + (S.upgrades.bronzeTools ? CONFIG.bronzeToolsBonus : 0)
+              + (S.upgrades.ironTools   ? CONFIG.ironToolsBonus   : 0);
   const out = {};
   for (const r of active().resources) {
     const boost = BOOST_BUILDING[r.id];
@@ -905,12 +1054,20 @@ function rollRaidType() {
 }
 
 // Weapon tiers replace each other rather than stacking -- highest owned wins.
+// These read OWNED upgrades, not the shop: a tier bought in a past era keeps
+// working after its upgrade leaves the manifest.
 function weaponMultiplier() {
+  if (S.upgrades.ironWeapons) return 3.0;
   if (S.upgrades.bronzeWeapons) return 2.2;
   if (S.upgrades.flintSpears) return 1.6;
   return 1.0;
 }
-function armorFactor() { return S.upgrades.hideArmor ? 0.5 : 1.0; }
+// Armor tiers replace the same way -- lowest (best) owned factor wins.
+function armorFactor() {
+  if (S.upgrades.steelArmor) return 0.3;
+  if (S.upgrades.hideArmor) return 0.5;
+  return 1.0;
+}
 
 // A single unit type's contribution to defense against a given raid.
 // The counter multiplier is either CONFIG.counterBonus or exactly 1 -- never
@@ -1241,8 +1398,12 @@ function completeConstruction(site) {
   onComplete(def);
 }
 
+// Which upgrade ids are age capstones, and where each one leads. The only
+// per-capstone wiring an age transition needs.
+const CAPSTONES = { bronzeAge: "bronze", ironAge: "iron" };
+
 function onComplete(def) {
-  if (def.id === "bronzeAge") { advanceEra("bronze"); return; }
+  if (CAPSTONES[def.id]) { advanceEra(CAPSTONES[def.id]); return; }
 
   if (def.id === "hut") {
     const n = S.builds.hut;
@@ -1810,6 +1971,9 @@ function openInfoPanel() {
 const ERA_TRANSITIONS = {
   bronze: {
     lead: "Copper and tin are married in fire. The first bronze is poured, and everything your people know how to make changes with it.",
+  },
+  iron: {
+    lead: "The far mines fall silent and the bronze roads empty. What replaces them is nearer, harder, and everywhere — and the world, it turns out, is full of neighbors.",
   },
 };
 

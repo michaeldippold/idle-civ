@@ -89,18 +89,21 @@ flagged *to be decided during implementation*.
 
 **Phase C — Iron Age** *(designed — see design.md Iron Age + A&E; tech contract in tech.md Phase C)*
 
-*C1 — the economy flip:*
-- [ ] `ironAge` capstone in the bronze manifest (pop ≥ 16 + archer-or-horseman; 400/400/400 + 50
+*C1 — the economy flip:* — ✅ **DONE** *(see What's Working, v14)*
+- [x] `ironAge` capstone in the bronze manifest (pop ≥ 16 + archer-or-horseman; 400/400/400 + 50
       bronze; 180s) + `ironAvailable` hint; `ERA_ORDER` gains iron; transition lead written.
-- [ ] `IRON_DELTA`: remove copper/tin/bronze, both ore jobs, Ore Yard, bronzeTools/bronzeWeapons/
+- [x] `IRON_DELTA`: remove copper/tin/bronze, both ore jobs, Ore Yard, bronzeTools/bronzeWeapons/
       scouting/flintSpears; override hut → Longhouse (housing 7), Forge → 3 iron + 2 wood → 1
-      steel, Village → Town, archer/horseman re-priced into iron; add iron/steel/gold, ironMiner,
-      Iron Yard, Treasury, Iron Tools/Iron Weapons/Steel Armor; `scoutFindIron` event; fresh slates.
-- [ ] Migrations: copper vanish, tin vanish, bronze → gold at 0.25 — all narrated. (The runner's
-      first real load.)
-- [ ] `weaponMultiplier()` iron tier 3.0; `armorFactor()` steel tier 0.3.
-- [ ] Harness: era-hop assertions (stone content in iron via two hops, migration outcomes, validator
-      green with three eras); live verify a real bronze → iron transition end-to-end.
+      steel, Village → Town, stables/archer/horseman re-priced into iron; add iron/steel/gold,
+      ironMiner, Iron Yard, Treasury, Iron Tools/Iron Weapons/Steel Armor; `scoutFindIron` event;
+      fresh slates. Compiled and validator-green on the first run.
+- [x] Migrations: copper vanish, tin vanish, bronze → gold at 0.25 — all narrated. (The runner's
+      first real load, live-verified with a full economy running through the flip.)
+- [x] `weaponMultiplier()` iron tier 3.0; `armorFactor()` steel tier 0.3 (armor now lowest-wins
+      tiers, matching weapons); `CAPSTONES` map replaces the hardcoded onComplete check.
+- [x] Harness: iron manifest shape, capstone gating, the real transition (migrations, worker
+      release, snapshot, retroactive housing), iron economy, cross-era tier supersession —
+      318 checks, 20/20 runs.
 
 *C2 — Adversaries & Expeditions:*
 - [ ] Manifest category `adversaries` (wholesale per era, like slates); validator: fightsAs ∈ raid
@@ -486,6 +489,23 @@ factual lists derive from the manifest diff so they can never lie. Full contract
 (Settled But Not Yet Built); rationale in `design.md` (The Era Manifest Model). Sequenced as
 parity-refactor → transition machinery → Iron Age, so engine risk and content risk never travel
 together. Documentation-only milestone — no code changed.
+
+**v14 — The Iron Age economy (C1).** The game has a third era, and getting there is the first
+transition with teeth. The `ironAge` capstone (bronze manifest: pop ≥ 16, an Archer or Horseman
+fielded, 400/400/400 + 50 bronze, 180s) flips into an era where the alloy economy is *gone*:
+copper, tin, bronze, both ore jobs, the Ore Yard, and four stranded upgrades all retire — and the
+machinery earned its keep. The delta compiled validator-green on the first run; the era modal
+derived the whole story itself ("No longer needed: Ore Yard, Flint-Tipped Spears, Bronze Tools,
+Bronze Weapons, Scouting, Iron Age"); the DOM purge swept every dead card, row, and tile; and the
+Chronicle narrated the collapse: the copper road falls silent, no tin comes up the river, and your
+suddenly-antique bronze sells to collectors at 1:4 — seeding **gold**, the era's genuinely new
+idea, which no job can ever mine. Iron mines at full rate; the Forge persists retargeted (3 iron +
+2 wood → 1 steel — wood's first late-game sink); Iron Yard and Treasury store the new stocks;
+Iron Tools/Iron Weapons/Steel Armor extend the tiers (armor is now lowest-wins like weapons);
+Longhouses hold 7 and the Village becomes a Town. Owned bronze-era upgrades keep working forever —
+a bought trait reads from state, not the shop shelf. Iron's gold sinks currently exceed the
+heirloom seed on purpose: expeditions (C2) are the era's real gold supply, landing next. Harness:
+318 checks, 20/20 runs.
 
 **v13 — Transition machinery (Phase B).** The manifest architecture is now complete and waiting on
 its first real consumer. `validateManifests()` runs at load against every compiled era and throws

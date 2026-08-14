@@ -64,6 +64,8 @@ The mechanism for anything that *happens to* the settlement rather than somethin
 
 **A living world, never a waiting one.** The settlement is surrounded by other actors — raiders today, enemy armies later, invading aliens eventually — and simulating them is what makes this feel like a real world with other agents in it rather than a spreadsheet of numbers. Their actions carry genuine success-and-failure consequences either way. The contract is strictly about *presence*: no outside actor ever stops the game to demand a decision, so everything resolves whether you're watching or AFK — and the Chronicle is the after-action record that lets you come back and skim out what the heck happened while you were gone. (This is the positive half of the "interactive events are out of scope" cut — see Explicitly Out of Scope.)
 
+The inverse is equally canonical: **decisions happen on the player's schedule; consequences happen on the world's schedule.** The world never interrupts you with a decision — but you may act *on* the world whenever you choose (see Adversaries & Expeditions, under Eras). Once you act, resolution is the world's business: it self-applies and lands in the Chronicle like everything else. And set in stone as a guideline: **resolution never creates a window the player must catch.** No "your army has returned — claim your reward" buttons, no expiring results. A claim button is just an interactive event wearing armor.
+
 "A wanderer joins your settlement" — population growth — *was* the first and most common event under this system, until the decision below moved it out. **Sickness**, mitigated by the **Infirmary**, is the first real hazard built on it: unmitigated it's rare but real, an ever-present low hum of risk once your population passes a threshold, and it's the proof that the system generalizes to bad news, not just good news. **Conflict**, mitigated by a standing **Military**, is the second — see below.
 
 For a while, every *probabilistic* event was bad news — Sickness and Conflict were both downside rolls, and the only good news (population growth) was deterministic, never a surprise. **Great Hunt** and **Trader** fixed that: small, ungated resource windfalls (Great Hunt gives food; Trader gives wood and stone) using the exact same trigger/effect/flavor shape as the hazards, just without a downside. There's no fairness reason to gate good news behind a population threshold the way the hazards are, so they aren't. The Chronicle now builds suspense in both directions, not just one.
@@ -145,7 +147,7 @@ A loose north star, not an implementation backlog. Ages get built and played one
 
 1. **Stone Age** (neolithic) — current, only implemented era
 2. **Bronze Age**
-3. **Iron Age** — medieval, knights and siege engines. Settled direction: the first age to *remove* content — copper, tin, and bronze retire (resources, jobs, and Ore Yard with them); iron and gold mining arrive; the Forge persists, retargeted to smelt steel from the iron feed; an Iron Weapons upgrade rides on it. This intended removal is what forced the Era Manifest Model above.
+3. **Iron Age** — medieval, knights and siege engines. Settled direction: the first age to *remove* content — copper, tin, and bronze retire (resources, jobs, and Ore Yard with them); iron and gold mining arrive; the Forge persists, retargeted to smelt steel from the iron feed; an Iron Weapons upgrade rides on it. This intended removal is what forced the Era Manifest Model above. Its **deepening mechanic is Adversaries & Expeditions** (see that section): campaigns and directed trade — the game's first outward-facing verbs.
 4. **Enlightenment Age** — *widening*; cathedrals, monks, science
 5. **Gunpowder Age** — revolutionary war to old west
 6. **Industrial Age** — the real Industrial Revolution: Victorian, steam, rail, factories — this is properly where the steampunk flavor belongs
@@ -157,7 +159,7 @@ A loose north star, not an implementation backlog. Ages get built and played one
 12. **Kardashev Age** — *widening*; solar-system/galaxy scale, Dyson spheres
 13. **Heat Death of the Universe** — the game ends, one way or another
 
-### Bronze Age (designed, being built)
+### Bronze Age (designed and shipped)
 
 The first age transition, and therefore the one that has to prove the whole concept works. A **deepening** age: it adds a genuinely new mechanic (resource conversion) plus real military depth, and it deliberately **consolidates nothing**. That's a rule for this age specifically — the first transition's emotional job is to be pure reward. "Your stuff got better" is a far better first impression than "your stuff got taken away and replaced," and consolidation is a tool for solving interface clutter that doesn't exist yet.
 
@@ -174,6 +176,18 @@ The numbers were chosen so a **clean equilibrium exists to be discovered**: beca
 The result is a real, legible trade-off rather than a right answer: a specialist army swings hard between matchups (5 Archers are worth double against a massed charge and unchanged against everything else), while a mixed army has no spikes but no holes either. Soldiers stay the cheap generalist and — notably — the only unit costing no bronze, so they remain buildable when the Forge is starved. Horsemen are the strongest per head and the most expensive.
 
 **Who dies is a second, quieter axis of role.** When a raid takes lives, casualties are drawn weighted by exposure rather than evenly: foot soldiers hold the line and take the brunt, horsemen can withdraw, and archers — shooting from behind the line — are hit least. This is what makes an Archer *feel* like an archer rather than a differently-priced soldier. Crucially it only ever bends the odds: no unit is immune, an archer can always be the one who falls, and an all-archer army has no front line to hide behind so it gets no protection at all. Mixing your army is what buys your specialists their safety, which is a nice second reason to do it beyond matchup coverage. **Scouting** rides on the Stables as a second reason to build them, unlocking a category of purely-positive discoveries; it's gated on the upgrade rather than the building, so it's an investment rather than a freebie.
+
+### Adversaries & Expeditions (settled direction — lands with Iron)
+
+Born from a real worry: with every existing verb pointing inward (allocate, build, upgrade, train), the game risked feeling passive despite its friction — the player is the *object* of the simulation's sentences, never the subject. Expeditions are the game's first **outward-facing verbs**, and they're what makes Iron a genuinely deepening age rather than bronze spearmen in plate: without them, knights and siege engines would just be new flavor on the same defense stat.
+
+**Adversaries** are the counterparties, and they exist only to the extent that they can be interacted with — that's the whole specification. Each era's manifest declares its own, reflavored to scale (neighboring tribe → kingdom → rival continent → alien planet), and each holds the bare minimum: a **static resource stock** (numbers you can trade against or plunder — a *stock*, not an economy; nothing grows, nothing moves on its own), a **strength** number, and a **disposition** — peaceful or warlike. Just enough to flavor interactions: a peaceful neighbor is open to trade; a warlike one resists and must be campaigned against. Explicitly *not* simulated civilizations: no growth, no tech, no map, no evolving diplomacy. And because adversaries are manifest content, each new era's counterparties arrive with fresh stocks by construction — no replenishment logic ever needs to exist.
+
+**Campaigns**: allocate troops (send some, keep some — the split is the decision), pick a target, and the dice roll against the adversary's strength using the combat math the game already has, just pointed outward. The core passive trade-off comes free: **an army on campaign isn't home**, so the settlement's own defense is thinner until they return. Outcomes — plunder, casualties, defeat — self-apply and land in the Chronicle. This also fixes a standing gap: the military stops being pure insurance against randomness and becomes an investment with upside.
+
+**Directed trade**: pick the partner, pick the exchange, against that adversary's actual stock — which depletes, so a neighbor can be genuinely exhausted. Rates and risk vary by counterparty. This is what the anonymous Trader windfall was missing: no choice, no counterparty, no decision.
+
+An optional flavor join, cheap and cohesive: inbound raids can *attribute* to warlike adversaries ("the hill tribes test your defenses" rather than an anonymous warband), so the world's proper nouns appear in both directions. The full design pass happens when Iron is actually scoped, per the one-age-at-a-time rule — this section fixes the shape and the guardrails, not the numbers.
 
 ## Explicitly Out of Scope
 

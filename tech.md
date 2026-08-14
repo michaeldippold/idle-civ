@@ -346,7 +346,7 @@ Honest limit: `reveal()` predicates are arbitrary code and cannot be statically 
 **Sequencing (settled):**
 1. **Phase A — parity refactor.** Stone + Bronze re-authored as deltas/manifests; `active()` indirection throughout; harness parity suite proving identical visible content, costs, caps, rates, and reveal behavior per era, plus old-save compatibility. No new features, no schema change.
 2. **Phase B — transition machinery.** Validator, DOM purge on era flip, migration runner with snapshot semantics, `S.eraHistory`, manifest-diff era modal.
-3. **Phase C — Iron Age**, the first real consumer: removes the copper/tin/bronze economy (resources, jobs, Ore Yard), adds iron + gold, retargets the Forge to iron → steel, adds Iron Weapons. Full era content designed when we get there, per the one-age-at-a-time rule.
+3. **Phase C — Iron Age**, the first real consumer: removes the copper/tin/bronze economy (resources, jobs, Ore Yard), adds iron + gold, retargets the Forge to iron → steel, adds Iron Weapons. Also introduces **adversaries and expeditions** (campaigns + directed trade) as the era's deepening mechanic — adversaries are another manifest-declared content type (static stock + strength + disposition, redeclared fresh each era; see `design.md`, Adversaries & Expeditions). Full era content and the expedition system's technical design happen when we get there, per the one-age-at-a-time rule.
 
 The free-growth change above is independent of all three phases and can land first.
 

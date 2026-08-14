@@ -84,6 +84,10 @@ flagged *to be decided during implementation*.
 **Phase C — Iron Age** *(first real consumer; full content design happens when we get here)*
 - [ ] Authored as a delta: remove copper/tin/bronze economy (resources, jobs, Ore Yard); add iron
       + gold; retarget Forge to iron → steel; Iron Weapons upgrade.
+- [ ] **Adversaries & Expeditions** — the era's deepening mechanic and the game's first
+      outward-facing verbs (campaigns: allocate troops / pick target / army absent weakens home
+      defense; directed trade against a counterparty's depletable stock). Shape and guardrails
+      settled in `design.md`; system design happens here.
 - [ ] The era's actual content pass (buildings, events, flavor) designed at the time, per the
       one-age-at-a-time rule.
 
@@ -446,3 +450,17 @@ factual lists derive from the manifest diff so they can never lie. Full contract
 (Settled But Not Yet Built); rationale in `design.md` (The Era Manifest Model). Sequenced as
 parity-refactor → transition machinery → Iron Age, so engine risk and content risk never travel
 together. Documentation-only milestone — no code changed.
+
+**Design consensus: outward verbs — Adversaries & Expeditions.** Born from a candid worry that the
+game felt passive: every existing verb points inward (allocate, build, upgrade, train), leaving the
+player the object of the simulation's sentences, never the subject. The answer sharpened the idle
+contract into its final form — the world never interrupts the player, but the player may act *on*
+the world at any time, with resolution always self-applying and landing in the Chronicle. Set in
+stone: **resolution never creates a window the player must catch** (a claim button is an interactive
+event wearing armor). Adversaries are manifest-declared counterparties that exist only to the extent
+they can be interacted with — a static stock (not an economy), a strength, a disposition — refreshed
+free at era boundaries because manifests redeclare them. Campaigns and directed trade become Iron's
+deepening mechanic, reusing the existing combat math pointed outward, with "the army isn't home" as
+the core passive trade-off. Interactive events were also formally killed and moved to out-of-scope
+in this same arc: the settled identity is idle Age of Empires, not active Civilization.
+Documentation-only milestone — no code changed.

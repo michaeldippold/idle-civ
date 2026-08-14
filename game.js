@@ -520,6 +520,7 @@ function compileBase(raw) {
     housingPerHut: raw.housingPerHut,
     panelTitles: Object.assign({}, raw.panelTitles),
     raidTypes: raw.raidTypes.slice(),
+    migrations: [],   // a base era is never entered FROM anywhere
   };
   for (const cat of DEF_CATEGORIES) m[cat] = raw[cat].map((d) => Object.assign({}, d));
   resolveSlates(m, raw);
@@ -532,6 +533,10 @@ function extendEra(parent, delta) {
     housingPerHut: delta.housingPerHut != null ? delta.housingPerHut : parent.housingPerHut,
     panelTitles: Object.assign({}, parent.panelTitles, delta.panelTitles),
     raidTypes: delta.raidTypes ? delta.raidTypes.slice() : parent.raidTypes,
+    // Explicit state-migration instructions, run once when this era is
+    // ENTERED (see runEraMigrations). Never inherited: a migration describes
+    // one specific transition, not a standing rule.
+    migrations: (delta.migrations || []).slice(),
   };
   const removes = new Set(delta.remove || []);
   const overrides = delta.override || {};
@@ -580,6 +585,88 @@ function active() { return MANIFESTS[S.era] || MANIFESTS.stone; }
 // keyed by id -- era-neutral identity data, like icons. If a later era ever
 // remaps a boost, this graduates into the manifests.
 const BOOST_BUILDING = { food: "dryingRack", wood: "lumberCamp", stone: "stonePit" };
+
+// ---------- Manifest validator ------------------------------
+// The cross-reference pass, run at load against every compiled manifest: any
+// id one piece of content uses to point at another must resolve WITHIN that
+// same era. This is what makes removal safe to author -- retire a resource
+// and every cost, recipe, storage building and job that still mentions it
+// turns into a load-time error instead of NaN production, a converter that
+// silently never runs, or a cap that quietly stops applying.
+//
+// Honest limit: reveal() predicates are arbitrary code and can't be
+// statically validated. A stale reference there yields a hint or card that
+// never appears -- annoying, but it cannot break the economy.
+function validateManifests(manifests) {
+  const problems = [];
+  for (const era in manifests) {
+    const m = manifests[era];
+    const resIds = new Set(m.resources.map((r) => r.id));
+    const buildIds = new Set(m.buildings.map((b) => b.id));
+    const raidIds = new Set(m.raidTypes.map((r) => r.id));
+    const bad = (msg) => problems.push(`[${era}] ${msg}`);
+
+    for (const cat of ["buildings", "upgrades", "units"]) {
+      for (const d of m[cat]) {
+        if (!d.id || !d.name || !d.kind) bad(`${cat} entry ${d.id || "?"} missing id/name/kind`);
+        if (typeof d.reveal !== "function") bad(`${d.id} has no reveal()`);
+        for (const k in d.base || {}) {
+          if (!resIds.has(k)) bad(`${d.id} costs "${k}", not a resource this era`);
+        }
+        if (d.converts) {
+          for (const k in d.converts.in)  if (!resIds.has(k)) bad(`${d.id} converts from "${k}", not a resource this era`);
+          for (const k in d.converts.out) if (!resIds.has(k)) bad(`${d.id} converts to "${k}", not a resource this era`);
+        }
+      }
+    }
+    for (const r of m.resources) {
+      if (r.capBuilding != null && !buildIds.has(r.capBuilding)) {
+        bad(`resource ${r.id} capBuilding "${r.capBuilding}" is not a building this era`);
+      }
+      const boost = BOOST_BUILDING[r.id];
+      if (boost && !buildIds.has(boost)) bad(`resource ${r.id} boost building "${boost}" is not a building this era`);
+    }
+    for (const j of m.jobs) {
+      if (!resIds.has(j.res)) bad(`job ${j.id} gathers "${j.res}", not a resource this era`);
+    }
+    for (const u of m.units) {
+      if (u.counters && !raidIds.has(u.counters)) bad(`unit ${u.id} counters "${u.counters}", not a raid type this era`);
+    }
+    for (const ev of m.events) {
+      if (ev.counter && !buildIds.has(ev.counter.building)) {
+        bad(`event ${ev.id} countered by "${ev.counter.building}", not a building this era`);
+      }
+    }
+    for (const ins of m.migrations) {
+      if (!ins.bucket || !(ins.bucket in { res: 1, jobs: 1, builds: 1, units: 1, upgrades: 1 })) {
+        bad(`migration targets unknown bucket "${ins.bucket}"`);
+      }
+      if (!ins.vanish && !ins.convertTo && !ins.fn) bad(`migration for ${ins.id} has no primitive (vanish/convertTo/fn)`);
+    }
+  }
+  if (problems.length) throw new Error("Manifest validation failed:\n  " + problems.join("\n  "));
+}
+validateManifests(MANIFESTS);
+
+// What one era-step changes among the buildable categories, computed from the
+// compiled manifests so it can never go stale. Feeds the era modal AND the
+// DOM purge -- one diff, two consumers.
+function manifestDiff(fromM, toM) {
+  const diff = { added: [], removed: [], renamed: [] };
+  for (const cat of ["buildings", "units", "upgrades"]) {
+    for (const d of toM[cat]) {
+      const prev = fromM && fromM[cat].find((p) => p.id === d.id);
+      if (!prev) diff.added.push(d);
+      else if (prev.name !== d.name) diff.renamed.push({ from: prev, to: d });
+    }
+    if (fromM) {
+      for (const d of fromM[cat]) {
+        if (!toM[cat].some((p) => p.id === d.id)) diff.removed.push(d);
+      }
+    }
+  }
+  return diff;
+}
 
 // Minimal line-art doodles -- no map, just icons.
 const ICON_ATTRS = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"';
@@ -635,6 +722,7 @@ function freshState() {
     growth: 0,        // seconds accrued toward the next free settler; freezes while housing is full
     bought: 0,        // lifetime settlers grown -- a stat for the game-over screen
     era: "stone",     // the key into MANIFESTS -- the whole era system is this one string
+    eraHistory: {},   // frozen pre-transition snapshots, keyed by the era just left -- see advanceEra()
     playtime: 0,      // seconds the simulation has actually advanced -- see step()
     seen: {},
     dead: false,
@@ -1170,18 +1258,103 @@ function onComplete(def) {
 
 // The one and only place S.era is ever assigned. S.era is nothing more than
 // the key into MANIFESTS -- every read of content goes through active() -- so
-// flipping it swaps the entire world in one assignment. `before` is captured
-// while the OLD manifest is still active (housing per hut is about to change).
+// flipping it swaps the entire world in one assignment. Everything else here
+// is the transition machinery around that assignment, in a deliberate order:
+//
+//   1. Capture `before` values and the frozen SNAPSHOT while the old manifest
+//      is still active. The snapshot is archived in S.eraHistory[fromEra]
+//      (kept for every era, forever -- it's a few hundred bytes and it's the
+//      raw material for diagnosing or recovering a bad migration, the
+//      project's first genuinely destructive state change).
+//   2. Flip S.era.
+//   3. Run migrations. Formulas read ONLY the snapshot and write ONLY live
+//      state, so instruction order cannot matter by construction.
+//   4. Purge DOM nodes for ids that didn't survive -- the one place content
+//      is ever allowed to leave the screen ("nothing can un-reveal" holds
+//      everywhere except an era boundary).
+//   5. reconcileWorkforce(), in case released workers left the books odd.
+//
 // The full announcement lives in a modal; a single milestone line still goes
 // to the Chronicle so the settlement's own record contains the moment.
 function advanceEra(era) {
+  const fromEra = S.era;
+  const fromM = active();
   const before = { housing: housing() };
+  const shallow = Object.assign({}, S);
+  delete shallow.eraHistory;               // snapshots don't nest snapshots
+  S.eraHistory[fromEra] = JSON.parse(JSON.stringify(shallow));
+
   S.era = era;
+  const toM = active();
+  runEraMigrations(fromM, toM, S.eraHistory[fromEra]);
+  purgeDom(fromM, toM);
+  reconcileWorkforce();
+
   // Silent during offline catch-up -- simulateOffline() announces it instead,
   // rather than firing a modal at someone the instant the page loads.
   if (SIM) return;
-  log(`The ${active().name} begins.`, "big");
+  log(`The ${toM.name} begins.`, "big");
   openEraModal(era, before);
+}
+
+// Applies an era's state migrations. Implicit default: everything carries.
+// State under ids that left the manifest is INERT, never deleted (the
+// settled invariant) -- with one default policy on top: workers assigned to
+// a job that no longer exists return to idle, since a person standing around
+// is visible state the player can see and re-spend, not a ledger entry.
+// Explicit instructions come from the delta's `migrations` list:
+//   { bucket, id, vanish: true, narrate }              -- state zeroed
+//   { bucket, id, convertTo, ratio?, narrate }         -- moved within the bucket, floor'd
+//   { bucket, id, fn: (snapshot) => value, narrate }   -- computed fresh
+// Formulas read the frozen snapshot, never live state. Narrate lines log
+// even under SIM: an era transition is rare enough that its story belongs in
+// the Chronicle even when it happened while you were away.
+function runEraMigrations(fromM, toM, snapshot) {
+  for (const j of fromM.jobs) {
+    if (!toM.jobs.some((x) => x.id === j.id) && (S.jobs[j.id] || 0) > 0) {
+      const n = S.jobs[j.id];
+      S.jobs[j.id] = 0;
+      log(`${n} of your people set down tools the new age has no use for.`);
+    }
+  }
+  for (const ins of toM.migrations) {
+    const bucket = S[ins.bucket];
+    const snapBucket = snapshot[ins.bucket] || {};
+    if (ins.vanish) {
+      if (ins.bucket === "upgrades") delete bucket[ins.id];
+      else bucket[ins.id] = 0;
+    } else if (ins.convertTo) {
+      const gained = Math.floor((snapBucket[ins.id] || 0) * (ins.ratio != null ? ins.ratio : 1));
+      bucket[ins.convertTo] = (bucket[ins.convertTo] || 0) + gained;
+      bucket[ins.id] = 0;
+    } else if (ins.fn) {
+      bucket[ins.id] = ins.fn(snapshot);
+    }
+    if (ins.narrate) log(ins.narrate);
+  }
+}
+
+// Remove the DOM nodes of every id that didn't survive the era hop -- cards,
+// holdings tiles, person tiles, job rows, resource rows. Renderers only ever
+// CREATE nodes for ids in the active manifest, so after this purge a
+// retired id is fully gone: no stale card, no frozen tile. Runs under SIM
+// too -- the page's DOM exists during offline catch-up and would otherwise
+// keep the stale nodes.
+function purgeDom(fromM, toM) {
+  const kill = (elId) => {
+    const el = document.getElementById(elId);
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+  };
+  for (const cat of DEF_CATEGORIES) {
+    for (const d of fromM[cat]) {
+      if (toM[cat].some((x) => x.id === d.id)) continue;
+      kill("bcard-" + d.id);
+      kill("hold-" + d.id);
+      kill("ptile-" + d.id);
+      kill("job-" + d.id);
+      kill("res-" + d.id);
+    }
+  }
 }
 
 // ---------- Progressive reveal / one-time hints -------------
@@ -1629,44 +1802,49 @@ function openInfoPanel() {
   });
 }
 
-// Hand-authored per era: the flavor and the "what changed" list. The "now
-// available" list underneath is derived from the defs themselves so it can't
-// go stale as content is added. Every age is supposed to land as a visible
-// "whoa, look at this" moment (design.md) -- this is where that gets staged.
+// Hand-authored per era: ONLY the flavor lead. Every list underneath -- what
+// changed, what's newly available, what's no longer needed -- derives from
+// the manifest diff, so none of it can go stale as content moves. Every age
+// is supposed to land as a visible "whoa, look at this" moment (design.md);
+// the lead is where that voice lives, the diff is where the facts do.
 const ERA_TRANSITIONS = {
   bronze: {
     lead: "Copper and tin are married in fire. The first bronze is poured, and everything your people know how to make changes with it.",
-    changes: (before) => [
-      `Your huts are rebuilt in stone — housing rises from ${before.housing} to ${housing()}.`,
-      "The settlement has grown into a village.",
-      "Your healers move out of the tent and into a proper infirmary.",
-      "Copper and tin can now be mined — tin yields slowly, and is the harder of the two to come by.",
-      "Raiders come in different shapes now, and some of your people are better suited to some fights than others.",
-    ],
   },
 };
 
 function openEraModal(era, before) {
   const t = ERA_TRANSITIONS[era];
   if (!t) return;
-  const changes = (typeof t.changes === "function" ? t.changes(before) : t.changes) || [];
-
-  // "Now available" is a manifest diff -- everything buildable in the new era
-  // that wasn't in the previous one -- so it can't go stale as content moves.
   const pi = ERA_ORDER.indexOf(era) - 1;
   const prevM = pi >= 0 ? MANIFESTS[ERA_ORDER[pi]] : null;
   const m = MANIFESTS[era];
-  const unlocked = [];
-  for (const cat of ["buildings", "units", "upgrades"]) {
-    for (const d of m[cat]) {
-      if (!prevM || !prevM[cat].some((p) => p.id === d.id)) unlocked.push(`${d.name} — ${d.desc}`);
+  const diff = manifestDiff(prevM, m);
+
+  // "What changed": renames, era-scoped value shifts, and new resources/jobs
+  // (which have no buy-card, so they'd otherwise go unannounced).
+  const changes = diff.renamed.map((r) => `The ${r.from.name} is now the ${r.to.name}.`);
+  if (before.housing !== housing()) changes.push(`Housing rises from ${before.housing} to ${housing()}.`);
+  if (prevM) {
+    for (const panelId in m.panelTitles) {
+      if (prevM.panelTitles[panelId] && prevM.panelTitles[panelId] !== m.panelTitles[panelId]) {
+        changes.push(`The ${prevM.panelTitles[panelId]} is now a ${m.panelTitles[panelId]}.`);
+      }
     }
+    const newRes = m.resources.filter((r) => !prevM.resources.some((p) => p.id === r.id));
+    if (newRes.length) changes.push(`New resources: ${newRes.map((r) => r.name).join(", ")}.`);
+    const newJobs = m.jobs.filter((j) => !prevM.jobs.some((p) => p.id === j.id));
+    if (newJobs.length) changes.push(`New work: ${newJobs.map((j) => j.name.toLowerCase()).join(", ")}.`);
   }
+
+  const unlocked = diff.added.map((d) => `${d.name} — ${d.desc}`);
+  const retired = diff.removed.map((d) => d.name);
 
   const list = (items) => `<ul class="era-list">${items.map((i) => `<li>${i}</li>`).join("")}</ul>`;
   let html = `<p class="modal-lead">${t.lead}</p>`;
   if (changes.length) html += `<h3 class="info-h">What changed</h3>${list(changes)}`;
   if (unlocked.length) html += `<h3 class="info-h">Now available</h3>${list(unlocked)}`;
+  if (retired.length) html += `<h3 class="info-h">No longer needed</h3>${list(retired)}`;
 
   // No action buttons -- dismiss via the ×, the backdrop, or Escape.
   openModal(`The ${m.name} Begins`, html);
@@ -1782,6 +1960,7 @@ function load() {
   S.units = Object.assign(freshState().units, data.units);
   S.upgrades = data.upgrades || {};
   S.seen = data.seen || {};
+  S.eraHistory = data.eraHistory || {};
   S.buildQueue = Array.isArray(data.buildQueue) ? data.buildQueue : [];
   return true;
 }

@@ -80,6 +80,7 @@ The entire simulation lives in one module-level object, `S` (see `freshState()` 
 | `growth` | `number` | Seconds accrued toward the next free settler; freezes (not resets) while housing is full |
 | `bought` | `number` | Lifetime settlers grown — a stat for the game-over screen only (it once drove the settler cost curve; that role is gone) |
 | `era` | `string` | `"stone"` or `"bronze"` — the key into `MANIFESTS`; the whole era system is this one string |
+| `eraHistory` | `{[era]: snapshot}` | Frozen pre-transition snapshot of `S` (minus itself), archived by `advanceEra()`; migration formulas read it, humans debug with it |
 | `playtime` | `number` | Seconds the simulation has actually advanced (frozen while paused) |
 | `seen` | `{[revealId]: true}` | One-time UI reveal hints already shown |
 | `dead` | `boolean` | Game-over flag |
@@ -144,7 +145,7 @@ Design rationale in `design.md` (*The Era Manifest Model*); the settled contract
 
 **Slates never inherit.** Each era declares its complete `events` and `hints` lists even in delta form — a forgotten event is a loud authoring decision, not a silent omission. (The old `eras`-allowlist model once silently stopped events firing after a flip; the harness now asserts slate membership per era instead.) Hints that used to carry `S.era` checks (`rotOre`, `bronzeAvailable`) are gated purely by slate membership.
 
-**Era-varying values.** `housingPerHut()`, panel titles, and the age-badge name read `active()`. The Info panel iterates `ERA_ORDER` and reads each era's compiled manifest directly, so the Bronze tab shows Bronze names while you're still in Stone. The era modal's "Now available" list is a **manifest diff** (ids in the new era's buildings/units/upgrades absent from the previous era's) — it cannot go stale as content is added; the flavor lead and "What changed" lines stay hand-authored in `ERA_TRANSITIONS` until Phase B.
+**Era-varying values.** `housingPerHut()`, panel titles, and the age-badge name read `active()`. The Info panel iterates `ERA_ORDER` and reads each era's compiled manifest directly, so the Bronze tab shows Bronze names while you're still in Stone. The era modal is **fully diff-derived** (see The Era Transition, below): only the flavor lead is hand-authored in `ERA_TRANSITIONS`.
 
 Two rendering gotchas that predate manifests and still apply:
 - **Anything era-dependent must be re-rendered, not written once at creation.** `renderTile()` once baked the name in at tile creation, leaving "Medicine Tent" on the Settlement tile after the flip. Name spans get rewritten every render.
@@ -153,6 +154,16 @@ Two rendering gotchas that predate manifests and still apply:
 **The capstone Upgrade.** Advancing is an ordinary upgrade (`id: "bronzeAge"`) in the stone manifest, inheriting the queue, cost check, build timer, cancel-and-refund, and "owned" state for free — and the bronze delta **removes** it: a capstone exists only in the era it ends. `reveal: () => S.pop >= 10 && (S.units.soldier || 0) >= 1` reads *current* soldier count rather than an "ever trained" flag, because sticky reveals already handle the case where every soldier later dies. Completing it calls `advanceEra("bronze")`, the only place `S.era` is ever assigned. Because it sits in the normal queue, Sickness and Conflict keep resolving throughout its long build — the design's intended source of "and some luck." `advanceEra()` captures its `before` snapshot (for the modal's housing line) while the old manifest is still active, and is silent under `SIM`; if an era flips during offline catch-up, `simulateOffline()` announces it separately so the milestone isn't swallowed.
 
 **Semantics sharpened by `active()`** (all unreachable in normal play, now uniform by construction): stone-era `stealResources()` only touches stone-era resources; `releaseOrder()`/`jobsUsed()` cover exactly the era's jobs; combat iterates the era's units. A unit type with a nonzero count but no manifest entry neither fights nor dies — inert state, per the settled invariant that state is never implicitly destroyed.
+
+**The validator (Phase B).** `validateManifests(MANIFESTS)` runs at load, immediately after compilation, and throws with a full problem list on any within-era dangling reference: cost keys, `converts.in`/`out` keys and `job.res` against that era's resources; `capBuilding` and `BOOST_BUILDING` targets and event `counter.building` against that era's buildings; unit `counters` against that era's raid types; plus def-shape checks (`id`/`name`/`kind`/`reveal()`) and migration-instruction sanity (known bucket, at least one primitive). This is what makes *removal* safe to author: retire a resource, and everything still mentioning it becomes a load-time error instead of NaN production or a converter that silently never runs. Honest limit, unchanged: `reveal()` predicates are arbitrary code — a stale reference there yields a card that never appears, but cannot break the economy.
+
+**The Era Transition (Phase B).** `advanceEra(era)` is the whole machine, in deliberate order: capture `before` values and a frozen deep-copy **snapshot** while the old manifest is still active → archive it in `S.eraHistory[fromEra]` (kept for every era, forever — a few hundred bytes each, and the raw material for diagnosing or recovering a bad migration, the project's first genuinely destructive state change; snapshots exclude `eraHistory` itself so they never nest) → flip `S.era` → `runEraMigrations()` → `purgeDom()` → `reconcileWorkforce()` → announce (modal live, summary line under `SIM`).
+
+`runEraMigrations(fromM, toM, snapshot)` applies one built-in default — workers assigned to a job that left the manifest return to idle, with a Chronicle line — then the entering era's `migrations` list (authored on the delta, never inherited): `{bucket, id, vanish}` zeroes state (deletes for `upgrades`), `{bucket, id, convertTo, ratio?}` moves it within the bucket (floored), `{bucket, id, fn}` computes a fresh value. **Formulas read only the frozen snapshot and write only live state**, so instruction order cannot matter by construction — the harness proves it with an `fn` that reads a value an earlier instruction already vanished. Everything else carries implicitly; state under departed ids stays inert, never deleted. Narrate lines log even under `SIM` — an era transition is rare enough that its story belongs in the Chronicle even when it happened while you were away. (Stone→bronze declares zero migrations; the machinery's first real consumer is the Iron Age.)
+
+`purgeDom(fromM, toM)` removes the DOM nodes (`bcard-`, `hold-`, `ptile-`, `job-`, `res-` prefixed) of every id that didn't survive the hop — the one place content ever leaves the screen; "nothing can un-reveal" holds everywhere except an era boundary. Runs under `SIM` too, since the page's DOM exists during offline catch-up. Renderers only create nodes for manifest members, so a purged id stays gone. Today its only live effect is removing the completed capstone's card.
+
+`manifestDiff(fromM, toM)` computes `{added, removed, renamed}` across buildings/units/upgrades — one diff, two consumers: the purge logic mirrors it, and the era modal derives **everything but the flavor lead** from it: "What changed" (renames as "The Hut is now the Stone House.", the housing rise, panel-title shifts, plus new-resource and new-job summary lines, since those have no buy-card to announce themselves), "Now available" (added defs with descs), and "No longer needed" (removed defs). `ERA_TRANSITIONS` now holds only each era's `lead` sentence — the hand-maintained change list is gone and cannot go stale.
 
 ### Table-driven resources and jobs
 
@@ -304,48 +315,29 @@ No test framework; verification is a headless Node harness (in the session scrat
 
 ## Settled But Not Yet Built
 
-Everything above documents the game **as it currently runs** — including free timed growth and the **Phase A manifest parity refactor**, both shipped. What remains here is the settled contract for the manifest architecture's *transition machinery* (Phase B) and its first real consumer (Phase C). Anything marked *to be decided during implementation* is genuinely unsettled — do not treat a guess as a decision.
+Everything above documents the game **as it currently runs** — free timed growth, the Phase A manifest parity refactor, and the Phase B transition machinery have all shipped. The manifest architecture is complete and waiting for its first real consumer.
 
-### Era Manifests: Phase B/C remainder
+### The settled invariants (all in force)
 
-Design rationale in `design.md` (*The Era Manifest Model*); the implemented half is documented under *Eras: The Manifest Model*, above. The settled invariants that still bind future work:
+Recorded here as the standing contract every future era must honor — rationale in `design.md` (*The Era Manifest Model*), mechanics under *Eras: The Manifest Model*, above:
 
-1. **Ids are permanent and global.** The same id in two eras' manifests is *the same entity* by definition; state keys off ids and never migrates for a rename or a stat change. An id, once shipped in any era, is never reused to mean something else. *(In force today.)*
-2. **The compiled manifest is the complete truth of its era.** Nothing outside the active manifest renders, produces, converts, fires, or can be purchased. *(In force today.)*
-3. **Content absence = removal; carrying is the default.** *(In force today — the bronze delta removes the capstone.)*
-4. **State is never implicitly destroyed.** State under ids absent from the manifest becomes *inert* (ignored by the engine), not deleted. Only explicit migration instructions transform or remove state, and each such instruction carries a `narrate` line — silent state changes are how the "invisible food sink" class of bug happens. *(Inertness holds today; the migration instructions are Phase B.)*
-5. **Migration formulas read a frozen pre-transition snapshot.** All formulas evaluate against the snapshot; all writes apply after. Instruction order is therefore irrelevant by construction — an ordering bug in a migration cannot exist.
-6. **The pre-transition snapshot is archived** (e.g. `S.eraHistory[fromEra]`) before any migration applies. This is the project's first *destructive* state change — the defensive merge in `load()` only ever protected additive evolution — so the raw material for diagnosis/recovery must be kept. Retention policy (keep all vs. keep last) *to be decided during implementation*.
+1. **Ids are permanent and global.** The same id in two eras' manifests is *the same entity*; an id, once shipped, is never reused to mean something else.
+2. **The compiled manifest is the complete truth of its era.** Nothing outside it renders, produces, converts, fires, or can be purchased.
+3. **Content absence = removal; carrying is the default.**
+4. **State is never implicitly destroyed.** State under departed ids is inert, not deleted; only explicit, narrated migration instructions transform it. (One default policy on top: workers on a removed job return to idle.)
+5. **Migration formulas read a frozen pre-transition snapshot**; writes apply to live state. Instruction order cannot matter by construction.
+6. **The snapshot is archived** in `S.eraHistory[fromEra]`, one per era left, kept forever.
 
-**Migration primitives** (per transition, applied by one generic runner): implicit `carry`; `vanish` (state zeroed, narrated); `convertTo`/`fn` rescale (new value computed from snapshot — covers bronze→iron salvage, Dollars→Credits, and eventually population re-denomination); plus a default policy for removed *job* ids (workers return to idle via the existing `reconcileWorkforce()` machinery). Default policies for other buckets — building counts, unit counts, owned upgrades under removed ids — *to be decided during implementation* (leading candidate: inert-archive, i.e. do nothing and let invariant 4 handle it).
+**Explicit non-goals, still:** no ECS, no event-sourcing, no reactive state framework. The simulation is small; the pain was content lifecycle, and manifests solve exactly that with plain data.
 
-**The validator** runs at boot (dev at minimum), against every compiled manifest. The compiler's delta-level checks (unknown remove/override targets, duplicate adds, missing/unknown slate entries) shipped with Phase A; the cross-reference pass remains:
-- every cost key in every def ∈ that era's resources
-- every `converts.in`/`converts.out` key ∈ that era's resources
-- every `capBuilding` ∈ that era's buildings (or `null`)
-- every boost-building reference ∈ that era's buildings
-- every `job.res` ∈ that era's resources
-- every unit `counters` ∈ that era's raid types
-- every event `counter.building` ∈ that era's buildings
+### Phase C — the Iron Age
 
-Honest limit: `reveal()` predicates are arbitrary code and cannot be statically validated — they can still reference stale state harmlessly (a reveal that never fires), but not break the economy.
-
-**Rendering (Phase B):** on era flip, one purge pass removes DOM nodes (cards, tiles, rows) whose ids didn't survive — the only new rendering capability required, and the resolution to "nothing can un-reveal." (Today's era transition is purely additive except the already-owned capstone card, whose frozen "owned" state is visually inert, so the purge can wait for the first removal era.)
-
-**Era modal (Phase B):** "No longer needed" and changed-stats lists join the already-shipped diff-derived "Now available"; migration `narrate` lines stay hand-authored. `ERA_TRANSITIONS`'s hand-maintained "What changed" list dissolves then.
-
-**Explicit non-goals:** no ECS, no event-sourcing, no reactive state framework. The simulation is small; the pain is content lifecycle, and manifests solve exactly that with plain data.
-
-**Sequencing:**
-1. **Phase A — parity refactor.** ✅ **Shipped.** Stone + Bronze re-authored as base + delta; `active()` indirection throughout; compiler with loud delta errors; harness parity suite; old-save compatibility verified live. Zero state-schema change.
-2. **Phase B — transition machinery.** Cross-reference validator, DOM purge on era flip, migration runner with snapshot semantics, `S.eraHistory`, full manifest-diff era modal.
-3. **Phase C — Iron Age**, the first real consumer: removes the copper/tin/bronze economy (resources, jobs, Ore Yard), adds iron + gold, retargets the Forge to iron → steel, adds Iron Weapons. Also introduces **adversaries and expeditions** (campaigns + directed trade) as the era's deepening mechanic — adversaries are another manifest-declared content type (static stock + strength + disposition, redeclared fresh each era; see `design.md`, Adversaries & Expeditions). Full era content and the expedition system's technical design happen when we get there, per the one-age-at-a-time rule.
+The first real consumer of all of the above: removes the copper/tin/bronze economy (resources, jobs, Ore Yard), adds iron + gold, retargets the Forge to iron → steel, adds Iron Weapons — authored as one delta whose `remove` list and `migrations` finally exercise the machinery against real content. Also introduces **adversaries and expeditions** (campaigns + directed trade) as the era's deepening mechanic — adversaries are another manifest-declared content type (static stock + strength + disposition, redeclared fresh each era; see `design.md`, Adversaries & Expeditions). Full era content and the expedition system's technical design happen when we get there, per the one-age-at-a-time rule.
 
 ## Known Limitations
 
 - Conflict's numbers (`conflictBaseChance`, `conflictPopScale`, raid-size weights, the `repelChance` ratio, casualty/theft fractions) are first-guess, same as the rest of `CONFIG` — expect these to move once the system is actually played against.
 - Holdings tiles show a flat count with no compaction (`1234` renders as literally `1234`) — fine at current scale, flagged in `design.md` as a concern for later, much-larger numbers.
 - Upgrades don't appear anywhere once owned except the buy-card itself (relabeled "owned", permanently disabled) and the Chronicle completion line — there's no dedicated "traits you have" surface the way Settlement is for buildings.
-- Content *data* can now be removed per era (manifest membership), but the DOM node of something owned before a removal would linger until Phase B's purge pass — harmless today, since the only removed def (the capstone) freezes in a visually-inert "owned" state.
-- The cross-reference validator (cost keys, converter recipes, `capBuilding`, `job.res`, etc. checked against each era's own lists) is Phase B; today only the compiler's delta-level errors are loud.
+- The migration runner and DOM purge are fully built but lightly exercised: stone→bronze removes only the capstone and declares zero migrations, so their first real workout is the Iron Age. The harness covers them synthetically (every primitive, snapshot-order immunity, removed-job release), but synthetic coverage is not a real era transition.
 - `Math.random()` is used directly and unseeded — fine for a prototype, would need revisiting for reproducible testing of rare-event balance.

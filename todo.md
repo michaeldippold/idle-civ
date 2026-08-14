@@ -75,14 +75,17 @@ flagged *to be decided during implementation*.
       era; compiler error cases; parent-isolation; DEF_INDEX semantics. Verified live end-to-end:
       fresh stone game, real capstone → era flip (diff-derived modal), forge, save/reload in bronze.
 
-**Phase B — transition machinery**
-- [ ] Boot-time validator (full checklist enumerated in `tech.md` — cost keys, converts keys,
-      capBuilding/boost refs, job.res, unit counters, event counters, delta-level target checks).
-- [ ] Migration runner: frozen pre-transition snapshot, `vanish`/`convertTo`/`fn` primitives,
-      `narrate` lines, `S.eraHistory` archive, removed-job workers released via
-      `reconcileWorkforce()`.
-- [ ] DOM purge on era flip (the resolution to "nothing can un-reveal").
-- [ ] Era modal derives added/removed/changed from the manifest diff; retire `ERA_TRANSITIONS`
+**Phase B — transition machinery** — ✅ **DONE** *(see What's Working, v13)*
+- [x] Load-time validator `validateManifests()` (cost keys, converts keys, capBuilding/boost refs,
+      job.res, unit counters, event counters, def shape, migration sanity) — throws with a full
+      problem list before a frame renders. Delta-level target checks shipped earlier with Phase A.
+- [x] Migration runner: frozen pre-transition snapshot, `vanish`/`convertTo`/`fn` primitives,
+      `narrate` lines, `S.eraHistory` archive (all eras kept; snapshots never nest), removed-job
+      workers released to idle. Snapshot-order immunity proven in the harness.
+- [x] DOM purge on era flip (the resolution to "nothing can un-reveal") — live-verified: the
+      completed capstone's card vanishes at the transition.
+- [x] Era modal fully diff-derived (renames, housing, panel titles, new resources/jobs, added,
+      removed); `ERA_TRANSITIONS` reduced to the hand-authored flavor lead only.
       as a hand-maintained change list.
 
 **Phase C — Iron Age** *(first real consumer; full content design happens when we get here)*
@@ -454,6 +457,25 @@ factual lists derive from the manifest diff so they can never lie. Full contract
 (Settled But Not Yet Built); rationale in `design.md` (The Era Manifest Model). Sequenced as
 parity-refactor → transition machinery → Iron Age, so engine risk and content risk never travel
 together. Documentation-only milestone — no code changed.
+
+**v13 — Transition machinery (Phase B).** The manifest architecture is now complete and waiting on
+its first real consumer. `validateManifests()` runs at load against every compiled era and throws
+with a full problem list on any within-era dangling reference — cost keys, converter recipes,
+storage/boost buildings, job resources, unit counters, event counters — which is what makes
+*removal* safe to author: retire a resource and everything still mentioning it becomes a load-time
+error instead of NaN production. `advanceEra()` grew the full transition sequence: a frozen
+pre-flip snapshot archived in `S.eraHistory` (kept forever, never nested), a migration runner
+whose `vanish`/`convertTo`/`fn` instructions read only the snapshot (instruction order provably
+can't matter — the harness runs an `fn` against a value an earlier instruction already zeroed),
+workers on removed jobs returning to idle with a Chronicle line, and a DOM purge that removes the
+cards/tiles/rows of ids that didn't survive — the one sanctioned exception to "nothing can
+un-reveal," live-verified by watching the capstone's card vanish at the flip. The era modal is now
+fully derived from `manifestDiff()`: renames ("The Hut is now the Stone House."), the housing
+rise, panel-title shifts, new resources and work, "Now available," and a new "No longer needed"
+section; `ERA_TRANSITIONS` keeps only the hand-written flavor lead. Stone→bronze declares zero
+migrations, so today the machinery mostly proves itself in the harness (281 checks, 20/20 runs) —
+the Iron Age is where it earns its keep. Adding an age is now: write one delta, write one lead
+sentence, read the compiler's and validator's complaints until they stop.
 
 **v12 — The Era Manifest Architecture, Phase A.** The entire content layer is rewritten: the Stone
 Age is a full base manifest (resources, jobs, buildings, upgrades, units, raid types, era-scoped

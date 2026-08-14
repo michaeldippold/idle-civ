@@ -86,17 +86,46 @@ flagged *to be decided during implementation*.
       completed capstone's card vanishes at the transition.
 - [x] Era modal fully diff-derived (renames, housing, panel titles, new resources/jobs, added,
       removed); `ERA_TRANSITIONS` reduced to the hand-authored flavor lead only.
-      as a hand-maintained change list.
 
-**Phase C — Iron Age** *(first real consumer; full content design happens when we get here)*
-- [ ] Authored as a delta: remove copper/tin/bronze economy (resources, jobs, Ore Yard); add iron
-      + gold; retarget Forge to iron → steel; Iron Weapons upgrade.
-- [ ] **Adversaries & Expeditions** — the era's deepening mechanic and the game's first
-      outward-facing verbs (campaigns: allocate troops / pick target / army absent weakens home
-      defense; directed trade against a counterparty's depletable stock). Shape and guardrails
-      settled in `design.md`; system design happens here.
-- [ ] The era's actual content pass (buildings, events, flavor) designed at the time, per the
-      one-age-at-a-time rule.
+**Phase C — Iron Age** *(designed — see design.md Iron Age + A&E; tech contract in tech.md Phase C)*
+
+*C1 — the economy flip:*
+- [ ] `ironAge` capstone in the bronze manifest (pop ≥ 16 + archer-or-horseman; 400/400/400 + 50
+      bronze; 180s) + `ironAvailable` hint; `ERA_ORDER` gains iron; transition lead written.
+- [ ] `IRON_DELTA`: remove copper/tin/bronze, both ore jobs, Ore Yard, bronzeTools/bronzeWeapons/
+      scouting/flintSpears; override hut → Longhouse (housing 7), Forge → 3 iron + 2 wood → 1
+      steel, Village → Town, archer/horseman re-priced into iron; add iron/steel/gold, ironMiner,
+      Iron Yard, Treasury, Iron Tools/Iron Weapons/Steel Armor; `scoutFindIron` event; fresh slates.
+- [ ] Migrations: copper vanish, tin vanish, bronze → gold at 0.25 — all narrated. (The runner's
+      first real load.)
+- [ ] `weaponMultiplier()` iron tier 3.0; `armorFactor()` steel tier 0.3.
+- [ ] Harness: era-hop assertions (stone content in iron via two hops, migration outcomes, validator
+      green with three eras); live verify a real bronze → iron transition end-to-end.
+
+*C2 — Adversaries & Expeditions:*
+- [ ] Manifest category `adversaries` (wholesale per era, like slates); validator: fightsAs ∈ raid
+      types, stock/buys keys ∈ resources, buys only on peaceful.
+- [ ] The three adversaries: Hill Clans (warlike 9, massed), River Kingdom (peaceful 32, riders,
+      buys food), Salt Nomads (peaceful 13, riders, buys iron).
+- [ ] State: `S.adversaries` (living stock + standing; init at load/era entry), `S.expeditions`
+      (one at a time). Additive schema, defensively merged.
+- [ ] Deployment thins home defense (`deployedCount()`; home casualties never hit deployed units;
+      campaign casualties draw from the deployed set).
+- [ ] `resolveExpeditions(dt)` in `step()`: campaign math (counter-vs-fightsAs), plunder 40% of
+      remaining stock, standing −1 either way; caravan pays from their gold stock, sold goods join
+      their stock, standing +1, Hostile-warlike route risk 25%.
+- [ ] Standing words + consequences: Hostile warlike → home conflict ×1.5; Hostile peaceful →
+      refuses trade; Friendly → pays ×1.25.
+- [ ] Muster Ground (cap 1) gates the new **Expeditions** panel (row 2 under the Chronicle, which
+      drops its double-row span — no panel cut, no toggles); adversary cards with steppers +
+      caravan button; `index.html`/`styles.css` touch.
+- [ ] Harness: campaign win/loss forced-RNG paths, stock depletion, trade-dry partner, standing
+      transitions, deployment/defense math, one-expedition rule, offline resolution.
+
+*C3 — polish + balance (with playtests):*
+- [ ] Raid attribution flavor ("the Hill Clans test your defenses") once A&E is in.
+- [ ] Pacing: Iron targets very roughly 30–45 min beyond Bronze. Measured baseline (2026-08-14):
+      ~15 min to Bronze training, ~40 min to clear Bronze — early-age clip feels right, preserve it.
 
 ### Next up
 - [ ] Playtest the whole build for feel now that the Stone Age content pack has landed — Herbal

@@ -34,6 +34,10 @@ const CONFIG = {
                                // NOTE: non-countering units multiply by 1, never below -- units
                                // are never penalised for being the wrong type, only un-bonused.
   counterCasualtyRelief: 0.5,  // how much a fully-countered raid softens the costly-repel roll
+  campaignFoodCost: 30,        // provisions paid up front when a campaign marches
+  plunderFraction: 0.4,        // share of each stock resource a victorious campaign carries home
+  caravanRaidChance: 0.25,     // chance a caravan is lost en route while any warlike neighbor is Hostile
+  hostileConflictMult: 1.5,    // home-raid frequency multiplier per Hostile warlike neighbor
   offlineCapHours: 4,
   saveKey: "idleCiv.v6",
 };
@@ -127,7 +131,8 @@ const EVENT_LIB = {
     sev: "bad",
     condition: (S) => S.pop >= 4,
     resolve: (S, dt) => {
-      const chance = CONFIG.conflictBaseChance * (1 + S.pop * CONFIG.conflictPopScale);
+      // hostilityMultiplier: every Hostile warlike neighbor raids you more.
+      const chance = CONFIG.conflictBaseChance * (1 + S.pop * CONFIG.conflictPopScale) * hostilityMultiplier();
       const p = 1 - Math.pow(1 - chance, dt);
       if (Math.random() >= p) return;
 
@@ -248,6 +253,8 @@ const HINT_LIB = {
     msg: "The Forge runs hotter than it ever did for bronze. The first steel is yours." },
   firstGold: { when: () => S.res.gold > 0,
     msg: "Gold. No one in your town has ever dug up an ounce of it — it only ever arrives from somewhere else." },
+  neighbors: { when: () => S.builds.forge >= 1 || S.res.iron >= 20,
+    msg: "Travellers name your neighbors now: the Hill Clans in the high passes, the River Kingdom downstream, the Salt Nomads on the flats. A Muster Ground would let your people range out to meet them — one way or another." },
 };
 
 // ---------- The Stone Age (base manifest) -------------------
@@ -594,6 +601,15 @@ const IRON_DELTA = {
         base: { wood: 40, stone: 40, iron: 10 }, scale: 1.6, buildTime: 22,
         reveal: () => true,
       },
+      {
+        // Gates the Expeditions panel the way the Barracks gated Training.
+        // One Muster Ground, one outbound column at a time -- the cap IS the
+        // pacing of the era's outward verbs.
+        id: "musterGround", name: "Muster Ground", kind: "building", cap: 1,
+        desc: "Where expeditions gather — fighters, wagons, provisions. Opens the world beyond the valley.",
+        base: { wood: 60, stone: 30, iron: 20 }, scale: 1.5, buildTime: 35,
+        reveal: () => true,
+      },
     ],
     upgrades: [
       {
@@ -629,9 +645,37 @@ const IRON_DELTA = {
       narrate: "Bronze is suddenly antique — collectors and temple-makers pay gold for your stock of it." },
   ],
 
+  // The era's counterparties. Adversaries are declared WHOLESALE per era,
+  // like the slates -- never inherited; each age's world arrives fresh, with
+  // fresh stocks, by construction. The manifest entry is the template; the
+  // living remnant (depleting stock, standing) lives in S.adversaries.
+  // `fightsAs` names a raid type, so unit counters point outward for free.
+  adversaries: [
+    {
+      id: "hillClans", name: "the Hill Clans", disposition: "warlike",
+      strength: 9, fightsAs: "massed", campaignTime: 90,
+      stock: { food: 120, wood: 90, iron: 60, gold: 15 },
+      desc: "Raiders in the high passes — weak alone, bold when your walls look thin.",
+    },
+    {
+      id: "riverKingdom", name: "the River Kingdom", disposition: "peaceful",
+      strength: 32, fightsAs: "riders", campaignTime: 120, caravanTime: 75,
+      stock: { food: 250, steel: 25, gold: 240 },
+      buys: { res: "food", amount: 60, pays: 15 },
+      desc: "A fortified state downriver, rich beyond counting and always hungry — they pay gold for food.",
+    },
+    {
+      id: "saltNomads", name: "the Salt Nomads", disposition: "peaceful",
+      strength: 13, fightsAs: "riders", campaignTime: 75, caravanTime: 60,
+      stock: { food: 90, iron: 30, gold: 80 },
+      buys: { res: "iron", amount: 40, pays: 12 },
+      desc: "Wandering herders with no mines of their own — they pay gold for iron.",
+    },
+  ],
+
   events: ["greatHunt", "trader", "sickness", "conflict", "scoutFindIron", "scoutWarning"],
   hints:  ["wood", "stone", "build", "tools", "rotFood", "rotWood", "rotStone",
-           "sicknessWarn", "conflictWarn", "rotIron", "firstSteel", "firstGold"],
+           "sicknessWarn", "conflictWarn", "rotIron", "firstSteel", "firstGold", "neighbors"],
 };
 
 // ---------- Manifest compiler -------------------------------
@@ -664,6 +708,9 @@ function compileBase(raw) {
     panelTitles: Object.assign({}, raw.panelTitles),
     raidTypes: raw.raidTypes.slice(),
     migrations: [],   // a base era is never entered FROM anywhere
+    // Wholesale like the slates, never inherited: each age's world arrives
+    // fresh, with fresh stocks, by construction.
+    adversaries: (raw.adversaries || []).map((a) => Object.assign({}, a)),
   };
   for (const cat of DEF_CATEGORIES) m[cat] = raw[cat].map((d) => Object.assign({}, d));
   resolveSlates(m, raw);
@@ -680,6 +727,7 @@ function extendEra(parent, delta) {
     // ENTERED (see runEraMigrations). Never inherited: a migration describes
     // one specific transition, not a standing rule.
     migrations: (delta.migrations || []).slice(),
+    adversaries: (delta.adversaries || []).map((a) => Object.assign({}, a)),
   };
   const removes = new Set(delta.remove || []);
   const overrides = delta.override || {};
@@ -787,6 +835,18 @@ function validateManifests(manifests) {
       }
       if (!ins.vanish && !ins.convertTo && !ins.fn) bad(`migration for ${ins.id} has no primitive (vanish/convertTo/fn)`);
     }
+    for (const a of m.adversaries) {
+      if (!a.id || !a.name || !a.disposition || !(a.strength > 0)) bad(`adversary ${a.id || "?"} missing id/name/disposition/strength`);
+      if (a.fightsAs && !raidIds.has(a.fightsAs)) bad(`adversary ${a.id} fights as "${a.fightsAs}", not a raid type this era`);
+      if (!(a.campaignTime > 0)) bad(`adversary ${a.id} has no campaignTime`);
+      for (const k in a.stock || {}) if (!resIds.has(k)) bad(`adversary ${a.id} stocks "${k}", not a resource this era`);
+      if (a.buys) {
+        if (a.disposition !== "peaceful") bad(`adversary ${a.id} trades but is not peaceful`);
+        if (!resIds.has(a.buys.res)) bad(`adversary ${a.id} buys "${a.buys.res}", not a resource this era`);
+        if (!(a.buys.amount > 0) || !(a.buys.pays > 0)) bad(`adversary ${a.id} has a malformed exchange`);
+        if (!(a.caravanTime > 0)) bad(`adversary ${a.id} trades but has no caravanTime`);
+      }
+    }
   }
   if (problems.length) throw new Error("Manifest validation failed:\n  " + problems.join("\n  "));
 }
@@ -830,6 +890,7 @@ const BUILDING_ICONS = {
   stables:    `<svg ${ICON_ATTRS}><path d="M4 20 V11 L12 6 L20 11 V20 M4 20 H20"/><path d="M10 20 V15 H14 V20"/></svg>`,
   ironYard:   `<svg ${ICON_ATTRS}><path d="M4 20 H20 M6 20 V14 H18 V20 M8 14 V10 H16 V14"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/></svg>`,
   treasury:   `<svg ${ICON_ATTRS}><rect x="4" y="8" width="16" height="12" rx="1"/><path d="M4 12 H20 M12 12 V15"/><path d="M8 8 V6 A4 3 0 0 1 16 6 V8"/></svg>`,
+  musterGround: `<svg ${ICON_ATTRS}><path d="M6 21 V4 M6 4 H17 L14 7.5 L17 11 H6"/><path d="M4 21 H10"/></svg>`,
 };
 const PERSON_ICONS = {
   settler: `<svg ${ICON_ATTRS}><circle cx="12" cy="7" r="3"/><path d="M6 20 C6 13 8.5 11 12 11 C15.5 11 18 13 18 20"/></svg>`,
@@ -860,7 +921,7 @@ function freshState() {
     jobs:  { forager: 0, woodcutter: 0, miner: 0, copperMiner: 0, tinMiner: 0, ironMiner: 0 },
     builds:{ hut: 0, woodshed: 0, granary: 0, stoneYard: 0, dryingRack: 0, lumberCamp: 0, stonePit: 0,
              infirmary: 0, barracks: 0, oreYard: 0, forge: 0, archeryRange: 0, stables: 0,
-             ironYard: 0, treasury: 0 },
+             ironYard: 0, treasury: 0, musterGround: 0 },
     // Trained person-types owned; separate from builds -- renders in Your People.
     units: { soldier: 0, archer: 0, horseman: 0 },
     upgrades: {},     // { [upgradeId]: true } -- presence means owned, one-time
@@ -871,6 +932,10 @@ function freshState() {
     bought: 0,        // lifetime settlers grown -- a stat for the game-over screen
     era: "stone",     // the key into MANIFESTS -- the whole era system is this one string
     eraHistory: {},   // frozen pre-transition snapshots, keyed by the era just left -- see advanceEra()
+    // The living remnants of the era's adversaries: { [id]: { stock, standing } }.
+    // The manifest entry is the template; this is what actually depletes.
+    adversaries: {},
+    expeditions: [],  // at most one: { uid, type, adversary, units?, cargo?, total, remaining }
     playtime: 0,      // seconds the simulation has actually advanced -- see step()
     seen: {},
     dead: false,
@@ -904,6 +969,15 @@ function reserved() {
   }, 0);
 }
 function idle() { return civilians() - jobsUsed() - reserved(); }
+
+// Units marching with an expedition are alive (still in S.units, still eat,
+// still count toward pop) but they are NOT HOME: they don't defend, and home
+// casualties can't take them. Deployment is derived from S.expeditions rather
+// than tracked separately, so it can never desync.
+function deployedCount(unitId) {
+  return S.expeditions.reduce((sum, ex) => sum + ((ex.units && ex.units[unitId]) || 0), 0);
+}
+function availableUnits(unitId) { return (S.units[unitId] || 0) - deployedCount(unitId); }
 
 // Tool upgrades lift every gather rate (including the ores -- better tools cut
 // ore too); boost buildings lift one resource each.
@@ -1074,8 +1148,8 @@ function armorFactor() {
 // below. Being the "wrong" unit costs you the bonus, never your base strength,
 // so any army is always better than no army (see design.md).
 function unitStrength(def, raid) {
-  const n = S.units[def.id] || 0;
-  if (!n) return 0;
+  const n = availableUnits(def.id);   // an army on campaign isn't home
+  if (n <= 0) return 0;
   const matched = !!raid && def.counters === raid.id;
   return n * (def.strength || 1) * weaponMultiplier() * (matched ? CONFIG.counterBonus : 1);
 }
@@ -1176,7 +1250,9 @@ function removeRandomUnit() {
   // this only bends the odds. With one type fielded it degenerates to "that
   // type dies," which is why an all-archer army gets no protection at all.
   const units = active().units;
-  const weightOf = (def) => (S.units[def.id] || 0) * (def.casualtyWeight || 1);
+  // Home casualties draw only from units actually AT home -- a deployed unit
+  // can die on campaign (see resolveCampaign), never to a raid it wasn't in.
+  const weightOf = (def) => Math.max(0, availableUnits(def.id)) * (def.casualtyWeight || 1);
   const total = units.reduce((sum, def) => sum + weightOf(def), 0);
   if (total <= 0) return null;
 
@@ -1191,9 +1267,9 @@ function removeRandomUnit() {
     roll -= w;
   }
   // Floating-point guard: if rounding walked `roll` past the end, take from
-  // whichever type still has someone left rather than returning null.
+  // whichever type still has someone AT HOME rather than returning null.
   for (let i = units.length - 1; i >= 0; i--) {
-    if ((S.units[units[i].id] || 0) > 0) {
+    if (availableUnits(units[i].id) > 0) {
       S.units[units[i].id] -= 1;
       S.pop -= 1;
       return units[i].name;
@@ -1260,6 +1336,168 @@ function runConverters(dt) {
   }
 }
 
+// ---------- Adversaries & Expeditions -----------------------
+// The era's outward verbs. One expedition at a time (the Muster Ground
+// stages one column), resolution happens in step() on the world's schedule,
+// and there are NO catch windows -- outcomes self-apply and land in the
+// Chronicle. Resolution lines log even under SIM, same rule as migration
+// narrates: rare and story-critical, they belong in the record even if they
+// happened while you were away.
+function findAdversary(id) { return active().adversaries.find((a) => a.id === id); }
+
+function standingWord(n) {
+  return n <= -2 ? "Hostile" : n === -1 ? "Wary" : n >= 2 ? "Friendly" : "Neutral";
+}
+function bumpStanding(st, delta) {
+  st.standing = Math.max(-5, Math.min(5, st.standing + delta));
+}
+
+// Every Hostile WARLIKE neighbor multiplies the home conflict trigger --
+// the one way an adversary reaches into the settlement uninvited.
+function hostilityMultiplier() {
+  let mult = 1;
+  for (const adv of active().adversaries) {
+    const st = S.adversaries[adv.id];
+    if (adv.disposition === "warlike" && st && st.standing <= -2) mult *= CONFIG.hostileConflictMult;
+  }
+  return mult;
+}
+function hostileRouteRisk() {
+  return active().adversaries.some((a) =>
+    a.disposition === "warlike" && S.adversaries[a.id] && S.adversaries[a.id].standing <= -2);
+}
+
+// A campaign force's strength: the same math as home defense, pointed
+// outward -- weapon tiers apply, and counters match against the adversary's
+// fighting style instead of a rolled raid type.
+function campaignStrength(unitCounts, adv) {
+  let attack = 0;
+  for (const uid in unitCounts) {
+    const def = active().units.find((u) => u.id === uid);
+    if (!def) continue;
+    const matched = def.counters === adv.fightsAs;
+    attack += unitCounts[uid] * (def.strength || 1) * weaponMultiplier() * (matched ? CONFIG.counterBonus : 1);
+  }
+  return attack;
+}
+
+function launchCampaign(advId, unitCounts) {
+  if (S.dead || S.expeditions.length || (S.builds.musterGround || 0) < 1) return;
+  const adv = findAdversary(advId);
+  if (!adv) return;
+  const total = Object.values(unitCounts).reduce((a, b) => a + b, 0);
+  if (total < 1) return;
+  for (const uid in unitCounts) {
+    if (unitCounts[uid] < 0 || unitCounts[uid] > availableUnits(uid)) return;
+  }
+  if (S.res.food < CONFIG.campaignFoodCost) return;
+  S.res.food -= CONFIG.campaignFoodCost;
+  S.expeditions.push({ uid: ++S.buildSeq, type: "campaign", adversary: advId,
+    units: Object.assign({}, unitCounts), total: adv.campaignTime, remaining: adv.campaignTime });
+  log(`A column of ${total} marches against ${adv.name}. The walls are thinner until they return.`);
+  renderAll();
+}
+
+function launchCaravan(advId) {
+  if (S.dead || S.expeditions.length || (S.builds.musterGround || 0) < 1) return;
+  const adv = findAdversary(advId);
+  const st = S.adversaries[advId];
+  if (!adv || !adv.buys || !st) return;
+  if (st.standing <= -2) return;                       // they remember your raids
+  if ((st.stock.gold || 0) <= 0) return;               // traded dry
+  if ((S.res[adv.buys.res] || 0) < adv.buys.amount) return;
+  S.res[adv.buys.res] -= adv.buys.amount;
+  S.expeditions.push({ uid: ++S.buildSeq, type: "caravan", adversary: advId,
+    cargo: { res: adv.buys.res, amount: adv.buys.amount }, total: adv.caravanTime, remaining: adv.caravanTime });
+  log(`A caravan sets out for ${adv.name}, laden with ${adv.buys.amount} ${adv.buys.res}.`);
+  renderAll();
+}
+
+// A campaign casualty: drawn from the DEPLOYED force (exposure-weighted, same
+// weights as home casualties), removed from the column and the population.
+function removeDeployedUnit(ex) {
+  const weightOf = (uid) => {
+    const def = active().units.find((u) => u.id === uid);
+    return (ex.units[uid] || 0) * ((def && def.casualtyWeight) || 1);
+  };
+  const ids = Object.keys(ex.units);
+  const totalW = ids.reduce((s, uid) => s + weightOf(uid), 0);
+  if (totalW <= 0) return null;
+  let roll = Math.random() * totalW;
+  for (const uid of ids) {
+    const w = weightOf(uid);
+    if (roll < w) {
+      ex.units[uid] -= 1;
+      S.units[uid] -= 1;
+      S.pop -= 1;
+      const def = active().units.find((u) => u.id === uid);
+      return def ? def.name : uid;
+    }
+    roll -= w;
+  }
+  return null;
+}
+function totalDeployed(ex) { return Object.values(ex.units || {}).reduce((a, b) => a + b, 0); }
+
+function resolveCampaign(ex, adv, st) {
+  const attack = campaignStrength(ex.units, adv);
+  const winChance = attack / (attack + adv.strength);
+  bumpStanding(st, -1);   // plunder is not diplomacy, win or lose
+
+  if (Math.random() < winChance) {
+    const takes = [];
+    for (const k in st.stock) {
+      const take = Math.floor(st.stock[k] * CONFIG.plunderFraction);
+      if (take > 0) { st.stock[k] -= take; S.res[k] = (S.res[k] || 0) + take; takes.push(`${take} ${k}`); }
+    }
+    log(`Victory over ${adv.name}. The column returns with ${takes.length ? takes.join(", ") : "little worth taking"}.`, "big");
+    // Winning can still cost someone -- softened by armor, same dial as home.
+    if (Math.random() < (adv.strength / (attack + adv.strength)) * armorFactor()) {
+      const lost = removeDeployedUnit(ex);
+      if (lost) log(`The victory had a price — a ${lost} does not come home.`, "bad");
+    }
+  } else {
+    const losses = Math.min(totalDeployed(ex), 1 + Math.floor(adv.strength / 8));
+    let fell = 0;
+    for (let i = 0; i < losses; i++) if (removeDeployedUnit(ex)) fell++;
+    log(`The campaign against ${adv.name} is broken. ${fell > 0 ? `${fell} of your fighters fall covering the retreat.` : "The column limps home."}`, "bad");
+  }
+}
+
+function resolveCaravan(ex, adv, st) {
+  if (hostileRouteRisk() && Math.random() < CONFIG.caravanRaidChance) {
+    log(`Your caravan to ${adv.name} never arrives — raiders on the road. The cargo is lost.`, "bad");
+    return;
+  }
+  const premium = st.standing >= 2 ? 1.25 : 1;
+  const pays = Math.min(Math.floor(adv.buys.pays * premium), Math.floor(st.stock.gold || 0));
+  st.stock.gold = (st.stock.gold || 0) - pays;
+  // Sold goods JOIN their stock -- stocks are real, and what you sell them a
+  // later campaign could take back. The game never mentions this.
+  st.stock[ex.cargo.res] = (st.stock[ex.cargo.res] || 0) + ex.cargo.amount;
+  S.res.gold = (S.res.gold || 0) + pays;
+  bumpStanding(st, 1);
+  if (pays > 0) log(`The caravan returns from ${adv.name} with ${pays} gold.`, "good");
+  else log(`The caravan returns from ${adv.name} unpaid — they have no gold left to give.`, "bad");
+}
+
+// Ticks in step(). An expedition whose adversary no longer exists (the era
+// flipped mid-flight) simply comes home: units were never removed from
+// S.units, so removing the expedition entry IS their return.
+function resolveExpeditions(dt) {
+  for (let i = S.expeditions.length - 1; i >= 0; i--) {
+    const ex = S.expeditions[i];
+    ex.remaining -= dt;
+    if (ex.remaining > 0) continue;
+    S.expeditions.splice(i, 1);
+    const adv = findAdversary(ex.adversary);
+    const st = S.adversaries[ex.adversary];
+    if (!adv || !st) continue;
+    if (ex.type === "campaign") resolveCampaign(ex, adv, st);
+    else resolveCaravan(ex, adv, st);
+  }
+}
+
 // ---------- Core simulation ---------------------------------
 function step(dt) {
   if (S.dead) return;
@@ -1309,6 +1547,9 @@ function step(dt) {
   // Sickness, conflict, windfalls -- whatever the active manifest's slate holds.
   resolveEvents(dt);
 
+  // Outbound columns tick and resolve on the world's schedule.
+  resolveExpeditions(dt);
+
   // Conflict (and in principle anything else) can zero out population --
   // checked generically here rather than attributed to a specific event.
   if (S.pop <= 0) {
@@ -1356,6 +1597,9 @@ function build(def) {
   for (const k in cost) S.res[k] -= cost[k];
   const wasEmpty = S.buildQueue.length === 0;
   S.buildQueue.push({ id: def.id, kind: def.kind, uid: ++S.buildSeq, total: def.buildTime, remaining: def.buildTime, cost });
+  // Pacing telemetry (console only): stamp the game clock when age research
+  // starts, so playtest timing doesn't require watching the clock.
+  if (CAPSTONES[def.id]) console.log(`[pacing] ${def.name} research started at ${fmtTime(S.playtime)}`);
   if (def.kind === "upgrade") {
     log(wasEmpty ? `Work begins on ${def.name}.` : `${def.name} joins the queue (#${S.buildQueue.length}).`);
   } else if (def.kind === "unit") {
@@ -1386,6 +1630,7 @@ function cancelBuild(uid) {
   const idx = S.buildQueue.findIndex((q) => q.uid === uid);
   if (idx === -1) return;
   const item = dropQueueItem(idx);
+  if (CAPSTONES[item.id]) console.log(`[pacing] ${defById(item.id).name} research cancelled at ${fmtTime(S.playtime)}`);
   log(`Construction of the ${defById(item.id).name} is called off; materials recovered.`);
   renderAll();
 }
@@ -1447,6 +1692,9 @@ function advanceEra(era) {
 
   S.era = era;
   const toM = active();
+  // Pacing telemetry (console only), the bookend to the started line in build().
+  console.log(`[pacing] ${toM.name} began at ${fmtTime(S.playtime)}`);
+  initAdversaries();
   runEraMigrations(fromM, toM, S.eraHistory[fromEra]);
   purgeDom(fromM, toM);
   reconcileWorkforce();
@@ -1888,6 +2136,142 @@ function updateSpans() {
   document.getElementById("panel-village").classList.toggle("span-both", !m.units.some(isRevealed));
   document.getElementById("panel-holdings").classList.toggle("span-both", !m.buildings.some(isRevealed));
   document.getElementById("panel-queue").classList.toggle("span-both", !m.upgrades.some(isRevealed));
+  // The Chronicle spans both rows as a luxury until the world opens up; then
+  // Expeditions unravels in beneath it. Same span machinery, pointed the
+  // other way.
+  const log = document.getElementById("panel-log");
+  if (log) log.classList.toggle("shrunk", expeditionsUnlocked());
+}
+
+// The Expeditions panel exists once the era HAS adversaries and the Muster
+// Ground stands. Sticky like every other unlock -- but era-scoped rather
+// than global, since a later era without adversaries shouldn't show it.
+function expeditionsUnlocked() {
+  if (!active().adversaries.length) return false;
+  if (S.seen.expeditionsOpen) return true;
+  if ((S.builds.musterGround || 0) >= 1) { S.seen.expeditionsOpen = true; return true; }
+  return false;
+}
+
+// Muster allocation is UI state, not game state (like `paused`): it's what
+// the NEXT campaign would take, and it resets when one launches.
+let muster = {};
+
+function renderExpeditions() {
+  const panel = document.getElementById("panel-expeditions");
+  if (!panel) return;
+  const open = expeditionsUnlocked();
+  panel.classList.toggle("hidden", !open);
+  if (!open) return;
+
+  const active_ = S.expeditions[0];
+
+  // Status line: the one column that's out, or the muster prompt.
+  const status = document.getElementById("expeditionStatus");
+  if (active_) {
+    const adv = findAdversary(active_.adversary);
+    const advName = adv ? adv.name : "a place that no longer answers";
+    const what = active_.type === "campaign"
+      ? `A campaign against ${advName}` : `A caravan to ${advName}`;
+    status.innerHTML = `${what} — returns in <span class="cost">${Math.max(1, Math.ceil(active_.remaining))}s</span>.`;
+  } else {
+    status.innerHTML = `The Muster Ground stands ready. One expedition at a time.`;
+  }
+
+  // Muster steppers: one row per unit type that exists this era and is fielded.
+  const musterEl = document.getElementById("musterRow");
+  for (const def of active().units) {
+    if (!isRevealed(def)) continue;
+    let row = document.getElementById("muster-" + def.id);
+    if (!row) {
+      row = document.createElement("div");
+      row.className = "job";
+      row.id = "muster-" + def.id;
+      row.innerHTML =
+        `<span class="job-name">${def.name}s</span>` +
+        `<span class="job-out" id="mavail-${def.id}"></span>` +
+        `<button class="stepper" data-mu="${def.id}" data-d="-1">−</button>` +
+        `<span class="job-count" id="mcnt-${def.id}">0</span>` +
+        `<button class="stepper" data-mu="${def.id}" data-d="1">+</button>`;
+      musterEl.appendChild(row);
+      row.querySelectorAll(".stepper").forEach((b) =>
+        b.addEventListener("click", () => {
+          const id = b.dataset.mu, d = Number(b.dataset.d);
+          muster[id] = Math.max(0, Math.min(availableUnits(id), (muster[id] || 0) + d));
+          renderAll();
+        }));
+    }
+    muster[def.id] = Math.max(0, Math.min(availableUnits(def.id), muster[def.id] || 0));
+    document.getElementById("mcnt-" + def.id).textContent = muster[def.id] || 0;
+    document.getElementById("mavail-" + def.id).textContent = `${availableUnits(def.id)} home`;
+    row.querySelector('[data-d="-1"]').disabled = S.dead || (muster[def.id] || 0) <= 0;
+    row.querySelector('[data-d="1"]').disabled = S.dead || (muster[def.id] || 0) >= availableUnits(def.id);
+  }
+
+  // One card per adversary: who they are, what's left of them, what you can do.
+  const list = document.getElementById("adversaryList");
+  const musterTotal = Object.values(muster).reduce((a, b) => a + b, 0);
+  for (const adv of active().adversaries) {
+    const st = S.adversaries[adv.id];
+    if (!st) continue;
+    let card = document.getElementById("adv-" + adv.id);
+    if (!card) {
+      card = document.createElement("div");
+      card.className = "adv-card";
+      card.id = "adv-" + adv.id;
+      card.innerHTML =
+        `<div class="b-top"><span class="b-name" id="advname-${adv.id}"></span>` +
+        `<span class="b-owned" id="advstand-${adv.id}"></span></div>` +
+        `<div class="b-desc" id="advdesc-${adv.id}"></div>` +
+        `<div class="b-desc adv-stock" id="advstock-${adv.id}"></div>` +
+        `<div class="adv-actions">` +
+          `<button class="modal-btn" id="advmarch-${adv.id}"></button>` +
+          `<button class="modal-btn" id="advtrade-${adv.id}"></button>` +
+        `</div>`;
+      list.appendChild(card);
+      document.getElementById(`advmarch-${adv.id}`).addEventListener("click", () => {
+        launchCampaign(adv.id, muster);
+        muster = {};
+        renderAll();
+      });
+      document.getElementById(`advtrade-${adv.id}`).addEventListener("click", () => launchCaravan(adv.id));
+    }
+
+    const display = adv.name.charAt(0).toUpperCase() + adv.name.slice(1);
+    document.getElementById(`advname-${adv.id}`).textContent = display;
+    document.getElementById(`advstand-${adv.id}`).textContent =
+      `${adv.disposition} · ${standingWord(st.standing)}`;
+    document.getElementById(`advdesc-${adv.id}`).textContent =
+      `${adv.desc} Strength ${adv.strength}, fights as a ${adv.fightsAs === "massed" ? "massed charge" : adv.fightsAs === "riders" ? "band of riders" : "warband"}.`;
+    const stockStr = Object.keys(st.stock).filter((k) => st.stock[k] > 0)
+      .map((k) => `${Math.floor(st.stock[k])} ${k}`).join(", ");
+    document.getElementById(`advstock-${adv.id}`).textContent =
+      stockStr ? `Known stock: ${stockStr}.` : `Nothing left worth taking.`;
+
+    const march = document.getElementById(`advmarch-${adv.id}`);
+    march.textContent = `March (${CONFIG.campaignFoodCost} food, ${adv.campaignTime}s)`;
+    march.disabled = S.dead || !!active_ || musterTotal < 1 || S.res.food < CONFIG.campaignFoodCost;
+    march.title = active_ ? "An expedition is already out." :
+      musterTotal < 1 ? "Muster at least one fighter above." :
+      S.res.food < CONFIG.campaignFoodCost ? "Not enough food for provisions." :
+      `Estimated strength ${campaignStrength(muster, adv).toFixed(1)} vs ${adv.strength}.`;
+
+    const trade = document.getElementById(`advtrade-${adv.id}`);
+    if (adv.buys) {
+      const premium = st.standing >= 2 ? 1.25 : 1;
+      const wouldPay = Math.min(Math.floor(adv.buys.pays * premium), Math.floor(st.stock.gold || 0));
+      trade.classList.remove("hidden");
+      trade.textContent = `Caravan: ${adv.buys.amount} ${adv.buys.res} → ${wouldPay} gold (${adv.caravanTime}s)`;
+      trade.disabled = S.dead || !!active_ || st.standing <= -2 || wouldPay <= 0 ||
+        (S.res[adv.buys.res] || 0) < adv.buys.amount;
+      trade.title = active_ ? "An expedition is already out." :
+        st.standing <= -2 ? "They remember your raids. They will not trade with you." :
+        wouldPay <= 0 ? "They have no gold left to pay with." :
+        (S.res[adv.buys.res] || 0) < adv.buys.amount ? `Not enough ${adv.buys.res}.` : "";
+    } else {
+      trade.classList.add("hidden");
+    }
+  }
 }
 
 // ---------- Modal ---------------------------------------------
@@ -1943,7 +2327,11 @@ function infoPanelHTML() {
         `</div>`
       ).join("");
     };
-    const inner = group("Buildings", m.buildings) + group("People", m.units) + group("Upgrades", m.upgrades);
+    const neighbors = m.adversaries.map((a) => ({
+      name: a.name.charAt(0).toUpperCase() + a.name.slice(1), desc: a.desc,
+    }));
+    const inner = group("Buildings", m.buildings) + group("People", m.units) +
+      group("Upgrades", m.upgrades) + group("Neighbors", neighbors);
     return `<div class="info-era${e === S.era ? "" : " hidden"}" data-era="${e}">${inner}</div>`;
   }).join("");
 
@@ -2101,6 +2489,7 @@ function renderAll() {
   renderBuildings();
   renderUpgrades();
   renderTraining();
+  renderExpeditions();
   updateSpans();
 }
 
@@ -2125,8 +2514,21 @@ function load() {
   S.upgrades = data.upgrades || {};
   S.seen = data.seen || {};
   S.eraHistory = data.eraHistory || {};
+  S.adversaries = data.adversaries || {};
+  S.expeditions = Array.isArray(data.expeditions) ? data.expeditions : [];
   S.buildQueue = Array.isArray(data.buildQueue) ? data.buildQueue : [];
   return true;
+}
+
+// Give every adversary of the ACTIVE era its living state entry if it doesn't
+// have one yet -- called at boot and on era entry. Never re-initializes: a
+// half-plundered stock stays half-plundered across save/load.
+function initAdversaries() {
+  for (const adv of active().adversaries) {
+    if (!S.adversaries[adv.id]) {
+      S.adversaries[adv.id] = { stock: Object.assign({}, adv.stock), standing: 0 };
+    }
+  }
 }
 
 function simulateOffline() {
@@ -2172,6 +2574,7 @@ function simulateOffline() {
 // ---------- Boot --------------------------------------------
 function boot() {
   const had = load();
+  initAdversaries();
 
   if (!had) {
     log("A handful of survivors gather where the road ends.");

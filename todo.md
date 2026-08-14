@@ -105,25 +105,28 @@ flagged *to be decided during implementation*.
       release, snapshot, retroactive housing), iron economy, cross-era tier supersession —
       318 checks, 20/20 runs.
 
-*C2 — Adversaries & Expeditions:*
-- [ ] Manifest category `adversaries` (wholesale per era, like slates); validator: fightsAs ∈ raid
-      types, stock/buys keys ∈ resources, buys only on peaceful.
-- [ ] The three adversaries: Hill Clans (warlike 9, massed), River Kingdom (peaceful 32, riders,
-      buys food), Salt Nomads (peaceful 13, riders, buys iron).
-- [ ] State: `S.adversaries` (living stock + standing; init at load/era entry), `S.expeditions`
-      (one at a time). Additive schema, defensively merged.
-- [ ] Deployment thins home defense (`deployedCount()`; home casualties never hit deployed units;
-      campaign casualties draw from the deployed set).
-- [ ] `resolveExpeditions(dt)` in `step()`: campaign math (counter-vs-fightsAs), plunder 40% of
+*C2 — Adversaries & Expeditions:* — ✅ **DONE** *(see What's Working, v15)*
+- [x] Manifest category `adversaries` (wholesale per era, like slates); validator: fightsAs ∈ raid
+      types, stock/buys keys ∈ resources, buys only on peaceful, malformed exchanges caught.
+- [x] The three adversaries: Hill Clans (warlike 9, massed), River Kingdom (peaceful 32, riders,
+      buys food), Salt Nomads (peaceful 13, riders, buys iron). Listed as "Neighbors" in Info.
+- [x] State: `S.adversaries` (living stock + standing; init at load/era entry, never re-seeded),
+      `S.expeditions` (one at a time). Additive schema, defensively merged.
+- [x] Deployment thins home defense (`deployedCount()`; home casualties never hit deployed units;
+      campaign casualties draw from the deployed set, exposure-weighted).
+- [x] `resolveExpeditions(dt)` in `step()`: campaign math (counter-vs-fightsAs), plunder 40% of
       remaining stock, standing −1 either way; caravan pays from their gold stock, sold goods join
-      their stock, standing +1, Hostile-warlike route risk 25%.
-- [ ] Standing words + consequences: Hostile warlike → home conflict ×1.5; Hostile peaceful →
+      their stock, standing +1, Hostile-warlike route risk 25%. Era-flip mid-flight strands nobody.
+- [x] Standing words + consequences: Hostile warlike → home conflict ×1.5; Hostile peaceful →
       refuses trade; Friendly → pays ×1.25.
-- [ ] Muster Ground (cap 1) gates the new **Expeditions** panel (row 2 under the Chronicle, which
-      drops its double-row span — no panel cut, no toggles); adversary cards with steppers +
-      caravan button; `index.html`/`styles.css` touch.
-- [ ] Harness: campaign win/loss forced-RNG paths, stock depletion, trade-dry partner, standing
-      transitions, deployment/defense math, one-expedition rule, offline resolution.
+- [x] Muster Ground (cap 1) gates the new **Expeditions** panel (row 2 under the Chronicle, which
+      drops its double-row span — no panel cut, no toggles); adversary cards with muster steppers +
+      march/caravan buttons carrying live estimates and refusal reasons in their tooltips.
+- [x] Harness: campaign win/loss forced-RNG paths, stock depletion, trade-dry partner, Friendly
+      premium, standing transitions, deployment/defense math, one-expedition rule, offline
+      resolution, era-flip stranding — 365 checks, 20/20 runs.
+- [x] *(user request)* `[pacing]` console telemetry: game-clock stamps when age research starts,
+      completes, or is cancelled.
 
 *C3 — polish + balance (with playtests):*
 - [ ] Raid attribution flavor ("the Hill Clans test your defenses") once A&E is in.
@@ -489,6 +492,26 @@ factual lists derive from the manifest diff so they can never lie. Full contract
 (Settled But Not Yet Built); rationale in `design.md` (The Era Manifest Model). Sequenced as
 parity-refactor → transition machinery → Iron Age, so engine risk and content risk never travel
 together. Documentation-only milestone — no code changed.
+
+**v15 — Adversaries & Expeditions (C2).** The game's first outward-facing verbs. The Iron Age
+declares three named neighbors — the warlike Hill Clans (weak, fight as a massed charge), the
+strong peaceful River Kingdom (deep gold, buys food), the middling Salt Nomads (buy iron) — each a
+static stock + strength + disposition, wholesale-declared like the slates and validated like
+everything else. Build the Muster Ground and the Expeditions panel unravels in beneath the
+Chronicle (which gives up its double-row span — no panel cut, no toggles). One expedition at a
+time: muster any mix of fighters and **march** (the existing combat math pointed outward,
+counter-vs-fighting-style included, provisions paid up front, and the walls genuinely thinner
+while they're gone — deployed units neither defend nor die at home), or send a **caravan** in
+fixed lots against a partner's actual gold stock, which depletes — and the goods you sell them
+join their stock, where a later campaign could steal them back; the game never mentions this, it's
+simply true. Standing is one number read as a word with exactly three consequences: Hostile
+warlike neighbors raid you 1.5× more, Hostile peaceful ones refuse your caravans, Friendly
+partners pay 25% over. Everything resolves in `step()` on the world's schedule — no catch windows,
+offline-safe, Chronicle-narrated. Live verification produced an unscripted proof: while a test
+caravan was on the road, the Hostile Hill Clans raided the thinned town and killed two fighters
+the next muster was counting on. The gold economy now closes: heirloom seed → trade/plunder →
+Iron Tools/Weapons/Armor, with the future capstone's gold cost waiting on the far side. Also:
+`[pacing]` console stamps at capstone start/finish/cancel (playtest aid). 365 checks, 20/20 runs.
 
 **v14 — The Iron Age economy (C1).** The game has a third era, and getting there is the first
 transition with teeth. The `ironAge` capstone (bronze manifest: pop ≥ 16, an Archer or Horseman

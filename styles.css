@@ -98,12 +98,17 @@ button { font-family: var(--mono); cursor: pointer; }
 #panel-queue     { grid-column: 3; grid-row: 1; }
 #panel-upgrades  { grid-column: 3; grid-row: 2; }
 #panel-log       { grid-column: 4; grid-row: 1 / 3; }
+#panel-expeditions { grid-column: 4; grid-row: 2; }
 
 /* A roster panel expands to fill its whole column while its paired
    action-panel has nothing revealed yet, instead of leaving a blank cell. */
 #panel-village.span-both,
 #panel-holdings.span-both,
 #panel-queue.span-both { grid-row: 1 / 3; }
+
+/* The Chronicle spans both rows as a luxury until Expeditions unravels in
+   beneath it -- the same span idea, pointed the other way. */
+#panel-log.shrunk { grid-row: 1; }
 
 /* ---------- Block (panel) shell ---------- */
 .block {
@@ -157,6 +162,32 @@ button { font-family: var(--mono); cursor: pointer; }
   font-size: 13px; line-height: 1; font-weight: 700;
   display: flex; align-items: center; justify-content: center;
 }
+
+/* ---------- Expeditions ---------- */
+.exp-status { font-size: 11px; color: var(--ink-dim); margin-bottom: 8px; min-height: 14px; }
+.exp-status .cost { color: var(--ink); font-weight: 700; }
+.muster { display: flex; flex-direction: column; gap: 5px; margin-bottom: 10px; }
+/* Muster rows reuse .job, but this panel is narrower than Your People --
+   the "N home" readout gives up its reserved width instead of pushing the
+   steppers out of the row. */
+.muster .job-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.muster .job-out { min-width: 0; white-space: nowrap; }
+.adv-list { display: flex; flex-direction: column; gap: 8px; }
+.adv-card {
+  border: 1px solid var(--ink-faint);
+  border-radius: var(--radius);
+  padding: 7px 9px;
+}
+/* The panel column is narrow, so the card header stacks: name, then the
+   disposition/standing readout beneath it. */
+.adv-card .b-top { display: flex; flex-direction: column; }
+.adv-card .b-name { font-size: 12px; font-weight: 700; }
+.adv-card .b-owned { font-size: 10px; color: var(--ink-dim); }
+.adv-card .b-desc { font-size: 11px; color: var(--ink-dim); margin-top: 3px; }
+.adv-stock { color: var(--ink-dim); }
+.adv-actions { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.adv-actions .modal-btn { font-size: 11px; padding: 4px 8px; text-align: left; }
+.adv-actions .modal-btn:disabled { opacity: 0.45; }
 .stepper:hover:not(:disabled) { background: var(--ink); color: var(--bg); }
 .stepper:disabled { opacity: .3; cursor: not-allowed; }
 

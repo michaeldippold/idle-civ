@@ -2051,6 +2051,7 @@ function renderUpgrades() {
   const panel = document.getElementById("panel-upgrades");
   const list = document.getElementById("upgradeList");
   let anyRevealed = false;
+  const buyable = [], ownedCards = [];
 
   for (const def of active().upgrades) {
     const revealed = isRevealed(def);
@@ -2081,6 +2082,18 @@ function renderUpgrades() {
       `<div class="b-desc">${def.desc}</div>` +
       bottom;
     card.disabled = S.dead || owned || pending || !canAfford(cost);
+    (owned ? ownedCards : buyable).push(card);
+  }
+
+  // Owned upgrades sink to the bottom, so what's still buyable is never
+  // buried under a pile of "Permanent." cards. Queued ones stay on top --
+  // they're in progress, which is worth seeing. Manifest order holds within
+  // each group, and the DOM is only touched when the order actually changed
+  // (an appendChild of an already-attached node MOVES it).
+  const desired = buyable.concat(ownedCards);
+  const current = Array.from(list.children);
+  if (desired.some((el, i) => el !== current[i])) {
+    for (const el of desired) list.appendChild(el);
   }
 
   panel.classList.toggle("hidden", !anyRevealed);

@@ -493,6 +493,11 @@ factual lists derive from the manifest diff so they can never lie. Full contract
 parity-refactor → transition machinery → Iron Age, so engine risk and content risk never travel
 together. Documentation-only milestone — no code changed.
 
+**v15.1 — QoL from live testing:** owned one-time upgrades sort to the bottom of the Upgrades
+panel (buyable and queued stay on top, manifest order within each group), so what's still
+purchasable is never buried under a pile of "Permanent." cards. DOM only reorders when ownership
+actually changes, preserving the create-once card pattern.
+
 **v15 — Adversaries & Expeditions (C2).** The game's first outward-facing verbs. The Iron Age
 declares three named neighbors — the warlike Hill Clans (weak, fight as a massed charge), the
 strong peaceful River Kingdom (deep gold, buys food), the middling Salt Nomads (buy iron) — each a

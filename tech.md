@@ -77,6 +77,7 @@ The entire simulation lives in one module-level object, `S` (see `freshState()` 
 | `buildQueue` | `[{id, kind, uid, total, remaining, cost}]` | FIFO queue shared by buildings, upgrades, and units; only index `[0]` progresses. `cost` is the exact price paid, stored for cancel-refunds |
 | `buildSeq` | `number` | Monotonic counter for queue item `uid`s (DOM diffing key) |
 | `pop` | `number` | Total population, **including** trained units — they still eat and occupy housing |
+| `growth` | `number` | Seconds accrued toward the next free settler; freezes (not resets) while housing is full |
 | `bought` | `number` | Lifetime settlers grown — a stat for the game-over screen only (it once drove the settler cost curve; that role is gone) |
 | `era` | `string` | `"stone"` or `"bronze"`; gates `EVENTS`, display names, and a few tuning values |
 | `playtime` | `number` | Seconds the simulation has actually advanced (frozen while paused) |
@@ -96,8 +97,9 @@ Population is **not** `S.jobs` summed plus idle — a person can now be in one o
 6. Clamp every resource to its storage cap (`caps()`) — silent; a one-time Chronicle hint covers it via `REVEALS`.
 7. Starvation check: if `food <= 0` and net food rate is negative, either halt (`SIM_STOP`, offline) or call `die("starvation")` (live).
 8. Advance the front of `buildQueue` by `CONFIG.buildSpeed * dt`; on completion, `shift()` it and call `completeConstruction()`.
-9. Call `resolveEvents(dt)` — population growth, sickness, conflict, and anything else on the `EVENTS` list.
-10. Wipe-out check: if `S.pop <= 0`, call `die("conflict")`. Unlike starvation this can only happen via Conflict (Sickness floors at 1 survivor by design — see Military & Units), but the check itself is generic rather than attributed to a specific event, since in principle anything could tip population to zero.
+9. Call `accrueGrowth(dt)` — a free settler every `CONFIG.settlerIntervalSeconds` while housing has room. Progress **freezes** (not resets) while housing is full, so a partially-waited arrival lands soon after a new hut. Settlers cost nothing; growth is a background process, deliberately not an event (see `design.md`). Placement inside `step()` means offline catch-up grows population with no extra code.
+10. Call `resolveEvents(dt)` — sickness, conflict, windfalls, and anything else on the `EVENTS` list.
+11. Wipe-out check: if `S.pop <= 0`, call `die("conflict")`. Unlike starvation this can only happen via Conflict (Sickness floors at 1 survivor by design — see Military & Units), but the check itself is generic rather than attributed to a specific event, since in principle anything could tip population to zero.
 
 ## Resource System
 
@@ -237,7 +239,7 @@ Conflict's `resolve()`:
 
 1. Skips events whose `eras` doesn't include `S.era`, or whose `condition` fails.
 2. **`resolve`-based events** (Conflict, currently the only one): called directly with `(S, dt)` and left entirely to their own devices — no generic trigger roll, negation, or flavor logging happens around them. See Units & Military for Conflict's specific algorithm.
-3. **Deterministic events** (`canFire`): loop-fires the effect repeatedly (guarded at 50 iterations) while the condition holds — this is how population growth can produce several births in one large `dt` (e.g. after offline catch-up).
+3. **Deterministic events** (`canFire`): loop-fires the effect repeatedly (guarded at 50 iterations) while the condition holds. Currently has no users — population growth was its only occupant before moving out to `accrueGrowth()` — but the archetype stays as the generic deterministic shape.
 4. **Probabilistic events** (`chancePerSecond`): one roll per `step()` at the dt-adjusted probability. If it lands, `negateChance(ev)` (`min(1, counterBuildingCount * reducePerUnit)`) gets a second roll; negated events log the `negated` flavor line (always styled `"good"` — averting bad news is good news) and skip the effect entirely, otherwise the effect applies and the `hit` flavor line logs at the event's own `sev`.
 
 `removeSettler(allowZero = false)` (used by Sickness's effect, and by Conflict's civilian-casualty case with `allowZero: true`) is the shared "a civilian dies" helper. It no-ops when `civilians() <= 0` — a settlement of nothing but trained units has no one for it to take, and without that guard `S.pop` could be pushed below `totalUnits()`, making `civilians()` negative. Otherwise it decrements `pop` (floored at 1 unless `allowZero`) and calls `reconcileWorkforce()`. Contrast with `removeRandomUnit()` (Units & Military), which drops a unit and `pop` together so `civilians()` is unchanged and no reconciliation is needed.
@@ -292,18 +294,7 @@ No test framework; verification is a headless Node harness (in the session scrat
 
 ## Settled But Not Yet Built
 
-Everything above documents the game **as it currently runs**. This section documents two consensus decisions that change it. Until they land, the sections above remain the truth; when they land, this section's contents replace the corresponding pieces above. Anything here explicitly marked *to be decided during implementation* is genuinely unsettled — do not treat a guess as a decision.
-
-### Free timed population growth (replaces the wanderer event)
-
-Settlers cost nothing and arrive on a timer while `S.pop < housing()`. Rationale in `design.md` (*Settled: population growth is not an event*). Implementation shape:
-
-- The `wanderer` entry leaves `EVENTS` entirely. Growth becomes a background accrual in `step()`: progress accumulates by `dt` while housing has room; on reaching `CONFIG.settlerIntervalSeconds`, `S.pop += 1`, `S.bought += 1` (stat only), progress resets, and a Chronicle line still fires — births remain part of the settlement's story, they just no longer carry a price.
-- `growthCost()`, `CONFIG.growthBase`, and `CONFIG.growthScale` are deleted. Nothing else may reference them.
-- The growth line in Your People becomes a countdown ("Next settler arrives in Ns" / "Housing is full"), which is strictly more informative than the old price tag.
-- Offline catch-up needs no special handling — the accrual lives in `step()`, which offline simulation already drives.
-- First-guess interval: **~45s**, a `CONFIG` value chosen precisely because it's a single tunable dial. Plausibly becomes a per-era manifest field later (faster arrivals in later eras); not decided.
-- *To be decided during implementation:* whether accrued progress freezes or resets when housing fills (slight preference: freeze, so building a hut can pay off quickly without banking a full free settler).
+Everything above documents the game **as it currently runs** — including free timed population growth, which shipped (see `accrueGrowth()` under `step()`; the freeze-vs-reset question was decided in favor of freeze, and the interval is `CONFIG.settlerIntervalSeconds`, first-guess 45s, plausibly a per-era manifest field later). This section documents the one remaining consensus decision that changes the game. Until it lands, the sections above remain the truth. Anything here explicitly marked *to be decided during implementation* is genuinely unsettled — do not treat a guess as a decision.
 
 ### The Era Manifest Architecture
 
@@ -348,7 +339,7 @@ Honest limit: `reveal()` predicates are arbitrary code and cannot be statically 
 2. **Phase B — transition machinery.** Validator, DOM purge on era flip, migration runner with snapshot semantics, `S.eraHistory`, manifest-diff era modal.
 3. **Phase C — Iron Age**, the first real consumer: removes the copper/tin/bronze economy (resources, jobs, Ore Yard), adds iron + gold, retargets the Forge to iron → steel, adds Iron Weapons. Also introduces **adversaries and expeditions** (campaigns + directed trade) as the era's deepening mechanic — adversaries are another manifest-declared content type (static stock + strength + disposition, redeclared fresh each era; see `design.md`, Adversaries & Expeditions). Full era content and the expedition system's technical design happen when we get there, per the one-age-at-a-time rule.
 
-The free-growth change above is independent of all three phases and can land first.
+(Free growth landed first, independently of all three phases, as planned.)
 
 ## Known Limitations
 

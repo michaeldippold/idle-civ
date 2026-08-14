@@ -53,15 +53,14 @@ Full consensus reached; contracts recorded in `tech.md` (Settled But Not Yet Bui
 those documents, not from memory** — they mark exactly which details are settled and which are
 flagged *to be decided during implementation*.
 
-**Standalone (independent of the phases, can land first) — free timed growth**
-- [ ] Remove the `wanderer` entry from `EVENTS`; growth becomes a background accrual in `step()`
-      (progress += dt while `pop < housing()`; settler at `CONFIG.settlerIntervalSeconds`, first
-      guess ~45s). Chronicle line stays — births are still story — it just names no price.
-- [ ] Delete `growthCost()`, `CONFIG.growthBase`, `CONFIG.growthScale`; sweep for references.
-- [ ] Your People growth line becomes a countdown ("Next settler arrives in Ns" / "Housing is full").
-- [ ] Decide freeze-vs-reset for accrued progress at full housing (docs lean freeze).
-- [ ] Harness: no food spent on growth, cadence honored, housing-gated, works under offline
-      catch-up, `bought` still counts lifetime settlers.
+**Standalone — free timed growth** — ✅ **DONE** *(see What's Working, v11)*
+- [x] `wanderer` removed from `EVENTS`; growth is a background accrual in `step()` via
+      `accrueGrowth()` (settler every `CONFIG.settlerIntervalSeconds`, first guess 45s). The
+      Chronicle line stays — births are still story — it just names no price.
+- [x] `growthCost()`, `CONFIG.growthBase`, `CONFIG.growthScale` deleted; references swept.
+- [x] Your People growth line is a countdown ("Next settler arrives in Ns" / "Housing is full").
+- [x] Freeze-vs-reset decided: **freeze** — partial progress survives a full-housing stretch.
+- [x] Harness: no food spent, cadence exact, housing-gated, freeze semantics, `bought` lifetime.
 
 **Phase A — parity refactor** *(content reorganization only; zero state-schema change)*
 - [ ] Re-author Stone + Bronze as deltas compiled to full manifests; `active()` indirection
@@ -451,7 +450,18 @@ factual lists derive from the manifest diff so they can never lie. Full contract
 parity-refactor → transition machinery → Iron Age, so engine risk and content risk never travel
 together. Documentation-only milestone — no code changed.
 
-**Design consensus: outward verbs — Adversaries & Expeditions.** Born from a candid worry that the
+**v11 — Free timed population growth.** The wanderer event and its escalating food price are gone.
+Settlers now arrive free, every 45 seconds (`CONFIG.settlerIntervalSeconds` — deliberately a single
+dial), whenever housing has room; progress **freezes** rather than resets while housing is full, so
+a partially-waited arrival lands soon after a new hut. Housing is now the sole lever on population
+and food's pressure lives entirely in upkeep. The Your People line became a countdown — strictly
+more informative than the old price tag. Verified live: 50 seconds at pop 3→4 cost 6.2 food (pure
+upkeep; the old model would have charged a lump sum on top, up to ~500+ at high pop). The whole
+invisible-food-sink bug class dies with the purchase model, and the harness asserts the excision is
+total: no wanderer event, no growthCost, and a cap raise can never again trigger a hidden spend.
+Hardening the new cadence tests also surfaced two *pre-existing* flaky tests (a rare raid could
+starve the capstone test's settlement mid-build; a rare sickness could shift the soldier-training
+counts) — both now run under forced-miss RNG, and the suite passes 20/20 runs. 229 checks. Born from a candid worry that the
 game felt passive: every existing verb points inward (allocate, build, upgrade, train), leaving the
 player the object of the simulation's sentences, never the subject. The answer sharpened the idle
 contract into its final form — the world never interrupts the player, but the player may act *on*

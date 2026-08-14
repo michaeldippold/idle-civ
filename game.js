@@ -14,8 +14,8 @@ const CONFIG = {
   startPop: 3,
   startFood: 12,          // small buffer so you have time to assign a forager
   baseHousing: 3,
-  growthBase: 8,          // food cost of the first extra settler
-  growthScale: 1.30,      // each settler costs this much more food
+  settlerIntervalSeconds: 45,  // a new settler arrives this often while housing has room -- free.
+                               // THE growth-pacing dial; first guess, tune in play.
   // Per-resource base caps live on the RESOURCES table below, not here.
   storageAdd: 100,        // extra cap per storage building
   stoneToolsBonus: 0.08,  // flat additive bump to ALL gather multipliers from the Stone Tools upgrade
@@ -318,7 +318,8 @@ function freshState() {
     buildQueue: [],   // FIFO: [{ id, kind, uid, total, remaining, cost }, ...] -- only [0] progresses
     buildSeq: 0,
     pop: CONFIG.startPop,
-    bought: 0,        // lifetime settlers grown -- a stat only; see growthCost()
+    growth: 0,        // seconds accrued toward the next free settler; freezes while housing is full
+    bought: 0,        // lifetime settlers grown -- a stat for the game-over screen
     era: "stone",     // gates which EVENTS are eligible; ages system lands later
     playtime: 0,      // seconds the simulation has actually advanced -- see step()
     seen: {},
@@ -383,17 +384,21 @@ function rates() {
   return Object.assign(prod, { upkeep, foodNet: prod.food - upkeep });
 }
 
-// Priced off CURRENT population, not lifetime settlers grown. Using the
-// lifetime counter meant losing people to a raid or plague left you still
-// paying the price for the dead -- a ratchet that punished the recovery
-// specifically, turning one bad roll into a permanent handicap. Keyed to
-// current pop, the cost falls back when you shrink, so population becomes
-// self-stabilising: it climbs to whatever your food economy supports, drops
-// when something goes wrong, and can climb back. `S.bought` survives purely
-// as a lifetime stat for the game-over screen.
-function growthCost() {
-  const grown = Math.max(0, S.pop - CONFIG.startPop);
-  return Math.round(CONFIG.growthBase * Math.pow(CONFIG.growthScale, grown));
+// Population growth is a background process, not an event, and settlers are
+// FREE -- no food price (the old lump-sum purchase model is gone; see
+// design.md, "Settled: population growth is not an event"). Progress accrues
+// only while housing has room, and FREEZES (not resets) while full, so
+// building a hut lets a partially-waited arrival land soon after. Housing is
+// the sole lever on population; food's pressure is entirely upkeep.
+function accrueGrowth(dt) {
+  if (S.pop >= housing()) return;
+  S.growth += dt;
+  while (S.growth >= CONFIG.settlerIntervalSeconds && S.pop < housing()) {
+    S.growth -= CONFIG.settlerIntervalSeconds;
+    S.pop += 1;
+    S.bought += 1;
+    if (!SIM) log("A wanderer joins your settlement.", "good");
+  }
 }
 
 // How many of this building/upgrade/unit are already owned or waiting in the
@@ -473,23 +478,9 @@ function isRevealed(def) {
 // effect(S) (the state mutation), and flavor.{hit,negated} (Chronicle lines,
 // picked at random). Adding a new event never touches the engine, only this list.
 const EVENTS = [
-  {
-    // The single largest transaction in the game, and it fires on its own the
-    // moment you can afford it. Reported in play as "building a Granary zeroed
-    // my food" -- the Granary had actually just raised the cap far enough for
-    // food to reach the settler price, which then bought one instantly. The
-    // line MUST state the cost or the biggest spend in the game is invisible.
-    id: "wanderer", eras: ["stone", "bronze"], sev: "good",
-    canFire: (S) => S.pop < housing() && S.res.food >= growthCost(),
-    effect: (S) => {
-      const cost = growthCost();
-      S.res.food -= cost;
-      S.pop += 1;
-      S.bought += 1;
-      return `A wanderer joins your settlement — ${cost} food spent settling them in.`;
-    },
-    flavor: { hit: ["A wanderer joins your settlement."] },
-  },
+  // NOTE: population growth is deliberately NOT an event -- it's a free,
+  // timed background process (see accrueGrowth). The canFire archetype below
+  // currently has no users but stays: it's the generic deterministic shape.
   {
     id: "greatHunt", eras: ["stone", "bronze"], sev: "good",
     chancePerSecond: 0.002,                         // ~8.3 real minutes average -- small, frequent
@@ -899,7 +890,10 @@ function step(dt) {
     }
   }
 
-  // Population growth, sickness, conflict, and anything else on EVENTS.
+  // A free settler every N seconds while housing has room.
+  accrueGrowth(dt);
+
+  // Sickness, conflict, windfalls, and anything else on EVENTS.
   resolveEvents(dt);
 
   // Conflict (and in principle anything else) can zero out population --
@@ -1156,9 +1150,10 @@ function renderPeople() {
 
   const gl = document.getElementById("growthLine");
   if (S.pop >= housing()) {
-    gl.innerHTML = "Housing is full. Build a hut to grow.";
+    gl.innerHTML = "Housing is full — no one new can settle here.";
   } else {
-    gl.innerHTML = `Next settler grows at <span class="cost">${growthCost()} food</span>.`;
+    const remaining = Math.max(0, CONFIG.settlerIntervalSeconds - S.growth);
+    gl.innerHTML = `Next settler arrives in <span class="cost">${Math.ceil(remaining)}s</span>.`;
   }
 
   const list = document.getElementById("jobList");

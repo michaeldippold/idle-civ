@@ -134,6 +134,10 @@ flagged *to be decided during implementation*.
       ~15 min to Bronze training, ~40 min to clear Bronze — early-age clip feels right, preserve it.
 
 ### Next up
+- [ ] **Debate `deleteme.md`** — pre-decision ideation logged 2026-08-15 (religion in Iron with a
+      multi-age decay arc; siege engines + adversary castle defense; Enlightenment = science +
+      laws/mutually-exclusive upgrades + maybe morale; ~10×-per-age population scale rework).
+      Promote survivors into design.md/tech.md as real decisions, then delete the file.
 - [ ] Playtest the whole build for feel now that the Stone Age content pack has landed — Herbal
       Medicine/Stone Tools/Stone Yard cost-and-effect numbers are all first-guess like everything
       else in `CONFIG`, deliberately tuned toward "too hard, walk it back" per standing principle.

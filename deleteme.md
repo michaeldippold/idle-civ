@@ -67,6 +67,14 @@ this shit seriously now."
   with "population re-denomination" as a named use case, `popNoun`-style era-scoped vocabulary
   was floated in the original manifest sketch, and "holdings tiles show a flat count with no
   compaction" is already a known limitation waiting for big numbers.)
+- **Late addendum — the loop itself may not survive the scale.** There may come a point where
+  *building houses and watching population grow* stops making sense as a player activity at
+  all. A king doesn't know every newcomer, and at that scale growth isn't wanderers arriving —
+  it's people starting families. Flagged for discussion now because "the absurdity of the
+  juxtaposition will be clear before we hit The Expanse age": clicking a hut into a queue while
+  administering an interplanetary civilization is a joke the game shouldn't accidentally tell.
+  So the question isn't only *how do the numbers scale* — it's *when does the housing→growth
+  verb retire, and what replaces it.*
 
 ---
 
@@ -108,6 +116,16 @@ religion a *building chain*, a *person-type* (monks as units?), an *event layer*
 - Sequencing question for the debate: retrofit Iron's scale now (it just shipped), or let Iron
   stand at village scale and make the jump AT the Enlightenment transition (re-denominate:
   "your 30 become 300 households"), keeping the 10× rule forward-looking only?
+
+- The late addendum names something bigger than content lifecycle: **mechanics have lifecycles
+  too.** The manifest model retires *things* (a building, a resource, a job); retiring a *core
+  verb* (build housing → watch arrivals) is a new class of transition the architecture hasn't
+  had to express yet. Precedent exists in miniature — growth already changed shape once
+  (purchase → free timer) — but sunsetting a whole loop mid-game, without it feeling like
+  loss, is its own design problem. Likely wants the same treatment as everything else here:
+  the verb doesn't vanish, it *re-denominates* (huts → districts → colony ships?), until the
+  thing you're allocating is no longer people but something scale-appropriate. Worth deciding
+  the *retirement age* of the loop early, so the ages before it can taper rather than cliff.
 
 **Sequencing overall:** §1+§2 are Iron content packs (deltas — cheap by construction now);
 §3 is the Enlightenment scoping conversation actually starting; §4 cuts across everything and

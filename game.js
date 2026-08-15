@@ -552,7 +552,9 @@ const BRONZE_DELTA = {
 const IRON_DELTA = {
   name: "Iron Age",
   housingPerHut: 7,
-  panelTitles: { "panel-holdings": "Town" },
+  // "Underway": once the world opens, the queue panel tracks more than
+  // builds -- marching columns and caravans render there too (see renderQueue).
+  panelTitles: { "panel-holdings": "Town", "panel-queue": "Underway" },
 
   remove: [
     "copper", "tin", "bronze",            // the alloy economy, wholesale
@@ -1375,13 +1377,16 @@ function runConverters(dt) {
 }
 
 // ---------- Adversaries & Expeditions -----------------------
-// The era's outward verbs. One expedition at a time (the Muster Ground
-// stages one column), resolution happens in step() on the world's schedule,
-// and there are NO catch windows -- outcomes self-apply and land in the
-// Chronicle. Resolution lines log even under SIM, same rule as migration
-// narrates: rare and story-critical, they belong in the record even if they
-// happened while you were away.
+// The era's outward verbs. The Muster Ground stages ONE CAMPAIGN and ONE
+// CARAVAN at a time -- soldiers and merchants are different people, so the
+// two tracks run in parallel, but never two of a kind: the split is still
+// the decision on each track. Resolution happens in step() on the world's
+// schedule, and there are NO catch windows -- outcomes self-apply and land
+// in the Chronicle. Resolution lines log even under SIM, same rule as
+// migration narrates: rare and story-critical, they belong in the record
+// even if they happened while you were away.
 function findAdversary(id) { return active().adversaries.find((a) => a.id === id); }
+function expeditionOut(type) { return S.expeditions.some((e) => e.type === type); }
 
 function standingWord(n) {
   return n <= -2 ? "Hostile" : n === -1 ? "Wary" : n >= 2 ? "Friendly" : "Neutral";
@@ -1400,10 +1405,19 @@ function hostilityMultiplier() {
   }
   return mult;
 }
-function hostileRouteRisk() {
-  return active().adversaries.some((a) =>
-    a.disposition === "warlike" && S.adversaries[a.id] && S.adversaries[a.id].standing <= -2);
+// The strongest Hostile warlike neighbor -- whose war parties prowl the
+// roads. Null when the roads are safe (caravans launch one-click then; the
+// escort question only exists when there's someone to escort against).
+function riskAdversary() {
+  let worst = null;
+  for (const a of active().adversaries) {
+    const st = S.adversaries[a.id];
+    if (a.disposition !== "warlike" || !st || st.standing > -2) continue;
+    if (!worst || a.strength > worst.strength) worst = a;
+  }
+  return worst;
 }
+function hostileRouteRisk() { return !!riskAdversary(); }
 
 // A campaign force's strength: the same math as home defense, pointed
 // outward -- weapon tiers apply, and counters match against the adversary's
@@ -1419,15 +1433,20 @@ function campaignStrength(unitCounts, adv) {
   return attack;
 }
 
+// Shared allocation check for any expedition carrying units.
+function validUnitCounts(unitCounts) {
+  for (const uid in unitCounts) {
+    if (unitCounts[uid] < 0 || unitCounts[uid] > availableUnits(uid)) return false;
+  }
+  return true;
+}
+
 function launchCampaign(advId, unitCounts) {
-  if (S.dead || S.expeditions.length || (S.builds.musterGround || 0) < 1) return;
+  if (S.dead || expeditionOut("campaign") || (S.builds.musterGround || 0) < 1) return;
   const adv = findAdversary(advId);
   if (!adv) return;
   const total = Object.values(unitCounts).reduce((a, b) => a + b, 0);
-  if (total < 1) return;
-  for (const uid in unitCounts) {
-    if (unitCounts[uid] < 0 || unitCounts[uid] > availableUnits(uid)) return;
-  }
+  if (total < 1 || !validUnitCounts(unitCounts)) return;
   if (S.res.food < CONFIG.campaignFoodCost) return;
   S.res.food -= CONFIG.campaignFoodCost;
   S.expeditions.push({ uid: ++S.buildSeq, type: "campaign", adversary: advId,
@@ -1436,18 +1455,24 @@ function launchCampaign(advId, unitCounts) {
   renderAll();
 }
 
-function launchCaravan(advId) {
-  if (S.dead || S.expeditions.length || (S.builds.musterGround || 0) < 1) return;
+// `escort` is optional: units riding with the cargo. Escorts don't lower the
+// odds of an ambush -- they decide how one ENDS (see resolveCaravan).
+function launchCaravan(advId, escort) {
+  if (S.dead || expeditionOut("caravan") || (S.builds.musterGround || 0) < 1) return;
   const adv = findAdversary(advId);
   const st = S.adversaries[advId];
   if (!adv || !adv.buys || !st) return;
   if (st.standing <= -2) return;                       // they remember your raids
   if ((st.stock.gold || 0) <= 0) return;               // traded dry
   if ((S.res[adv.buys.res] || 0) < adv.buys.amount) return;
+  if (escort && !validUnitCounts(escort)) return;
+  const guards = escort ? Object.values(escort).reduce((a, b) => a + b, 0) : 0;
   S.res[adv.buys.res] -= adv.buys.amount;
-  S.expeditions.push({ uid: ++S.buildSeq, type: "caravan", adversary: advId,
-    cargo: { res: adv.buys.res, amount: adv.buys.amount }, total: adv.caravanTime, remaining: adv.caravanTime });
-  log(`A caravan sets out for ${adv.name}, laden with ${adv.buys.amount} ${adv.buys.res}.`);
+  const ex = { uid: ++S.buildSeq, type: "caravan", adversary: advId,
+    cargo: { res: adv.buys.res, amount: adv.buys.amount }, total: adv.caravanTime, remaining: adv.caravanTime };
+  if (guards > 0) ex.units = Object.assign({}, escort);
+  S.expeditions.push(ex);
+  log(`A caravan sets out for ${adv.name}, laden with ${adv.buys.amount} ${adv.buys.res}${guards ? `, under guard of ${guards}` : ""}.`);
   renderAll();
 }
 
@@ -1503,10 +1528,31 @@ function resolveCampaign(ex, adv, st) {
 }
 
 function resolveCaravan(ex, adv, st) {
-  if (hostileRouteRisk() && Math.random() < CONFIG.caravanRaidChance) {
-    log(`Your caravan to ${adv.name} never arrives — raiders on the road. The cargo is lost.`, "bad");
-    return;
+  // Ambush: while a warlike neighbor is Hostile, their war parties prowl the
+  // roads at a flat chance. Escorts don't lower the odds of being found --
+  // they decide how the ambush ENDS: fight through and the trade completes.
+  const raiders = riskAdversary();
+  if (raiders && Math.random() < CONFIG.caravanRaidChance) {
+    const escortStr = ex.units ? campaignStrength(ex.units, raiders) : 0;
+    if (escortStr <= 0) {
+      log(`Your caravan to ${adv.name} never arrives — ${raiders.name} took it on the road. The cargo is lost.`, "bad");
+      return;
+    }
+    if (Math.random() < escortStr / (escortStr + raiders.strength)) {
+      log(`${raiders.name} fall on your caravan — and the escort fights them through.`, "good");
+      if (Math.random() < (raiders.strength / (escortStr + raiders.strength)) * armorFactor()) {
+        const lost = removeDeployedUnit(ex);
+        if (lost) log(`The road took its toll — a ${lost} does not come home.`, "bad");
+      }
+      // ...and the trade goes ahead below.
+    } else {
+      const lost = removeDeployedUnit(ex);
+      log(`${raiders.name} overwhelm your caravan${lost ? ` — a ${lost} falls defending it` : ""}. The cargo is lost.`, "bad");
+      return;
+    }
   }
+
+  const wary = st.standing < 0;   // read BEFORE the trade improves things
   const premium = st.standing >= 2 ? 1.25 : 1;
   const pays = Math.min(Math.floor(adv.buys.pays * premium), Math.floor(st.stock.gold || 0));
   st.stock.gold = (st.stock.gold || 0) - pays;
@@ -1515,8 +1561,14 @@ function resolveCaravan(ex, adv, st) {
   st.stock[ex.cargo.res] = (st.stock[ex.cargo.res] || 0) + ex.cargo.amount;
   S.res.gold = (S.res.gold || 0) + pays;
   bumpStanding(st, 1);
-  if (pays > 0) log(`The caravan returns from ${adv.name} with ${pays} gold.`, "good");
-  else log(`The caravan returns from ${adv.name} unpaid — they have no gold left to give.`, "bad");
+  if (pays <= 0) {
+    log(`The caravan returns from ${adv.name} unpaid — they have no gold left to give.`, "bad");
+  } else if (wary) {
+    // The rep system, hinted through narration rather than printed as a number.
+    log(`The caravan returns from ${adv.name} with ${pays} gold, counted out in silence under armed watch. They have not forgotten.`);
+  } else {
+    log(`The caravan returns from ${adv.name} with ${pays} gold.`, "good");
+  }
 }
 
 // Ticks in step(). An expedition whose adversary no longer exists (the era
@@ -1975,19 +2027,49 @@ function renderQueue() {
 
   // Hidden (not just empty) until the first time anything is queued, then
   // sticky-visible forever after -- matches how every other panel unravels in.
-  if (S.buildQueue.length > 0) S.seen.queueUsed = true;
+  // Expeditions count as usage: this panel is Underway once the world opens.
+  const anything = S.buildQueue.length > 0 || S.expeditions.length > 0;
+  if (anything) S.seen.queueUsed = true;
   panel.classList.toggle("hidden", !S.seen.queueUsed);
   if (!S.seen.queueUsed) return;
 
-  emptyMsg.classList.toggle("hidden", S.buildQueue.length > 0);
-  wrap.classList.toggle("hidden", S.buildQueue.length === 0);
+  emptyMsg.classList.toggle("hidden", anything);
+  wrap.classList.toggle("hidden", !anything);
 
-  const liveUids = new Set(S.buildQueue.map((q) => String(q.uid)));
+  const liveUids = new Set(S.buildQueue.map((q) => String(q.uid))
+    .concat(S.expeditions.map((e) => "x" + e.uid)));
   Array.from(wrap.children).forEach((child) => {
     if (!liveUids.has(child.dataset.uid)) wrap.removeChild(child);
   });
 
+  // Expedition cards: same visual language as builds, but dashed -- and no
+  // cancel button, because there are no catch windows once a column marches.
+  const expCards = [];
+  for (const ex of S.expeditions) {
+    const adv = findAdversary(ex.adversary);
+    let card = wrap.querySelector(`[data-uid="x${ex.uid}"]`);
+    if (!card) {
+      card = document.createElement("div");
+      card.className = "queue-card expedition";
+      card.dataset.uid = "x" + ex.uid;
+      card.innerHTML =
+        `<div class="site-name"><span><span class="q-label"></span> <span class="b-of q-pct"></span></span></div>` +
+        `<div class="progress"><span class="q-bar" style="width:0%"></span></div>` +
+        `<div class="site-meta"><span class="eta q-eta"></span></div>`;
+      wrap.appendChild(card);
+    }
+    const pct = Math.max(0, Math.min(100, (1 - ex.remaining / ex.total) * 100));
+    const who = adv ? adv.name : "the road home";
+    card.querySelector(".q-label").textContent =
+      (ex.type === "campaign" ? "Marching on " : "Caravan to ") + who;
+    card.querySelector(".q-pct").textContent = `(${Math.floor(pct)}%)`;
+    card.querySelector(".q-bar").style.width = pct + "%";
+    card.querySelector(".q-eta").textContent = `returns in ~${Math.max(1, Math.ceil(ex.remaining))}s`;
+    expCards.push(card);
+  }
+
   let etaAccum = 0;
+  const buildCards = [];
   S.buildQueue.forEach((item, i) => {
     etaAccum += item.remaining;
     const def = defById(item.id);
@@ -2014,7 +2096,16 @@ function renderQueue() {
     card.querySelector(".q-eta").textContent =
       `~${Math.max(1, Math.ceil(etaAccum / CONFIG.buildSpeed))}s left`;
     card.classList.toggle("queued", i > 0);
+    buildCards.push(card);
   });
+
+  // Expeditions read as the headline events: they sit above the builds.
+  // Same only-touch-the-DOM-on-change reorder the Upgrades panel uses.
+  const desired = expCards.concat(buildCards);
+  const current = Array.from(wrap.children);
+  if (desired.some((el, i) => el !== current[i])) {
+    for (const el of desired) wrap.appendChild(el);
+  }
 }
 
 // The buy menu abstracts ownership into a small number; this panel makes it
@@ -2205,8 +2296,134 @@ function expeditionsUnlocked() {
 }
 
 // Muster allocation is UI state, not game state (like `paused`): it's what
-// the NEXT campaign would take, and it resets when one launches.
+// the NEXT expedition would take. It lives in the campaign/caravan modals
+// and resets every time one opens.
 let muster = {};
+
+function fightsAsLabel(adv) {
+  return adv.fightsAs === "massed" ? "a massed charge"
+       : adv.fightsAs === "riders" ? "a band of riders" : "a warband";
+}
+function advDisplayName(adv) { return adv.name.charAt(0).toUpperCase() + adv.name.slice(1); }
+function stockLine(st) {
+  const s = Object.keys(st.stock).filter((k) => st.stock[k] > 0)
+    .map((k) => `${Math.floor(st.stock[k])} ${k}`).join(", ");
+  return s ? `Known stock: ${s}.` : "Nothing left worth taking.";
+}
+
+// Stepper rows shared by the campaign and caravan modals. `prefix` keeps the
+// two modals' element ids distinct; wiring clamps against live availability
+// (the game does not pause for modals, so "what's home" can change under you).
+function musterRowsHTML(prefix) {
+  return active().units.filter(isRevealed).map((def) =>
+    `<div class="job">` +
+      `<span class="job-name">${def.name}s</span>` +
+      `<span class="job-out" id="${prefix}avail-${def.id}"></span>` +
+      `<button class="stepper" data-mid="${def.id}" data-d="-1">−</button>` +
+      `<span class="job-count" id="${prefix}cnt-${def.id}">0</span>` +
+      `<button class="stepper" data-mid="${def.id}" data-d="1">+</button>` +
+    `</div>`).join("");
+}
+function wireMusterRows(bodyEl, refresh) {
+  bodyEl.querySelectorAll(".stepper").forEach((b) => b.addEventListener("click", () => {
+    const id = b.dataset.mid, d = Number(b.dataset.d);
+    muster[id] = Math.max(0, Math.min(availableUnits(id), (muster[id] || 0) + d));
+    refresh();
+  }));
+}
+function refreshMusterRows(prefix) {
+  for (const def of active().units) {
+    const cnt = document.getElementById(prefix + "cnt-" + def.id);
+    if (!cnt) continue;
+    muster[def.id] = Math.max(0, Math.min(availableUnits(def.id), muster[def.id] || 0));
+    cnt.textContent = muster[def.id] || 0;
+    const avail = document.getElementById(prefix + "avail-" + def.id);
+    if (avail) avail.textContent = `${availableUnits(def.id)} home`;
+  }
+  return Object.values(muster).reduce((a, b) => a + b, 0);
+}
+function confirmButton() {
+  const btns = document.querySelectorAll("#modalActions button");
+  return btns.length ? btns[btns.length - 1] : null;
+}
+
+// The campaign is a decision worth a ceremony: the modal carries the
+// target's description (which IS the strength hint -- see design.md, flavor
+// is load-bearing), the muster, and a live estimate.
+function openCampaignModal(advId) {
+  const adv = findAdversary(advId);
+  const st = S.adversaries[advId];
+  if (!adv || !st) return;
+  muster = {};
+  const body =
+    `<p class="modal-lead">${adv.desc}</p>` +
+    `<div class="exp-status">${adv.disposition} · ${standingWord(st.standing)} · strength ${adv.strength}, ` +
+      `fights as ${fightsAsLabel(adv)}. ${stockLine(st)}</div>` +
+    `<h3 class="info-h">Muster the column</h3>` +
+    `<div class="muster">${musterRowsHTML("cm")}</div>` +
+    `<div class="exp-status" id="cmEstimate"></div>` +
+    `<div class="exp-status">Provisions: ${CONFIG.campaignFoodCost} food · ${adv.campaignTime}s there and back.</div>`;
+  openModal(`Campaign: ${advDisplayName(adv)}`, body, [
+    { label: "Stay home", onClick: closeModal },
+    { label: "March", danger: true, onClick: () => {
+        launchCampaign(advId, muster);
+        if (expeditionOut("campaign")) closeModal();
+      } },
+  ], (bodyEl) => {
+    const refresh = () => {
+      const total = refreshMusterRows("cm");
+      const est = document.getElementById("cmEstimate");
+      if (est) {
+        est.textContent = total < 1 ? "Muster at least one fighter."
+          : `Your ${total} march at strength ${campaignStrength(muster, adv).toFixed(1)}, against theirs of ${adv.strength}.`;
+      }
+      const march = confirmButton();
+      if (march) march.disabled = S.dead || total < 1 ||
+        S.res.food < CONFIG.campaignFoodCost || expeditionOut("campaign");
+    };
+    wireMusterRows(bodyEl, refresh);
+    refresh();
+  });
+}
+
+// Only exists while the roads are dangerous -- on safe roads a caravan is a
+// one-click send, and the escort question doesn't arise.
+function openCaravanModal(advId) {
+  const adv = findAdversary(advId);
+  const st = S.adversaries[advId];
+  const raiders = riskAdversary();
+  if (!adv || !adv.buys || !st || !raiders) return;
+  muster = {};
+  const premium = st.standing >= 2 ? 1.25 : 1;
+  const wouldPay = Math.min(Math.floor(adv.buys.pays * premium), Math.floor(st.stock.gold || 0));
+  const body =
+    `<p class="modal-lead">The roads are not safe — ${raiders.name} prowl them. An escort won't keep a caravan from being found; it decides what happens when it is.</p>` +
+    `<div class="exp-status">Exchange: ${adv.buys.amount} ${adv.buys.res} → ${wouldPay} gold · ${adv.caravanTime}s round trip.</div>` +
+    `<h3 class="info-h">Escort (optional)</h3>` +
+    `<div class="muster">${musterRowsHTML("cv")}</div>` +
+    `<div class="exp-status" id="cvEstimate"></div>`;
+  openModal(`Caravan: ${advDisplayName(adv)}`, body, [
+    { label: "Hold the caravan", onClick: closeModal },
+    { label: "Send it", onClick: () => {
+        launchCaravan(advId, muster);
+        if (expeditionOut("caravan")) closeModal();
+      } },
+  ], (bodyEl) => {
+    const refresh = () => {
+      const total = refreshMusterRows("cv");
+      const est = document.getElementById("cvEstimate");
+      if (est) {
+        est.textContent = total < 1
+          ? "Unescorted: if the roads find it, the cargo is gone."
+          : `Escort of ${total}, strength ${campaignStrength(muster, raiders).toFixed(1)} against raiders at ${raiders.strength}.`;
+      }
+      const send = confirmButton();
+      if (send) send.disabled = S.dead || expeditionOut("caravan");
+    };
+    wireMusterRows(bodyEl, refresh);
+    refresh();
+  });
+}
 
 function renderExpeditions() {
   const panel = document.getElementById("panel-expeditions");
@@ -2215,53 +2432,19 @@ function renderExpeditions() {
   panel.classList.toggle("hidden", !open);
   if (!open) return;
 
-  const active_ = S.expeditions[0];
-
-  // Status line: the one column that's out, or the muster prompt.
+  // Prose status only -- the countdowns and progress bars live in the
+  // Underway (queue) panel, where in-progress things belong.
+  const campaignAway = expeditionOut("campaign");
+  const caravanAway = expeditionOut("caravan");
   const status = document.getElementById("expeditionStatus");
-  if (active_) {
-    const adv = findAdversary(active_.adversary);
-    const advName = adv ? adv.name : "a place that no longer answers";
-    const what = active_.type === "campaign"
-      ? `A campaign against ${advName}` : `A caravan to ${advName}`;
-    status.innerHTML = `${what} — returns in <span class="cost">${Math.max(1, Math.ceil(active_.remaining))}s</span>.`;
-  } else {
-    status.innerHTML = `The Muster Ground stands ready. One expedition at a time.`;
-  }
-
-  // Muster steppers: one row per unit type that exists this era and is fielded.
-  const musterEl = document.getElementById("musterRow");
-  for (const def of active().units) {
-    if (!isRevealed(def)) continue;
-    let row = document.getElementById("muster-" + def.id);
-    if (!row) {
-      row = document.createElement("div");
-      row.className = "job";
-      row.id = "muster-" + def.id;
-      row.innerHTML =
-        `<span class="job-name">${def.name}s</span>` +
-        `<span class="job-out" id="mavail-${def.id}"></span>` +
-        `<button class="stepper" data-mu="${def.id}" data-d="-1">−</button>` +
-        `<span class="job-count" id="mcnt-${def.id}">0</span>` +
-        `<button class="stepper" data-mu="${def.id}" data-d="1">+</button>`;
-      musterEl.appendChild(row);
-      row.querySelectorAll(".stepper").forEach((b) =>
-        b.addEventListener("click", () => {
-          const id = b.dataset.mu, d = Number(b.dataset.d);
-          muster[id] = Math.max(0, Math.min(availableUnits(id), (muster[id] || 0) + d));
-          renderAll();
-        }));
-    }
-    muster[def.id] = Math.max(0, Math.min(availableUnits(def.id), muster[def.id] || 0));
-    document.getElementById("mcnt-" + def.id).textContent = muster[def.id] || 0;
-    document.getElementById("mavail-" + def.id).textContent = `${availableUnits(def.id)} home`;
-    row.querySelector('[data-d="-1"]').disabled = S.dead || (muster[def.id] || 0) <= 0;
-    row.querySelector('[data-d="1"]').disabled = S.dead || (muster[def.id] || 0) >= availableUnits(def.id);
-  }
+  const parts = [];
+  if (campaignAway) parts.push("A campaign is in the field.");
+  if (caravanAway) parts.push("A caravan is on the road.");
+  if (!parts.length) parts.push("The Muster Ground stands ready.");
+  status.textContent = parts.join(" ");
 
   // One card per adversary: who they are, what's left of them, what you can do.
   const list = document.getElementById("adversaryList");
-  const musterTotal = Object.values(muster).reduce((a, b) => a + b, 0);
   for (const adv of active().adversaries) {
     const st = S.adversaries[adv.id];
     if (!st) continue;
@@ -2280,32 +2463,24 @@ function renderExpeditions() {
           `<button class="modal-btn" id="advtrade-${adv.id}"></button>` +
         `</div>`;
       list.appendChild(card);
-      document.getElementById(`advmarch-${adv.id}`).addEventListener("click", () => {
-        launchCampaign(adv.id, muster);
-        muster = {};
-        renderAll();
+      document.getElementById(`advmarch-${adv.id}`).addEventListener("click", () => openCampaignModal(adv.id));
+      document.getElementById(`advtrade-${adv.id}`).addEventListener("click", () => {
+        if (hostileRouteRisk()) openCaravanModal(adv.id);
+        else launchCaravan(adv.id);
       });
-      document.getElementById(`advtrade-${adv.id}`).addEventListener("click", () => launchCaravan(adv.id));
     }
 
-    const display = adv.name.charAt(0).toUpperCase() + adv.name.slice(1);
-    document.getElementById(`advname-${adv.id}`).textContent = display;
+    document.getElementById(`advname-${adv.id}`).textContent = advDisplayName(adv);
     document.getElementById(`advstand-${adv.id}`).textContent =
       `${adv.disposition} · ${standingWord(st.standing)}`;
     document.getElementById(`advdesc-${adv.id}`).textContent =
-      `${adv.desc} Strength ${adv.strength}, fights as a ${adv.fightsAs === "massed" ? "massed charge" : adv.fightsAs === "riders" ? "band of riders" : "warband"}.`;
-    const stockStr = Object.keys(st.stock).filter((k) => st.stock[k] > 0)
-      .map((k) => `${Math.floor(st.stock[k])} ${k}`).join(", ");
-    document.getElementById(`advstock-${adv.id}`).textContent =
-      stockStr ? `Known stock: ${stockStr}.` : `Nothing left worth taking.`;
+      `${adv.desc} Strength ${adv.strength}, fights as ${fightsAsLabel(adv)}.`;
+    document.getElementById(`advstock-${adv.id}`).textContent = stockLine(st);
 
     const march = document.getElementById(`advmarch-${adv.id}`);
     march.textContent = `March (${CONFIG.campaignFoodCost} food, ${adv.campaignTime}s)`;
-    march.disabled = S.dead || !!active_ || musterTotal < 1 || S.res.food < CONFIG.campaignFoodCost;
-    march.title = active_ ? "An expedition is already out." :
-      musterTotal < 1 ? "Muster at least one fighter above." :
-      S.res.food < CONFIG.campaignFoodCost ? "Not enough food for provisions." :
-      `Estimated strength ${campaignStrength(muster, adv).toFixed(1)} vs ${adv.strength}.`;
+    march.disabled = S.dead || campaignAway;
+    march.title = campaignAway ? "A campaign is already in the field." : "";
 
     const trade = document.getElementById(`advtrade-${adv.id}`);
     if (adv.buys) {
@@ -2313,12 +2488,13 @@ function renderExpeditions() {
       const wouldPay = Math.min(Math.floor(adv.buys.pays * premium), Math.floor(st.stock.gold || 0));
       trade.classList.remove("hidden");
       trade.textContent = `Caravan: ${adv.buys.amount} ${adv.buys.res} → ${wouldPay} gold (${adv.caravanTime}s)`;
-      trade.disabled = S.dead || !!active_ || st.standing <= -2 || wouldPay <= 0 ||
+      trade.disabled = S.dead || caravanAway || st.standing <= -2 || wouldPay <= 0 ||
         (S.res[adv.buys.res] || 0) < adv.buys.amount;
-      trade.title = active_ ? "An expedition is already out." :
+      trade.title = caravanAway ? "A caravan is already on the road." :
         st.standing <= -2 ? "They remember your raids. They will not trade with you." :
         wouldPay <= 0 ? "They have no gold left to pay with." :
-        (S.res[adv.buys.res] || 0) < adv.buys.amount ? `Not enough ${adv.buys.res}.` : "";
+        (S.res[adv.buys.res] || 0) < adv.buys.amount ? `Not enough ${adv.buys.res}.` :
+        hostileRouteRisk() ? "The roads are dangerous — you'll be offered an escort." : "";
     } else {
       trade.classList.add("hidden");
     }

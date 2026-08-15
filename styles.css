@@ -188,6 +188,11 @@ button { font-family: var(--mono); cursor: pointer; }
 .adv-actions { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
 .adv-actions .modal-btn { font-size: 11px; padding: 4px 8px; text-align: left; }
 .adv-actions .modal-btn:disabled { opacity: 0.45; }
+
+/* Expeditions in the Underway (queue) panel: same card language as builds,
+   dashed to read as "out in the world", and no cancel button -- there are
+   no catch windows once a column marches. */
+.queue-card.expedition { border-style: dashed; }
 .stepper:hover:not(:disabled) { background: var(--ink); color: var(--bg); }
 .stepper:disabled { opacity: .3; cursor: not-allowed; }
 

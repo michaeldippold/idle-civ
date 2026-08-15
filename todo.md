@@ -498,6 +498,20 @@ panel (buyable and queued stay on top, manifest order within each group), so wha
 purchasable is never buried under a pile of "Permanent." cards. DOM only reorders when ownership
 actually changes, preserving the create-once card pattern.
 
+**v15.3 — Expedition legibility pass** (all four playtest asks, plus two design laws). One
+campaign AND one caravan can now be out at once — parallel tracks, never two of a kind. Expeditions
+show as dashed, cancel-less progress cards at the top of the queue panel, which the Iron Age
+retitles **Underway** (one manifest line — the machinery keeps paying). Campaigns launch through a
+modal: the target's description, muster steppers, and a live strength estimate — the era's biggest
+decision got its ceremony, and the cramped panel steppers are gone. Caravans stay one-click on
+safe roads, but when a warlike neighbor is Hostile the send opens an escort modal: escorts don't
+lower ambush odds, they *decide* ambushes — fight through and the trade completes; lose and the
+cargo goes with a guard. Trading at Wary now returns "...counted out in silence under armed watch.
+They have not forgotten." — the rep system hinted through narration, never printed. And two laws
+recorded in design.md: **flavor is load-bearing** (strength is hinted via description, not odds —
+so adversary descs are mechanics-bearing text and must stay truthful), and the standing system
+narrates rather than displays. 389 checks, 20/20 runs.
+
 **v15.2 — Converter rates in the ledger.** The resource bar now shows what's *actually happening*
 to each pile: `ledgerRates()` folds live converter flows into the displayed rates — outputs
 positive, inputs negative — using the same three clamps as `runConverters`, so a starved or

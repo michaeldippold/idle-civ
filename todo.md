@@ -498,9 +498,15 @@ panel (buyable and queued stay on top, manifest order within each group), so wha
 purchasable is never buried under a pile of "Permanent." cards. DOM only reorders when ownership
 actually changes, preserving the create-once card pattern.
 
+**v15.4 — Queue-card type icons.** The dashed expedition border is gone (playtest verdict: hated
+it, and the mix wasn't confusing anyway). Every Underway card now opens with a tiny line-art type
+marker in the game's doodle style — hammer for builds, sword for campaigns, coins for caravans —
+so the eye sorts the panel without reading. Cards share one uniform border; the missing cancel ×
+remains the expeditions' only structural difference.
+
 **v15.3 — Expedition legibility pass** (all four playtest asks, plus two design laws). One
 campaign AND one caravan can now be out at once — parallel tracks, never two of a kind. Expeditions
-show as dashed, cancel-less progress cards at the top of the queue panel, which the Iron Age
+show as cancel-less progress cards at the top of the queue panel, which the Iron Age
 retitles **Underway** (one manifest line — the machinery keeps paying). Campaigns launch through a
 modal: the target's description, muster steppers, and a live strength estimate — the era's biggest
 decision got its ceremony, and the cramped panel steppers are gone. Caravans stay one-click on

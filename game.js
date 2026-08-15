@@ -894,6 +894,15 @@ const BUILDING_ICONS = {
   treasury:   `<svg ${ICON_ATTRS}><rect x="4" y="8" width="16" height="12" rx="1"/><path d="M4 12 H20 M12 12 V15"/><path d="M8 8 V6 A4 3 0 0 1 16 6 V8"/></svg>`,
   musterGround: `<svg ${ICON_ATTRS}><path d="M6 21 V4 M6 4 H17 L14 7.5 L17 11 H6"/><path d="M4 21 H10"/></svg>`,
 };
+// Tiny queue-card type markers: hammer = build, sword = campaign,
+// coins = caravan. Subtle by design -- the card text carries the verb, the
+// icon just lets the eye sort the Underway panel without reading.
+const QUEUE_ICONS = {
+  build:    `<svg ${ICON_ATTRS}><path d="M5 21 L12 14"/><path d="M9 7 L13 3 L21 11 L17 15 Z"/></svg>`,
+  campaign: `<svg ${ICON_ATTRS}><path d="M5 19 L16 8"/><path d="M13 5 L19 11"/><path d="M3.5 20.5 L6.5 17.5"/></svg>`,
+  caravan:  `<svg ${ICON_ATTRS}><circle cx="9" cy="15" r="5.5"/><circle cx="15" cy="9" r="5.5"/></svg>`,
+};
+
 const PERSON_ICONS = {
   settler: `<svg ${ICON_ATTRS}><circle cx="12" cy="7" r="3"/><path d="M6 20 C6 13 8.5 11 12 11 C15.5 11 18 13 18 20"/></svg>`,
   soldier: `<svg ${ICON_ATTRS}><circle cx="10" cy="7" r="3"/><path d="M4.5 20 C4.5 13 7 11 10 11 C13 11 15 13 15 20"/><path d="M8 3 L20 21"/></svg>`,
@@ -2053,7 +2062,7 @@ function renderQueue() {
       card.className = "queue-card expedition";
       card.dataset.uid = "x" + ex.uid;
       card.innerHTML =
-        `<div class="site-name"><span><span class="q-label"></span> <span class="b-of q-pct"></span></span></div>` +
+        `<div class="site-name"><span><span class="q-icon">${QUEUE_ICONS[ex.type] || ""}</span><span class="q-label"></span> <span class="b-of q-pct"></span></span></div>` +
         `<div class="progress"><span class="q-bar" style="width:0%"></span></div>` +
         `<div class="site-meta"><span class="eta q-eta"></span></div>`;
       wrap.appendChild(card);
@@ -2080,7 +2089,7 @@ function renderQueue() {
       card.dataset.uid = String(item.uid);
       card.innerHTML =
         `<div class="site-name">` +
-          `<span><span class="q-label"></span> <span class="b-of q-pct"></span></span>` +
+          `<span><span class="q-icon">${QUEUE_ICONS.build}</span><span class="q-label"></span> <span class="b-of q-pct"></span></span>` +
           `<button class="q-cancel" title="Cancel and refund">×</button>` +
         `</div>` +
         `<div class="progress"><span class="q-bar" style="width:0%"></span></div>` +

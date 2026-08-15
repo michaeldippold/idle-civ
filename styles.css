@@ -189,10 +189,12 @@ button { font-family: var(--mono); cursor: pointer; }
 .adv-actions .modal-btn { font-size: 11px; padding: 4px 8px; text-align: left; }
 .adv-actions .modal-btn:disabled { opacity: 0.45; }
 
-/* Expeditions in the Underway (queue) panel: same card language as builds,
-   dashed to read as "out in the world", and no cancel button -- there are
-   no catch windows once a column marches. */
-.queue-card.expedition { border-style: dashed; }
+/* Expeditions share the builds' card language in the Underway panel; the
+   tiny type icon (hammer / sword / coins) is the differentiator, and
+   expedition cards simply have no cancel button -- there are no catch
+   windows once a column marches. */
+.q-icon { display: inline-flex; width: 12px; height: 12px; margin-right: 5px; vertical-align: -1px; }
+.q-icon svg { width: 100%; height: 100%; }
 .stepper:hover:not(:disabled) { background: var(--ink); color: var(--bg); }
 .stepper:disabled { opacity: .3; cursor: not-allowed; }
 

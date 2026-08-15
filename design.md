@@ -259,6 +259,17 @@ Two legibility rulings from the first playtest: **in-progress expeditions render
 
 An optional flavor join, cheap and cohesive, deferred to the polish pass: inbound raids can *attribute* to warlike adversaries ("the Hill Clans test your defenses" rather than an anonymous warband), so the world's proper nouns appear in both directions.
 
+### Siege & Fortifications (settled — lands as an Iron content pack)
+
+Adversaries gain one static number: **`castleDefense`** (0 = unfortified). Campaign resolution becomes **sequenced: the walls first, then the field.** Nothing about the field battle changes — the walls are a stage bolted in front of it.
+
+- **The breach check.** The column's siege power works against the remaining wall strength. Every unit contributes *something* to the assault, but **Siege Engines do outsized damage to walls** — they're the difference between scaling a palisade and reducing a castle.
+- **Failed breach = retreat with light losses.** No field battle, no loot, a small casualty roll (deliberately lighter than a lost field battle), standing falls anyway — you attacked them, they remember.
+- **Wall damage persists.** The manifest's `castleDefense` is the template; the *current* wall strength lives in the adversary's living remnant, right beside the depleting stock — stock-not-economy now covers fortifications. Even a failed assault buys the next one a head start; sieges against hard targets become sagas, and defeat becomes investment. Walls broken stay broken for the era. The Chronicle flavors the two roads differently: *"the walls come down in one furious assault"* vs. *"scarred by seasons of assault, the walls finally give."*
+- **The Siege Engine** is a fourth trainable unit, gated behind a new capped building (the **Siege Workshop**). It costs heavy wood *and stone* — the first unit priced in stone, fittingly, since siege is applied masonry — consumes population like every unit, contributes ordinary strength in the field and at home, and its wall bonus applies only to walls.
+
+**The adversary tier vocabulary (canonical authoring rule).** Every era's adversary slate is authored on a legible three-step strength ladder — a weak thing, a somewhat strong thing, an oh-my-god-be-careful thing — with **stock and trade depth scaled to tier**, so the flavor read is always trustworthy (this generalizes what the Iron slate already did instinctively). Fortification nouns join the signal, per era: at Iron, *a timber palisade / a sturdy keep / a stone-walled castle*. The ladder is a **floor, not a template**: disposition and trade interest must cross-cut the strength axis (strong-but-peaceful-and-rich; weak-but-warlike) so eras never read as a stamped menu. Flavor namespaces aren't exclusive — a *rival holdfast* as a weak Iron adversary reinforces the population fiction rather than colliding with it.
+
 ## Explicitly Out of Scope
 
 - Any rendered map, grid, or spatial representation of the settlement.

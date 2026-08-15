@@ -19,7 +19,18 @@
   built for — arrive, carry with overrides, retire with narrated migrations. Religion would be
   the first content designed *from birth* with its whole lifespan in view.)
 
-## 2. Siege engines & castle defense — Iron Age military deepening
+## 2. Siege engines & castle defense — ✅ RESOLVED (2026-08-15)
+
+**Debated and promoted to `design.md` → "Siege & Fortifications (settled)."** Sequenced
+combat (walls then field); failed breach = retreat with light losses; wall damage PERSISTS in
+the adversary's living remnant (sieges become sagas; defeat becomes investment); Siege Engine
+unit gated by a Siege Workshop, priced in wood + stone; and the tier-vocabulary generalization
+(weak/mid/strong per era, stock and trade scaled to tier, disposition cross-cutting so eras
+don't template) canonized as an authoring rule. Original text below until deletion.
+
+<details><summary>original §2 text (superseded)</summary>
+
+## 2 (original). Siege engines & castle defense — Iron Age military deepening
 
 - **One new static number on adversaries: `castleDefense`** (name TBD — "castle defense, or
   something like that").
@@ -31,6 +42,8 @@
   adversaries hint their fortification through description — *"a small holdfast"* vs. *"a
   sturdy keep"* vs. *"a stone-walled castle."* The player learns to bring siege engines the
   same way they learned the River Kingdom was too strong to raid early: by reading.
+
+</details>
 
 ## 3. The Enlightenment — two pillars
 
@@ -94,7 +107,9 @@ the record until this file is deleted.
 
 ## Flagged for the debate (Claude's parking lot — questions, not objections)
 
-**Siege (§2):**
+**Siege (§2): ✅ RESOLVED — see design.md.** (Failed breach: light-loss retreat. Persistence:
+yes, walls live in the remnant. Escorts/home: siege engines are ordinary strength everywhere,
+wall bonus only.) Original questions kept below:
 - What happens on a *failed breach* — does the column come home unbloodied (walls repel, no
   field battle, no casualties?) or bloodied at the walls? Either is designable; they feel very
   different.

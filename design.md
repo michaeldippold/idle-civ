@@ -142,6 +142,39 @@ The rules that make it safe, in plain terms:
 
 This model *supersedes* the "reflavor-with-a-bump" pattern from Bronze only in mechanism, not in spirit — reflavor, bump, retarget, and retire all become ordinary manifest differences. The sequencing was deliberate and is now complete: the **parity refactor** and the **transition/migration machinery** both shipped (see `tech.md`), so Iron Age arrives as the first real consumer with engine risk and content risk never having traveled together.
 
+### Population & Scale: Unit Re-denomination (settled)
+
+The game reaches interstellar scale by scaling **what one population unit means**, never the number on screen. Displayed counts stay in the roughly 3–50 range forever — the small-numbers pillar, the steppers, worker assignment, exposure-weighted casualties, and the whole legibility of the interface survive to the end of the universe. The implied real population compounds through the *conversion ratios between units*, which live entirely in fiction and narration: the original "10× per age" goal is met without any number ever needing a comma.
+
+This also resolves the absurdity flag permanently: the housing→growth verb never retires, it **re-denominates**. "A wanderer joins your settlement" → "a family seeks shelter" → "a holdfast swears fealty" → "a city petitions to join." A ruler never counted individuals past the Bronze Age, so the juxtaposition never becomes a joke.
+
+**The ladder (settled names):**
+
+| Age | Unit |
+|---|---|
+| Stone | Person |
+| Bronze | Family |
+| Iron | Holdfast |
+| Enlightenment | City |
+| Gunpowder | Colony |
+| Industrial | Territory |
+| Mechanized | Nation |
+| Global | Bloc |
+| Silicon | Bloc *(deliberately unchanged — see note)* |
+| Space | Settlement |
+| Galactic | World |
+| Kardashev | System |
+
+**Border policy.** Stone→Bronze is a **1:1 relabel** ("your settlers have started families") — pure text, zero re-balance, protecting the proven early pacing. **Consolidation begins at Bronze→Iron** and applies at every later border, always *generously* — for every 5 units you get 3 or 4, never a decimation — narrated as a standard migration. Consolidation earns its place twice: each era re-grows from a modest count (its own growth arc), and it acts as a **soft tithe on min-maxed stockpiling** — banking population before a transition pays deliberately diminished returns.
+
+**Notes and corollaries:**
+
+- **The noun changes when the scope genuinely changes, not on a schedule.** Silicon keeps Bloc: it's a deepening age whose identity is its mechanic, and across Global + Silicon the story is blocs consolidating until you implicitly hold the whole planet. (Megacity survives as candidate Silicon *housing* flavor — what you build, not what you count. The housing ladder — hut → stone house → longhouse → districts/wards → … — moves independently of the pop ladder, designed per age.)
+- **The Space border is deliberately non-monotonic.** A Bloc implies billions; a Settlement implies the few who leave. The game's lens narrows to the frontier — exactly the "billions become a few hundred thousand colonists" migration the primitives were designed for. Space-age seed, logged for that design pass: settlements as *economic units* — different planets hold different resources in different quantities, discoverable only by sending an expedition.
+- **Naming guardrail:** unit names avoid pointing at any specific real Earth entity. Bloc is accepted as a mild tradeoff on this rule; **Compact** is the parked fallback if its Cold-War ring grates in play.
+- **"Holdfast" is reserved for the population unit.** The siege system's fortification flavor ladder must use other words (palisade / keep / castle — settled in the siege design pass).
+- **Implementation shape:** the pop noun and its arrival/loss/growth lines become era-facts in the manifests; consolidation is an ordinary narrated migration; the retrofit cost for shipped eras is text plus one border migration, with balance untouched at the 1:1 rung and gently re-checked where ratios apply.
+
 ### The Age List (flavor guide — not canon, expect it to move)
 
 A loose north star, not an implementation backlog. Ages get built and played one at a time, each proven fun before the next is even scoped — this list exists so later decisions stay consistent with where the game is ultimately headed, not as a commitment to build all of it.

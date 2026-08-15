@@ -53,7 +53,19 @@ this shit seriously now."
   felt — "a real ruler, not a guy organizing some huts."
 - Religion persists here, diminished (see §1), presumably in tension with the above.
 
-## 4. Population scale rework — work backwards from multiplanetary
+## 4. Population scale rework — ✅ RESOLVED (2026-08-15)
+
+**Debated and promoted to `design.md` → "Population & Scale: Unit Re-denomination (settled)."**
+The resolution inverted the original proposal: scale what a unit *means*, not the number —
+Person → Family → Holdfast → City → Colony → Territory → Nation → Bloc → Bloc → Settlement →
+World → System. 1:1 relabel at Bronze; generous consolidation (5→3/4) from Iron onward, doubling
+as a min-max brake. Silicon deliberately keeps Bloc. The late addendum resolved with it: the
+housing→growth verb re-denominates instead of retiring. Original ramble preserved below for
+the record until this file is deleted.
+
+<details><summary>original §4 text (superseded)</summary>
+
+## 4 (original). Population scale rework — work backwards from multiplanetary
 
 - If the game ends among the stars, population can't grow by a dozen or two per age. Proposal:
   **roughly 10× per age** ("or something akin to this — I am sure you will tell me some
@@ -75,6 +87,8 @@ this shit seriously now."
   administering an interplanetary civilization is a joke the game shouldn't accidentally tell.
   So the question isn't only *how do the numbers scale* — it's *when does the housing→growth
   verb retire, and what replaces it.*
+
+</details>
 
 ---
 
@@ -104,7 +118,9 @@ religion a *building chain*, a *person-type* (monks as units?), an *event layer*
 - Science pillar is the emptiest slot — worth deciding what it is *not* (probably not a
   research-tree clone of upgrades, or it's just Upgrades II).
 
-**Population scale (§4):**
+**Population scale (§4): ✅ RESOLVED — see design.md.** (Growth-timer math survives because
+numbers never inflate; retrofit is text + border migrations; compaction display never needed.)
+Original questions kept below for the record:
 - The free-growth timer doesn't survive 10×/age as-is (a settler every 45s cannot produce
   thousands); growth likely becomes proportional (a % per interval) or era-scaled batches
   ("a family arrives", "a village swears fealty"). The *feel* of arrivals-as-events is worth
@@ -117,8 +133,9 @@ religion a *building chain*, a *person-type* (monks as units?), an *event layer*
   stand at village scale and make the jump AT the Enlightenment transition (re-denominate:
   "your 30 become 300 households"), keeping the 10× rule forward-looking only?
 
-- The late addendum names something bigger than content lifecycle: **mechanics have lifecycles
-  too.** The manifest model retires *things* (a building, a resource, a job); retiring a *core
+- ✅ RESOLVED with §4: the verb re-denominates rather than retiring — the loop survives to
+  Kardashev. (Original note kept:) The late addendum names something bigger than content
+  lifecycle: **mechanics have lifecycles too.** The manifest model retires *things* (a building, a resource, a job); retiring a *core
   verb* (build housing → watch arrivals) is a new class of transition the architecture hasn't
   had to express yet. Precedent exists in miniature — growth already changed shape once
   (purchase → free timer) — but sunsetting a whole loop mid-game, without it feeling like

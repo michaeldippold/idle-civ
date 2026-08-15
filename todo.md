@@ -498,6 +498,17 @@ panel (buyable and queued stay on top, manifest order within each group), so wha
 purchasable is never buried under a pile of "Permanent." cards. DOM only reorders when ownership
 actually changes, preserving the create-once card pattern.
 
+**v15.2 — Converter rates in the ledger.** The resource bar now shows what's *actually happening*
+to each pile: `ledgerRates()` folds live converter flows into the displayed rates — outputs
+positive, inputs negative — using the same three clamps as `runConverters`, so a starved or
+storage-capped Forge honestly reads as stopped rather than advertising its theoretical speed
+(user call: the red number should scan as "problem" — and it does, via the existing pos/neg
+coloring). The input clamp counts incoming production alongside stock, so the designed 2:1-miner
+equilibrium displays as it deserves: copper and tin quietly netting zero while bronze flows at
++0.10/s. The simulation itself is untouched — `rates()` stays gross and `step()` unchanged;
+folding flows into the real rates would have converted everything twice. Iron era included free:
+steel shows its flow and wood shows mining minus the Forge's burn. 378 checks.
+
 **v15 — Adversaries & Expeditions (C2).** The game's first outward-facing verbs. The Iron Age
 declares three named neighbors — the warlike Hill Clans (weak, fight as a massed charge), the
 strong peaceful River Kingdom (deep gold, buys food), the middling Salt Nomads (buy iron) — each a

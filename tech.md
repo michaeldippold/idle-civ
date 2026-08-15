@@ -182,7 +182,7 @@ The Forge is a new building archetype: it *transforms* resources rather than pro
 2. by the inputs actually in store — partial rate when short, idle at zero,
 3. **by headroom under the output's cap**, so a full bronze store stops the Forge instead of quietly eating copper and tin for nothing.
 
-No worker assignment (see `design.md`), so it needs no `popCost` or job wiring. Note `rates()` reports *gross* mining output — Forge consumption is applied in `step()`, not folded into the ledger's copper/tin rates.
+No worker assignment (see `design.md`), so it needs no `popCost` or job wiring. `rates()` reports *gross* production (the simulation applies converters separately in `step()`), but the **ledger displays `ledgerRates()`**: gross plus live converter flows — outputs positive, inputs negative — computed with the same three clamps as `runConverters`, so a starved or output-capped Forge honestly displays as stopped rather than advertising its theoretical speed. The input clamp counts incoming production alongside stock, so a Forge fed at exactly its consumption rate (the designed equilibrium) reads steady instead of flickering. Negative flows pick up the ledger's existing red styling — a draining pile scans as a problem at a glance. Folding flows into `rates()` itself would double-convert; the split is deliberate.
 
 **The intended equilibrium**, which falls out of the numbers rather than being special-cased: copper mines at 0.20/s and tin at half that, so **2 copper miners : 1 tin miner** produce ore in exactly the 4:1 ratio the recipe consumes — no wasted ore — and **2 Forges** (0.05 bronze/s each) consume precisely that output. Verified live.
 

@@ -1003,9 +1003,10 @@ function caps() {
 
 // Gross production per second, per resource, plus the food upkeep line. Upkeep
 // is charged on total population (S.pop), which already includes Soldiers --
-// no separate formula needed for "units eat too." Note this reports what
-// workers dig up; the Forge's consumption is applied in step(), not here, so
-// the ledger's copper/tin rates read as gross mining output.
+// no separate formula needed for "units eat too." This reports what workers
+// dig up, EXCLUDING converters -- step() applies those separately via
+// runConverters. The ledger displays ledgerRates() (below), which folds the
+// converter flows back in for an honest what's-happening-to-the-pile view.
 function rates() {
   const m = mults();
   const prod = {};
@@ -1015,6 +1016,43 @@ function rates() {
   }
   const upkeep = S.pop * CONFIG.upkeep * (S.upgrades.fireMastery ? 0.85 : 1);
   return Object.assign(prod, { upkeep, foodNet: prod.food - upkeep });
+}
+
+// What each converter is actually running at RIGHT NOW, as net per-second
+// flows (+output, -input). Mirrors runConverters' three clamps. The input
+// clamp counts this second's incoming production alongside the stock, so a
+// Forge fed at exactly its consumption rate -- the designed equilibrium --
+// reads as running steadily instead of flickering with the stock's float
+// remainder.
+function converterFlows(prod) {
+  const c = caps();
+  const flows = {};
+  for (const def of active().buildings) {
+    if (!def.converts) continue;
+    const owned = S.builds[def.id] || 0;
+    if (owned <= 0) continue;
+    const spec = def.converts;
+    let batches = owned * spec.rate;
+    for (const k in spec.in)  batches = Math.min(batches, ((S.res[k] || 0) + (prod[k] || 0)) / spec.in[k]);
+    for (const k in spec.out) batches = Math.min(batches, ((c[k] || 0) - (S.res[k] || 0)) / spec.out[k]);
+    if (!(batches > 0)) continue;
+    for (const k in spec.in)  flows[k] = (flows[k] || 0) - spec.in[k] * batches;
+    for (const k in spec.out) flows[k] = (flows[k] || 0) + spec.out[k] * batches;
+  }
+  return flows;
+}
+
+// The LEDGER's view of rates: gross production plus converter flows -- what
+// is actually happening to each pile, same spirit as food's net line. The
+// simulation deliberately does NOT use this: step() applies production and
+// runConverters separately, and folding flows into rates() would convert
+// everything twice.
+function ledgerRates() {
+  const r = rates();
+  const flows = converterFlows(r);
+  for (const k in flows) r[k] += flows[k];
+  r.foodNet = r.food - r.upkeep;
+  return r;
 }
 
 // Population growth is a background process, not an event, and settlers are
@@ -1825,7 +1863,7 @@ function renderTile(container, prefix, id, icon, name, count) {
 // than being written into index.html, so adding a resource needs no markup change.
 function renderResources() {
   const bar = document.getElementById("resourceBar");
-  const r = rates();
+  const r = ledgerRates();   // production NET of converter flows -- see ledgerRates()
   const c = caps();
   const resources = active().resources;
   const any = resources.some((res) => S.res[res.id] > 0);

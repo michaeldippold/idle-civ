@@ -146,14 +146,17 @@ flagged *to be decided during implementation*.
 - [x] Campaign modal shows wall-power vs walls; adversary cards narrate damage state
       (battered / in ruin) — words, not numbers. Harness 404 checks, 20/20.
 
-**Unit re-denomination:**
-- [ ] `popNoun` + arrival line as inherited era-facts; Stone=settler(s) unchanged,
+**Unit re-denomination:** — ✅ **DONE** *(see What's Working, v17)*
+- [x] `popNoun` + arrival line as inherited era-facts; Stone=settler(s) unchanged,
       Bronze=family/families (1:1 relabel, pure text), Iron=holdfast(s).
-- [ ] Consolidation at iron entry: manifest `consolidate: { keep: ~0.7, narrate }` — floors
-      civilians and units consistently, rescales jobs, reconciles; THE flex dial for playtesting.
-- [ ] Noun-driven text: growth countdown, person tile, training popCost label, offline summary,
-      era-modal "you now count your people in…" derived line.
-- [ ] Harness + live verify both; docs; commit per feature.
+- [x] Consolidation at iron entry: manifest `consolidate: { keep: 0.7, narrate }` — floors
+      civilians and units consistently (never below deployed), rescales jobs, reconciles;
+      THE flex dial for playtesting. Never inherited; validator-checked.
+- [x] Noun-driven text: growth countdown, person tile, training popCost label, offline summary,
+      era-modal "You count your people in … now." derived line; game-over stat relabeled
+      "Arrivals welcomed" (it spans denominations).
+- [x] Harness (nouns, inheritance, consolidation math, deployed guard, validator) + full
+      two-border live verify — 422 checks, 20/20 runs.
 
 ### Next up
 - [ ] **Continue the `deleteme.md` debate** — §2 (siege) and §4 (scale) resolved and promoted;
@@ -518,6 +521,19 @@ factual lists derive from the manifest diff so they can never lie. Full contract
 (Settled But Not Yet Built); rationale in `design.md` (The Era Manifest Model). Sequenced as
 parity-refactor → transition machinery → Iron Age, so engine risk and content risk never travel
 together. Documentation-only milestone — no code changed.
+
+**v17 — Unit re-denomination.** The population ladder is live: what one unit *means* now scales
+while the number never does. Stone counts settlers; the Bronze transition relabels them 1:1
+("You count your people in families now." — pure text, proven pacing untouched); the Iron
+transition **consolidates** — `consolidate: { keep: 0.7 }` on the delta, the playtest flex dial —
+floored per unit type (never below what's deployed abroad), civilians and units summed back into
+pop so the books can't desync, jobs floored alongside, all narrated: "Families band together
+behind shared walls — your people now count themselves in holdfasts." Every noun-bearing surface
+reads from the manifest now: the person tile (Settler/Family/Holdfast), the growth countdown
+("Next holdfast joins in 45s."), arrival lines ("A holdfast swears fealty to your banner."),
+training costs, the offline summary, and a diff-derived era-modal line. Verified live across both
+borders in one run: 10 settlers → 12 families (growth during the build) → snapshot 23 families →
+14 holdfasts. 422 checks, 20/20 runs.
 
 **v16 — Siege & Fortifications.** Adversaries carry a second number beside strength — `walls` —
 and combat now sequences: the walls fall before a single defender does. Wall damage **persists**

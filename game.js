@@ -283,6 +283,11 @@ const STONE = {
   name: "Stone Age",
   housingPerHut: 3,
   panelTitles: { "panel-holdings": "Settlement" },
+  // What one unit of population MEANS this era (see design.md, Unit
+  // Re-denomination): the number on screen stays small forever; this noun is
+  // what scales. Inherited unless an era re-denominates.
+  popNoun: { singular: "settler", plural: "settlers" },
+  arrivalLine: "A wanderer joins your settlement.",
 
   resources: [
     { id: "food",  name: "Food",  baseCap: 50, capBuilding: "granary"  },
@@ -428,6 +433,10 @@ const BRONZE_DELTA = {
   name: "Bronze Age",
   housingPerHut: 5,
   panelTitles: { "panel-holdings": "Village" },
+  // The first re-denomination is a pure 1:1 relabel: your settlers started
+  // families. Counts, thresholds and balance are untouched -- only the words.
+  popNoun: { singular: "family", plural: "families" },
+  arrivalLine: "A family seeks shelter here, and stays.",
 
   remove: ["bronzeAge"],
 
@@ -557,6 +566,15 @@ const IRON_DELTA = {
   // "Underway": once the world opens, the queue panel tracks more than
   // builds -- marching columns and caravans render there too (see renderQueue).
   panelTitles: { "panel-holdings": "Town", "panel-queue": "Underway" },
+  popNoun: { singular: "holdfast", plural: "holdfasts" },
+  arrivalLine: "A holdfast swears fealty to your banner.",
+  // The first real consolidation (see design.md): generous, floored, and THE
+  // flex dial for playtest pacing. keep 0.7 reads as "for every 5, you get 3
+  // or 4." Never inherited -- each border decides its own ratio.
+  consolidate: {
+    keep: 0.7,
+    narrate: "Families band together behind shared walls — your people now count themselves in holdfasts.",
+  },
 
   remove: [
     "copper", "tin", "bronze",            // the alloy economy, wholesale
@@ -733,8 +751,11 @@ function compileBase(raw) {
     name: raw.name,
     housingPerHut: raw.housingPerHut,
     panelTitles: Object.assign({}, raw.panelTitles),
+    popNoun: Object.assign({}, raw.popNoun),
+    arrivalLine: raw.arrivalLine,
     raidTypes: raw.raidTypes.slice(),
     migrations: [],   // a base era is never entered FROM anywhere
+    consolidate: null,
     // Wholesale like the slates, never inherited: each age's world arrives
     // fresh, with fresh stocks, by construction.
     adversaries: (raw.adversaries || []).map((a) => Object.assign({}, a)),
@@ -749,11 +770,17 @@ function extendEra(parent, delta) {
     name: delta.name || parent.name,
     housingPerHut: delta.housingPerHut != null ? delta.housingPerHut : parent.housingPerHut,
     panelTitles: Object.assign({}, parent.panelTitles, delta.panelTitles),
+    // The population noun inherits (Silicon keeps Bloc); an era that
+    // re-denominates simply declares a new one.
+    popNoun: delta.popNoun ? Object.assign({}, delta.popNoun) : parent.popNoun,
+    arrivalLine: delta.arrivalLine || parent.arrivalLine,
     raidTypes: delta.raidTypes ? delta.raidTypes.slice() : parent.raidTypes,
     // Explicit state-migration instructions, run once when this era is
     // ENTERED (see runEraMigrations). Never inherited: a migration describes
     // one specific transition, not a standing rule.
     migrations: (delta.migrations || []).slice(),
+    // Consolidation is per-border, never inherited (see applyConsolidation).
+    consolidate: delta.consolidate ? Object.assign({}, delta.consolidate) : null,
     adversaries: (delta.adversaries || []).map((a) => Object.assign({}, a)),
   };
   const removes = new Set(delta.remove || []);
@@ -861,6 +888,13 @@ function validateManifests(manifests) {
         bad(`migration targets unknown bucket "${ins.bucket}"`);
       }
       if (!ins.vanish && !ins.convertTo && !ins.fn) bad(`migration for ${ins.id} has no primitive (vanish/convertTo/fn)`);
+    }
+    if (!m.popNoun || typeof m.popNoun.singular !== "string" || typeof m.popNoun.plural !== "string") {
+      bad(`missing or malformed popNoun`);
+    }
+    if (!m.arrivalLine) bad(`missing arrivalLine`);
+    if (m.consolidate && !(m.consolidate.keep > 0 && m.consolidate.keep <= 1)) {
+      bad(`consolidate.keep must be in (0, 1]`);
     }
     for (const a of m.adversaries) {
       if (!a.id || !a.name || !a.disposition || !(a.strength > 0)) bad(`adversary ${a.id || "?"} missing id/name/disposition/strength`);
@@ -1107,9 +1141,12 @@ function accrueGrowth(dt) {
     S.growth -= CONFIG.settlerIntervalSeconds;
     S.pop += 1;
     S.bought += 1;
-    if (!SIM) log("A wanderer joins your settlement.", "good");
+    // What "one more" means -- and how it's told -- is an era-fact.
+    if (!SIM) log(active().arrivalLine, "good");
   }
 }
+
+function capWord(w) { return w.charAt(0).toUpperCase() + w.slice(1); }
 
 // How many of this building/upgrade/unit are already owned or waiting in the
 // queue -- keeps escalating prices (and one-time/capped limits) honest even
@@ -1859,6 +1896,7 @@ function advanceEra(era) {
   console.log(`[pacing] ${toM.name} began at ${fmtTime(S.playtime)}`);
   initAdversaries();
   runEraMigrations(fromM, toM, S.eraHistory[fromEra]);
+  if (toM.consolidate) applyConsolidation(toM.consolidate);
   purgeDom(fromM, toM);
   reconcileWorkforce();
 
@@ -1904,6 +1942,25 @@ function runEraMigrations(fromM, toM, snapshot) {
     }
     if (ins.narrate) log(ins.narrate);
   }
+}
+
+// The re-denomination consolidation (see design.md, Unit Re-denomination):
+// entering an era whose units mean more, your people gather into fewer of
+// them. Civilians and each unit type floor independently against the keep
+// ratio (units never below what's currently deployed -- a column abroad
+// can't be consolidated out from under its own expedition), pop is rebuilt
+// as their sum so the books can't desync, and job assignments floor along
+// with them; advanceEra's reconcileWorkforce() sweeps up any remainder.
+function applyConsolidation(spec) {
+  const civBefore = civilians();
+  let unitTotal = 0;
+  for (const id in S.units) {
+    S.units[id] = Math.max(deployedCount(id), Math.floor((S.units[id] || 0) * spec.keep));
+    unitTotal += S.units[id];
+  }
+  S.pop = Math.max(1, Math.floor(civBefore * spec.keep)) + unitTotal;
+  for (const j in S.jobs) S.jobs[j] = Math.floor((S.jobs[j] || 0) * spec.keep);
+  if (spec.narrate) log(spec.narrate);
 }
 
 // Remove the DOM nodes of every id that didn't survive the era hop -- cards,
@@ -2032,7 +2089,7 @@ function renderResources() {
 
 function renderPeople() {
   const tiles = document.getElementById("personTiles");
-  renderTile(tiles, "ptile-", "settler", PERSON_ICONS.settler, "Settler", civilians());
+  renderTile(tiles, "ptile-", "settler", PERSON_ICONS.settler, capWord(active().popNoun.singular), civilians());
   for (const def of active().units) {
     if (!isRevealed(def)) continue;
     renderTile(tiles, "ptile-", def.id, PERSON_ICONS[def.id] || "", def.name, S.units[def.id] || 0);
@@ -2046,7 +2103,7 @@ function renderPeople() {
     gl.innerHTML = "Housing is full — no one new can settle here.";
   } else {
     const remaining = Math.max(0, CONFIG.settlerIntervalSeconds - S.growth);
-    gl.innerHTML = `Next settler arrives in <span class="cost">${Math.ceil(remaining)}s</span>.`;
+    gl.innerHTML = `Next ${active().popNoun.singular} joins in <span class="cost">${Math.ceil(remaining)}s</span>.`;
   }
 
   const list = document.getElementById("jobList");
@@ -2329,7 +2386,8 @@ function renderTraining() {
     });
     if (def.popCost) {
       const short = idle() < def.popCost;
-      costParts.push(`<span class="${short ? "short" : ""}">${def.popCost} settler${def.popCost > 1 ? "s" : ""}</span>`);
+      const noun = def.popCost > 1 ? active().popNoun.plural : active().popNoun.singular;
+      costParts.push(`<span class="${short ? "short" : ""}">${def.popCost} ${noun}</span>`);
     }
     card.innerHTML =
       `<div class="b-top"><span class="b-name">${def.name}</span>` +
@@ -2687,6 +2745,9 @@ function openEraModal(era, before) {
   // "What changed": renames, era-scoped value shifts, and new resources/jobs
   // (which have no buy-card, so they'd otherwise go unannounced).
   const changes = diff.renamed.map((r) => `The ${r.from.name} is now the ${r.to.name}.`);
+  if (prevM && prevM.popNoun.plural !== m.popNoun.plural) {
+    changes.push(`You count your people in ${m.popNoun.plural} now.`);
+  }
   if (before.housing !== housing()) changes.push(`Housing rises from ${before.housing} to ${housing()}.`);
   if (prevM) {
     for (const panelId in m.panelTitles) {
@@ -2743,7 +2804,7 @@ function openGameOverModal(cause) {
       `<div>Time survived: <span class="s-val">${fmtTime(S.playtime || 0)}</span></div>` +
       `<div>Age reached: <span class="s-val">${active().name}</span></div>` +
       `<div>Buildings raised: <span class="s-val">${built}</span></div>` +
-      `<div>Settlers grown: <span class="s-val">${S.bought}</span></div>` +
+      `<div>Arrivals welcomed: <span class="s-val">${S.bought}</span></div>` +
     `</div>`;
   openModal("The Settlement Has Fallen", `<p class="modal-lead">${lead}</p>${stats}`, [
     { label: "Try Again", onClick: hardReset },
@@ -2867,7 +2928,7 @@ function simulateOffline() {
   if (g.food > 0) parts.push(`${g.food} food`);
   if (g.wood > 0) parts.push(`${g.wood} wood`);
   if (g.stone > 0) parts.push(`${g.stone} stone`);
-  if (g.pop > 0) parts.push(`${g.pop} new settler${g.pop > 1 ? "s" : ""}`);
+  if (g.pop > 0) parts.push(`${g.pop} new ${g.pop > 1 ? active().popNoun.plural : active().popNoun.singular}`);
   else if (g.pop < 0) parts.push(`${-g.pop} lost while you were away`);
   const mins = Math.floor(capped / 60);
   if (SIM_STOP) {

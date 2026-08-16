@@ -36,6 +36,8 @@ const CONFIG = {
   counterCasualtyRelief: 0.5,  // how much a fully-countered raid softens the costly-repel roll
   campaignFoodCost: 30,        // provisions paid up front when a campaign marches
   plunderFraction: 0.4,        // share of each stock resource a victorious campaign carries home
+  siegeWallBonus: 6,           // siege engines hit walls at this multiple of their strength
+  wallRetreatLoss: 0.35,       // chance a failed breach costs one fighter (before armor)
   caravanRaidChance: 0.25,     // chance a caravan is lost en route while any warlike neighbor is Hostile
   hostileConflictMult: 1.5,    // home-raid frequency multiplier per Hostile warlike neighbor
   offlineCapHours: 4,
@@ -612,6 +614,12 @@ const IRON_DELTA = {
         base: { wood: 60, stone: 30, iron: 20 }, scale: 1.5, buildTime: 35,
         reveal: () => true,
       },
+      {
+        id: "siegeWorkshop", name: "Siege Workshop", kind: "building", cap: 1,
+        desc: "Lets your people build and crew Siege Engines.",
+        base: { wood: 50, stone: 40, iron: 15 }, scale: 1.5, buildTime: 30,
+        reveal: () => S.builds.barracks >= 1,
+      },
     ],
     upgrades: [
       {
@@ -633,6 +641,18 @@ const IRON_DELTA = {
         reveal: () => S.builds.barracks >= 1,
       },
     ],
+    units: [
+      {
+        // `siege: true` is the wall-power flag (see wallPower). In the field
+        // and at home it's an ordinary unit -- the machine is only special
+        // against stone.
+        id: "siegeEngine", name: "Siege Engine", kind: "unit", popCost: 1,
+        strength: 1.0, siege: true, casualtyWeight: 0.5,
+        desc: "Engineers and their machine. Tears down walls like nothing else; fights and defends like anyone else.",
+        base: { wood: 45, stone: 30, iron: 12 }, buildTime: 30,
+        reveal: () => S.builds.siegeWorkshop >= 1,
+      },
+    ],
   },
 
   // The collapse, narrated. Bronze -- suddenly antique -- sells to
@@ -652,26 +672,31 @@ const IRON_DELTA = {
   // fresh stocks, by construction. The manifest entry is the template; the
   // living remnant (depleting stock, standing) lives in S.adversaries.
   // `fightsAs` names a raid type, so unit counters point outward for free.
+  // `walls` is the second static number beside strength: fortification that
+  // must fall before any defender does (see resolveCampaign). Damage to it
+  // PERSISTS in the living remnant. The fort tier is told through the desc --
+  // laager / palisade / castle -- per the flavor-is-load-bearing law, and
+  // deliberately cross-cuts disposition so the slate doesn't template.
   adversaries: [
     {
       id: "hillClans", name: "the Hill Clans", disposition: "warlike",
-      strength: 9, fightsAs: "massed", campaignTime: 90,
+      strength: 9, walls: 5, fightsAs: "massed", campaignTime: 90,
       stock: { food: 120, wood: 90, iron: 60, gold: 15 },
-      desc: "Raiders in the high passes — weak alone, bold when your walls look thin.",
+      desc: "Raiders in the high passes — weak alone, bold when your walls look thin. Their seat crouches behind a rough timber palisade.",
     },
     {
       id: "riverKingdom", name: "the River Kingdom", disposition: "peaceful",
-      strength: 32, fightsAs: "riders", campaignTime: 120, caravanTime: 75,
+      strength: 32, walls: 26, fightsAs: "riders", campaignTime: 120, caravanTime: 75,
       stock: { food: 250, steel: 25, gold: 240 },
       buys: { res: "food", amount: 60, pays: 15 },
-      desc: "A fortified state downriver, rich beyond counting and always hungry — they pay gold for food.",
+      desc: "A state downriver, rich beyond counting and always hungry — they pay gold for food. Its heart is a stone-walled castle on the bluffs.",
     },
     {
       id: "saltNomads", name: "the Salt Nomads", disposition: "peaceful",
-      strength: 13, fightsAs: "riders", campaignTime: 75, caravanTime: 60,
+      strength: 13, walls: 2, fightsAs: "riders", campaignTime: 75, caravanTime: 60,
       stock: { food: 90, iron: 30, gold: 80 },
       buys: { res: "iron", amount: 40, pays: 12 },
-      desc: "Wandering herders with no mines of their own — they pay gold for iron.",
+      desc: "Wandering herders with no mines of their own — they pay gold for iron. At night they circle their wagons into a laager; they build no walls.",
     },
   ],
 
@@ -839,6 +864,7 @@ function validateManifests(manifests) {
     }
     for (const a of m.adversaries) {
       if (!a.id || !a.name || !a.disposition || !(a.strength > 0)) bad(`adversary ${a.id || "?"} missing id/name/disposition/strength`);
+      if (a.walls != null && !(a.walls >= 0)) bad(`adversary ${a.id} has malformed walls`);
       if (a.fightsAs && !raidIds.has(a.fightsAs)) bad(`adversary ${a.id} fights as "${a.fightsAs}", not a raid type this era`);
       if (!(a.campaignTime > 0)) bad(`adversary ${a.id} has no campaignTime`);
       for (const k in a.stock || {}) if (!resIds.has(k)) bad(`adversary ${a.id} stocks "${k}", not a resource this era`);
@@ -893,6 +919,7 @@ const BUILDING_ICONS = {
   ironYard:   `<svg ${ICON_ATTRS}><path d="M4 20 H20 M6 20 V14 H18 V20 M8 14 V10 H16 V14"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/></svg>`,
   treasury:   `<svg ${ICON_ATTRS}><rect x="4" y="8" width="16" height="12" rx="1"/><path d="M4 12 H20 M12 12 V15"/><path d="M8 8 V6 A4 3 0 0 1 16 6 V8"/></svg>`,
   musterGround: `<svg ${ICON_ATTRS}><path d="M6 21 V4 M6 4 H17 L14 7.5 L17 11 H6"/><path d="M4 21 H10"/></svg>`,
+  siegeWorkshop: `<svg ${ICON_ATTRS}><path d="M4 20 H20 M6 20 L12 8 L18 20"/><path d="M12 8 L12 4 L16 6"/><circle cx="9" cy="20" r="1.5"/><circle cx="15" cy="20" r="1.5"/></svg>`,
 };
 // Tiny queue-card type markers: hammer = build, sword = campaign,
 // coins = caravan. Subtle by design -- the card text carries the verb, the
@@ -908,6 +935,7 @@ const PERSON_ICONS = {
   soldier: `<svg ${ICON_ATTRS}><circle cx="10" cy="7" r="3"/><path d="M4.5 20 C4.5 13 7 11 10 11 C13 11 15 13 15 20"/><path d="M8 3 L20 21"/></svg>`,
   archer:  `<svg ${ICON_ATTRS}><circle cx="9" cy="6" r="2.6"/><path d="M4 20 C4 14 6 12 9 12 C12 12 14 14 14 20"/><path d="M17 3 A11 11 0 0 1 17 19"/><path d="M17 3 L17 19 M17 11 H10"/></svg>`,
   horseman:`<svg ${ICON_ATTRS}><circle cx="9" cy="4.5" r="2.2"/><path d="M6 11 C6 8 7.5 7 9 7 C10.5 7 12 8 12 11"/><path d="M3 20 V16 C3 14 5 13 8 13 H14 L18 10 V13 C18 13 20 14 20 16 V20"/><path d="M7 20 V17 M16 20 V17"/></svg>`,
+  siegeEngine:`<svg ${ICON_ATTRS}><path d="M4 20 H20 M7 20 V14 H17 V20"/><path d="M9 14 L15 4 M15 4 L18 7 M15 4 L11 5"/><circle cx="9" cy="20" r="1.5"/><circle cx="15" cy="20" r="1.5"/></svg>`,
 };
 
 // ---------- State -------------------------------------------
@@ -932,9 +960,9 @@ function freshState() {
     jobs:  { forager: 0, woodcutter: 0, miner: 0, copperMiner: 0, tinMiner: 0, ironMiner: 0 },
     builds:{ hut: 0, woodshed: 0, granary: 0, stoneYard: 0, dryingRack: 0, lumberCamp: 0, stonePit: 0,
              infirmary: 0, barracks: 0, oreYard: 0, forge: 0, archeryRange: 0, stables: 0,
-             ironYard: 0, treasury: 0, musterGround: 0 },
+             ironYard: 0, treasury: 0, musterGround: 0, siegeWorkshop: 0 },
     // Trained person-types owned; separate from builds -- renders in Your People.
-    units: { soldier: 0, archer: 0, horseman: 0 },
+    units: { soldier: 0, archer: 0, horseman: 0, siegeEngine: 0 },
     upgrades: {},     // { [upgradeId]: true } -- presence means owned, one-time
     buildQueue: [],   // FIFO: [{ id, kind, uid, total, remaining, cost }, ...] -- only [0] progresses
     buildSeq: 0,
@@ -1442,6 +1470,19 @@ function campaignStrength(unitCounts, adv) {
   return attack;
 }
 
+// What the column brings against stone: everyone can storm a wall (badly);
+// units flagged `siege: true` hit it at CONFIG.siegeWallBonus times their
+// strength. No counter bonuses -- walls have no fighting style.
+function wallPower(unitCounts) {
+  let power = 0;
+  for (const uid in unitCounts) {
+    const def = active().units.find((u) => u.id === uid);
+    if (!def) continue;
+    power += unitCounts[uid] * (def.strength || 1) * weaponMultiplier() * (def.siege ? CONFIG.siegeWallBonus : 1);
+  }
+  return power;
+}
+
 // Shared allocation check for any expedition carrying units.
 function validUnitCounts(unitCounts) {
   for (const uid in unitCounts) {
@@ -1512,9 +1553,32 @@ function removeDeployedUnit(ex) {
 function totalDeployed(ex) { return Object.values(ex.units || {}).reduce((a, b) => a + b, 0); }
 
 function resolveCampaign(ex, adv, st) {
+  bumpStanding(st, -1);   // plunder is not diplomacy, win or lose -- or repelled at the walls
+
+  // THE BREACH PHASE: walls fall before any defender does. Damage persists in
+  // the living remnant -- the scars your engines carve stay carved, and a
+  // breached wall stays breached for the era. A failed breach is a retreat
+  // with light losses: walls repel, they don't massacre.
+  if ((st.walls || 0) > 0) {
+    const power = wallPower(ex.units);
+    const fresh = st.walls >= (adv.walls || 0);
+    if (power < st.walls) {
+      st.walls -= power;
+      log(`The walls of ${adv.name} hold. Your column withdraws in good order — but its work is carved into the stone.`, "bad");
+      if (Math.random() < CONFIG.wallRetreatLoss * armorFactor()) {
+        const lost = removeDeployedUnit(ex);
+        if (lost) log(`A ${lost} falls beneath the walls.`, "bad");
+      }
+      return;
+    }
+    st.walls = 0;
+    log(fresh
+      ? `The walls of ${adv.name} come down in a single furious assault.`
+      : `The battered walls of ${adv.name} finally give way.`, "big");
+  }
+
   const attack = campaignStrength(ex.units, adv);
   const winChance = attack / (attack + adv.strength);
-  bumpStanding(st, -1);   // plunder is not diplomacy, win or lose
 
   if (Math.random() < winChance) {
     const takes = [];
@@ -2319,6 +2383,14 @@ function stockLine(st) {
     .map((k) => `${Math.floor(st.stock[k])} ${k}`).join(", ");
   return s ? `Known stock: ${s}.` : "Nothing left worth taking.";
 }
+// Wall damage is narrated, never numbered, on the card -- the numbers live in
+// the campaign modal where the muster math already does.
+function wallsState(adv, st) {
+  if (!(adv.walls > 0)) return "";
+  if (st.walls <= 0) return " Their walls lie in ruin.";
+  if (st.walls < adv.walls) return " Their walls are battered.";
+  return "";
+}
 
 // Stepper rows shared by the campaign and caravan modals. `prefix` keeps the
 // two modals' element ids distinct; wiring clamps against live availability
@@ -2383,8 +2455,11 @@ function openCampaignModal(advId) {
       const total = refreshMusterRows("cm");
       const est = document.getElementById("cmEstimate");
       if (est) {
+        const wallsBit = st.walls > 0
+          ? ` Their walls stand at ${Math.ceil(st.walls)} — your column brings wall-power ${wallPower(muster).toFixed(1)}.`
+          : "";
         est.textContent = total < 1 ? "Muster at least one fighter."
-          : `Your ${total} march at strength ${campaignStrength(muster, adv).toFixed(1)}, against theirs of ${adv.strength}.`;
+          : `Your ${total} march at strength ${campaignStrength(muster, adv).toFixed(1)}, against theirs of ${adv.strength}.${wallsBit}`;
       }
       const march = confirmButton();
       if (march) march.disabled = S.dead || total < 1 ||
@@ -2484,7 +2559,7 @@ function renderExpeditions() {
       `${adv.disposition} · ${standingWord(st.standing)}`;
     document.getElementById(`advdesc-${adv.id}`).textContent =
       `${adv.desc} Strength ${adv.strength}, fights as ${fightsAsLabel(adv)}.`;
-    document.getElementById(`advstock-${adv.id}`).textContent = stockLine(st);
+    document.getElementById(`advstock-${adv.id}`).textContent = stockLine(st) + wallsState(adv, st);
 
     const march = document.getElementById(`advmarch-${adv.id}`);
     march.textContent = `March (${CONFIG.campaignFoodCost} food, ${adv.campaignTime}s)`;
@@ -2762,7 +2837,10 @@ function load() {
 function initAdversaries() {
   for (const adv of active().adversaries) {
     if (!S.adversaries[adv.id]) {
-      S.adversaries[adv.id] = { stock: Object.assign({}, adv.stock), standing: 0 };
+      S.adversaries[adv.id] = { stock: Object.assign({}, adv.stock), standing: 0, walls: adv.walls || 0 };
+    } else if (S.adversaries[adv.id].walls === undefined) {
+      // Saves from before fortifications existed get their walls raised once.
+      S.adversaries[adv.id].walls = adv.walls || 0;
     }
   }
 }

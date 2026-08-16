@@ -135,14 +135,16 @@ flagged *to be decided during implementation*.
 
 ### In progress: Scale & Siege pack (settled 2026-08-15; see design.md)
 
-**Siege & Fortifications:**
-- [ ] Adversary `walls` number (living state in `S.adversaries`, seeded at init, damage persists);
-      breach phase sequenced before the field battle; failed breach = retreat with ≤1 loss.
-- [ ] Siege Engine unit (wall-power multiplier, ordinary otherwise) + cap-1 Siege Workshop.
-- [ ] Iron adversary fort flavor: Nomads' wagon laager (weak), Clans' timber palisade (mid),
-      Kingdom's stone-walled castle (the wall-check). Breach/grind/one-shot Chronicle lines.
-- [ ] Campaign modal shows wall-power vs walls; adversary cards narrate damage state
-      (battered / in ruin) — words, not numbers.
+**Siege & Fortifications:** — ✅ **DONE** *(see What's Working, v16)*
+- [x] Adversary `walls` number (living state in `S.adversaries`, seeded at init + legacy-patched,
+      damage persists); breach phase sequenced before the field battle; failed breach = retreat
+      with at most one armor-softened loss.
+- [x] Siege Engine unit (`siege: true`, ×6 wall-power, ordinary otherwise incl. home defense) +
+      cap-1 Siege Workshop (barracks-gated).
+- [x] Iron adversary fort flavor: Nomads' wagon laager (2), Clans' timber palisade (5), Kingdom's
+      stone-walled castle (26 — the wall-check). One-shot vs finally-gave-way Chronicle lines.
+- [x] Campaign modal shows wall-power vs walls; adversary cards narrate damage state
+      (battered / in ruin) — words, not numbers. Harness 404 checks, 20/20.
 
 **Unit re-denomination:**
 - [ ] `popNoun` + arrival line as inherited era-facts; Stone=settler(s) unchanged,
@@ -516,6 +518,18 @@ factual lists derive from the manifest diff so they can never lie. Full contract
 (Settled But Not Yet Built); rationale in `design.md` (The Era Manifest Model). Sequenced as
 parity-refactor → transition machinery → Iron Age, so engine risk and content risk never travel
 together. Documentation-only milestone — no code changed.
+
+**v16 — Siege & Fortifications.** Adversaries carry a second number beside strength — `walls` —
+and combat now sequences: the walls fall before a single defender does. Wall damage **persists**
+in the living remnant (stock-not-economy, extended to stone): a failed assault is a retreat with
+at most one loss, but the scars stay carved, so hard targets become sagas — live-verified as one:
+wall-power 16 vs the Kingdom's castle at 26 bounced but left it at 10; the second column breached
+("The battered walls of the River Kingdom finally give way."), won the field, and carried home 96
+gold at the price of one Soldier. Siege Engines train behind a cap-1 Siege Workshop, hit walls at
+×6, and are ordinary units everywhere else, home defense included. Fort tiers are pure flavor per
+the law — the Nomads' wagon laager, the Clans' timber palisade, the Kingdom's stone-walled castle
+— cross-cutting disposition so the slate doesn't template. Cards narrate damage ("Their walls are
+battered" / "lie in ruin"); the campaign modal carries the numbers. 404 checks, 20/20 runs.
 
 **v15.1 — QoL from live testing:** owned one-time upgrades sort to the bottom of the Upgrades
 panel (buyable and queued stay on top, manifest order within each group), so what's still

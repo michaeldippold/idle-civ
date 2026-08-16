@@ -7,7 +7,31 @@
 
 ---
 
-## 1. Religion & monks — land in the IRON AGE, not Enlightenment
+## 1. Religion & monks — ⏳ IN PROGRESS (debated 2026-08-15, NOT settled)
+
+**Gist of the debate so far — tentative agreements:**
+- Morale framework (conditional yes, reversing the Dispatch verdict): must be **derived, never
+  tended** (computed from durable choices, no bar to feed); **narrated, never metered** (a word
+  and Chronicle lines, no percentage); **standing-shaped** — few discrete threshold consequences,
+  each one an event the Chronicle can narrate ("a family slips away in the night"), never
+  continuous multipliers; **both-edged** (every state offers something; no death spirals);
+  **era-gated** (arrives when units are Cities and "the people" are an abstraction).
+- Flavor-only morale REJECTED by our own law: flavor is load-bearing, so morale text that hints
+  at nothing would be a lie of implication.
+- **Religion = generation one of the feeling-of-the-people system**: faith at holdfast scale in
+  Iron, secularized into public opinion in the Enlightenment, laws replacing rites as the levers.
+- The "benevolent leader vs iron fist" sketch was diagnosed as *laws, not morale* (input vs
+  output) — rescued as the first mutually exclusive law pair for the Enlightenment.
+- Conversion check deferred to religion v2: needs a designed outcome (tributary? vassal?) and a
+  real failure cost (martyrdom: monks lost, standing craters).
+
+**Proposed but UNSATISFYING (do not implement):** the monk-as-expedition-attaché skeleton
+(religious building → monk unit via barracks pattern → hinted bonuses on campaigns/trade; home
+faith value narration-only in Iron). User sat with it and remains unconvinced — revisit fresh.
+
+<details><summary>original §1 text</summary>
+
+## 1 (original). Religion & monks — land in the IRON AGE, not Enlightenment
 
 - Monks and religion get built into the **current** age. Mechanism deliberately unspecified
   tonight — "I have some ideas on how it could work with minimal engine impact, but we can do
@@ -18,6 +42,8 @@
 - (Coherence note: this is exactly the content-lifecycle shape the manifest architecture was
   built for — arrive, carry with overrides, retire with narrated migrations. Religion would be
   the first content designed *from birth* with its whole lifespan in view.)
+
+</details>
 
 ## 2. Siege engines & castle defense — ✅ RESOLVED (2026-08-15)
 

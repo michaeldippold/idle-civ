@@ -133,11 +133,31 @@ flagged *to be decided during implementation*.
 - [ ] Pacing: Iron targets very roughly 30–45 min beyond Bronze. Measured baseline (2026-08-14):
       ~15 min to Bronze training, ~40 min to clear Bronze — early-age clip feels right, preserve it.
 
+### In progress: Scale & Siege pack (settled 2026-08-15; see design.md)
+
+**Siege & Fortifications:**
+- [ ] Adversary `walls` number (living state in `S.adversaries`, seeded at init, damage persists);
+      breach phase sequenced before the field battle; failed breach = retreat with ≤1 loss.
+- [ ] Siege Engine unit (wall-power multiplier, ordinary otherwise) + cap-1 Siege Workshop.
+- [ ] Iron adversary fort flavor: Nomads' wagon laager (weak), Clans' timber palisade (mid),
+      Kingdom's stone-walled castle (the wall-check). Breach/grind/one-shot Chronicle lines.
+- [ ] Campaign modal shows wall-power vs walls; adversary cards narrate damage state
+      (battered / in ruin) — words, not numbers.
+
+**Unit re-denomination:**
+- [ ] `popNoun` + arrival line as inherited era-facts; Stone=settler(s) unchanged,
+      Bronze=family/families (1:1 relabel, pure text), Iron=holdfast(s).
+- [ ] Consolidation at iron entry: manifest `consolidate: { keep: ~0.7, narrate }` — floors
+      civilians and units consistently, rescales jobs, reconciles; THE flex dial for playtesting.
+- [ ] Noun-driven text: growth countdown, person tile, training popCost label, offline summary,
+      era-modal "you now count your people in…" derived line.
+- [ ] Harness + live verify both; docs; commit per feature.
+
 ### Next up
-- [ ] **Debate `deleteme.md`** — pre-decision ideation logged 2026-08-15 (religion in Iron with a
-      multi-age decay arc; siege engines + adversary castle defense; Enlightenment = science +
-      laws/mutually-exclusive upgrades + maybe morale; ~10×-per-age population scale rework).
-      Promote survivors into design.md/tech.md as real decisions, then delete the file.
+- [ ] **Continue the `deleteme.md` debate** — §2 (siege) and §4 (scale) resolved and promoted;
+      §1 (religion/morale) IN PROGRESS — framework gisted, monk-attaché skeleton proposed but
+      unsatisfying, revisit fresh; §3 (Enlightenment) still to be discussed. Delete the file when
+      empty of live questions.
 - [ ] Playtest the whole build for feel now that the Stone Age content pack has landed — Herbal
       Medicine/Stone Tools/Stone Yard cost-and-effect numbers are all first-guess like everything
       else in `CONFIG`, deliberately tuned toward "too hard, walk it back" per standing principle.

@@ -60,6 +60,24 @@
   --dots:  radial-gradient(rgba(25,23,16,.19) 1px, transparent 1px);
   --rules: repeating-linear-gradient(to bottom, transparent 0, transparent 27px, rgba(25,23,16,.11) 27px, rgba(25,23,16,.11) 28px);
 
+  /* Cork, for the one column that is about PEOPLE rather than paperwork. It is
+     a different material rather than a different ruling, which is the point:
+     People and Training are where you move bodies around, and a pinboard is
+     what that looks like in an office. Everything on it -- person tiles, job
+     rows, unit cards -- is already an opaque box, so they read as cards pinned
+     to it.
+     Built from four speckle layers at deliberately coprime tile sizes; equal or
+     harmonic sizes would beat against each other and show an obvious repeat.
+     No pins or curled corners: decorative detail that carries no information is
+     exactly what this project's restraint rule forbids. */
+  --cork-bg: #cdb28a;
+  --cork: radial-gradient(rgba(94,66,38,.20) .9px, transparent 1px),
+          radial-gradient(rgba(120,86,50,.26) 1.2px, transparent 1.3px),
+          radial-gradient(rgba(150,113,72,.20) 1.6px, transparent 1.7px),
+          radial-gradient(rgba(168,133,90,.28) 2.2px, transparent 2.3px);
+  --cork-size: 17px 29px, 23px 21px, 37px 31px, 53px 47px;
+  --cork-pos:  0 0, 11px 7px, 5px 13px, 27px 19px;
+
   /* --- type. Three registers, per DESIGN-NOTES. --- */
   --ui:    "Space Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono:  "Space Mono", "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
@@ -324,9 +342,23 @@ button { font-family: inherit; cursor: pointer; }
    everything with words in it sits in an opaque box on top. */
 .ruled-graph { background-image: var(--graph); }
 .ruled-dot   { background-image: var(--dots); background-size: 14px 14px; background-position: 0 0; }
+.ruled-cork  {
+  background-color: var(--cork-bg);
+  background-image: var(--cork);
+  background-size: var(--cork-size);
+  background-position: var(--cork-pos);
+}
 
 /* ---------- People ---------- */
-.growthline { font-size: 12px; color: var(--text-2); margin-bottom: 11px; min-height: 16px; }
+/* Backed for the same reason as the empty states: it is loose prose, and the
+   cork behind it is a texture, not a ruling. */
+.growthline {
+  display: inline-block;
+  background: var(--paper);
+  padding: 2px 7px;
+  font-size: 12px; color: var(--text-2);
+  margin: 0 0 11px -7px; min-height: 16px;
+}
 .growthline .cost { font-family: var(--mono); color: var(--ink); font-weight: 700; }
 
 .job-list { display: flex; flex-direction: column; gap: 4px; }

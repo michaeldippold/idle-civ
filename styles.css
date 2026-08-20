@@ -221,19 +221,19 @@ button { font-family: inherit; cursor: pointer; }
 .res {
   display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 7px;
   padding: 7px 16px;
-  /* Rules are drawn as shadows rather than borders so they cost no layout, and
-     mostly on the LEADING edges so painting order works out: a later sibling's
-     background paints over an earlier sibling's right-hand shadow, but its own
-     left-hand shadow lands on top of that sibling instead.
-     The row rule needs both directions to run full width. Above a part-full
-     last row, the top shadows only reach as far as the cells do; the bottom
-     shadows of the row above carry the line the rest of the way, across the
-     empty tracks, where nothing paints over them. Together they read as one
-     unbroken rule.
-     The outermost ones -- the first row's tops, the first column's lefts, the
-     last row's bottoms -- fall outside the padding box and are clipped by the
-     container, so none of them doubles up against its ink border. */
-  box-shadow: -1px 0 0 var(--rule), 0 -1px 0 var(--rule), 0 1px 0 var(--rule);
+  /* Rules are drawn as shadows rather than borders so they cost no layout: the
+     outermost ones fall outside the padding box and are clipped by the
+     container, instead of sitting 1px inside its ink border and doubling it.
+     TRAILING edges only, and only one shadow per edge. The cells carry no
+     background of their own -- the paper is the container's -- so nothing ever
+     paints over a neighbour's shadow, which means each boundary can be owned
+     outright by the cell above or to the left of it. Drawing both sides of a
+     boundary is what produced a 2px rule between wrapped rows: the two shadows
+     land on ADJACENT pixels, [Y-1,Y) and [Y,Y+1), rather than the same one.
+     One owner per edge also fixes the part-full last row for free: the row
+     rule comes entirely from the full row above, so it spans the whole bar
+     including the empty tracks. */
+  box-shadow: 1px 0 0 var(--rule), 0 1px 0 var(--rule);
 }
 .res-name { font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-2); }
 .res-val {

@@ -211,6 +211,13 @@ a fresh run-through feels the full arc. **Tuning dials** if pacing feels off: `c
 §1 religion/morale is **in progress** (framework gisted; proposed monk-attaché skeleton judged
 unsatisfying — revisit fresh); §3 Enlightenment is **undiscussed**. Delete the file when emptied.
 
+**Bureau addenda (2026-08-20, user decisions):** the **speed changer is a dev/testing tool
+only** — it stays in the header while the only player is the developer, and gets locked behind
+dev tooling before any public release (policy noted in tech.md). And the **holding-tile tints
+are locked as aesthetic, open as semantics**: the current category mapping (shelter / store /
+work / care / people in `BUILDING_CATS`) is a first guess — which colors exist and how strictly
+they gate by content type is a design decision still to be made, not a settled channel.
+
 **Interface intentionally un-fixed (2026-08-15):** the user revised `interface-brief.md` §6 —
 the visual treatment AND the interface's structure (flat grid vs. menus/tabs/navigation as eras
 accumulate; phone/tablet consideration, desktop primary) are handed to the design pass as

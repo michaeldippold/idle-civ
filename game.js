@@ -1147,6 +1147,9 @@ function accrueGrowth(dt) {
 }
 
 function capWord(w) { return w.charAt(0).toUpperCase() + w.slice(1); }
+// Good enough for every unit name this game will ever have ("Horseman" ->
+// "Horsemen", everything else takes an s). Not a general pluralizer.
+function pluralize(name) { return name.endsWith("man") ? name.slice(0, -3) + "men" : name + "s"; }
 
 // How many of this building/upgrade/unit are already owned or waiting in the
 // queue -- keeps escalating prices (and one-time/capped limits) honest even
@@ -2456,7 +2459,7 @@ function wallsState(adv, st) {
 function musterRowsHTML(prefix) {
   return active().units.filter(isRevealed).map((def) =>
     `<div class="job">` +
-      `<span class="job-name">${def.name}s</span>` +
+      `<span class="job-name">${pluralize(def.name)}</span>` +
       `<span class="job-out" id="${prefix}avail-${def.id}"></span>` +
       `<button class="stepper" data-mid="${def.id}" data-d="-1">−</button>` +
       `<span class="job-count" id="${prefix}cnt-${def.id}">0</span>` +

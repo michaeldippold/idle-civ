@@ -2955,10 +2955,12 @@ function infoPanelHTML() {
     };
     // The reference is the one place costs are shown for things you may not
     // have revealed yet -- it exists to answer "what does this age hold".
+    // Each cost is its own span so the line can break at the commas between
+    // them without ever splitting "400 food" across two lines.
     const priced = (items) => items.map((d) => Object.assign({}, d, {
       costLine: d.base
-        ? Object.keys(d.base).map((k) => `${d.base[k]} ${k}`).join(", ") +
-          (d.buildTime ? ` · ${d.buildTime}s` : "")
+        ? Object.keys(d.base).map((k) => `<span>${d.base[k]} ${k}</span>`).join(", ") +
+          (d.buildTime ? ` <span>· ${d.buildTime}s</span>` : "")
         : null,
     }));
     const neighbors = m.adversaries.map((a) => ({

@@ -442,9 +442,17 @@ button { font-family: inherit; cursor: pointer; }
   display: flex; flex-wrap: wrap; align-items: baseline; row-gap: 2px;
   font-family: var(--mono); font-size: 11px; margin-top: 6px;
 }
-.building .b-costs { flex: 0 0 auto; }
+/* `flex: 0 0 auto` here was a bug: a four-resource cost line (the Iron Age
+   capstone's 400/400/400/50) could neither shrink nor wrap, so it ran out past
+   the card edge and shoved the build time onto its own line. It must be able to
+   shrink -- and `min-width: 0` is the half that's easy to forget, since a flex
+   item's default minimum is its content width, which would keep the overflow. */
+.building .b-costs { flex: 1 1 auto; min-width: 0; line-height: 1.5; }
+/* Each cost stays whole and the line breaks at the commas between them.
+   "400 food" splitting across two lines is legible but reads as an error. */
+.building .b-costs > span { white-space: nowrap; }
 .building .b-cost .short { color: var(--danger); }
-.building .b-time { flex: none; margin-left: auto; padding-left: 10px; color: var(--text-3); white-space: nowrap; }
+.building .b-time { flex: none; padding-left: 10px; color: var(--text-3); white-space: nowrap; }
 
 /* ---------- Tabs (Upgrades: Available / Owned) ---------- */
 /* Owned upgrades are filtered out, not dimmed in place. On the Owned tab they
@@ -642,12 +650,15 @@ button { font-family: inherit; cursor: pointer; }
   border: 1px solid var(--hair);
   padding: 11px 13px 12px;
 }
-.info-top { display: flex; align-items: baseline; gap: 10px; margin-bottom: 5px; }
-.info-name { flex: none; font-size: 14px; font-weight: 700; }
+/* Same trap as the buy card's cost line, and worse here: these boxes are half
+   a modal wide and the Iron capstone's cost line is the longest in the game. */
+.info-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 5px; }
+.info-name { flex: 0 1 auto; min-width: 0; font-size: 14px; font-weight: 700; text-wrap: pretty; }
 .info-cost {
-  flex: none; margin-left: auto;
-  font-family: var(--mono); font-size: 11px; color: var(--text-2); white-space: nowrap;
+  flex: 1 1 auto; min-width: 0; margin-left: auto; text-align: right;
+  font-family: var(--mono); font-size: 11px; line-height: 1.5; color: var(--text-2);
 }
+.info-cost > span { white-space: nowrap; }
 .info-desc { font-size: 13.5px; line-height: 1.55; color: #332e24; text-wrap: pretty; }
 
 /* ---------- Misc ---------- */

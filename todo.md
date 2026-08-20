@@ -8,12 +8,16 @@
 
 ## STATUS — session handoff (2026-08-20)
 
-### The Bureau port has landed. The board is redesigned; it needs playing.
+### The Bureau port has landed, been polished, and shipped.
 
-The redesign is **implemented and live**, not pending. `styles.css` was rewritten to the
-Bureau system, `index.html` restructured, and the render layer in `game.js` reworked to match.
-Harness green throughout (422 checks). Every surface below was verified in a running browser,
-not just reasoned about.
+The redesign is **implemented, polished from live feedback, and deployed** to
+<https://michaeldippold.github.io/idle-civ/>. `styles.css` was rewritten to the Bureau system,
+`index.html` restructured, and the render layer in `game.js` reworked to match. Harness green
+throughout. Every surface below was verified in a running browser, not just reasoned about.
+
+**The design pass is over; the play pass has not started.** The board reads correctly and
+behaves correctly, and it looks the way it should. What remains unanswered is whether it *plays*
+well — see the Next up list.
 
 **What actually changed, beyond the skin.** Four decisions reached past styling, and they are
 the reason this was a project rather than a stylesheet swap:
@@ -44,8 +48,10 @@ this is the one place its markup and its notes disagree.
 
 **What is deliberately still open:**
 
-- **Nothing has been human-playtested.** That is the whole next step. The board reads correctly
-  and behaves correctly; whether it *feels* right is unanswered.
+- **Nothing has been human-playtested as a game.** The interface has now had a real round of
+  human eyes and eight pieces of specific visual feedback, all acted on. What hasn't happened is
+  someone *playing* it — for pacing, for whether hover-only descriptions hurt planning, for
+  whether the Chronicle still reads well after twenty minutes.
 - **The ceremony modals were extrapolated, not designed.** Era transition and game over were
   built from the grammar per this session's call. If the era modal doesn't land in play, it goes
   back to the design space with a concrete complaint.
@@ -905,3 +911,35 @@ deepening mechanic, reusing the existing combat math pointed outward, with "the 
 the core passive trade-off. Interactive events were also formally killed and moved to out-of-scope
 in this same arc: the settled identity is idle Age of Empires, not active Civilization.
 Documentation-only milestone — no code changed.
+
+**v18 — The Bureau interface.** The redesign commissioned in `interface-brief.md` came back and
+went in, wholesale. `styles.css` rewritten around a token palette (the prototype authored every
+value inline; we have a stylesheet, a per-era desk, and nine more ages coming), `index.html`
+restructured, the render layer reworked. Four decisions reached past styling and account for
+most of the work: **opacity retired as a state channel** — unaffordable is now a lighter border
+and nothing else, because most cards spend most of their life unaffordable and *reading* them is
+how players plan; **descriptions moved to hover**, carrying the refusal reason ("Short 9 wood.")
+and computed at hover time rather than baked in, since cards update in place; **population moved
+into the ledger** as `POP 6/6 · 2 idle`, killing two sentences that a red at-cap number says
+better; and **the board acquired materials** — per-era desk, era badge plate, and a different
+paper stock per column (cork / graph / dot grid / legal pad). Components: segmented steppers,
+icon+count tiles, Available/Owned tabs on Upgrades, maxed buildings sinking to the bottom of
+Construction, and Chronicle entries on ruled lines with a severity mark in the gutter that
+survives both skimming and colour blindness.
+
+Two structural changes rode along. **A founding pillar was rewritten**: the board is now whole
+from the first frame and only its *contents* unravel — the old rule was calibrated for a
+pen-on-paper wireframe where an empty panel and a full one were the same hairline box, and
+Bureau's named ink headers and per-column stock removed that premise (see `design.md`). And a
+**speed control** (1×–12×) landed first, deliberately, because it makes every subsequent
+playtest cheaper; it runs N ordinary steps per tick rather than one oversized one, so nothing in
+the simulation can tell the difference. Measured at exactly 12.0×.
+
+Eight pieces of live human feedback were folded in afterward: cost lines that overflowed instead
+of wrapping (a real bug — a hidden resource means you can't see why a purchase was refused), the
+ledger becoming an aligned grid with proper rules, a doubled rule where rows met, a dot grid that
+had silently never rendered (`background-image` rejects the `background` shorthand's
+position/size syntax), rulings strengthened now that nothing sits on them unboxed, stronger
+post-it tints, steppers centred against the whole row, and corkboard — parked earlier the same
+day as an idea with no home — spent on the one column that lacked a material of its own.
+Shipped to GitHub Pages.

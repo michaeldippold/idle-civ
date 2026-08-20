@@ -2267,7 +2267,11 @@ function renderPeople() {
   // "Housing is full" moved into the ledger's Pop row, where the red at-cap
   // value says it without a sentence. This line now carries only the thing a
   // number can't: when the next arrival is due.
+  // Emptying the text is not enough to make this disappear: the element is an
+  // inline-block with its own padding, background and min-height, so a blank
+  // one painted a small stray patch on the panel. It has to actually go.
   const gl = document.getElementById("growthLine");
+  gl.classList.toggle("hidden", S.pop >= housing());
   if (S.pop >= housing()) {
     gl.innerHTML = "";
   } else {

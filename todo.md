@@ -132,9 +132,12 @@ merits — see the speed control in Next up.)
   **corkboard** treatment — "cards about other peoples, pinned notes" — with no home, and say
   Expeditions is where it would belong. That's a material decision (does Expeditions get its own
   paper stock, the way Chronicle got the legal pad?) and it's one word from you at planning time.
-  **Answered:** no — Expeditions uses the existing stock. **Corkboard is parked, not killed**: it
-  stays on the shelf as an available material for a future redesign or a genuinely new element
-  that wants to read as foreign to the desk. Don't spend it on something that doesn't need it.
+  **Answered:** no — Expeditions uses the existing stock, and corkboard was parked rather than
+  killed. **It has since been spent, well:** cork went to Your People and Training, the one
+  column with no material of its own. The argument that made it fit is that it isn't another
+  *ruling* — it's a different material, and People/Training is where you move bodies around,
+  which is what a pinboard is for. Everything on those panels is already an opaque box, so they
+  read as cards pinned to it.
 
 ### Decisions taken on returning (2026-08-20, later the same day)
 

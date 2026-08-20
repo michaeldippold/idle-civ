@@ -41,10 +41,12 @@ These are game-design facts the interface must express, not stylistic preference
    need to accommodate 1.2M-style compaction. Steppers (+/− one at a time) remain viable to
    the end of the game.
 
-6. **Widescreen desktop is the primary format** — but this is a browser game, and phone and
-   tablet sizes deserve real consideration in the design (see §6). The current wireframe's
-   approach — fixed viewport, page never scrolls, every panel scrolls internally under a
-   fixed header — is how the desktop layout works today, not a mandate for every form factor.
+6. **Widescreen desktop is the format.** Not "primary" — the only one. Phone and tablet were
+   briefly invited into scope on 2026-08-15 and taken back out on 2026-08-20; the stacked-column
+   fallback stays only so the page doesn't break, and is not a design surface. What *is* still
+   open is structure: the current approach — fixed viewport, page never scrolls, every panel
+   scrolls internally under a fixed header — is how the desktop layout works today, not a
+   mandate for how it must keep working (see §6).
 
 ---
 
@@ -212,11 +214,19 @@ languages:
 
 I initially wanted to keep the wireframe in place and give you all of the color choices to make, but I think since you are already proven to produce better designs than I do, I want you to consider my design decisions so far, but feel free to innovate. I am already stressed that this interface will not cleanly support future panels that could be implemented. The modal feature makes it free for a while but it may not be forever. There's a reason most civ games have menus. 
 
-As this is a BROWSER game, I would also like a little thought into phone and tablet size interfaces. Widescreen desktop should always be the primary format though. 
+~~As this is a BROWSER game, I would also like a little thought into phone and tablet size interfaces. Widescreen desktop should always be the primary format though.~~
+
+**Withdrawn 2026-08-20.** Mobile and tablet are out of scope again — see §1.6 and `design.md`'s
+Explicitly Out of Scope. The invitation above stood for five days; the design pass reasonably
+answered it with a concept sketch and no build, and that's where it stops. The rest of §6 — the
+invitation to innovate on visual treatment *and* on interface structure — stands unchanged.
 
 ---
 
 ## 7. Screenshot index (`design-refs/`)
+
+**The design pass this brief commissioned has since come back — see `redesign/`.** These
+screenshots remain the record of the wireframe it was working from.
 
 | File | State it captures |
 |---|---|

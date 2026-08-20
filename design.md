@@ -284,7 +284,7 @@ Adversaries gain one static number: **`castleDefense`** (0 = unfortified). Campa
 - Real-time reflex or twitch mechanics — this is a numbers game, not an RTS.
 - **Interactive events** — events that stop and demand a decision in the moment (a rival king demands tribute: pay or roll for consequences). This was previously a captured idea explicitly worth compromising idle-ness for; that stance is reversed. Requiring the player's presence pushes the game toward an *active* Civilization, which creates both design problems (what happens to a pending demand while you're away — wait forever? auto-resolve? block progress?) and technical ones, for a payoff that fights the identity. The settled identity is **idle Age of Empires**: you allocate, build, upgrade, and train as you have time, and the engine chugs along either way. Every event resolves itself with nobody in the room — that's a feature, not a limitation.
 - Multiplayer.
-- Mobile as a *first-class* target. (Softened 2026-08-15: this is a browser game, so phone and tablet sizes deserve real thought in the design pass — but widescreen desktop is and remains the primary format.)
+- **Mobile and tablet.** Widescreen desktop is the format, full stop. (Briefly softened 2026-08-15 — "it's a browser game, phone and tablet deserve real thought" — and **reversed 2026-08-20**: the softening was regretted almost as soon as it was sent, and the design pass had already scoped mobile to a concept sketch rather than build it. The existing stacked-column `@media` fallback stays as a courtesy so the game doesn't actively break on a phone; it is not designed for and is not going to be.)
 
 ## Open Design Questions
 

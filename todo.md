@@ -49,14 +49,38 @@ three-value channel it always was — that law was respected, not bent.
 **What it does not cover, and we should go in knowing.** The prototype stops at the Stone Age
 board: **no Expeditions panel, no era-transition modal, no game-over modal, no campaign or
 caravan muster modal** — and the Info modal it does style is explicitly called a one-off, not a
-general modal treatment. **Mobile and tablet got a concept sketch and no build.** And the
-question that prompted the un-fixing in the first place — what this interface becomes past eight
-panels — is listed in its own open threads as *not solved*. So the design pass answered the
-visual question comprehensively and left the structural one roughly where it found it. (One
-contributing detail worth knowing: the copy of the brief the design pass worked from,
-`redesign/uploads/interface-brief.md`, carries the *revised* §6 invitation to innovate but two
-older paragraphs elsewhere — §1.6 still says mobile "is not the designed experience". Mixed
-signal, plausibly why mobile stayed a sketch.)
+general modal treatment. Mobile and tablet got a concept sketch and no build — which turns out
+to be the right amount (see the decisions below). And the question that prompted the un-fixing in
+the first place — what this interface becomes past eight panels — is listed in its own open
+threads as *not solved*. So the design pass answered the visual question comprehensively and left
+the structural one roughly where it found it.
+
+**Not part of the design.** The strip along the top of `redesign/Example Screenshot.png` — desk /
+eraBadge / chronicleTint / speed, and a Save-as-defaults button — is the prototyping tool's own
+props panel, not proposed game chrome. Don't port it. (One thing in it *is* wanted, on its own
+merits — see the speed control in Next up.)
+
+### Decisions taken the same night (2026-08-20)
+
+- **Mobile and tablet are out of scope again.** The 2026-08-15 softening was regretted almost
+  immediately and is now reversed in `design.md` and `interface-brief.md` §1.6/§6. Widescreen
+  desktop is the format; the stacked-column `@media` fallback stays only so a phone doesn't get a
+  broken page. The design pass's own "mobile was scoped to a sketch" open thread is therefore
+  **closed, not outstanding** — nothing to answer there.
+- **The missing surfaces get extrapolated here, with one carve-out.** Bureau handed over a
+  component grammar and literal values, and most of what's missing is recombination rather than
+  invention: the Expeditions panel is adversary cards + status line + buttons, the muster and
+  escort modals are steppers + an estimate + a danger button, reset confirm is a lead and two
+  buttons. Building those in code directly is faster and truer than mocking them up and porting
+  them afterward. The carve-out is the **ceremony register** — the era-transition modal above all,
+  and game over beside it. That's the biggest recurring moment in the game, the design notes
+  explicitly say the Info modal's treatment is *not* a general modal style, and "recombine the
+  existing parts" is exactly the wrong instinct for a moment whose whole job is to feel unlike the
+  rest of the interface. Those two are worth a trip back to the design space.
+- **One parked idea needs a yes/no before Expeditions gets drawn.** The design notes park a
+  **corkboard** treatment — "cards about other peoples, pinned notes" — with no home, and say
+  Expeditions is where it would belong. That's a material decision (does Expeditions get its own
+  paper stock, the way Chronicle got the legal pad?) and it's one word from you at planning time.
 
 **The integration problem in one paragraph.** The prototype is not portable code and doesn't
 pretend to be: it's a class in a prototyping runtime with `{{ }}` holes and `<sc-for>` loops,
@@ -254,6 +278,16 @@ flagged *to be decided during implementation*.
       two-border live verify — 422 checks, 20/20 runs.
 
 ### Next up
+- [ ] **A game speed control, in the game.** Wanted on its own merits, not as design chrome: the
+      redesign prototype carried a 1–12× speed slider for its own testing and it was *transforming*
+      to work with — watching an hour of unravel go by in five minutes is how you actually see
+      pacing. Mechanically this is nearly free, because the simulation is continuous delta-time
+      rather than discrete ticks: it's `step(dt * mult)`, and per-second event probabilities scale
+      correctly for nothing. Two things it must not touch — the autosave `lastSeed` (scale that and
+      offline catch-up double-counts the accelerated time) and the `dt` clamp in the tick loop. Two
+      questions for planning: does this ship to players or stay a dev affordance, and is it a
+      separate control or a generalization of Pause, which is already speed 0. Worth doing *before*
+      the Bureau port rather than after — every playtest of the redesign gets cheaper.
 - [ ] **Plan the Bureau integration** — the design pass is in `redesign/` and nothing is wired up
       yet. See the STATUS block at the top of this file for the shape of it; the session that
       picks this up should start by planning, not by editing `styles.css`.

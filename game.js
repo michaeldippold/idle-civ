@@ -2458,6 +2458,7 @@ function renderBuildings() {
   const panel = document.getElementById("panel-build");
   const list = document.getElementById("buildingList");
   let anyRevealed = false;
+  const open = [], maxed = [];
 
   for (const def of active().buildings) {
     const revealed = isRevealed(def);
@@ -2502,6 +2503,22 @@ function renderBuildings() {
       body: def.desc,
       why: capped ? "You only ever need the one." : shortfallLine(buildCost(def)),
     }));
+    (capped ? maxed : open).push(card);
+  }
+
+  // Maxed buildings sink to the bottom, so what you can still raise is never
+  // buried under things you're finished with. Sorted rather than split into an
+  // Available/Owned pair of tabs like Upgrades, and the difference is a real
+  // one: Upgrades trends toward being entirely owned, so hiding that half is
+  // eventually the whole panel, while only five buildings in the game are
+  // cappable at all (all cap-1) and the rest stay buyable forever. A tab
+  // holding five cards would be ceremony, and it would hide useful context --
+  // a maxed Barracks on screen is the reason the Training panel exists.
+  // Same only-touch-the-DOM-when-the-order-changed guard as Upgrades uses.
+  const desired = open.concat(maxed);
+  const current = Array.from(list.children);
+  if (desired.some((el, i) => el !== current[i])) {
+    for (const el of desired) list.appendChild(el);
   }
 
   panel.classList.toggle("hidden", !anyRevealed);

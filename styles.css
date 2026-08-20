@@ -42,7 +42,9 @@
   /* --- borders --- */
   --hair:        rgba(25, 23, 16, .42);   /* ordinary card border */
   --hair-soft:   rgba(25, 23, 16, .32);   /* unaffordable / waiting its turn */
-  --rule:        rgba(25, 23, 16, .22);   /* dividers inside the ledger */
+  --rule:        rgba(25, 23, 16, .22);   /* dividers, where they overlay paper */
+  --rule-solid:  #c6c3ba;                 /* the same value, flattened -- for grid-gap rules,
+                                             which have the desk behind them, not paper */
 
   /* --- rulings. Deliberately faint: these are ground, not figure. --- */
   --graph: repeating-linear-gradient(to right, transparent 0, transparent 15px, rgba(25,23,16,.055) 15px, rgba(25,23,16,.055) 16px),
@@ -193,20 +195,34 @@ button { font-family: inherit; cursor: pointer; }
 /* Population leads this strip. It has a value, a cap and a rate, so it is a
    resource; and the red at-cap value says "housing is full" more directly
    than the sentence that used to sit in Your People. */
+/* A real ledger grid rather than a flex row that happened to wrap. Uniform
+   tracks mean the columns line up on every row, so values sit under values --
+   and the 1px gaps, showing the container's own colour through, ARE the rules
+   between cells. That gets horizontal dividers on wrap for free, with no
+   doubled line where the last row meets the container's border (the trap with
+   putting borders on the cells themselves).
+   `auto-fill` rather than `auto-fit` is load-bearing: it keeps the empty tracks
+   on a part-full last row, so two leftover resources stay cell-width instead of
+   stretching to half the screen each. */
 #resourceBar {
   flex: 0 0 auto;
   border: 1px solid var(--ink);
-  background: var(--paper);
-  display: flex; flex-wrap: wrap;
+  background: var(--rule-solid);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 1px;
   margin-bottom: 12px;
   min-height: 33px;
 }
-#emptyStores { color: var(--text-3); font-style: italic; font-size: 12px; padding: 7px 16px; }
+#emptyStores {
+  grid-column: 1 / -1;
+  background: var(--paper);
+  color: var(--text-3); font-style: italic; font-size: 12px; padding: 7px 16px;
+}
 .res {
-  flex: none;
-  display: flex; align-items: baseline; gap: 7px;
+  background: var(--paper);
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 7px;
   padding: 7px 16px;
-  border-right: 1px solid var(--rule);
 }
 .res-name { font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-2); }
 .res-val {

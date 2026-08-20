@@ -18,6 +18,9 @@ const CONFIG = {
   baseHousing: 3,
   settlerIntervalSeconds: 45,  // a new settler arrives this often while housing has room -- free.
                                // THE growth-pacing dial; first guess, tune in play.
+  speeds: [1, 2, 4, 8, 12],    // simulation multipliers the header button cycles through.
+                               // Integers only: speed is implemented as N ordinary steps per
+                               // tick, not one big one -- see the loop in boot().
   // Per-resource base caps live on each era's resource list below, not here.
   storageAdd: 100,        // extra cap per storage building
   stoneToolsBonus: 0.08,  // flat additive bump to ALL gather multipliers from the Stone Tools upgrade
@@ -982,6 +985,12 @@ let loopId = null, saveId = null;
 // of the save means no schema change, and no loading into a frozen game and
 // wondering why nothing is happening.
 let paused = false;
+// Same reasoning as `paused`, and the same deliberate exclusion from the save:
+// speed is a lens on the simulation, not a property of the settlement. It also
+// shouldn't survive a reload -- coming back to a game silently running at 12x
+// would be a nasty surprise. Pause is really just speed 0, but it stays its own
+// control because it's the one you reach for without looking.
+let speed = 1;
 
 function freshState() {
   // State buckets span every era's ids, not just the starting era's -- the
@@ -2828,6 +2837,25 @@ function renderClock() {
   if (el) el.textContent = fmtTime(S.playtime || 0);
 }
 
+// Speed is a lens, never a cheat: the loop runs `speed` ordinary steps per tick
+// rather than one oversized one, which is exactly how simulateOffline() already
+// compresses time. Every rate, probability roll, build tick and upkeep charge
+// therefore behaves identically to real time -- there is just more of it per
+// second. Nothing needs to know it's happening.
+function renderSpeed() {
+  const btn = document.getElementById("speedBtn");
+  if (!btn) return;
+  btn.textContent = `[ ${speed}× ]`;
+  btn.classList.toggle("fast", speed > 1);
+}
+
+function cycleSpeed() {
+  if (S.dead) return;
+  const i = CONFIG.speeds.indexOf(speed);
+  speed = CONFIG.speeds[(i + 1) % CONFIG.speeds.length];
+  renderSpeed();
+}
+
 function setPaused(p) {
   if (S.dead) return;
   paused = p;
@@ -2974,6 +3002,8 @@ function boot() {
   document.getElementById("resetBtn").addEventListener("click", openResetModal);
 
   document.getElementById("pauseBtn").addEventListener("click", () => setPaused(!paused));
+  document.getElementById("speedBtn").addEventListener("click", cycleSpeed);
+  renderSpeed();
   document.getElementById("infoBtn").addEventListener("click", openInfoPanel);
   document.getElementById("modalClose").addEventListener("click", closeModal);
   // Clicking the dimmed backdrop closes; clicks inside the panel bubble up to
@@ -3002,7 +3032,11 @@ function boot() {
     last = now;
     if (paused) return;
     if (dt > 2) dt = 2;            // large gaps are handled by the offline sim
-    step(dt);
+    // The clamp is applied BEFORE the multiplier, deliberately: clamping is
+    // about the browser having been descheduled, and speed is about how fast
+    // we want to watch. Scaling the clamp would let a background tab bank time
+    // and hand it back multiplied.
+    for (let i = 0; i < speed; i++) step(dt);
     checkReveals();
     renderAll();
   }, CONFIG.tickMs);

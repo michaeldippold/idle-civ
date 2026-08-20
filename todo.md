@@ -81,6 +81,26 @@ merits — see the speed control in Next up.)
   **corkboard** treatment — "cards about other peoples, pinned notes" — with no home, and say
   Expeditions is where it would belong. That's a material decision (does Expeditions get its own
   paper stock, the way Chronicle got the legal pad?) and it's one word from you at planning time.
+  **Answered:** no — Expeditions uses the existing stock. **Corkboard is parked, not killed**: it
+  stays on the shelf as an available material for a future redesign or a genuinely new element
+  that wants to read as foreign to the desk. Don't spend it on something that doesn't need it.
+
+### Decisions taken on returning (2026-08-20, later the same day)
+
+- **The ceremony modals get built here, and may still go back to design later.** Era transition
+  and game over are extrapolated from Bureau's grammar now so nothing ships looking half-finished.
+  If the era modal doesn't land in play it goes back to the design space *with a concrete
+  complaint*, which is a better brief than a blank page.
+- **Legibility outranks texture — standing rule.** The Chronicle's legal pad is the one place
+  the material is allowed to be the point. Everywhere else the ruling is background at most:
+  subtle, never competing with text, and always with content boxed in opaque cards on top of it
+  (which is already Bureau's own locked principle #2 — this raises it from a rule about patterns
+  to a rule about the whole board).
+- **The Info modal's anatomy is the skim pattern to generalize.** Keep the grid ruling, box every
+  item, and separate sections with hard rules and clear headings so the eye can jump. That
+  combination — *ruled ground, boxed content, strong section markers* — is what makes a dense
+  reference trivially skimmable, and it should be reached for anywhere the game presents a lot of
+  information at once, not just in Info.
 
 **The integration problem in one paragraph.** The prototype is not portable code and doesn't
 pretend to be: it's a class in a prototyping runtime with `{{ }}` holes and `<sc-for>` loops,

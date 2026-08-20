@@ -59,6 +59,9 @@ button { font-family: var(--mono); cursor: pointer; }
   font-family: var(--mono); font-size: 12px; padding: 0;
 }
 .link:hover { color: var(--ink); text-decoration: underline; }
+/* Running fast is a state you can forget you're in, so the control announces
+   itself rather than sitting quietly at the same weight as Save. */
+.link.fast { color: var(--milestone); font-weight: 700; }
 
 /* ---------- Resource ledger ---------- */
 #resourceBar {

@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#ded6c4}a{color:#191710}a:hover{color:#a33420}button{font-family:inherit;cursor:pointer}::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:rgba(25,23,16,.28)}::-webkit-scrollbar-track{background:transparent}</style>
+</helmet>
+<div style="height:100vh;background:{{ desk }};color:#191710;font-family:'Space Grotesk',sans-serif;font-size:13px;display:flex;flex-direction:column;padding:12px 16px 14px;box-sizing:border-box;overflow:hidden">
+
+  <div style="flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 2px 9px">
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="font-family:'Space Mono',monospace;font-size:15px;font-weight:700;letter-spacing:.04em;color:{{ chrome.title }}">IDLE CIV</span>
+      <span style="display:inline-flex;align-items:center;gap:7px;background:{{ badge.bg }};color:{{ badge.fg }};border:1px solid {{ badge.line }};box-shadow:0 0 0 1.5px {{ chrome.badgeRing }};padding:4px 11px 3px;font-size:10.5px;font-weight:700;letter-spacing:.2em;text-transform:uppercase">
+        <span style="width:7px;height:7px;background:{{ badge.dot }};display:inline-block"></span>{{ era }}
+      </span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-family:'Space Mono',monospace;font-size:14px;font-weight:700;letter-spacing:.02em;color:{{ chrome.title }};font-variant-numeric:tabular-nums;min-width:68px;text-align:right;margin-right:10px">{{ clock }}</span>
+      <button onClick="{{ openInfo }}" style="border:1px solid #d9d3c2;background:#191710;color:#f4f1e6;font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:5px 11px 4px" style-hover="background:#3a352a;color:#ffffff">Info</button>
+      <button onClick="{{ togglePause }}" style="border:1px solid #d9d3c2;background:#191710;color:#f4f1e6;font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:5px 11px 4px;min-width:76px" style-hover="background:#3a352a;color:#ffffff">{{ pauseLabel }}</button>
+      <button style="border:1px solid #d9d3c2;background:#191710;color:#f4f1e6;font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:5px 11px 4px" style-hover="background:#3a352a;color:#ffffff">Save</button>
+      <button onClick="{{ reset }}" style="border:1px solid #e0b6ab;background:#7d2718;color:#f6e7e2;font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:5px 11px 4px" style-hover="background:#a33420;color:#ffffff">Reset</button>
+    </div>
+  </div>
+
+  <div style="flex:none;border:1px solid #191710;background:#f7f4ea;display:flex;flex-wrap:wrap;margin-bottom:12px">
+    <sc-for list="{{ ledger }}" as="r" hint-placeholder-count="3">
+      <div onMouseEnter="{{ r.tip }}" onMouseLeave="{{ r.untip }}" style="flex:none;display:flex;align-items:baseline;gap:7px;padding:7px 16px;border-right:1px solid rgba(25,23,16,.22)">
+        <span style="font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#5f584a">{{ r.name }}</span>
+        <span style="font-family:'Space Mono',monospace;font-size:14.5px;font-weight:700;font-variant-numeric:tabular-nums;color:{{ r.valColor }}">{{ r.val }}<span style="font-weight:400;color:#7a7362">/{{ r.cap }}</span></span>
+        <span style="font-family:'Space Mono',monospace;font-size:11.5px;font-variant-numeric:tabular-nums;color:{{ r.rateColor }}">{{ r.rate }}</span>
+        <span style="font-family:'Space Mono',monospace;font-size:10.5px;font-weight:700;color:#a33420">{{ r.note }}</span>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="flex:1;display:grid;grid-template-columns:0.86fr 1fr 1fr 1.24fr;grid-template-rows:1fr 1.7fr;gap:12px;min-height:0">
+
+    <section style="grid-column:1;grid-row:{{ span.people }};background:#f7f4ea;border:1px solid #191710;display:flex;flex-direction:column;min-height:0;overflow:hidden">
+      <div style="flex:none;background:#191710;color:#ece7d9;font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;padding:7px 12px">Your People</div>
+      <div style="flex:1;overflow-y:auto;min-height:0;padding:12px">
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+          <sc-for list="{{ people }}" as="p" hint-placeholder-count="1">
+            <div onMouseEnter="{{ p.tip }}" onMouseLeave="{{ p.untip }}" style="border:1px solid rgba(25,23,16,.42);background:{{ p.fill }};padding:7px 11px;display:flex;align-items:center;gap:9px">
+              <span style="width:21px;height:21px;display:block;color:#191710">{{ p.icon }}</span>
+              <span style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1">{{ p.count }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="font-size:12px;color:#5f584a;margin-bottom:11px">{{ growthLine }}</div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <sc-for list="{{ jobs }}" as="j" hint-placeholder-count="3">
+            <div onMouseEnter="{{ j.tip }}" onMouseLeave="{{ j.untip }}" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;border:1px solid rgba(25,23,16,.42);background:#fffdf7;padding:6px 7px 6px 10px">
+              <span style="flex:1 1 100%;font-size:12.5px;color:{{ j.nameColor }};text-wrap:pretty">{{ j.label }}</span>
+              <span style="flex:1 1 auto;font-family:'Space Mono',monospace;font-size:11px;color:#5f584a;font-variant-numeric:tabular-nums;white-space:nowrap">{{ j.out }}</span>
+              <span style="flex:none;display:flex;align-items:stretch;border:1px solid #191710;background:#ffffff;height:24px">
+                <button onClick="{{ j.dec }}" disabled="{{ j.decOff }}" style="width:24px;border:none;border-right:1px solid #191710;background:none;color:{{ j.decColor }};font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center;padding:0" style-hover="background:#191710;color:#f4f1e6">−</button>
+                <span style="width:26px;display:flex;align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-weight:700;font-size:13.5px;font-variant-numeric:tabular-nums;color:{{ j.countColor }}">{{ j.count }}</span>
+                <button onClick="{{ j.inc }}" disabled="{{ j.incOff }}" style="width:24px;border:none;border-left:1px solid #191710;background:none;color:{{ j.incColor }};font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center;padding:0" style-hover="background:#191710;color:#f4f1e6">+</button>
+              </span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </section>
+
+    <sc-if value="{{ show.settlement }}" hint-placeholder-val="{{ false }}">
+      <section style="grid-column:2;grid-row:{{ span.settlement }};background:#f7f4ea;border:1px solid #191710;display:flex;flex-direction:column;min-height:0;overflow:hidden">
+        <div style="flex:none;background:#191710;color:#ece7d9;font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;padding:7px 12px">{{ settlementTitle }}</div>
+        <div style="flex:1;overflow-y:auto;min-height:0;padding:12px;background:repeating-linear-gradient(to right,transparent 0,transparent 15px,rgba(25,23,16,.055) 15px,rgba(25,23,16,.055) 16px),repeating-linear-gradient(to bottom,transparent 0,transparent 15px,rgba(25,23,16,.055) 15px,rgba(25,23,16,.055) 16px)">
+          <sc-if value="{{ holdingsEmpty }}" hint-placeholder-val="{{ false }}">
+            <p style="margin:0;font-size:12.5px;color:#6a6354;font-style:italic">Nothing built yet.</p>
+          </sc-if>
+          <div style="display:flex;flex-wrap:wrap;gap:8px">
+            <sc-for list="{{ holdings }}" as="h" hint-placeholder-count="4">
+              <div onMouseEnter="{{ h.tip }}" onMouseLeave="{{ h.untip }}" style="border:1px solid rgba(25,23,16,.42);background:{{ h.fill }};padding:7px 11px;display:flex;align-items:center;gap:9px">
+                <span style="width:21px;height:21px;display:block;color:#191710">{{ h.icon }}</span>
+                <span style="font-family:'Space Mono',monospace;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1">{{ h.count }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ show.underway }}" hint-placeholder-val="{{ false }}">
+      <section style="grid-column:3;grid-row:{{ span.underway }};background:#f7f4ea;border:1px solid #191710;display:flex;flex-direction:column;min-height:0;overflow:hidden">
+        <div style="flex:none;background:#191710;color:#ece7d9;font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;padding:7px 12px">Underway</div>
+        <div style="flex:1;overflow-y:auto;min-height:0;padding:12px;background:radial-gradient(rgba(25,23,16,.13) 1px,transparent 1px) 0 0/14px 14px">
+          <sc-if value="{{ queueEmpty }}" hint-placeholder-val="{{ true }}">
+            <p style="margin:0;font-size:12.5px;color:#6a6354;font-style:italic">Nothing queued.</p>
+          </sc-if>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <sc-for list="{{ queue }}" as="q" hint-placeholder-count="0">
+              <div style="background:#ffffff;border:1px solid {{ q.border }};padding:8px 10px">
+                <div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:7px;row-gap:3px">
+                  <span style="flex:none;font-family:'Space Mono',monospace;font-size:11.5px;color:{{ q.markColor }}">{{ q.mark }}</span>
+                  <span style="flex:1 1 auto;min-width:0;font-size:12.5px;font-weight:600;color:{{ q.labelColor }};text-wrap:pretty">{{ q.label }}</span>
+                  <span style="flex:none;font-family:'Space Mono',monospace;font-size:11px;color:#5f584a;font-variant-numeric:tabular-nums">{{ q.pct }}</span>
+                  <button onClick="{{ q.cancel }}" style="background:none;border:none;color:#6a6354;font-size:14px;line-height:1;padding:0 2px" style-hover="color:#a33420">×</button>
+                </div>
+                <div style="height:9px;border:1px solid {{ q.border }};margin-top:6px;background:#efece1">
+                  <div style="height:100%;background:{{ q.fillColor }};width:{{ q.width }}"></div>
+                </div>
+                <div style="font-family:'Space Mono',monospace;font-size:11px;color:#5f584a;margin-top:5px">{{ q.eta }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </section>
+    </sc-if>
+
+    <section style="grid-column:4;grid-row:1 / 3;background:{{ chronicleBg }};border:1px solid #191710;display:flex;flex-direction:column;min-height:0;overflow:hidden">
+      <div style="flex:none;background:#191710;color:#ece7d9;font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;padding:7px 12px">Chronicle</div>
+      <div style="flex:1;overflow-y:auto;min-height:0;background:{{ chronicleRules }}">
+        <sc-for list="{{ chronicle }}" as="e" hint-placeholder-count="3">
+          <div style="display:flex">
+            <div style="flex:none;width:32px;text-align:center;font-family:'Space Mono',monospace;font-size:11px;line-height:28px;color:{{ e.markColor }};border-right:1px solid rgba(163,52,32,.3)">{{ e.mark }}</div>
+            <div style="flex:1;padding:0 12px;font-size:{{ e.size }};line-height:28px;font-weight:{{ e.weight }};color:{{ e.color }}">{{ e.text }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <sc-if value="{{ show.training }}" hint-placeholder-val="{{ false }}">
+      <section style="grid-column:1;grid-row:2;background:#f7f4ea;border:1px solid #191710;display:flex;flex-direction:column;min-height:0;overflow:hidden">
+        <div style="flex:none;background:#191710;color:#ece7d9;font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;padding:7px 12px">Training</div>
+        <div style="flex:1;overflow-y:auto;min-height:0;padding:12px">
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <sc-for list="{{ training }}" as="c" hint-placeholder-count="1">
+              <button onClick="{{ c.buy }}" onMouseEnter="{{ c.tip }}" onMouseLeave="{{ c.untip }}" style="display:block;width:100%;text-align:left;background:{{ c.fill }};border:1px solid {{ c.border }};padding:8px 10px">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
+                  <span style="flex:1 1 auto;min-width:0;font-size:13px;font-weight:600;letter-spacing:.005em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.name }}</span>
+                  <span style="flex:none;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:{{ c.statusColor }}">{{ c.status }}</span>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;align-items:baseline;row-gap:2px;font-family:'Space Mono',monospace;font-size:11px;margin-top:6px">
+                  <span style="flex:0 0 auto">
+                    <sc-for list="{{ c.costs }}" as="p" hint-placeholder-count="1"><span style="color:{{ p.color }}">{{ p.text }}</span></sc-for>
+                  </span>
+                  <span style="flex:1 1 10px;min-width:8px"></span>
+                  <span style="flex:none;color:#6a6354;white-space:nowrap">{{ c.time }}</span>
+                </div>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ show.construction }}" hint-placeholder-val="{{ false }}">
+      <section style="grid-column:2;grid-row:{{ span.construction }};background:#f7f4ea;border:1px solid #191710;display:flex;flex-direction:column;min-height:0;overflow:hidden">
+        <div style="flex:none;background:#191710;color:#ece7d9;font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;padding:7px 12px">Construction</div>
+        <div style="flex:1;overflow-y:auto;min-height:0;padding:12px;background:repeating-linear-gradient(to right,transparent 0,transparent 15px,rgba(25,23,16,.055) 15px,rgba(25,23,16,.055) 16px),repeating-linear-gradient(to bottom,transparent 0,transparent 15px,rgba(25,23,16,.055) 15px,rgba(25,23,16,.055) 16px)">
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <sc-for list="{{ buildings }}" as="c" hint-placeholder-count="4">
+              <button onClick="{{ c.buy }}" onMouseEnter="{{ c.tip }}" onMouseLeave="{{ c.untip }}" style="display:block;width:100%;text-align:left;background:{{ c.fill }};border:1px solid {{ c.border }};padding:8px 10px">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
+                  <span style="flex:1 1 auto;min-width:0;font-size:13px;font-weight:600;letter-spacing:.005em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.name }}</span>
+                  <span style="flex:none;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:{{ c.statusColor }}">{{ c.status }}</span>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;align-items:baseline;row-gap:2px;font-family:'Space Mono',monospace;font-size:11px;margin-top:6px">
+                  <span style="flex:0 0 auto">
+                    <sc-for list="{{ c.costs }}" as="p" hint-placeholder-count="1"><span style="color:{{ p.color }}">{{ p.text }}</span></sc-for>
+                  </span>
+                  <span style="flex:1 1 10px;min-width:8px"></span>
+                  <span style="flex:none;color:#6a6354;white-space:nowrap">{{ c.time }}</span>
+                </div>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{ show.upgrades }}" hint-placeholder-val="{{ false }}">
+      <section style="grid-column:3;grid-row:{{ span.upgrades }};background:#f7f4ea;border:1px solid #191710;display:flex;flex-direction:column;min-height:0;overflow:hidden">
+        <div style="flex:none;background:#191710;color:#ece7d9;font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;padding:7px 12px">Upgrades</div>
+        <div style="flex:1;overflow-y:auto;min-height:0;padding:12px;background:radial-gradient(rgba(25,23,16,.13) 1px,transparent 1px) 0 0/14px 14px">
+          <div style="display:flex;gap:6px;margin-bottom:10px">
+            <button onClick="{{ showAvailable }}" style="flex:1;border:1px solid #191710;background:{{ tabAvail.bg }};color:{{ tabAvail.fg }};font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:5px 8px 4px">Available {{ tabAvail.n }}</button>
+            <button onClick="{{ showOwned }}" style="flex:1;border:1px solid #191710;background:{{ tabOwned.bg }};color:{{ tabOwned.fg }};font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:5px 8px 4px">Owned {{ tabOwned.n }}</button>
+          </div>
+          <sc-if value="{{ upgradesEmpty }}" hint-placeholder-val="{{ false }}">
+            <p style="margin:0;font-size:12.5px;color:#6a6354;font-style:italic">{{ upgradesEmptyLine }}</p>
+          </sc-if>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <sc-for list="{{ upgrades }}" as="c" hint-placeholder-count="2">
+              <button onClick="{{ c.buy }}" onMouseEnter="{{ c.tip }}" onMouseLeave="{{ c.untip }}" style="display:block;width:100%;text-align:left;background:{{ c.fill }};border:1px solid {{ c.border }};padding:8px 10px">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
+                  <span style="flex:1 1 auto;min-width:0;font-size:13px;font-weight:600;letter-spacing:.005em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.name }}</span>
+                  <span style="flex:none;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:{{ c.statusColor }}">{{ c.status }}</span>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;align-items:baseline;row-gap:2px;font-family:'Space Mono',monospace;font-size:11px;margin-top:6px">
+                  <span style="flex:0 0 auto">
+                    <sc-for list="{{ c.costs }}" as="p" hint-placeholder-count="1"><span style="color:{{ p.color }}">{{ p.text }}</span></sc-for>
+                  </span>
+                  <span style="flex:1 1 10px;min-width:8px"></span>
+                  <span style="flex:none;color:#6a6354;white-space:nowrap">{{ c.time }}</span>
+                </div>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+      </section>
+    </sc-if>
+
+  </div>
+
+  <sc-if value="{{ tip }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;z-index:60;left:{{ tip.x }};top:{{ tip.y }};max-width:290px;background:#fffdf4;border:1px solid #191710;box-shadow:3px 3px 0 rgba(25,23,16,.18);padding:9px 11px;pointer-events:none">
+      <div style="font-size:12.5px;font-weight:700;letter-spacing:.02em;margin-bottom:4px">{{ tip.title }}</div>
+      <div style="font-size:13px;line-height:1.5;color:#2e2a21">{{ tip.body }}</div>
+      <sc-if value="{{ tip.why }}" hint-placeholder-val="{{ false }}">
+        <div style="font-family:'Space Mono',monospace;font-size:11.5px;font-weight:700;color:#a33420;margin-top:6px">{{ tip.why }}</div>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ modal }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeModal }}" style="position:fixed;inset:0;z-index:80;background:rgba(25,23,16,.34);display:flex;align-items:center;justify-content:center;padding:28px">
+      <section onClick="{{ stop }}" style="width:min(720px,94vw);max-height:86vh;background:#fbf7e2;border:1px solid #191710;box-shadow:6px 6px 0 rgba(25,23,16,.22);display:flex;flex-direction:column">
+        <div style="flex:none;background:#191710;color:#ece7d9;display:flex;align-items:center;justify-content:space-between;padding:7px 12px">
+          <span style="font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase">{{ modal.title }}</span>
+          <button onClick="{{ closeModal }}" style="background:none;border:none;color:#ece7d9;font-size:16px;line-height:1;padding:0 2px">×</button>
+        </div>
+        <div style="flex:1;overflow-y:auto;min-height:0;padding:20px 22px 24px;background:repeating-linear-gradient(to right,transparent 0,transparent 15px,rgba(25,23,16,.06) 15px,rgba(25,23,16,.06) 16px),repeating-linear-gradient(to bottom,transparent 0,transparent 15px,rgba(25,23,16,.06) 15px,rgba(25,23,16,.06) 16px)">
+          <p style="background:#ffffff;border:1px solid rgba(25,23,16,.42);padding:12px 14px;font-family:'Newsreader',serif;font-size:16.5px;line-height:1.5;margin:0 0 20px;color:#191710;text-wrap:pretty">{{ modal.lead }}</p>
+          <sc-for list="{{ modal.sections }}" as="g" hint-placeholder-count="2">
+            <div style="margin-bottom:22px">
+              <div style="font-size:17px;font-weight:700;letter-spacing:.02em;padding-bottom:8px;margin-bottom:12px;border-bottom:2px solid #191710">{{ g.title }}</div>
+              <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+                <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="4">
+                  <div style="background:#ffffff;border:1px solid rgba(25,23,16,.42);padding:11px 13px 12px">
+                    <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:5px">
+                      <span style="flex:none;font-size:14px;font-weight:700">{{ r.name }}</span>
+                      <span style="flex:1 1 auto;min-width:8px"></span>
+                      <span style="flex:none;font-family:'Space Mono',monospace;font-size:11px;color:#5f584a;white-space:nowrap">{{ r.cost }}</span>
+                    </div>
+                    <div style="font-size:13.5px;line-height:1.55;color:#332e24;text-wrap:pretty">{{ r.desc }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;desk&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Per era&quot;,&quot;Mahogany&quot;,&quot;Ash&quot;,&quot;Ink&quot;],&quot;default&quot;:&quot;Per era&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Interface&quot;},&quot;eraBadge&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Stone&quot;,&quot;Bronze&quot;,&quot;Iron&quot;],&quot;default&quot;:&quot;Stone&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Interface&quot;},&quot;chronicleTint&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Interface&quot;},&quot;speed&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:1,&quot;min&quot;:1,&quot;max&quot;:12,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Prototype&quot;}}">
+const ICONS = {
+  settler: 'M12 4.1a3.1 3.1 0 100 6.2 3.1 3.1 0 000-6.2M4.8 20c1.3-4.2 4.1-6.2 7.2-6.2s5.9 2 7.2 6.2',
+  soldier: 'M12 3.5v11M8.5 6.5L12 3.5l3.5 3M8 20h8M10 14.5h4v5h-4z',
+  hut: 'M3.5 11.5L12 4.5l8.5 7M6 11v9h12v-9M10.5 20v-5h3v5',
+  woodshed: 'M3.5 10.5L12 5l8.5 5.5M5.5 10.5v9.5h13v-9.5M5.5 15h13',
+  granary: 'M8 4.5h8v4.5c0 5-1.2 8-4 11-2.8-3-4-6-4-11z M9.8 9h4.4',
+  racks: 'M4 8.5h16M6 8.5v11M10.5 8.5v11M15 8.5v11M19 8.5v11',
+  lumber: 'M6.5 20L15 8M13 4.5l6 5-4.5 1.6L13 8.6z',
+  pit: 'M6.5 17l1.6-6.6L14 7.4l4.6 3.6-1.6 6z M8.1 10.4l6 1.5-.4 5.6',
+  medicine: 'M12 5v14M5 12h14M5 8.5h14',
+  barracks: 'M6 20V7l6-3 6 3v13M6 12h12M12 20v-8'
+};
+const el = React.createElement;
+function glyph(k) {
+  const d = ICONS[k] || ICONS.hut;
+  return el('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round', style: { width: '100%', height: '100%', display: 'block' } },
+    d.split(' M').map((seg, i) => el('path', { key: i, d: (i ? 'M' : '') + seg })));
+}
+
+class Component extends DCLogic {
+  BUILD = [
+    { id: 'hut', cat: 'shelter', name: 'Hut', icon: 'hut', desc: 'Shelter for 3 more settlers. Housing is the ceiling on everything else you might attempt.', cost: { wood: 39 }, time: 12, grow: 1.35 },
+    { id: 'woodshed', cat: 'store', name: 'Woodshed', icon: 'woodshed', desc: 'Store +100 wood. Timber left in the open rots in the rain, and a full store wastes every stroke of the axe.', cost: { wood: 31 }, time: 16, grow: 1.35 },
+    { id: 'granary', cat: 'store', name: 'Granary', icon: 'granary', desc: 'Store +100 food. Grain spoils in the open; a granary is the difference between a good season and a hungry one.', cost: { wood: 39 }, time: 16, grow: 1.35 },
+    { id: 'racks', cat: 'work', name: 'Drying Racks', icon: 'racks', desc: 'Foragers gather +12% food. Meat and roots keep longer once the sun has had them.', cost: { wood: 33 }, time: 20, grow: 1.4 },
+    { id: 'lumber', cat: 'work', name: 'Lumber Camp', icon: 'lumber', desc: 'Woodcutters gather +12% wood. A camp at the treeline saves the walk back.', cost: { wood: 18, stone: 10 }, time: 24, grow: 1.4 },
+    { id: 'pit', cat: 'work', name: 'Stone Pit', icon: 'pit', desc: 'Gatherers mine +12% stone. Digging down beats picking over the surface.', cost: { wood: 20, stone: 12 }, time: 24, grow: 1.4 },
+    { id: 'medicine', cat: 'care', name: 'Medicine Tent', icon: 'medicine', desc: 'Reduces the chance sickness claims a life. Crowded camps invite fever; someone should be watching for it.', cost: { wood: 36, stone: 12 }, time: 20, grow: 1.5 },
+    { id: 'barracks', cat: 'care', name: 'Barracks', icon: 'barracks', desc: 'Lets your people train as Soldiers. Raiders come whether or not you are ready for them.', cost: { wood: 30, stone: 10 }, time: 20, grow: 1.6 }
+  ];
+  UPG = [
+    { id: 'stonetools', name: 'Stone Tools', desc: 'Permanently improves all gathering by 8%. Worked flint holds an edge no hand can match.', cost: { wood: 10 }, time: 10 },
+    { id: 'fire', name: 'Fire Mastery', desc: 'Permanently reduces food upkeep by 15%. Cooked food goes further, and warmth costs less than hunger.', cost: { wood: 30, food: 10 }, time: 25 },
+    { id: 'herbal', name: 'Herbal Medicine', desc: 'Increases how much each Medicine Tent reduces the chance sickness claims a life.', cost: { wood: 20, food: 20 }, time: 20 },
+    { id: 'spears', name: 'Flint-Tipped Spears', desc: "Sharper spearheads improve your Soldiers' odds in a fight.", cost: { wood: 20, stone: 10 }, time: 20 },
+    { id: 'hide', name: 'Hide Armor', desc: "Simple hide armor improves your Soldiers' odds of surviving a fight.", cost: { wood: 15, food: 15 }, time: 20 }
+  ];
+  JOBS = [
+    { id: 'forage', label: 'Forage food', res: 'food', base: 0.2, desc: 'Foragers walk the treeline for roots, eggs and small game. Steady, unglamorous, and the reason anyone is still here.' },
+    { id: 'chop', label: 'Chop wood', res: 'wood', base: 0.2, desc: 'Woodcutters bring in timber for everything that must be raised, propped or burned.' },
+    { id: 'stone', label: 'Gather stone', res: 'stone', base: 0.22, desc: 'Gatherers pick stone from the streambed. Slower work, but nothing lasting is built without it.' }
+  ];
+
+  state = {
+    t: 0, paused: false, tip: null, modal: null,
+    res: { food: 13, wood: 5, stone: 0 },
+    cap: { food: 50, wood: 50, stone: 50 },
+    jobs: { forage: 1, chop: 1, stone: 0 },
+    pop: 3, popProg: 0, owned: {}, queue: [],
+    seen: { stone: false, construction: false, upgrades: false, settlement: false, underway: false, training: false },
+    upgTab: 'available',
+    log: [
+      { text: 'You have wood enough to notice its worth.', kind: 'plain' },
+      { text: 'They are hungry. Put someone to forage, or they will starve.', kind: 'bad' },
+      { text: 'A handful of survivors gather where the road ends.', kind: 'plain' }
+    ]
+  };
+
+  componentDidMount() { this.iv = setInterval(() => this.tick(), 200); }
+  componentWillUnmount() { clearInterval(this.iv); }
+
+  say(text, kind) {
+    this.setState(s => ({ log: [{ text, kind: kind || 'plain' }].concat(s.log).slice(0, 40) }));
+  }
+
+  housing() { return 3 + 3 * (this.state.owned.hut || 0); }
+  mult(id) { return 1 + 0.12 * (this.state.owned[id] || 0) + (this.state.owned.stonetools ? 0.08 : 0); }
+  jobRate(j) {
+    const b = { forage: 'racks', chop: 'lumber', stone: 'pit' }[j.id];
+    return j.base * this.state.jobs[j.id] * this.mult(b);
+  }
+  upkeep() { return 0.04 * this.state.pop * (this.state.owned.fire ? 0.85 : 1); }
+  popRate() { return this.state.pop < this.housing() ? 1 / 45 : 0; }
+
+  tick() {
+    if (this.state.paused) return;
+    const dt = 0.2 * (this.props.speed ?? 1);
+    this.setState(s => {
+      const res = Object.assign({}, s.res), cap = s.cap, owned = Object.assign({}, s.owned);
+      const seen = Object.assign({}, s.seen);
+      this.JOBS.forEach(j => {
+        const b = { forage: 'racks', chop: 'lumber', stone: 'pit' }[j.id];
+        const gain = j.base * s.jobs[j.id] * (1 + 0.12 * (owned[b] || 0) + (owned.stonetools ? 0.08 : 0));
+        res[j.res] = Math.min(cap[j.res], res[j.res] + gain * dt);
+      });
+      res.food = Math.max(0, res.food - 0.04 * s.pop * (owned.fire ? 0.85 : 1) * dt);
+      let pop = s.pop, popProg = s.popProg;
+      const house = 3 + 3 * (owned.hut || 0);
+      if (pop < house) { popProg += dt / 45; if (popProg >= 1) { popProg = 0; pop += 1; } } else popProg = 0;
+      let queue = s.queue.map((q, i) => i === 0 ? Object.assign({}, q, { el: q.el + dt }) : q);
+      const done = [];
+      if (queue.length && queue[0].el >= queue[0].dur) { done.push(queue[0]); queue = queue.slice(1); }
+      done.forEach(d => { owned[d.id] = (owned[d.id] || 0) + 1; });
+      if (res.stone > 0 || s.jobs.stone > 0) seen.stone = true;
+      if (res.wood >= 5) { seen.construction = true; seen.upgrades = true; }
+      if (this.BUILD.some(b => owned[b.id])) seen.settlement = true;
+      if (queue.length) seen.underway = true;
+      if (owned.barracks) seen.training = true;
+      const st = { t: s.t + dt, res, owned, pop, popProg, queue, seen };
+      if (done.length) {
+        const lines = done.map(d => d.kind === 'upgrade' ? d.label + ' is yours, and will not be lost.'
+          : d.kind === 'unit' ? d.label + ' joins the line.'
+          : d.label + ' stands finished.');
+        st.log = lines.map(text => ({ text, kind: 'good' })).concat(s.log).slice(0, 40);
+      }
+      if (pop > s.pop) {
+        st.log = [{ text: 'Another settler arrives and is given a roof.', kind: 'plain' }].concat(st.log || s.log).slice(0, 40);
+      }
+      return st;
+    });
+  }
+
+  fmt(n) { return Math.floor(n).toString(); }
+  cost(c) { const o = this.state.owned[c.id] || 0; const g = c.grow || 1; const out = {}; Object.keys(c.cost).forEach(k => out[k] = Math.ceil(c.cost[k] * Math.pow(g, o))); return out; }
+  costLine(c) {
+    const cost = this.cost(c);
+    return Object.keys(cost).map(k => cost[k] + ' ' + k).join(', ') + ' · ' + c.time + 's';
+  }
+  afford(cost) { return Object.keys(cost).every(k => this.state.res[k] >= cost[k]); }
+
+  buy(c, kind) {
+    const cost = this.cost(c);
+    if (kind === 'upgrade' && (this.state.owned[c.id] || this.state.queue.some(q => q.id === c.id))) return;
+    if (!this.afford(cost)) return;
+    this.setState(s => {
+      const res = Object.assign({}, s.res);
+      Object.keys(cost).forEach(k => res[k] -= cost[k]);
+      return { res, queue: s.queue.concat([{ id: c.id, label: c.name, dur: c.time, el: 0, kind: kind }]), seen: Object.assign({}, s.seen, { underway: true }) };
+    });
+    this.say('Work begins on ' + c.name + '.', 'plain');
+  }
+  cancel(i) {
+    this.setState(s => ({ queue: s.queue.filter((q, k) => k !== i) }));
+  }
+  showTip(title, body, why) { return (ev) => {
+    const r = ev.currentTarget.getBoundingClientRect();
+    const x = Math.min(r.left, window.innerWidth - 310), y = Math.min(r.bottom + 8, window.innerHeight - 130);
+    this.setState({ tip: { title, body, why, x: x + 'px', y: y + 'px' } });
+  }; }
+  hideTip = () => this.setState({ tip: null });
+
+  card(c, kind) {
+    const cost = this.cost(c), owned = this.state.owned[c.id] || 0;
+    const queued = this.state.queue.some(q => q.id === c.id);
+    const isOwnedUpg = kind === 'upgrade' && owned > 0;
+    const can = this.afford(cost) && !isOwnedUpg && !queued;
+    const short = Object.keys(cost).filter(k => this.state.res[k] < cost[k]);
+    const costs = Object.keys(cost).map((k, i) => ({
+      text: (i ? ', ' : '') + cost[k] + ' ' + k,
+      color: this.state.res[k] < cost[k] ? '#a33420' : '#191710'
+    }));
+    return {
+      name: c.name, desc: c.desc, costs, time: c.time + 's',
+      status: isOwnedUpg ? 'owned' : queued ? 'queued' : kind === 'upgrade' ? '' : String(owned),
+      statusColor: isOwnedUpg ? '#3f6d2c' : queued ? '#8a6a1e' : '#5f584a',
+      fill: '#ffffff',
+      border: can ? '#191710' : 'rgba(25,23,16,.32)',
+      buy: () => this.buy(c, kind),
+      tip: this.showTip(c.name, c.desc, isOwnedUpg ? 'Already yours — permanent.' : short.length ? 'Short ' + short.map(k => Math.ceil(cost[k] - this.state.res[k]) + ' ' + k).join(', ') + '.' : null),
+      untip: this.hideTip
+    };
+  }
+
+  renderVals() {
+    const s = this.state, house = this.housing();
+    const mm = Math.floor(s.t / 60), ss = Math.floor(s.t % 60);
+    const popFull = s.pop >= house;
+    const assignedNow = this.JOBS.reduce((a, j) => a + s.jobs[j.id], 0);
+    const idleNow = Math.max(0, s.pop - assignedNow);
+    const ledger = [
+      { name: 'Pop', val: s.pop, cap: house, rate: popFull ? '' : '+' + this.popRate().toFixed(2) + '/s', valColor: popFull ? '#a33420' : '#191710', rateColor: popFull ? '#9a917c' : '#3f6d2c',
+        note: idleNow ? idleNow + ' idle' : '',
+        tip: this.showTip('Population', popFull ? 'Every roof is taken. Raise a Hut and the next arrival will have somewhere to sleep.' : 'New settlers arrive on their own while there is housing to spare.', idleNow === 1 ? 'One of them stands idle — put them to work.' : idleNow > 1 ? idleNow + ' of them stand idle — put them to work.' : null), untip: this.hideTip }
+    ];
+    [['Food', 'food'], ['Wood', 'wood'], ['Stone', 'stone']].forEach(([name, k]) => {
+      if (k === 'stone' && !s.seen.stone) return;
+      const rate = this.JOBS.filter(j => j.res === k).reduce((a, j) => a + this.jobRate(j), 0) - (k === 'food' ? this.upkeep() : 0);
+      const full = s.res[k] >= s.cap[k];
+      ledger.push({
+        name, val: this.fmt(s.res[k]), cap: s.cap[k], note: '',
+        rate: (rate >= 0 ? '+' : '') + rate.toFixed(2) + '/s',
+        valColor: full ? '#a33420' : '#191710', rateColor: rate < 0 ? '#a33420' : rate > 0 ? '#3f6d2c' : '#9a917c',
+        tip: this.showTip(name, full ? 'The store is full — anything gathered beyond this is wasted. Build to hold more.' : 'Gathered by whoever you put to the work.'), untip: this.hideTip
+      });
+    });
+
+    const people = [{ name: 'Settler', count: s.pop, icon: glyph('settler'), fill: '#eef3f9', tip: this.showTip('Settler', 'An ordinary person. Put them to work, or train them for something harder.'), untip: this.hideTip }];
+    if (s.owned.barracks) people.push({ name: 'Soldier', count: s.owned.soldier || 0, icon: glyph('soldier'), fill: '#f9efef', tip: this.showTip('Soldier', 'A settler permanently trained for defense. Holds the line, and takes the worst of it.'), untip: this.hideTip });
+
+    const assigned = this.JOBS.reduce((a, j) => a + s.jobs[j.id], 0);
+    const idle = Math.max(0, s.pop - assigned);
+    const jobs = this.JOBS.map(j => {
+      const n = s.jobs[j.id];
+      return {
+        label: j.label, count: n, out: n ? '+' + this.jobRate(j).toFixed(2) + '/s' : '',
+        nameColor: n ? '#191710' : '#5f584a',
+        decOff: n === 0, incOff: idle === 0,
+        decColor: n === 0 ? '#a49b88' : '#191710',
+        incColor: idle === 0 ? '#a49b88' : '#191710',
+        countColor: n === 0 ? '#6a6354' : '#191710',
+        dec: () => this.setState(st => ({ jobs: Object.assign({}, st.jobs, { [j.id]: Math.max(0, st.jobs[j.id] - 1) }) })),
+        inc: () => this.setState(st => {
+          const a = this.JOBS.reduce((x, k) => x + st.jobs[k.id], 0);
+          return a >= st.pop ? {} : { jobs: Object.assign({}, st.jobs, { [j.id]: st.jobs[j.id] + 1 }) };
+        }),
+        tip: this.showTip(j.label, j.desc, idle === 0 && n === 0 ? 'No one is idle. Take someone off other work first.' : null), untip: this.hideTip
+      };
+    });
+
+    const TINT = { shelter: '#eef5ef', store: '#f7f2e6', work: '#f2eff8', care: '#f9efef' };
+    const holdings = this.BUILD.filter(b => s.owned[b.id]).map(b => ({
+      name: b.name, count: s.owned[b.id], icon: glyph(b.icon), fill: TINT[b.cat] || '#ffffff',
+      tip: this.showTip(b.name, b.desc), untip: this.hideTip
+    }));
+
+    const queue = s.queue.map((q, i) => ({
+      label: q.label,
+      mark: q.kind === 'unit' ? '/' : '#',
+      markColor: i === 0 ? '#191710' : '#6a6354',
+      labelColor: i === 0 ? '#191710' : '#5f584a',
+      border: i === 0 ? '#191710' : 'rgba(25,23,16,.32)',
+      fillColor: i === 0 ? '#191710' : '#8a8271',
+      pct: Math.floor((q.el / q.dur) * 100) + '%',
+      width: Math.min(100, (q.el / q.dur) * 100) + '%',
+      eta: i === 0 ? '~' + Math.max(0, Math.ceil(q.dur - q.el)) + 's left' : 'waiting its turn',
+      cancel: () => this.cancel(i)
+    }));
+
+    const allUpg = this.UPG.map(u => this.card(u, 'upgrade'));
+    const ownedUpg = allUpg.filter(u => u.status === 'owned').map(u => Object.assign({}, u, { border: '#3f6d2c' }));
+    const availUpg = allUpg.filter(u => u.status !== 'owned');
+    const onOwnedTab = s.upgTab === 'owned';
+    const upgList = onOwnedTab ? ownedUpg : availUpg;
+    const tabOn = { bg: '#191710', fg: '#ece7d9' }, tabOff = { bg: '#ffffff', fg: '#5f584a' };
+
+    const log = s.log.map((e, i) => ({
+      text: e.text,
+      mark: e.kind === 'bad' ? '!' : e.kind === 'big' ? '★' : e.kind === 'good' ? '+' : '·',
+      markColor: e.kind === 'bad' ? '#a33420' : e.kind === 'good' ? '#3f6d2c' : e.kind === 'big' ? '#9a5b12' : '#9a917c',
+      color: e.kind === 'bad' ? '#a33420' : e.kind === 'good' ? '#3f6d2c' : e.kind === 'big' ? '#9a5b12' : i === 0 ? '#191710' : '#5f584a',
+      size: i === 0 ? '14px' : '13px', weight: i === 0 ? 600 : 400
+    }));
+
+    const DESKS = { Stone: '#cfcec6', Bronze: '#553a20', Iron: '#24272b', Mahogany: '#4c2b22', Ash: '#cfcec6', Ink: '#33332f' };
+    const deskKey = (this.props.desk ?? 'Per era') === 'Per era' ? (this.props.eraBadge ?? 'Stone') : this.props.desk;
+    const deskColor = DESKS[deskKey] || DESKS.Stone;
+    const deskIsDark = ['Bronze', 'Iron', 'Mahogany', 'Ink'].indexOf(deskKey) >= 0;
+    const tint = this.props.chronicleTint ?? true;
+    const bodyRules = 'repeating-linear-gradient(to bottom,transparent 0,transparent 27px,rgba(25,23,16,.11) 27px,rgba(25,23,16,.11) 28px)';
+
+    const trainAvail = s.owned.barracks ? [this.card({ id: 'soldier', name: 'Soldier', desc: 'A settler permanently trained for defense. Holds the line, and takes the worst of it.', cost: { wood: 12 }, time: 15 }, 'unit')] : [];
+
+    return {
+      era: (this.props.eraBadge ?? 'Stone') + ' Age', clock: mm + 'm ' + (ss < 10 ? '0' : '') + ss + 's',
+      pauseLabel: s.paused ? 'Resume' : 'Pause',
+      togglePause: () => this.setState(st => ({ paused: !st.paused })),
+      reset: () => this.setState({ res: { food: 13, wood: 5, stone: 0 }, jobs: { forage: 1, chop: 1, stone: 0 }, pop: 3, popProg: 0, owned: {}, queue: [], t: 0, seen: { stone: false, construction: false, upgrades: false, settlement: false, underway: false, training: false } }),
+      openInfo: () => this.setState({ modal: {
+        title: 'Reference · ' + (this.props.eraBadge ?? 'Stone') + ' Age',
+        lead: 'Everything this age offers, written out. Hovering anything on the board gives you the same words in passing.',
+        sections: [
+          { title: 'Structures', rows: this.BUILD.map(b => ({ name: b.name, desc: b.desc, cost: this.costLine(b) })) },
+          { title: 'Upgrades', rows: this.UPG.map(u => ({ name: u.name, desc: u.desc, cost: this.costLine(u) })) }
+        ]
+      } }),
+      closeModal: () => this.setState({ modal: null }),
+      stop: (ev) => ev.stopPropagation(),
+      modal: s.modal, tip: s.tip,
+      ledger, people, jobs, holdings, queue,
+      buildings: this.BUILD.map(b => this.card(b, 'build')),
+      upgrades: upgList, training: trainAvail,
+      upgradesEmpty: upgList.length === 0,
+      upgradesEmptyLine: onOwnedTab ? 'Nothing owned yet.' : 'Everything here is already yours.',
+      tabAvail: Object.assign({ n: availUpg.length ? '(' + availUpg.length + ')' : '' }, onOwnedTab ? tabOff : tabOn),
+      tabOwned: Object.assign({ n: ownedUpg.length ? '(' + ownedUpg.length + ')' : '' }, onOwnedTab ? tabOn : tabOff),
+      showAvailable: () => this.setState({ upgTab: 'available' }),
+      showOwned: () => this.setState({ upgTab: 'owned' }),
+      desk: deskColor,
+      chrome: deskIsDark
+        ? { title: '#f4f1e6', line: 'rgba(247,244,234,.55)', badgeRing: 'rgba(244,241,230,.7)',
+            btnBg: '#f4f1e6', btnFg: '#191710', btnLine: '#f4f1e6', btnHoverBg: '#ffffff', btnHoverFg: '#000000',
+            dangerBg: '#f0dcd5', dangerFg: '#8f2d1b', dangerLine: '#f0dcd5', dangerHoverBg: '#ffffff', dangerHoverFg: '#7d2718' }
+        : { title: '#191710', line: '#191710', badgeRing: 'rgba(25,23,16,.25)',
+            btnBg: '#191710', btnFg: '#ece7d9', btnLine: '#191710', btnHoverBg: '#2f2b20', btnHoverFg: '#ffffff',
+            dangerBg: '#7d2718', dangerFg: '#f6e7e2', dangerLine: '#7d2718', dangerHoverBg: '#a33420', dangerHoverFg: '#ffffff' },
+      badge: { Stone: { bg: '#6f7370', fg: '#f6f5f1', line: '#4c4f4c', dot: '#d5d7d2' },
+               Bronze: { bg: '#a46a30', fg: '#fff8ec', line: '#7a4d1c', dot: '#f0cb9c' },
+               Iron: { bg: '#5d656c', fg: '#f4f7f9', line: '#3a4046', dot: '#bcc6cd' } }[this.props.eraBadge ?? 'Stone'],
+      growthLine: popFull ? '' : 'Next settler joins in ' + Math.ceil((1 - s.popProg) * 45) + 's.',
+      settlementTitle: 'Settlement',
+      queueEmpty: s.queue.length === 0,
+      holdingsEmpty: holdings.length === 0,
+      chronicle: log,
+      chronicleBg: tint ? '#fbf7e2' : '#f7f4ea',
+      chronicleRules: bodyRules,
+      show: {
+        settlement: s.seen.settlement, underway: s.seen.underway, training: s.seen.training,
+        construction: s.seen.construction, upgrades: s.seen.upgrades
+      },
+      span: {
+        people: s.seen.training ? '1' : '1 / 3',
+        settlement: s.seen.construction ? '1' : '1 / 3',
+        underway: s.seen.upgrades ? '1' : '1 / 3',
+        training: '2',
+        construction: s.seen.settlement ? '2' : '1 / 3',
+        upgrades: s.seen.underway ? '2' : '1 / 3'
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -6,7 +6,73 @@
 
 ---
 
-## STATUS — session handoff (2026-08-15)
+## STATUS — session handoff (2026-08-20)
+
+### The design pass came back. This is the next project.
+
+`interface-brief.md` went out, and a full interface redesign came back with it. It now lives in
+the repo at **`redesign/`** (imported whole, exactly as delivered — `HANDOFF.md` describes the
+contents, `DESIGN-NOTES.md` is the reasoning, and `Idle Civ Bureau.dc.html` is a running
+prototype you can double-click). Nothing has been integrated. Nothing in `game.js`,
+`styles.css`, or `index.html` has been touched. The next session is a **planning** session.
+
+**The rough shape of what arrived.** The direction is called **Bureau**: the game is a
+spreadsheet, so the interface stops apologising for it and becomes dense administrative paper —
+ledger sheets, ink-plate panel headers, monospace numerals, hard 1px borders, no rounded
+corners, no shadows. Three rival directions (an airy "Field Notes", a dark "Basalt", a pastel
+chalkboard) were explored and rejected, and the losers are preserved in
+`Idle Civ Redesign.dc.html` as history rather than as options. Bureau is a *decided* thing, not
+a menu — the work ahead is adoption and gap-filling, not selection.
+
+**It is a real design system, not a palette.** Four things in it have consequences well beyond
+styling, and they're the reason this is a project and not an afternoon:
+
+- **Opacity is retired outright.** The current build leans on dimming to mean unaffordable,
+  queued, and owned all at once — three different facts wearing the same clothes. Bureau
+  replaces all of it with border weight, border colour, glyph colour, and status words. That
+  reaches every buy card, every stepper, every disabled control in the game.
+- **Descriptions move to hover.** Card descriptions come off the board entirely and into a
+  tooltip that also carries the refusal reason ("Short 24 wood."). That's a structural answer to
+  the eight-panel clutter problem, and it's a real behavioural change, not a restyle.
+- **Population becomes a ledger row.** `POP 3/3 +0.02/s` with idle appended in red. It's a
+  resource with a cap and a rate, so it joins the others — and the growth/housing status
+  sentences it makes redundant get deleted.
+- **The board acquires materials.** Panel paper is ruled differently per column (plain / graph /
+  dot grid / legal pad), the era badge becomes a filled plate, and the desk behind the grid
+  changes colour per era. Progress starts being something you can *see*, which matters a lot in
+  a game that renders nothing.
+
+Type is three faces (Space Grotesk / Space Mono / Newsreader), the icon set is redrawn, and the
+whole thing ships with a stated minimum-size pass. Semantic colour survives intact as the
+three-value channel it always was — that law was respected, not bent.
+
+**What it does not cover, and we should go in knowing.** The prototype stops at the Stone Age
+board: **no Expeditions panel, no era-transition modal, no game-over modal, no campaign or
+caravan muster modal** — and the Info modal it does style is explicitly called a one-off, not a
+general modal treatment. **Mobile and tablet got a concept sketch and no build.** And the
+question that prompted the un-fixing in the first place — what this interface becomes past eight
+panels — is listed in its own open threads as *not solved*. So the design pass answered the
+visual question comprehensively and left the structural one roughly where it found it. (One
+contributing detail worth knowing: the copy of the brief the design pass worked from,
+`redesign/uploads/interface-brief.md`, carries the *revised* §6 invitation to innovate but two
+older paragraphs elsewhere — §1.6 still says mobile "is not the designed experience". Mixed
+signal, plausibly why mobile stayed a sketch.)
+
+**The integration problem in one paragraph.** The prototype is not portable code and doesn't
+pretend to be: it's a class in a prototyping runtime with `{{ }}` holes and `<sc-for>` loops,
+and every style is inline on the element that uses it. What transfers cleanly is the *appearance*
+(copy the markup for a panel and you have it exactly), the icon object, the span/unravel logic,
+and the state-colour rules. What doesn't transfer is the rendering model — ours is create-once,
+update-in-place at 5Hz against a stylesheet, and that difference is the whole substance of the
+port. There's a real decision to make about whether Bureau's literal inline values get lifted
+as-is or reconstituted as tokens in `styles.css`, and it wants deciding before any code moves.
+Also worth holding onto: the prototype's numbers are placeholders, ours win every disagreement.
+
+**Where to start tomorrow.** Sequencing, scope, and the two questions the design pass left open —
+navigation past eight panels, and how far mobile goes. Everything below this line is the state of
+the *game*, which is unchanged and still true.
+
+### Game status (unchanged since 2026-08-15)
 
 Everything through **v17** is implemented, machine-verified (harness: **422 checks, 20/20
 consecutive runs** — now checked into the repo as `harness.js`, run with `node harness.js`), and
@@ -188,6 +254,9 @@ flagged *to be decided during implementation*.
       two-border live verify — 422 checks, 20/20 runs.
 
 ### Next up
+- [ ] **Plan the Bureau integration** — the design pass is in `redesign/` and nothing is wired up
+      yet. See the STATUS block at the top of this file for the shape of it; the session that
+      picks this up should start by planning, not by editing `styles.css`.
 - [ ] **Continue the `deleteme.md` debate** — §2 (siege) and §4 (scale) resolved and promoted;
       §1 (religion/morale) IN PROGRESS — framework gisted, monk-attaché skeleton proposed but
       unsatisfying, revisit fresh; §3 (Enlightenment) still to be discussed. Delete the file when

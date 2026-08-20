@@ -4,28 +4,39 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Idle Civ — prototype</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <!-- Bureau's three registers: Grotesk for UI, Mono for every number, Newsreader
+       for Chronicle prose and modal leads. See redesign/DESIGN-NOTES.md. -->
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
-<body>
+<body data-era="stone">
 
   <div id="titleRow">
     <div id="titleLeft">
       <span id="titleName">Idle Civ</span>
-      <span id="ageBadge">[Stone Age]</span>
-      <span id="pauseFlag" class="hidden">— PAUSED —</span>
+      <!-- Era badge: a filled plate with a material dot rather than bracketed
+           text. It's the main marker of progress, so it gets weight. The bone
+           ring keeps it off the desk on dark (later-era) backgrounds. -->
+      <span id="ageBadge"><span class="badge-dot"></span><span id="ageBadgeText">Stone Age</span></span>
+      <span id="pauseFlag" class="hidden">Paused</span>
     </div>
     <div id="titleRight">
       <span id="playClock" title="Time the settlement has actually advanced (frozen while paused)">0m 00s</span>
-      <button id="infoBtn" class="link" title="Reference: everything in the game, by era">[ Info ]</button>
-      <button id="speedBtn" class="link" title="Run the simulation faster — click to cycle. Everything resolves normally, just sooner.">[ 1× ]</button>
-      <button id="pauseBtn" class="link" title="Freeze the simulation (spacebar)">[ Pause ]</button>
-      <button id="saveBtn" class="link" title="Progress also saves automatically">[ Save ]</button>
-      <button id="resetBtn" class="link" title="Wipe all progress">[ Reset ]</button>
+      <button id="infoBtn" class="chrome-btn" title="Reference: everything in the game, by era">Info</button>
+      <button id="speedBtn" class="chrome-btn" title="Run the simulation faster — click to cycle. Everything resolves normally, just sooner.">1×</button>
+      <button id="pauseBtn" class="chrome-btn" title="Freeze the simulation (spacebar)">Pause</button>
+      <button id="saveBtn" class="chrome-btn" title="Progress also saves automatically">Save</button>
+      <button id="resetBtn" class="chrome-btn danger" title="Wipe all progress">Reset</button>
     </div>
   </div>
 
-  <!-- Resource tracker. Rows are generated from the RESOURCES table in game.js
-       and revealed the first time you hold that resource (or its era starts). -->
+  <!-- Resource ledger. Rows are generated from the RESOURCES table in game.js
+       and revealed the first time you hold that resource (or its era starts).
+       Population leads the strip: it has a value, a cap and a rate, so it is a
+       resource, and the red at-cap value says "housing is full" without a
+       sentence having to. -->
   <div id="resourceBar">
     <span id="emptyStores">— stores are nearly empty —</span>
   </div>
@@ -41,10 +52,6 @@
       <h2>Your People</h2>
       <div class="block-body">
         <div id="personTiles" class="holdings-grid"></div>
-        <div class="pop-summary">
-          <div class="pop-stat"><span class="pop-num" id="popIdle">3</span><span class="pop-lbl">idle</span></div>
-          <div class="pop-stat"><span class="pop-num" id="popCap">3</span><span class="pop-lbl">housing</span></div>
-        </div>
         <div class="growthline" id="growthLine"></div>
         <div id="jobList" class="job-list"></div>
       </div>
@@ -52,7 +59,7 @@
 
     <section class="block hidden" id="panel-holdings">
       <h2>Settlement</h2>
-      <div class="block-body">
+      <div class="block-body ruled-graph">
         <p class="holdings-empty" id="holdingsEmpty">Nothing built yet.</p>
         <div id="holdingsBody" class="holdings-grid hidden"></div>
       </div>
@@ -60,7 +67,7 @@
 
     <section class="block hidden" id="panel-queue">
       <h2>Build Queue</h2>
-      <div class="block-body">
+      <div class="block-body ruled-dot">
         <p class="holdings-empty" id="queueEmpty">Nothing queued.</p>
         <div id="queueBody" class="queue-list hidden"></div>
       </div>
@@ -68,7 +75,9 @@
 
     <section class="block" id="panel-log">
       <h2>Chronicle</h2>
-      <div class="block-body">
+      <!-- The one panel where the material is allowed to be the point: a legal
+           pad, ruled at 28px with a red margin rule. Entries sit on the rules. -->
+      <div class="block-body legal-pad">
         <div id="log" class="log"></div>
       </div>
     </section>
@@ -83,14 +92,21 @@
 
     <section class="block hidden" id="panel-build">
       <h2>Construction</h2>
-      <div class="block-body">
+      <div class="block-body ruled-graph">
         <div id="buildingList" class="build-list"></div>
       </div>
     </section>
 
     <section class="block hidden" id="panel-upgrades">
       <h2>Upgrades</h2>
-      <div class="block-body">
+      <div class="block-body ruled-dot">
+        <!-- Owned upgrades are filtered out rather than dimmed in place: faded
+             text read as "you can't have this", which is the opposite of true. -->
+        <div class="tabs" id="upgradeTabs">
+          <button class="tab active" id="tabAvailable">Available</button>
+          <button class="tab" id="tabOwned">Owned</button>
+        </div>
+        <p class="holdings-empty hidden" id="upgradesEmpty">Nothing owned yet.</p>
         <div id="upgradeList" class="build-list"></div>
       </div>
     </section>
@@ -99,12 +115,22 @@
          Chronicle gives up its double-row span to make room (see updateSpans). -->
     <section class="block hidden" id="panel-expeditions">
       <h2>Expeditions</h2>
-      <div class="block-body">
+      <div class="block-body ruled-dot">
         <div id="expeditionStatus" class="exp-status"></div>
         <div id="adversaryList" class="adv-list"></div>
       </div>
     </section>
 
+  </div>
+
+  <!-- Descriptions live here and nowhere else. Inline descriptions clog the
+       board once eight panels are open; hover means they can be MORE verbose,
+       not less. The tooltip also carries the refusal reason ("Short 24 wood."),
+       so there is one place to look when something won't buy. -->
+  <div id="tooltip" class="hidden">
+    <div id="tipTitle"></div>
+    <div id="tipBody"></div>
+    <div id="tipWhy" class="hidden"></div>
   </div>
 
   <!-- Single-at-a-time modal. Dismiss by X, by clicking the dim overlay, or Esc.

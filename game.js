@@ -961,6 +961,21 @@ const BUILDING_ICONS = {
 // Tiny queue-card type markers: hammer = build, sword = campaign,
 // coins = caravan. Subtle by design -- the card text carries the verb, the
 // icon just lets the eye sort the Underway panel without reading.
+// A pale tint per category groups the Settlement panel at a glance without
+// spending any of the semantic colour channel on it. Keyed by id like the icon
+// table above, and safe for the same reason: ids are permanent and global, so
+// a building keeps its tint through every rename the eras put it through.
+// An id with no entry here simply renders on plain white.
+const BUILDING_CATS = {
+  hut: "shelter",
+  woodshed: "store", granary: "store", stoneYard: "store", oreYard: "store",
+  ironYard: "store", treasury: "store",
+  dryingRack: "work", lumberCamp: "work", stonePit: "work", forge: "work",
+  infirmary: "care",
+  barracks: "people", archeryRange: "people", stables: "people",
+  musterGround: "people", siegeWorkshop: "people",
+};
+
 const QUEUE_ICONS = {
   build:    `<svg ${ICON_ATTRS}><path d="M5 21 L12 14"/><path d="M9 7 L13 3 L21 11 L17 15 Z"/></svg>`,
   campaign: `<svg ${ICON_ATTRS}><path d="M5 19 L16 8"/><path d="M13 5 L19 11"/><path d="M3.5 20.5 L6.5 17.5"/></svg>`,
@@ -991,6 +1006,8 @@ let paused = false;
 // would be a nasty surprise. Pause is really just speed 0, but it stays its own
 // control because it's the one you reach for without looking.
 let speed = 1;
+// Which Upgrades tab is showing. UI state, same as the two above.
+let upgradeTab = "available";
 
 function freshState() {
   // State buckets span every era's ids, not just the starting era's -- the
@@ -1778,7 +1795,9 @@ function die(cause) {
   if (cause === "conflict") log("The last defenders fall. The settlement is overrun.", "big");
   else log("The last of your people starve. The settlement falls silent.", "big");
   const badge = document.getElementById("ageBadge");
-  if (badge) { badge.textContent = "[Fallen]"; badge.classList.add("fallen"); }
+  const badgeText = document.getElementById("ageBadgeText");
+  if (badgeText) badgeText.textContent = "Fallen";
+  if (badge) badge.classList.add("fallen");
   document.body && document.body.classList.add("dead");
   try { localStorage.removeItem(CONFIG.saveKey); } catch (e) {}
   if (loopId) clearInterval(loopId);
@@ -2017,7 +2036,16 @@ function log(text, cls) {
   if (!el) return;
   const div = document.createElement("div");
   div.className = "entry" + (cls ? " " + cls : "");
-  div.textContent = text;
+  // A mark in the gutter, and the gutter's right edge is the legal pad's red
+  // margin rule. The mark repeats the severity the colour already carries,
+  // which is deliberate: it survives being skimmed, and it survives colour
+  // blindness. Neutral lines get a quiet mid-dot rather than nothing, so the
+  // gutter reads as a ruled column instead of an intermittent one.
+  const MARKS = { good: "+", bad: "!", big: "★" };
+  div.innerHTML =
+    `<span class="mark">${MARKS[cls] || "·"}</span>` +
+    `<span class="text"></span>`;
+  div.querySelector(".text").textContent = text;
 
   // Only the newest entry ever carries "latest" -- hand it off from whoever had it.
   const prevLatest = el.querySelector(".entry.latest");
@@ -2033,9 +2061,75 @@ function log(text, cls) {
 function fmt(n) { return Math.floor(n).toLocaleString(); }
 function fmtRate(n) { return (n > 0 ? "+" : "") + n.toFixed(2) + "/s"; }
 
+// ---------- Tooltips ----------------------------------------
+// Descriptions live here and nowhere else. Inline descriptions clogged the
+// board once eight panels were open; moving them to hover means they can be
+// MORE verbose, not less. The tooltip also carries the refusal reason, so
+// there is exactly one place to look when something won't buy.
+//
+// Content is computed at hover time via a getter stashed on the element
+// (`el.__tip`), not baked in at creation -- cards update in place, so a
+// snapshot taken when the card was built would go stale immediately.
+let tipEl = null;
+function attachTip(el, getter) {
+  el.__tip = getter;
+  if (el.__tipWired) return;
+  el.__tipWired = true;
+  el.addEventListener("mouseenter", (e) => tipShow(el, e));
+  el.addEventListener("mousemove", (e) => tipMove(e));
+  el.addEventListener("mouseleave", tipHide);
+  // A card that becomes disabled mid-hover stops firing mouseleave in some
+  // browsers, so blur is a second exit.
+  el.addEventListener("blur", tipHide);
+}
+
+function tipShow(el, ev) {
+  const t = el.__tip && el.__tip();
+  if (!t || !t.title) return;
+  tipEl = tipEl || document.getElementById("tooltip");
+  if (!tipEl) return;
+  document.getElementById("tipTitle").textContent = t.title;
+  document.getElementById("tipBody").textContent = t.body || "";
+  const why = document.getElementById("tipWhy");
+  why.textContent = t.why || "";
+  why.classList.toggle("hidden", !t.why);
+  tipEl.classList.remove("hidden");
+  tipMove(ev);
+}
+
+function tipMove(ev) {
+  if (!tipEl || tipEl.classList.contains("hidden")) return;
+  const pad = 14, w = tipEl.offsetWidth, h = tipEl.offsetHeight;
+  // Flip to the other side of the cursor rather than letting the box run off
+  // the viewport -- the rightmost column is where the wordiest cards live.
+  let x = ev.clientX + pad;
+  let y = ev.clientY + pad;
+  if (x + w > window.innerWidth - 8) x = ev.clientX - w - pad;
+  if (y + h > window.innerHeight - 8) y = ev.clientY - h - pad;
+  tipEl.style.left = Math.max(8, x) + "px";
+  tipEl.style.top = Math.max(8, y) + "px";
+}
+
+function tipHide() {
+  tipEl = tipEl || document.getElementById("tooltip");
+  if (tipEl) tipEl.classList.add("hidden");
+}
+
+// "Short 24 wood, 3 stone." -- the refusal reason, in the tooltip, in red.
+function shortfallLine(cost) {
+  const short = Object.keys(cost)
+    .filter((k) => (S.res[k] || 0) < cost[k])
+    .map((k) => `${Math.ceil(cost[k] - (S.res[k] || 0))} ${k}`);
+  return short.length ? `Short ${short.join(", ")}.` : null;
+}
+
 // Shared create-once-update-in-place tile, used by Settlement (buildings) and
 // Your People (person-types) -- same visual language, different data source.
-function renderTile(container, prefix, id, icon, name, count) {
+// Icon + count side by side, no label: the old stacked icon/name/number
+// arrangement read as a fraction. The name moves to the tooltip along with the
+// description -- everything except the first three settlers was built
+// deliberately, so the player already has context for what they're looking at.
+function renderTile(container, prefix, id, icon, name, count, cat, desc) {
   let tile = document.getElementById(prefix + id);
   if (!tile) {
     tile = document.createElement("div");
@@ -2043,14 +2137,61 @@ function renderTile(container, prefix, id, icon, name, count) {
     tile.id = prefix + id;
     tile.innerHTML =
       `<span class="h-icon">${icon}</span>` +
-      `<span class="h-name" id="${prefix}${id}-name"></span>` +
       `<span class="h-count" id="${prefix}${id}-count"></span>`;
     container.appendChild(tile);
   }
-  // Name is refreshed every render, not just baked in at creation -- an era
-  // change renames existing tiles in place (Medicine Tent -> Infirmary).
-  document.getElementById(`${prefix}${id}-name`).textContent = name;
+  if (cat) tile.dataset.cat = cat;
   document.getElementById(`${prefix}${id}-count`).textContent = count;
+  // Name is read fresh on every hover rather than baked in at creation -- an
+  // era change renames existing tiles in place (Medicine Tent -> Infirmary).
+  attachTip(tile, () => ({ title: name, body: desc || "" }));
+}
+
+// Population leads the ledger. It has a value, a cap and a rate, so it IS a
+// resource, and it belongs with the others rather than in a bespoke widget
+// inside Your People. Two sentences died to make this row: "Housing is full"
+// (the red at-cap value says it better) and the idle readout (now a red note
+// riding in this same cell, because idle labour is a problem to fix).
+function renderPopRow(bar) {
+  let row = document.getElementById("res-pop");
+  if (!row) {
+    row = document.createElement("div");
+    row.className = "res";
+    row.id = "res-pop";
+    row.innerHTML =
+      `<span class="res-name">Pop</span>` +
+      `<span class="res-val" id="val-pop">0</span>` +
+      `<span class="res-rate" id="rate-pop"></span>` +
+      `<span class="res-note" id="note-pop"></span>`;
+    // Always first: it is the resource every other one is in service of.
+    bar.insertBefore(row, bar.firstChild);
+  }
+
+  const cap = housing();
+  const full = S.pop >= cap;
+  const idleNow = idle();
+  const noun = active().popNoun;
+
+  const valEl = document.getElementById("val-pop");
+  valEl.innerHTML = `${fmt(S.pop)}<span class="cap"> / ${fmt(cap)}</span>`;
+  valEl.classList.toggle("full", full);
+
+  const rateEl = document.getElementById("rate-pop");
+  rateEl.textContent = full ? "" : fmtRate(1 / CONFIG.settlerIntervalSeconds);
+  rateEl.classList.toggle("pos", !full);
+
+  const noteEl = document.getElementById("note-pop");
+  noteEl.textContent = idleNow > 0 ? `${idleNow} idle` : "";
+
+  attachTip(row, () => ({
+    title: capWord(noun.plural),
+    body: full
+      ? `Every roof is taken. Raise more housing and the next ${noun.singular} will have somewhere to sleep.`
+      : `New ${noun.plural} arrive on their own while there is housing to spare. Everyone eats, whether working or not.`,
+    why: idleNow === 1
+      ? "One of them stands idle — put them to work."
+      : idleNow > 1 ? `${idleNow} of them stand idle — put them to work.` : null,
+  }));
 }
 
 // Rows are built from the manifest's resource list on first appearance rather
@@ -2063,6 +2204,8 @@ function renderResources() {
   const any = resources.some((res) => S.res[res.id] > 0);
   const empty = document.getElementById("emptyStores");
   if (empty) empty.classList.toggle("hidden", any);
+
+  renderPopRow(bar);
 
   for (const res of resources) {
     // Food is always shown (it's the thing that can kill you); everything else
@@ -2096,26 +2239,37 @@ function renderResources() {
     rateEl.textContent = rate !== 0 ? fmtRate(rate) : "";
     rateEl.classList.toggle("pos", rate > 0);
     rateEl.classList.toggle("neg", rate < 0);
+
+    const atCap = S.res[res.id] >= cap - 0.01;
+    attachTip(row, () => ({
+      title: res.name,
+      body: atCap
+        ? "The store is full — anything gathered beyond this is wasted. Build to hold more."
+        : "Gathered by whoever you put to the work.",
+      why: rate < 0 ? "This pile is draining." : null,
+    }));
   }
 }
 
 function renderPeople() {
   const tiles = document.getElementById("personTiles");
-  renderTile(tiles, "ptile-", "settler", PERSON_ICONS.settler, capWord(active().popNoun.singular), civilians());
+  const noun = active().popNoun;
+  renderTile(tiles, "ptile-", "settler", PERSON_ICONS.settler, capWord(noun.singular), civilians(), "people",
+    `An ordinary ${noun.singular}. Put them to work, or train them for something harder.`);
   for (const def of active().units) {
     if (!isRevealed(def)) continue;
-    renderTile(tiles, "ptile-", def.id, PERSON_ICONS[def.id] || "", def.name, S.units[def.id] || 0);
+    renderTile(tiles, "ptile-", def.id, PERSON_ICONS[def.id] || "", def.name, S.units[def.id] || 0, "people", def.desc);
   }
 
-  document.getElementById("popIdle").textContent = idle();
-  document.getElementById("popCap").textContent = housing();
-
+  // "Housing is full" moved into the ledger's Pop row, where the red at-cap
+  // value says it without a sentence. This line now carries only the thing a
+  // number can't: when the next arrival is due.
   const gl = document.getElementById("growthLine");
   if (S.pop >= housing()) {
-    gl.innerHTML = "Housing is full — no one new can settle here.";
+    gl.innerHTML = "";
   } else {
     const remaining = Math.max(0, CONFIG.settlerIntervalSeconds - S.growth);
-    gl.innerHTML = `Next ${active().popNoun.singular} joins in <span class="cost">${Math.ceil(remaining)}s</span>.`;
+    gl.innerHTML = `Next ${noun.singular} joins in <span class="cost">${Math.ceil(remaining)}s</span>.`;
   }
 
   const list = document.getElementById("jobList");
@@ -2131,12 +2285,20 @@ function renderPeople() {
       row = document.createElement("div");
       row.className = "job";
       row.id = "job-" + job.id;
+      // Two lines: the name owns the first, the rate and the stepper share the
+      // second. At this column width there is no honest way to fit all three
+      // on one line, and the name is the control's primary label.
+      // The stepper is ONE segmented instrument -- a single bordered group with
+      // internal dividers -- because two loose buttons flanking a floating
+      // number read as two different kinds of control.
       row.innerHTML =
-        `<span class="job-name">${job.name}</span>` +
+        `<span class="job-name" id="jname-${job.id}">${job.name}</span>` +
         `<span class="job-out" id="out-${job.id}"></span>` +
-        `<button class="stepper" data-job="${job.id}" data-d="-1">−</button>` +
-        `<span class="job-count" id="cnt-${job.id}">0</span>` +
-        `<button class="stepper" data-job="${job.id}" data-d="1">+</button>`;
+        `<span class="stepper-group">` +
+          `<button class="stepper dec" data-job="${job.id}" data-d="-1">−</button>` +
+          `<span class="job-count" id="cnt-${job.id}">0</span>` +
+          `<button class="stepper inc" data-job="${job.id}" data-d="1">+</button>` +
+        `</span>`;
       list.appendChild(row);
       row.querySelectorAll(".stepper").forEach((b) =>
         b.addEventListener("click", () => assign(b.dataset.job, Number(b.dataset.d))));
@@ -2144,14 +2306,23 @@ function renderPeople() {
     row.classList.toggle("hidden", !show);
     if (!show) continue;
 
-    document.getElementById("cnt-" + job.id).textContent = S.jobs[job.id] || 0;
+    const n = S.jobs[job.id] || 0;
+    const cnt = document.getElementById("cnt-" + job.id);
+    cnt.textContent = n;
+    cnt.classList.toggle("zero", n === 0);
+    document.getElementById("jname-" + job.id).classList.toggle("idle", n === 0);
     // Per-job output, not the resource total -- two jobs never share a resource
     // today, but showing the job's own contribution is the honest reading.
-    const own = (S.jobs[job.id] || 0) * CONFIG.baseRate * (job.rateMult || 1) * (mults()[job.res] || 1);
-    document.getElementById("out-" + job.id).textContent =
-      (S.jobs[job.id] || 0) > 0 ? fmtRate(own) : "";
-    row.querySelector('[data-d="-1"]').disabled = S.dead || (S.jobs[job.id] || 0) <= 0;
-    row.querySelector('[data-d="1"]').disabled = S.dead || idle() <= 0;
+    const own = n * CONFIG.baseRate * (job.rateMult || 1) * (mults()[job.res] || 1);
+    document.getElementById("out-" + job.id).textContent = n > 0 ? fmtRate(own) : "";
+    const noOne = idle() <= 0;
+    row.querySelector('[data-d="-1"]').disabled = S.dead || n <= 0;
+    row.querySelector('[data-d="1"]').disabled = S.dead || noOne;
+    attachTip(row, () => ({
+      title: job.name,
+      body: job.desc || `Assign ${active().popNoun.plural} to gather ${job.res}.`,
+      why: noOne && n === 0 ? "No one is idle. Take someone off other work first." : null,
+    }));
   }
 }
 
@@ -2195,7 +2366,11 @@ function renderQueue() {
       card.className = "queue-card expedition";
       card.dataset.uid = "x" + ex.uid;
       card.innerHTML =
-        `<div class="site-name"><span><span class="q-icon">${QUEUE_ICONS[ex.type] || ""}</span><span class="q-label"></span> <span class="b-of q-pct"></span></span></div>` +
+        `<div class="site-name">` +
+          `<span class="q-icon">${QUEUE_ICONS[ex.type] || ""}</span>` +
+          `<span class="q-label"></span>` +
+          `<span class="b-of q-pct"></span>` +
+        `</div>` +
         `<div class="progress"><span class="q-bar" style="width:0%"></span></div>` +
         `<div class="site-meta"><span class="eta q-eta"></span></div>`;
       wrap.appendChild(card);
@@ -2222,7 +2397,9 @@ function renderQueue() {
       card.dataset.uid = String(item.uid);
       card.innerHTML =
         `<div class="site-name">` +
-          `<span><span class="q-icon">${QUEUE_ICONS.build}</span><span class="q-label"></span> <span class="b-of q-pct"></span></span>` +
+          `<span class="q-icon">${QUEUE_ICONS.build}</span>` +
+          `<span class="q-label"></span>` +
+          `<span class="b-of q-pct"></span>` +
           `<button class="q-cancel" title="Cancel and refund">×</button>` +
         `</div>` +
         `<div class="progress"><span class="q-bar" style="width:0%"></span></div>` +
@@ -2231,8 +2408,10 @@ function renderQueue() {
       card.querySelector(".q-cancel").addEventListener("click", () => cancelBuild(item.uid));
     }
     const pct = Math.max(0, Math.min(100, (1 - item.remaining / item.total) * 100));
-    const verb = i === 0 ? (def.kind === "unit" ? "Training" : "Raising") : "Queued";
-    card.querySelector(".q-label").textContent = `${verb}: ${def.name}`;
+    // No "Raising:" / "Queued:" prefix -- the filled bar and the "~24s left"
+    // line already say which item is active, and the prefix was eating the
+    // name's space in a narrow column.
+    card.querySelector(".q-label").textContent = def.name;
     card.querySelector(".q-pct").textContent = `(${Math.floor(pct)}%)`;
     card.querySelector(".q-bar").style.width = pct + "%";
     card.querySelector(".q-eta").textContent =
@@ -2267,7 +2446,8 @@ function renderHoldings() {
   body.classList.toggle("hidden", owned.length === 0);
 
   for (const def of owned) {
-    renderTile(body, "hold-", def.id, BUILDING_ICONS[def.id] || "", def.name, S.builds[def.id]);
+    renderTile(body, "hold-", def.id, BUILDING_ICONS[def.id] || "", def.name, S.builds[def.id],
+      BUILDING_CATS[def.id], def.desc);
   }
 }
 
@@ -2292,25 +2472,33 @@ function renderBuildings() {
     const owned = S.builds[def.id] || 0;
     const pending = pendingCount(def.id);
     const capped = isCapped(def);
-    const ownedStr = pending > 0 ? `${owned} <span class="b-pending">(+${pending} queued)</span>` : `${owned}`;
+    const ownedStr = pending > 0 ? `${owned} <span class="b-pending">+${pending}</span>` : `${owned}`;
 
     const bottom = capped
-      ? `<div class="b-cost">Maxed.</div>`
+      ? `<div class="b-cost"><span class="b-costs">Maxed.</span></div>`
       : (() => {
           const cost = buildCost(def);
           const costStr = Object.keys(cost).map((k) => {
             const short = S.res[k] < cost[k];
             return `<span class="${short ? "short" : ""}">${cost[k]} ${k}</span>`;
           }).join(", ");
-          return `<div class="b-cost">${costStr}<span class="b-time">${def.buildTime}s build</span></div>`;
+          return `<div class="b-cost"><span class="b-costs">${costStr}</span>` +
+                 `<span class="b-time">${def.buildTime}s</span></div>`;
         })();
 
+    // No description on the card: it lives in the tooltip, where it can afford
+    // to be longer and where the refusal reason can sit beside it.
     card.innerHTML =
       `<div class="b-top"><span class="b-name">${def.name}</span>` +
-      `<span class="b-owned">${ownedStr}</span></div>` +
-      `<div class="b-desc">${def.desc}</div>` +
+      `<span class="b-owned${capped ? " is-owned" : ""}">${capped ? "Maxed" : ownedStr}</span></div>` +
       bottom;
     card.disabled = S.dead || capped || !canAfford(buildCost(def));
+    card.classList.toggle("owned", capped);
+    attachTip(card, () => ({
+      title: def.name,
+      body: def.desc,
+      why: capped ? "You only ever need the one." : shortfallLine(buildCost(def)),
+    }));
   }
 
   panel.classList.toggle("hidden", !anyRevealed);
@@ -2342,29 +2530,56 @@ function renderUpgrades() {
     const pending = pendingCount(def.id) > 0;
     const statusStr = owned ? "owned" : pending ? "queued" : "";
     const bottom = owned
-      ? `<div class="b-cost">Permanent.</div>`
-      : `<div class="b-cost">${Object.keys(cost).map((k) => {
+      ? `<div class="b-cost"><span class="b-costs">Permanent.</span></div>`
+      : `<div class="b-cost"><span class="b-costs">${Object.keys(cost).map((k) => {
           const short = S.res[k] < cost[k];
           return `<span class="${short ? "short" : ""}">${cost[k]} ${k}</span>`;
-        }).join(", ")}<span class="b-time">${def.buildTime}s build</span></div>`;
+        }).join(", ")}</span><span class="b-time">${def.buildTime}s</span></div>`;
     card.innerHTML =
       `<div class="b-top"><span class="b-name">${def.name}</span>` +
-      `<span class="b-owned">${statusStr}</span></div>` +
-      `<div class="b-desc">${def.desc}</div>` +
+      `<span class="b-owned${owned ? " is-owned" : pending ? " is-queued" : ""}">${statusStr}</span></div>` +
       bottom;
     card.disabled = S.dead || owned || pending || !canAfford(cost);
+    card.classList.toggle("owned", owned);
+    attachTip(card, () => ({
+      title: def.name,
+      body: def.desc,
+      why: owned ? "Already yours — permanent." : pending ? "Already in the queue." : shortfallLine(cost),
+    }));
     (owned ? ownedCards : buyable).push(card);
   }
 
-  // Owned upgrades sink to the bottom, so what's still buyable is never
-  // buried under a pile of "Permanent." cards. Queued ones stay on top --
-  // they're in progress, which is worth seeing. Manifest order holds within
-  // each group, and the DOM is only touched when the order actually changed
-  // (an appendChild of an already-attached node MOVES it).
+  // Owned upgrades are FILTERED OUT of the Available tab rather than dimmed in
+  // place at the bottom of one list. Sitting there at reduced contrast, they
+  // read as unaffordable -- the opposite of what they are. On the Owned tab
+  // they render at full contrast with a green border, because owning them is
+  // an achievement rather than a refusal.
+  const onOwned = upgradeTab === "owned";
+  const shown = onOwned ? ownedCards : buyable;
+  for (const el of buyable) el.classList.toggle("hidden", onOwned);
+  for (const el of ownedCards) el.classList.toggle("hidden", !onOwned);
+
+  // Manifest order holds within each group, and the DOM is only touched when
+  // the order actually changed (an appendChild of an already-attached node
+  // MOVES it, so an unconditional loop would thrash every frame).
   const desired = buyable.concat(ownedCards);
   const current = Array.from(list.children);
   if (desired.some((el, i) => el !== current[i])) {
     for (const el of desired) list.appendChild(el);
+  }
+
+  const availTab = document.getElementById("tabAvailable");
+  const ownTab = document.getElementById("tabOwned");
+  if (availTab) {
+    availTab.textContent = buyable.length ? `Available (${buyable.length})` : "Available";
+    ownTab.textContent = ownedCards.length ? `Owned (${ownedCards.length})` : "Owned";
+    availTab.classList.toggle("active", !onOwned);
+    ownTab.classList.toggle("active", onOwned);
+  }
+  const emptyMsg = document.getElementById("upgradesEmpty");
+  if (emptyMsg) {
+    emptyMsg.classList.toggle("hidden", shown.length > 0);
+    emptyMsg.textContent = onOwned ? "Nothing owned yet." : "Everything here is already yours.";
   }
 
   panel.classList.toggle("hidden", !anyRevealed);
@@ -2401,12 +2616,25 @@ function renderTraining() {
       const noun = def.popCost > 1 ? active().popNoun.plural : active().popNoun.singular;
       costParts.push(`<span class="${short ? "short" : ""}">${def.popCost} ${noun}</span>`);
     }
+    const pendingUnits = pendingCount(def.id);
+    const ownedStr = pendingUnits > 0
+      ? `${S.units[def.id] || 0} <span class="b-pending">+${pendingUnits}</span>`
+      : `${S.units[def.id] || 0}`;
     card.innerHTML =
       `<div class="b-top"><span class="b-name">${def.name}</span>` +
-      `<span class="b-owned">${S.units[def.id] || 0}</span></div>` +
-      `<div class="b-desc">${def.desc}</div>` +
-      `<div class="b-cost">${costParts.join(", ")}<span class="b-time">${def.buildTime}s train</span></div>`;
+      `<span class="b-owned">${ownedStr}</span></div>` +
+      `<div class="b-cost"><span class="b-costs">${costParts.join(", ")}</span>` +
+      `<span class="b-time">${def.buildTime}s</span></div>`;
     card.disabled = S.dead || !canAfford(cost) || (def.popCost && idle() < def.popCost);
+    attachTip(card, () => ({
+      title: def.name,
+      body: def.desc,
+      // Two different refusals share this card, and the population one is the
+      // easier to miss -- you can be rich in wood and still have nobody spare.
+      why: (def.popCost && idle() < def.popCost)
+        ? `No one is free to train. A ${active().popNoun.singular} must be idle first.`
+        : shortfallLine(cost),
+    }));
   }
 
   panel.classList.toggle("hidden", !anyRevealed);
@@ -2664,6 +2892,10 @@ function openModal(title, bodyHTML, actions, onMount) {
   const body = document.getElementById("modalBody");
   body.innerHTML = bodyHTML;
   body.scrollTop = 0;
+  // Every modal starts from the same clean stock; a caller that wants ruled
+  // ground (Info) adds it in its own onMount rather than leaving it behind for
+  // whichever modal opens next.
+  body.classList.remove("ruled-graph");
 
   const bar = document.getElementById("modalActions");
   bar.innerHTML = "";
@@ -2699,20 +2931,33 @@ function infoPanelHTML() {
 
   const sections = ERA_ORDER.map((e) => {
     const m = MANIFESTS[e];
+    // Ruled ground, boxed content, strong section markers. That combination is
+    // what makes a dense reference skimmable: the eye jumps by heading, then
+    // lands in a box instead of a wall. Two columns, because these entries are
+    // short and a single column of them scrolls forever.
     const group = (label, items) => {
       if (!items.length) return "";
-      return `<h3 class="info-h">${label}</h3>` + items.map((d) =>
+      return `<h3 class="info-h">${label}</h3><div class="info-grid">` + items.map((d) =>
         `<div class="info-item">` +
-          `<span class="info-name">${d.name}</span>` +
-          `<span class="info-desc">${d.desc}</span>` +
+          `<div class="info-top"><span class="info-name">${d.name}</span>` +
+          (d.costLine ? `<span class="info-cost">${d.costLine}</span>` : "") + `</div>` +
+          `<div class="info-desc">${d.desc}</div>` +
         `</div>`
-      ).join("");
+      ).join("") + `</div>`;
     };
+    // The reference is the one place costs are shown for things you may not
+    // have revealed yet -- it exists to answer "what does this age hold".
+    const priced = (items) => items.map((d) => Object.assign({}, d, {
+      costLine: d.base
+        ? Object.keys(d.base).map((k) => `${d.base[k]} ${k}`).join(", ") +
+          (d.buildTime ? ` · ${d.buildTime}s` : "")
+        : null,
+    }));
     const neighbors = m.adversaries.map((a) => ({
       name: a.name.charAt(0).toUpperCase() + a.name.slice(1), desc: a.desc,
     }));
-    const inner = group("Buildings", m.buildings) + group("People", m.units) +
-      group("Upgrades", m.upgrades) + group("Neighbors", neighbors);
+    const inner = group("Buildings", priced(m.buildings)) + group("People", priced(m.units)) +
+      group("Upgrades", priced(m.upgrades)) + group("Neighbors", neighbors);
     return `<div class="info-era${e === S.era ? "" : " hidden"}" data-era="${e}">${inner}</div>`;
   }).join("");
 
@@ -2720,7 +2965,8 @@ function infoPanelHTML() {
 }
 
 function openInfoPanel() {
-  openModal("Reference", infoPanelHTML(), null, (body) => {
+  openModal(`Reference · ${active().name}`, infoPanelHTML(), null, (body) => {
+    body.classList.add("ruled-graph");
     body.querySelectorAll(".info-tab").forEach((tab) => {
       tab.addEventListener("click", () => {
         const era = tab.dataset.era;
@@ -2845,7 +3091,7 @@ function renderClock() {
 function renderSpeed() {
   const btn = document.getElementById("speedBtn");
   if (!btn) return;
-  btn.textContent = `[ ${speed}× ]`;
+  btn.textContent = `${speed}×`;
   btn.classList.toggle("fast", speed > 1);
 }
 
@@ -2860,7 +3106,7 @@ function setPaused(p) {
   if (S.dead) return;
   paused = p;
   const btn = document.getElementById("pauseBtn");
-  if (btn) btn.textContent = paused ? "[ Resume ]" : "[ Pause ]";
+  if (btn) btn.textContent = paused ? "Resume" : "Pause";
   const flag = document.getElementById("pauseFlag");
   if (flag) flag.classList.toggle("hidden", !paused);
   // Deliberately not logged: the Chronicle is the settlement's memory, not a
@@ -2873,8 +3119,11 @@ function setPaused(p) {
 // stick rather than being overwritten by a later render.
 function renderEraChrome() {
   if (S.dead) return;
-  const badge = document.getElementById("ageBadge");
-  if (badge) badge.textContent = `[${active().name}]`;
+  const badgeText = document.getElementById("ageBadgeText");
+  if (badgeText) badgeText.textContent = active().name;
+  // The desk under the board changes per era, and the header chrome inverts
+  // with it. Driving both off one attribute keeps the whole swap in CSS.
+  if (document.body) document.body.dataset.era = S.era;
   const titles = active().panelTitles;
   for (const panelId in titles) {
     const h2 = document.querySelector(`#${panelId} h2`);
@@ -3004,6 +3253,8 @@ function boot() {
   document.getElementById("pauseBtn").addEventListener("click", () => setPaused(!paused));
   document.getElementById("speedBtn").addEventListener("click", cycleSpeed);
   renderSpeed();
+  document.getElementById("tabAvailable").addEventListener("click", () => { upgradeTab = "available"; renderUpgrades(); });
+  document.getElementById("tabOwned").addEventListener("click", () => { upgradeTab = "owned"; renderUpgrades(); });
   document.getElementById("infoBtn").addEventListener("click", openInfoPanel);
   document.getElementById("modalClose").addEventListener("click", closeModal);
   // Clicking the dimmed backdrop closes; clicks inside the panel bubble up to

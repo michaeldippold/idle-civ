@@ -440,26 +440,26 @@ for (const id of ["greatHunt", "trader", "sickness", "conflict"]) {
 // ever refreshed the count, so an era rename left stale text in the tile even
 // though the matching buy-card updated correctly. Caught in live testing.
 console.log("\n--- Bronze P1: tiles re-render their name, not just their count ---");
+// The name moved off the tile and into the tooltip in the Bureau port, so the
+// mechanism under test changed -- but the bug it guards against did not. What
+// must stay true is that a re-render re-points the tile at the CURRENT name
+// rather than keeping whatever it was built with.
 {
-  const writes = [];
   const realGetById = sandbox.document.getElementById;
-  const nameEl = fakeEl();
-  Object.defineProperty(nameEl, "textContent", {
-    get() { return ""; }, set(v) { writes.push(v); }, configurable: true,
-  });
-  let tileAlreadyExists = false;   // first call creates it, second must still rename it
+  let created = null;              // first call creates it, second must still rename it
   sandbox.document.getElementById = (id) => {
-    if (id === "hold-infirmary") return tileAlreadyExists ? fakeEl() : null;
-    if (id === "hold-infirmary-name") return nameEl;
+    if (id === "hold-infirmary") return created;
     return fakeEl();
   };
   const container = fakeEl();
-  api.renderTile(container, "hold-", "infirmary", "", "Medicine Tent", 1);
-  tileAlreadyExists = true;
-  api.renderTile(container, "hold-", "infirmary", "", "Infirmary", 1);
+  api.renderTile(container, "hold-", "infirmary", "", "Medicine Tent", 1, "care", "d");
+  created = container.children[0];
+  const firstName = created.__tip().title;
+  api.renderTile(container, "hold-", "infirmary", "", "Infirmary", 1, "care", "d");
   sandbox.document.getElementById = realGetById;
   check("tile renames in place on re-render, not just on creation",
-    writes.includes("Medicine Tent") && writes.includes("Infirmary"));
+    firstName === "Medicine Tent" && created.__tip().title === "Infirmary" &&
+    container.children.length === 1);   // and it did NOT create a second tile
 }
 
 console.log("\n--- Bronze P1: old stone-age saves still load ---");

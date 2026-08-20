@@ -47,7 +47,11 @@
   /* --- rulings. Deliberately faint: these are ground, not figure. --- */
   --graph: repeating-linear-gradient(to right, transparent 0, transparent 15px, rgba(25,23,16,.055) 15px, rgba(25,23,16,.055) 16px),
            repeating-linear-gradient(to bottom, transparent 0, transparent 15px, rgba(25,23,16,.055) 15px, rgba(25,23,16,.055) 16px);
-  --dots:  radial-gradient(rgba(25,23,16,.11) 1px, transparent 1px) 0 0 / 14px 14px;
+  /* Image only -- no position/size. Those are `background` shorthand syntax and
+     are invalid in `background-image`, which silently drops the whole
+     declaration; the dot grid was missing from three panels because of it.
+     The tile size lives on .ruled-dot instead. */
+  --dots:  radial-gradient(rgba(25,23,16,.11) 1px, transparent 1px);
   --rules: repeating-linear-gradient(to bottom, transparent 0, transparent 27px, rgba(25,23,16,.11) 27px, rgba(25,23,16,.11) 28px);
 
   /* --- type. Three registers, per DESIGN-NOTES. --- */
@@ -313,7 +317,7 @@ button { font-family: inherit; cursor: pointer; }
    columns distinguishable without spending colour on it. Faint on purpose --
    everything with words in it sits in an opaque box on top. */
 .ruled-graph { background-image: var(--graph); }
-.ruled-dot   { background-image: var(--dots); }
+.ruled-dot   { background-image: var(--dots); background-size: 14px 14px; background-position: 0 0; }
 
 /* ---------- People ---------- */
 .growthline { font-size: 12px; color: var(--text-2); margin-bottom: 11px; min-height: 16px; }

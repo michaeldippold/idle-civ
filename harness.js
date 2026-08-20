@@ -43,7 +43,7 @@ globalThis.__api = {
   negateChance, removeSettler, cancelBuild, defById, isRevealed,
   isCapped, civilians, reserved, totalUnits, militaryStrength, weaponMultiplier,
   armorFactor, rollRaidSize, stealResources, RAID_SIZES, log,
-  housingPerHut, advanceEra, renderHoldings, renderTile, fmtTime,
+  housingPerHut, advanceEra, renderHoldings, renderTile, fmtTime, renderAll,
   infoPanelHTML, ERA_ORDER, releaseOrder, runConverters,
   rollRaidType, unitStrength, counterCoverage, removeRandomUnit,
   MANIFESTS, DEF_INDEX, active, compileBase, extendEra, EVENT_LIB, HINT_LIB,
@@ -322,20 +322,45 @@ S().pop = 5;
   check("great hunt gives only food, not wood/stone", S().res.food > foodBefore2 && S().res.wood === 0 && S().res.stone === 0);
 }
 
-// ---- Build Queue is sticky-hidden until first used ----
-console.log("\n--- Build Queue: hidden until first used, then sticky ---");
+// ---- The board is whole from frame one ----
+// This replaces a block that asserted the opposite: the Build Queue used to
+// hide until first use, tracked by a sticky S.seen.queueUsed. Panels no longer
+// hide themselves at all, so that flag went away, and what needs guarding now
+// is the new contract -- no render function may hide a panel the current era
+// can fill, and the queue must still fill and drain behind its empty state.
+console.log("\n--- Board: every panel the era can fill is present from the start ---");
 reset();
-check("queueUsed not set on a fresh game", !S().seen.queueUsed);
+{
+  // Panels the Stone Age can fill. Expeditions is excluded deliberately: no
+  // adversaries exist in this era's manifest, so there is nothing it could hold.
+  const PANELS = ["panel-village", "panel-holdings", "panel-queue", "panel-log",
+                  "panel-training", "panel-build", "panel-upgrades"];
+  const hidden = [];
+  const realGetById = sandbox.document.getElementById;
+  sandbox.document.getElementById = (id) => {
+    const el = fakeEl();
+    if (PANELS.indexOf(id) >= 0) {
+      el.classList = {
+        add(c) { if (c === "hidden") hidden.push(id); },
+        remove() {}, contains() { return false; },
+        toggle(c, on) { if (c === "hidden" && on) hidden.push(id); },
+      };
+    }
+    return el;
+  };
+  api.renderAll();
+  sandbox.document.getElementById = realGetById;
+  check("no panel hides itself on a fresh game", hidden.length === 0);
+}
+check("queueUsed is gone -- it was write-only state in every save", !("queueUsed" in S().seen));
 api.assign("forager", 1);
 api.assign("woodcutter", 1);
 run(90);
 check("enough wood gathered to afford the hut", S().res.wood >= api.buildCost(findB("hut")).wood);
-api.build(findB("hut"));   // build() calls renderAll() internally, which sets the sticky flag
+api.build(findB("hut"));
 check("hut actually entered the queue", S().buildQueue.length === 1);
-check("queueUsed flips true the moment something is queued", S().seen.queueUsed === true);
 run(13); // let the hut finish, queue drains back to empty
 check("hut finished, queue now empty again", S().buildQueue.length === 0);
-check("queueUsed stays true even once queue is empty again", S().seen.queueUsed === true);
 
 // ================= BRONZE AGE PHASE 1 =================
 const hutDef = findB("hut");

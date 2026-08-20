@@ -25,11 +25,21 @@ These are game-design facts the interface must express, not stylistic preference
    record of play. The reading experience — type, measure, rhythm, emphasis — is therefore a
    first-class design surface, not decoration around one.
 
-3. **The interface unravels.** Nothing is shown before it is earned. Panels, rows, and cards
-   appear the first time their content becomes relevant and then stay forever (reveals are
-   sticky — nothing flickers away when a threshold dips). New panels appearing is part of the
-   fun; the screen's growth *is* the progression display. The single sanctioned removal moment
-   is an era transition, when retired content is purged in one pass.
+3. **The contents unravel; the board does not.** *(Revised 2026-08-20 — this previously read
+   "the interface unravels" and hid whole panels until earned.)* Every panel the current era can
+   fill is present from the first frame, named by its header, empty and waiting; Your People and
+   the Chronicle start with content, the rest start as blank forms. Rows and cards still appear
+   the first time their content becomes relevant and then stay forever (reveals are sticky —
+   nothing flickers away when a threshold dips). Panels *filling* is part of the fun; the
+   screen's growth *is* the progression display. The single sanctioned moment for the board's
+   own shape to change is an era transition, when panels may arrive or retire and retired
+   content is purged in one pass.
+
+   The old rule was load-bearing when every panel was an identical hairline box on white: an
+   empty one couldn't be told from a full one, so showing them all read as clutter. Bureau's ink
+   header plates and per-column paper stock removed that premise — an empty panel now reads as a
+   blank form, which suits a game about administration — and against defined content areas a
+   slow reveal reads as broken rather than as discovery.
 
 4. **The UI never demands presence.** No catch windows: every event, expedition, and hazard
    resolves itself with nobody in the room, and the Chronicle catches the player up. Nothing
@@ -66,8 +76,8 @@ A fixed header, a resource ledger strip, and a 2×4 panel grid:
 │ growth line,   │                │  expeditions)  │ severity-colored  │
 │ job steppers   │                │                │                   │
 ├────────────────┼────────────────┼────────────────┤ (spans both rows  │
-│ TRAINING       │ CONSTRUCTION   │ UPGRADES       │  until Expeditions│
-│ unit buy cards │ building buy   │ one-time buy   │  exists)          │
+│ TRAINING       │ CONSTRUCTION   │ UPGRADES       │  in eras with no  │
+│ unit buy cards │ building buy   │ one-time buy   │  adversaries)     │
 │                │ cards          │ cards, owned   ├───────────────────┤
 │                │                │ sink to bottom │ EXPEDITIONS       │  row 2
 │                │                │                │ adversary cards   │
@@ -79,10 +89,11 @@ panel (bottom: how you get more of it). People ↔ Training, Town ↔ Constructi
 Upgrades (loosely: progress ↔ investments), Chronicle ↔ Expeditions (the world's story ↔ the
 world's counterparties).
 
-**Dynamic spans.** A top panel expands to fill its whole column while its partner has nothing
-revealed yet — an intentional tall panel instead of an unexplained blank cell. The Chronicle
-runs double-height as a luxury until the Muster Ground is built, then yields its lower half to
-Expeditions ("the world crowding in on your story").
+**Dynamic spans.** *(Reduced 2026-08-20.)* Top panels used to expand over their partner's
+empty cell, because the partner wasn't on screen yet; with the board whole from frame one, that
+case no longer arises and only one span still does any work. The Chronicle runs double-height
+as a luxury in eras with no outside world, and yields its lower half to Expeditions when one
+arrives ("the world crowding in on your story").
 
 **Panels rename per era.** Settlement → Village → Town; Build Queue → Underway (once it tracks
 expeditions, not just builds). Era-varying titles are data, not exceptions; future ages will
@@ -95,8 +106,9 @@ science are already on the ideation board). Widening-age *consolidation* (mergin
 systems) is a real game-design lever that will help, but it is no longer assumed sufficient:
 whether this interface grows navigation — menus, tabs, drawers, whatever earns its place — is
 an open question Design is explicitly invited to answer (see §6; "there's a reason most civ
-games have menus"). The one behavior worth protecting through any structure change is the
-unravel: new capability announcing itself by *appearing*.
+games have menus"). The one behavior worth protecting through any structure change is that
+new capability should *announce itself* — under the current rules by a named, empty panel
+filling for the first time (see §1.3), rather than by a panel materialising.
 
 ---
 

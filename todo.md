@@ -138,6 +138,20 @@ merits — see the speed control in Next up.)
 
 ### Decisions taken on returning (2026-08-20, later the same day)
 
+- **The founding "unravel" pillar was rewritten, not deleted.** The board is now whole from the
+  first frame — every panel the era can fill is on screen, named, empty and waiting — and what
+  unravels is the *contents*. Your People and the Chronicle start with content; the rest start
+  as blank forms. **The reasoning, which is the part worth keeping:** the original rule existed
+  because the game looked like pen on paper, where an empty panel and a full one were the same
+  hairline box and showing them all read as undifferentiated clutter. It never fully worked even
+  then (the Chronicle was pinned from frame one regardless, so the board never really grew from
+  nothing), and Bureau removed the premise outright — ink header plates and per-column paper
+  stock mean an empty panel now reads as a *blank form*, which suits a game about
+  administration. Against defined content areas a slow reveal stops reading as discovery and
+  starts reading as broken. Note this reverses a reversal: the board *was* whole originally, was
+  changed when live play showed empty panels as clutter, and is now back for a reason that
+  explains why the old complaint no longer applies.
+
 - **The ceremony modals get built here, and may still go back to design later.** Era transition
   and game over are extrapolated from Bureau's grammar now so nothing ships looking half-finished.
   If the era modal doesn't land in play it goes back to the design space *with a concrete

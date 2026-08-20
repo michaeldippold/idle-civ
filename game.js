@@ -2341,14 +2341,11 @@ function renderQueue() {
   const emptyMsg = document.getElementById("queueEmpty");
   if (!wrap) return;
 
-  // Hidden (not just empty) until the first time anything is queued, then
-  // sticky-visible forever after -- matches how every other panel unravels in.
-  // Expeditions count as usage: this panel is Underway once the world opens.
+  // Always present, empty until something is underway. (It used to hide until
+  // first use, tracked by a sticky S.seen.queueUsed; the board is now whole
+  // from frame one, so that flag was write-only state in every save and went
+  // with it -- see design.md, "Unravel the contents, not the board".)
   const anything = S.buildQueue.length > 0 || S.expeditions.length > 0;
-  if (anything) S.seen.queueUsed = true;
-  panel.classList.toggle("hidden", !S.seen.queueUsed);
-  if (!S.seen.queueUsed) return;
-
   emptyMsg.classList.toggle("hidden", anything);
   wrap.classList.toggle("hidden", !anything);
 
@@ -2440,10 +2437,6 @@ function renderHoldings() {
   const emptyMsg = document.getElementById("holdingsEmpty");
 
   const buildings = active().buildings;
-  const conceptRevealed = buildings.some(isRevealed);
-  panel.classList.toggle("hidden", !conceptRevealed);
-  if (!conceptRevealed) return;
-
   const owned = buildings.filter((d) => (S.builds[d.id] || 0) > 0);
   emptyMsg.classList.toggle("hidden", owned.length > 0);
   body.classList.toggle("hidden", owned.length === 0);
@@ -2521,7 +2514,7 @@ function renderBuildings() {
     for (const el of desired) list.appendChild(el);
   }
 
-  panel.classList.toggle("hidden", !anyRevealed);
+  document.getElementById("buildEmpty").classList.toggle("hidden", anyRevealed);
 }
 
 // One-time upgrades: same card shell as renderBuildings, but a card locks
@@ -2598,11 +2591,12 @@ function renderUpgrades() {
   }
   const emptyMsg = document.getElementById("upgradesEmpty");
   if (emptyMsg) {
-    emptyMsg.classList.toggle("hidden", shown.length > 0);
+    emptyMsg.classList.toggle("hidden", !anyRevealed || shown.length > 0);
     emptyMsg.textContent = onOwned ? "Nothing owned yet." : "Everything here is already yours.";
   }
-
-  panel.classList.toggle("hidden", !anyRevealed);
+  // The tab strip is contents too: it waits until there is something to sort.
+  document.getElementById("upgradeTabs").classList.toggle("hidden", !anyRevealed);
+  document.getElementById("upgradesUnknown").classList.toggle("hidden", anyRevealed);
 }
 
 // Trainable person-types -- same card shell again, but the cost line also
@@ -2657,33 +2651,29 @@ function renderTraining() {
     }));
   }
 
-  panel.classList.toggle("hidden", !anyRevealed);
+  document.getElementById("trainingEmpty").classList.toggle("hidden", anyRevealed);
 }
 
 // Your People / Settlement can each expand to fill their whole grid column
 // (both rows) while their paired action-panel (Training / Construction) has
 // nothing revealed yet -- an unexplained blank cell reads as a bug, a taller
 // single panel reads as intentional.
+// The roster panels used to stretch over their partner's empty cell, because
+// the partner wasn't there yet. Every panel the era can fill is now present
+// from frame one, so that case no longer arises and only the Chronicle's span
+// still does any work: it runs double-height as a luxury until the world opens
+// up, then yields its lower half to Expeditions.
 function updateSpans() {
-  const m = active();
-  document.getElementById("panel-village").classList.toggle("span-both", !m.units.some(isRevealed));
-  document.getElementById("panel-holdings").classList.toggle("span-both", !m.buildings.some(isRevealed));
-  document.getElementById("panel-queue").classList.toggle("span-both", !m.upgrades.some(isRevealed));
-  // The Chronicle spans both rows as a luxury until the world opens up; then
-  // Expeditions unravels in beneath it. Same span machinery, pointed the
-  // other way.
   const log = document.getElementById("panel-log");
   if (log) log.classList.toggle("shrunk", expeditionsUnlocked());
 }
 
-// The Expeditions panel exists once the era HAS adversaries and the Muster
-// Ground stands. Sticky like every other unlock -- but era-scoped rather
-// than global, since a later era without adversaries shouldn't show it.
+// The Expeditions panel belongs to any era whose manifest declares adversaries
+// -- i.e. once the world has an outside at all. Era-scoped rather than global,
+// since a later era without adversaries shouldn't show it. The Muster Ground
+// gates the actions on the cards, not the existence of the panel.
 function expeditionsUnlocked() {
-  if (!active().adversaries.length) return false;
-  if (S.seen.expeditionsOpen) return true;
-  if ((S.builds.musterGround || 0) >= 1) { S.seen.expeditionsOpen = true; return true; }
-  return false;
+  return active().adversaries.length > 0;
 }
 
 // Muster allocation is UI state, not game state (like `paused`): it's what
@@ -2847,7 +2837,11 @@ function renderExpeditions() {
   const parts = [];
   if (campaignAway) parts.push("A campaign is in the field.");
   if (caravanAway) parts.push("A caravan is on the road.");
-  if (!parts.length) parts.push("The Muster Ground stands ready.");
+  if (!parts.length) {
+    parts.push((S.builds.musterGround || 0) >= 1
+      ? "The Muster Ground stands ready."
+      : "You know your neighbors, but you have no one to send. A Muster Ground would change that.");
+  }
   status.textContent = parts.join(" ");
 
   // One card per adversary: who they are, what's left of them, what you can do.
@@ -2884,10 +2878,17 @@ function renderExpeditions() {
       `${adv.desc} Strength ${adv.strength}, fights as ${fightsAsLabel(adv)}.`;
     document.getElementById(`advstock-${adv.id}`).textContent = stockLine(st) + wallsState(adv, st);
 
+    // The panel now stands before the Muster Ground does, so both verbs gate on
+    // it here rather than the whole panel gating on it. Reading the neighbours
+    // before you can act on them is the point: the cards are the recruiting
+    // poster for the building.
+    const noMuster = (S.builds.musterGround || 0) < 1;
+
     const march = document.getElementById(`advmarch-${adv.id}`);
     march.textContent = `March (${CONFIG.campaignFoodCost} food, ${adv.campaignTime}s)`;
-    march.disabled = S.dead || campaignAway;
-    march.title = campaignAway ? "A campaign is already in the field." : "";
+    march.disabled = S.dead || campaignAway || noMuster;
+    march.title = noMuster ? "You have nowhere to muster a column. Build a Muster Ground." :
+      campaignAway ? "A campaign is already in the field." : "";
 
     const trade = document.getElementById(`advtrade-${adv.id}`);
     if (adv.buys) {
@@ -2895,9 +2896,10 @@ function renderExpeditions() {
       const wouldPay = Math.min(Math.floor(adv.buys.pays * premium), Math.floor(st.stock.gold || 0));
       trade.classList.remove("hidden");
       trade.textContent = `Caravan: ${adv.buys.amount} ${adv.buys.res} → ${wouldPay} gold (${adv.caravanTime}s)`;
-      trade.disabled = S.dead || caravanAway || st.standing <= -2 || wouldPay <= 0 ||
+      trade.disabled = S.dead || caravanAway || noMuster || st.standing <= -2 || wouldPay <= 0 ||
         (S.res[adv.buys.res] || 0) < adv.buys.amount;
-      trade.title = caravanAway ? "A caravan is already on the road." :
+      trade.title = noMuster ? "You have no one to send. Build a Muster Ground." :
+        caravanAway ? "A caravan is already on the road." :
         st.standing <= -2 ? "They remember your raids. They will not trade with you." :
         wouldPay <= 0 ? "They have no gold left to pay with." :
         (S.res[adv.buys.res] || 0) < adv.buys.amount ? `Not enough ${adv.buys.res}.` :

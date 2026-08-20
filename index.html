@@ -42,9 +42,11 @@
   </div>
 
   <!-- 2 rows x 4 columns: roster panels on top, action panels beneath each,
-       Chronicle spans both rows in the last column. Roster panels can grow to
-       span both rows themselves while their paired action-panel is empty --
-       see updateSpans() in game.js. -->
+       Chronicle spans both rows in the last column until Expeditions takes its
+       lower half (see updateSpans() in game.js).
+       Every panel the current era can fill is present from frame one, empty
+       and waiting. What unravels is their CONTENTS, not the board itself --
+       see design.md, "Unravel the contents, not the board". -->
   <div id="mainArea">
 
     <!-- Row 1 -->
@@ -57,7 +59,7 @@
       </div>
     </section>
 
-    <section class="block hidden" id="panel-holdings">
+    <section class="block" id="panel-holdings">
       <h2>Settlement</h2>
       <div class="block-body ruled-graph">
         <p class="holdings-empty" id="holdingsEmpty">Nothing built yet.</p>
@@ -65,7 +67,7 @@
       </div>
     </section>
 
-    <section class="block hidden" id="panel-queue">
+    <section class="block" id="panel-queue">
       <h2>Build Queue</h2>
       <div class="block-body ruled-dot">
         <p class="holdings-empty" id="queueEmpty">Nothing queued.</p>
@@ -83,26 +85,29 @@
     </section>
 
     <!-- Row 2 -->
-    <section class="block hidden" id="panel-training">
+    <section class="block" id="panel-training">
       <h2>Training</h2>
       <div class="block-body">
+        <p class="holdings-empty hidden" id="trainingEmpty">Nothing to train yet.</p>
         <div id="trainingList" class="build-list"></div>
       </div>
     </section>
 
-    <section class="block hidden" id="panel-build">
+    <section class="block" id="panel-build">
       <h2>Construction</h2>
       <div class="block-body ruled-graph">
+        <p class="holdings-empty hidden" id="buildEmpty">Nothing to build yet.</p>
         <div id="buildingList" class="build-list"></div>
       </div>
     </section>
 
-    <section class="block hidden" id="panel-upgrades">
+    <section class="block" id="panel-upgrades">
       <h2>Upgrades</h2>
       <div class="block-body ruled-dot">
         <!-- Owned upgrades are filtered out rather than dimmed in place: faded
              text read as "you can't have this", which is the opposite of true. -->
-        <div class="tabs" id="upgradeTabs">
+        <p class="holdings-empty hidden" id="upgradesUnknown">Nothing to learn yet.</p>
+        <div class="tabs hidden" id="upgradeTabs">
           <button class="tab active" id="tabAvailable">Available</button>
           <button class="tab" id="tabOwned">Owned</button>
         </div>
@@ -111,8 +116,10 @@
       </div>
     </section>
 
-    <!-- Hidden until the era has adversaries AND a Muster Ground stands; the
-         Chronicle gives up its double-row span to make room (see updateSpans). -->
+    <!-- Present in any era whose manifest declares adversaries -- i.e. once the
+         world has an outside at all. The Muster Ground gates the ACTIONS, not
+         the panel. The Chronicle gives up its double-row span to make room
+         (see updateSpans). -->
     <section class="block hidden" id="panel-expeditions">
       <h2>Expeditions</h2>
       <div class="block-body ruled-dot">

@@ -27,6 +27,12 @@ a fresh run-through feels the full arc. **Tuning dials** if pacing feels off: `c
 §1 religion/morale is **in progress** (framework gisted; proposed monk-attaché skeleton judged
 unsatisfying — revisit fresh); §3 Enlightenment is **undiscussed**. Delete the file when emptied.
 
+**Interface intentionally un-fixed (2026-08-15):** the user revised `interface-brief.md` §6 —
+the visual treatment AND the interface's structure (flat grid vs. menus/tabs/navigation as eras
+accumulate; phone/tablet consideration, desktop primary) are handed to the design pass as
+choices, not constraints. design.md and tech.md have been softened to match; the surviving laws
+are restraint/legibility, semantic-only color, text-as-mechanic, the unravel, and no-urgency UI.
+
 ---
 
 ## Todo

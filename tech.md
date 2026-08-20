@@ -294,6 +294,12 @@ The Build Queue panel follows the same reveal-then-sticky pattern as everything 
 
 ## Layout & Visual System
 
+> **Status note (2026-08-15):** this section documents the current *wireframe* implementation.
+> The visual treatment — and even the interface's structure (flat grid vs. menus/navigation as
+> eras accumulate) — is deliberately not set in stone: it is handed to the design pass, with
+> `interface-brief.md` as the authoritative statement of what's fixed and what's Design's to
+> choose. What follows remains accurate as a description of the code as written.
+
 `styles.css` implements a fixed-viewport **CSS Grid** — `body` is `overflow: hidden` (the page itself never scrolls). `#mainArea` is `display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: 1fr 2fr;` (roster row smaller, action row larger, tunable) — seven `.block` panels are placed explicitly by `grid-column`/`grid-row`:
 
 ```

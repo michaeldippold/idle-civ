@@ -14,13 +14,10 @@ architecture; screenshots of the current wireframe live in `design-refs/`.)
 
 These are game-design facts the interface must express, not stylistic preferences:
 
-1. **This is a numbers-and-menus game, forever.** No map, no rendered units, no spatial
-   representation — from feeding a fire to intergalactic trade, the interface is panels of
-   small numbers, short labels, and prose. The founding identity test is: *the whole game
+1. **This is a numbers-and-menus game.** No map, no rendered units, no real time interaction besides reaction to the interface, the interface is panels of
+   numbers, labels, form fields, and prose. The founding identity test is: *the whole game
    could be drawn in black pen on ruled paper.* Treat that as a metaphor for restraint and
-   legibility — boxes, rules, text, small glyphs — not as a literal art direction. What it
-   rules out: photorealism, decorative illustration that carries no information, spatial
-   scenes. What it leaves open: everything else.
+   legibility — boxes, rules, text, small glyphs — not as a literal art direction.  
 
 2. **Text is a game mechanic.** By canonical design law, *flavor is load-bearing*: an
    adversary's description is how the player reads its strength; reputation and wall damage
@@ -44,9 +41,10 @@ These are game-design facts the interface must express, not stylistic preference
    need to accommodate 1.2M-style compaction. Steppers (+/− one at a time) remain viable to
    the end of the game.
 
-6. **Desktop-first, fixed viewport.** The page itself never scrolls; every panel scrolls
-   internally under a fixed header. Mobile should not actively break but is not the designed
-   experience.
+6. **Widescreen desktop is the primary format** — but this is a browser game, and phone and
+   tablet sizes deserve real consideration in the design (see §6). The current wireframe's
+   approach — fixed viewport, page never scrolls, every panel scrolls internally under a
+   fixed header — is how the desktop layout works today, not a mandate for every form factor.
 
 ---
 
@@ -89,9 +87,14 @@ expeditions, not just builds). Era-varying titles are data, not exceptions; futu
 keep renaming. Design should assume any panel title is one to three words, changeable.
 
 **Panel census** (current maximum: 8 + header + ledger): Your People, Town, Underway,
-Chronicle, Training, Construction, Upgrades, Expeditions. The grid is full. The settled
-pressure valve for future ages is *consolidation* — widening ages merge or retire panels —
-not additional columns or toggles/tabs.
+Chronicle, Training, Construction, Upgrades, Expeditions. **The grid is full, and its author
+doubts it scales** — roughly nine more eras of systems are coming (laws, morale, religion,
+science are already on the ideation board). Widening-age *consolidation* (merging or retiring
+systems) is a real game-design lever that will help, but it is no longer assumed sufficient:
+whether this interface grows navigation — menus, tabs, drawers, whatever earns its place — is
+an open question Design is explicitly invited to answer (see §6; "there's a reason most civ
+games have menus"). The one behavior worth protecting through any structure change is the
+unravel: new capability announcing itself by *appearing*.
 
 ---
 
@@ -207,16 +210,9 @@ languages:
 
 ## 6. What is fixed vs. free for a redesign
 
-**Fixed (system):** the panel census and column pairing logic; the component grammar above;
-reveal-and-stick behavior; semantic color as an information channel; words-not-meters for
-narrated states; internal-scroll panels under a fixed header; modal scarcity; small numbers.
+I initially wanted to keep the wireframe in place and give you all of the color choices to make, but I think since you are already proven to produce better designs than I do, I want you to consider my design decisions so far, but feel free to innovate. I am already stressed that this interface will not cleanly support future panels that could be implemented. The modal feature makes it free for a while but it may not be forever. There's a reason most civ games have menus. 
 
-**Free (presentation):** literally everything visual — palette (monochrome is the current
-wireframe, not a mandate; the pen test is about restraint, not ink), typography, spacing,
-texture, card silhouettes, iconography style (the current doodles are placeholders in spirit),
-progress-bar treatment, panel chrome, header design, and any motion that doesn't cause reflow
-or imply urgency. The current build should be treated as a complete, playable wireframe of
-record — every screen of it is in `design-refs/`.
+As this is a BROWSER game, I would also like a little thought into phone and tablet size interfaces. Widescreen desktop should always be the primary format though. 
 
 ---
 

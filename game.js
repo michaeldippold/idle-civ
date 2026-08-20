@@ -938,7 +938,10 @@ function manifestDiff(fromM, toM) {
 }
 
 // Minimal line-art doodles -- no map, just icons.
-const ICON_ATTRS = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"';
+// 1.6px stroke on a 24px grid, per the redesign: tiles render these at 21px
+// now (down from 24), and 1.4 went thin and grey at that size. Legibility at a
+// glance was the whole brief for the icon set.
+const ICON_ATTRS = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"';
 const BUILDING_ICONS = {
   hut:        `<svg ${ICON_ATTRS}><path d="M4 12 L12 5 L20 12 M6 12 V20 H18 V12 M11 20 V15 H13 V20"/></svg>`,
   woodshed:   `<svg ${ICON_ATTRS}><path d="M4 20 V10 L12 5 L20 10 V20 M4 20 H20 M7 13 H10 M7 16 H10"/></svg>`,
@@ -2695,12 +2698,17 @@ function wallsState(adv, st) {
 // (the game does not pause for modals, so "what's home" can change under you).
 function musterRowsHTML(prefix) {
   return active().units.filter(isRevealed).map((def) =>
+    // Same two-line row and same segmented stepper as job assignment: the
+    // player already learned this control in the first minute, and mustering a
+    // column is the same verb as assigning labour pointed somewhere else.
     `<div class="job">` +
       `<span class="job-name">${pluralize(def.name)}</span>` +
       `<span class="job-out" id="${prefix}avail-${def.id}"></span>` +
-      `<button class="stepper" data-mid="${def.id}" data-d="-1">−</button>` +
-      `<span class="job-count" id="${prefix}cnt-${def.id}">0</span>` +
-      `<button class="stepper" data-mid="${def.id}" data-d="1">+</button>` +
+      `<span class="stepper-group">` +
+        `<button class="stepper dec" data-mid="${def.id}" data-d="-1">−</button>` +
+        `<span class="job-count" id="${prefix}cnt-${def.id}">0</span>` +
+        `<button class="stepper inc" data-mid="${def.id}" data-d="1">+</button>` +
+      `</span>` +
     `</div>`).join("");
 }
 function wireMusterRows(bodyEl, refresh) {
@@ -3022,11 +3030,23 @@ function openEraModal(era, before) {
   const unlocked = diff.added.map((d) => `${d.name} — ${d.desc}`);
   const retired = diff.removed.map((d) => d.name);
 
+  // The three lists are three different shapes of information, so they get
+  // three different treatments rather than one bulleted list doing all the
+  // work. "Now available" is the one you'll actually shop from, so it reuses
+  // the reference's boxed grid; the other two are read once and dismissed.
   const list = (items) => `<ul class="era-list">${items.map((i) => `<li>${i}</li>`).join("")}</ul>`;
+  const boxes = (items) => `<div class="info-grid">` + items.map((d) =>
+    `<div class="info-item">` +
+      `<div class="info-top"><span class="info-name">${d.name}</span></div>` +
+      `<div class="info-desc">${d.desc}</div>` +
+    `</div>`).join("") + `</div>`;
+  const chips = (names) => `<div class="era-chips">` +
+    names.map((n) => `<span class="era-chip">${n}</span>`).join("") + `</div>`;
+
   let html = `<p class="modal-lead">${t.lead}</p>`;
   if (changes.length) html += `<h3 class="info-h">What changed</h3>${list(changes)}`;
-  if (unlocked.length) html += `<h3 class="info-h">Now available</h3>${list(unlocked)}`;
-  if (retired.length) html += `<h3 class="info-h">No longer needed</h3>${list(retired)}`;
+  if (unlocked.length) html += `<h3 class="info-h">Now available</h3>${boxes(diff.added)}`;
+  if (retired.length) html += `<h3 class="info-h">No longer needed</h3>${chips(retired)}`;
 
   // No action buttons -- dismiss via the ×, the backdrop, or Escape.
   openModal(`The ${m.name} Begins`, html);
@@ -3057,12 +3077,15 @@ function openGameOverModal(cause) {
     ? "The last defenders fall. Raiders move through the settlement unopposed, and by morning there is no one left to rebuild."
     : "The stores run empty. One by one your people weaken, and the fires go out for the last time.";
   const built = Object.values(S.builds).reduce((a, b) => a + b, 0);
+  // Boxed, so the run's numbers read as a record rather than a receipt.
+  const stat = (label, val) =>
+    `<div class="stat-box"><span class="s-lbl">${label}</span><span class="s-val">${val}</span></div>`;
   const stats =
     `<div class="modal-stats">` +
-      `<div>Time survived: <span class="s-val">${fmtTime(S.playtime || 0)}</span></div>` +
-      `<div>Age reached: <span class="s-val">${active().name}</span></div>` +
-      `<div>Buildings raised: <span class="s-val">${built}</span></div>` +
-      `<div>Arrivals welcomed: <span class="s-val">${S.bought}</span></div>` +
+      stat("Time survived", fmtTime(S.playtime || 0)) +
+      stat("Age reached", active().name) +
+      stat("Buildings raised", built) +
+      stat("Arrivals welcomed", S.bought) +
     `</div>`;
   openModal("The Settlement Has Fallen", `<p class="modal-lead">${lead}</p>${stats}`, [
     { label: "Try Again", onClick: hardReset },

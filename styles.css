@@ -42,9 +42,7 @@
   /* --- borders --- */
   --hair:        rgba(25, 23, 16, .42);   /* ordinary card border */
   --hair-soft:   rgba(25, 23, 16, .32);   /* unaffordable / waiting its turn */
-  --rule:        rgba(25, 23, 16, .22);   /* dividers, where they overlay paper */
-  --rule-solid:  #c6c3ba;                 /* the same value, flattened -- for grid-gap rules,
-                                             which have the desk behind them, not paper */
+  --rule:        rgba(25, 23, 16, .22);   /* dividers between ledger cells */
 
   /* --- rulings. Deliberately faint: these are ground, not figure. --- */
   --graph: repeating-linear-gradient(to right, transparent 0, transparent 15px, rgba(25,23,16,.055) 15px, rgba(25,23,16,.055) 16px),
@@ -207,22 +205,35 @@ button { font-family: inherit; cursor: pointer; }
 #resourceBar {
   flex: 0 0 auto;
   border: 1px solid var(--ink);
-  background: var(--rule-solid);
+  background: var(--paper);
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 1px;
   margin-bottom: 12px;
   min-height: 33px;
+  /* Clips the rules on the outermost edges, where they would otherwise sit 1px
+     inside the container's own ink border and read as a doubled line. */
+  overflow: hidden;
 }
 #emptyStores {
   grid-column: 1 / -1;
-  background: var(--paper);
   color: var(--text-3); font-style: italic; font-size: 12px; padding: 7px 16px;
 }
 .res {
-  background: var(--paper);
   display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 7px;
   padding: 7px 16px;
+  /* Rules are drawn as shadows rather than borders so they cost no layout, and
+     mostly on the LEADING edges so painting order works out: a later sibling's
+     background paints over an earlier sibling's right-hand shadow, but its own
+     left-hand shadow lands on top of that sibling instead.
+     The row rule needs both directions to run full width. Above a part-full
+     last row, the top shadows only reach as far as the cells do; the bottom
+     shadows of the row above carry the line the rest of the way, across the
+     empty tracks, where nothing paints over them. Together they read as one
+     unbroken rule.
+     The outermost ones -- the first row's tops, the first column's lefts, the
+     last row's bottoms -- fall outside the padding box and are clipped by the
+     container, so none of them doubles up against its ink border. */
+  box-shadow: -1px 0 0 var(--rule), 0 -1px 0 var(--rule), 0 1px 0 var(--rule);
 }
 .res-name { font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-2); }
 .res-val {

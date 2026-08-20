@@ -8,7 +8,58 @@
 
 ## STATUS — session handoff (2026-08-20)
 
-### The design pass came back. This is the next project.
+### The Bureau port has landed. The board is redesigned; it needs playing.
+
+The redesign is **implemented and live**, not pending. `styles.css` was rewritten to the
+Bureau system, `index.html` restructured, and the render layer in `game.js` reworked to match.
+Harness green throughout (422 checks). Every surface below was verified in a running browser,
+not just reasoned about.
+
+**What actually changed, beyond the skin.** Four decisions reached past styling, and they are
+the reason this was a project rather than a stylesheet swap:
+
+- **Opacity is retired as a state channel.** It had been doing triple duty for *unaffordable*,
+  *queued* and *owned*, all of which read to a player as "you can't have this". Now state is
+  border weight, border colour, glyph colour and status words. An unaffordable card renders at
+  full text contrast with a lighter border — verified live: a short Hut card sits at opacity 1,
+  ink-black name, red cost, tooltip reading "Short 9 wood."
+- **Descriptions left the board for a tooltip**, which also carries the refusal reason. The
+  content is a getter evaluated at hover time, not a snapshot — cards update in place, so
+  anything baked in at creation would go stale immediately.
+- **Population joined the ledger** as `POP 38/45 +0.02/s` with idle appended in red. Two
+  sentences died for it: "Housing is full" and the idle readout.
+- **The board acquires materials**: per-era desk colour, an era badge plate, header chrome that
+  inverts wholesale on dark desks, and a different ruling per panel column.
+
+**Health check on the maximal board.** Forced to a fully-unravelled Iron Age with all eight
+panels open, 14 building tiles and seven ledger resources: **zero horizontal or vertical page
+overflow, zero clipped text.** Those are the two laws most likely to break silently under a
+type change, so they are worth re-running after any layout work.
+
+**One contradiction in the handoff, resolved.** The prototype's card names carried
+`overflow:hidden; text-overflow:ellipsis; white-space:nowrap`, which violates its own locked
+principle that text wraps and never truncates. Resolved toward the stated principle — names
+wrap. Flagging it because the prototype is otherwise the more precise of the two sources, and
+this is the one place its markup and its notes disagree.
+
+**What is deliberately still open:**
+
+- **Nothing has been human-playtested.** That is the whole next step. The board reads correctly
+  and behaves correctly; whether it *feels* right is unanswered.
+- **The ceremony modals were extrapolated, not designed.** Era transition and game over were
+  built from the grammar per this session's call. If the era modal doesn't land in play, it goes
+  back to the design space with a concrete complaint.
+- **Icons are ours, at the redesign's stroke weight.** Our set covers 17 buildings to the
+  prototype's 10 and is already in the same idiom, so it was kept and bumped from 1.4px to
+  1.6px for legibility at the smaller 21px tile. A true redraw against the prototype's specific
+  drawings remains available if the set ever looks tired.
+- **Corkboard stays parked** as an available material for a future redesign or a genuinely new
+  element that should read as foreign to the desk. Don't spend it on something that doesn't
+  need it.
+- **Past-eight-panels navigation is still unsolved**, exactly as the design pass left it. The
+  grid is full. Nothing about this port made that better or worse.
+
+### How the design pass arrived (2026-08-20, earlier)
 
 `interface-brief.md` went out, and a full interface redesign came back with it. It now lives in
 the repo at **`redesign/`** (imported whole, exactly as delivered — `HANDOFF.md` describes the
@@ -308,9 +359,14 @@ flagged *to be decided during implementation*.
       questions for planning: does this ship to players or stay a dev affordance, and is it a
       separate control or a generalization of Pause, which is already speed 0. Worth doing *before*
       the Bureau port rather than after — every playtest of the redesign gets cheaper.
-- [ ] **Plan the Bureau integration** — the design pass is in `redesign/` and nothing is wired up
-      yet. See the STATUS block at the top of this file for the shape of it; the session that
-      picks this up should start by planning, not by editing `styles.css`.
+- [x] ~~**Plan the Bureau integration**~~ — done, and implemented in the same session. See the
+      STATUS block at the top of this file.
+- [ ] **Play the redesigned board.** The port is verified correct, not verified *good*. Open
+      question list to hold in mind while playing: does hover-only description hurt planning
+      (the one real risk of moving them off the board); does the Chronicle's legal pad still
+      read well after twenty minutes rather than twenty seconds; does the era modal earn its
+      ceremony or does it read as recombined; and is the per-era desk a pleasure or a gimmick
+      by the third age. The speed control makes all of that cheap to reach.
 - [ ] **Continue the `deleteme.md` debate** — §2 (siege) and §4 (scale) resolved and promoted;
       §1 (religion/morale) IN PROGRESS — framework gisted, monk-attaché skeleton proposed but
       unsatisfying, revisit fresh; §3 (Enlightenment) still to be discussed. Delete the file when

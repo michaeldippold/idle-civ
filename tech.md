@@ -24,7 +24,9 @@ One modal at a time, centered over a 30%-black fixed overlay. Deliberately minim
 
 `openModal(title, bodyHTML, actions, onMount)` is the whole API. `actions` renders a button row along the bottom edge; `onMount` runs after `innerHTML` is set, which is how the Info panel attaches its tab listeners (they can't be bound before the markup exists). Opening a modal never pauses the game — the only apparent exception is game over, and that's incidental: death already stops the loop on its own.
 
-**Gotcha, found in live play:** `body.dead .block { opacity: .7 }` was intended to dim the board on death, but the modal panel is also a `.block`, so the game-over modal — which by definition only ever appears while dead — rendered semi-transparent. The rule is now scoped to `body.dead #mainArea .block`. Anything else styling `.block` broadly needs the same consideration.
+**Gotcha, found in live play:** a `body.dead .block` rule was intended to dim the board on death, but the modal panel is also a `.block`, so the game-over modal — which by definition only ever appears while dead — got dimmed too. The rule is now scoped to `body.dead #mainArea .block`. Anything else styling `.block` broadly needs the same consideration. (The rule itself changed under Bureau — death now drains the board's saturation rather than fading it, since opacity is retired as a state channel — but the scoping trap is identical and still live.)
+
+Under Bureau the modal is also the **ceremony register**, and it looks the part: legal-pad stock, a hard 6px offset shadow (the only shadow in the game), and a Newsreader lead in a box. The game interrupts the player exactly never, so the few moments staged here land with disproportionate weight — new features should earn a modal rather than default to one.
 
 **Era advancement** announces itself in a modal too (no action buttons — dismiss normally). `ERA_TRANSITIONS[era]` hand-authors the flavor lead and a "What changed" list; `changes` may be a function receiving a snapshot taken *before* the flip, which is how the housing line quotes real before/after numbers. The "Now available" list underneath is **derived** from defs whose `defEra` matches the new era, so it can't go stale as content is added. A single milestone line still goes to the Chronicle. `advanceEra()` stays silent under `SIM`, so an era crossed during offline catch-up is reported by `simulateOffline()`'s summary rather than firing a modal the instant the page loads.
 
@@ -296,26 +298,26 @@ The Build Queue panel follows the same reveal-then-sticky pattern as everything 
 
 ## Layout & Visual System
 
-> **Status note (2026-08-15):** this section documents the current *wireframe* implementation.
-> The visual treatment — and even the interface's structure (flat grid vs. menus/navigation as
-> eras accumulate) — is deliberately not set in stone: it is handed to the design pass, with
-> `interface-brief.md` as the authoritative statement of what's fixed and what's Design's to
-> choose. What follows remains accurate as a description of the code as written.
+`styles.css` implements the **Bureau** interface (`redesign/`, landed 2026-08-20). The direction: the game is a spreadsheet, so the presentation stops disguising that and becomes dense administrative paper — ledger sheets, ink tab headers, monospace numerals, hard 1px borders, no rounded corners, no shadow anywhere except the modal's hard offset.
 
-`styles.css` implements a fixed-viewport **CSS Grid** — `body` is `overflow: hidden` (the page itself never scrolls). `#mainArea` is `display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: 1fr 2fr;` (roster row smaller, action row larger, tunable) — seven `.block` panels are placed explicitly by `grid-column`/`grid-row`:
+**Tokens, not literals.** The prototype authored every value inline on the element using it. Here they are CSS custom properties, because we have a stylesheet, a desk that changes per era, and nine more eras of content coming — a palette that can be re-pointed in one place wins. `:root` holds surfaces, the three-value semantic channel, border weights, the rulings, and the three type registers.
 
-```
-Your People   | Settlement  | Build Queue | Chronicle
-Training      | Construction| Upgrades    | (spans both rows)
-```
+**Two laws run through the whole sheet**, and both are load-bearing rather than stylistic:
 
-Each `.block` is still internally a flex column with a fixed-position header (`h2`) and a separately-scrolling `.block-body` (`overflow-y: auto`) — the grid only controls placement between panels, not what happens inside one. `panel-log` (Chronicle) sets `grid-row: 1 / 3` to span both rows in its column. The `.span-both` class (see Rendering, above) overrides a roster panel's own `grid-row` the same way, when its paired panel is empty.
+1. **Opacity is never used, for anything.** It previously did double duty for *unaffordable*, *queued* and *already owned*, and all three read to players as "you can't have this". State is carried by border weight, border colour, glyph colour and status words instead. Concretely: an unaffordable buy-card is a lighter border and nothing else — its text stays at full contrast, because most cards spend most of their life unaffordable and *reading* them is how players plan. Death is the one whole-board state change, and it drains the board's saturation rather than fading it.
+2. **Legibility outranks texture.** Panel paper is one stock with different ruling per column (plain / graph 16px / dot grid 14px / legal pad), which is what makes the columns distinguishable without spending colour on it. The rulings are deliberately faint, and anything carrying words sits in an opaque box on top of one. The Chronicle's legal pad is the single place the material is allowed to be the point.
 
-This replaced an earlier nested-flex-columns layout (fixed 25%-width Chronicle + two asymmetric flex columns) that couldn't cleanly express "two independent stacked panels per column, four equal columns" without either duplicating flex-ratio logic per column or accepting mismatched proportions — real CSS Grid does this natively.
+**Layout.** `body` is `overflow: hidden` (the page itself never scrolls). `#mainArea` is a CSS Grid, `grid-template-columns: 0.86fr 1fr 1fr 1.24fr` and `grid-template-rows: 1fr 1.7fr` — People is narrowest (it is mostly steppers), Chronicle widest (it is prose). Eight `.block` panels are placed explicitly; `panel-log` spans both rows until Expeditions unravels beneath it, and `.span-both` lets a roster panel fill its column while its paired action panel is still empty. Each `.block` is a flex column with a fixed ink header plate and a separately-scrolling `.block-body`.
 
-Color is a small semantic system, not a decorative palette: `--good` (green, genuinely new positive information), `--danger` (red, anything requiring attention), `--milestone` (amber, rare achievement lines), and otherwise everything is a shade of `--ink` on `--bg`. This mapping is enforced at the call site — `log(text, cls)` takes an explicit severity class, never inferred from content.
+**Era chrome.** `renderEraChrome()` writes `S.era` to `body[data-era]`, and CSS does the rest: the desk colour behind the board, the era badge's plate/dot/ring, and a wholesale inversion of the header chrome for dark desks (Bronze and Iron). Header chrome is authored as three layers — border, fill, text — so it never assumes a light background, which is what lets later eras go as dark as they like.
 
-`log()` prepends rather than appends, so the newest Chronicle line is always the first child (top of the panel, no scrolling needed) and `el.scrollTop = 0` keeps it in view even if the panel was scrolled elsewhere. The 60-entry trim accordingly removes from `lastChild` (the oldest) rather than `firstChild`. Exactly one entry ever carries the `.latest` class (a few px larger, no color change) — handed off from whichever entry had it to the new one on every call, so "what just happened" is always visually obvious without reading text.
+**Where the handoff contradicted itself.** The prototype's card names carried `overflow:hidden; text-overflow:ellipsis; white-space:nowrap`, which violates its own locked principle that text wraps and never truncates. Resolved toward the stated principle: names wrap with `text-wrap: pretty`. A live check of the maximal 8-panel Iron board finds zero clipped elements and zero page overflow in either axis.
+
+**Descriptions live only in the tooltip.** `attachTip(el, getter)` stashes a *getter* on the element rather than a snapshot, because cards update in place and a snapshot taken at creation goes stale immediately. The tooltip carries a title, a body that can afford to be more verbose than an inline line ever could, and the refusal reason (`shortfallLine()` → "Short 24 wood.") — so there is exactly one place to look when something won't buy.
+
+**Colour is still a small semantic system**, unchanged in meaning and only re-pointed in value: `--danger` (blocked, negative, at-cap), `--good` (working, gained, owned), `--queued` (in progress), and otherwise ink on paper. Enforced at the call site — `log(text, cls)` takes an explicit severity, never inferred from content.
+
+`log()` prepends rather than appends, so the newest Chronicle line is always the first child, and `el.scrollTop = 0` keeps it in view. The 60-entry trim accordingly removes from `lastChild`. Each entry renders as a 28px-tall row: a mark in a 32px gutter (`+` good, `!` danger, `★` milestone, `·` neutral) whose right edge *is* the legal pad's red margin rule, then the text. The mark repeats what colour already says, deliberately — it survives skimming, and it survives colour blindness. Exactly one entry carries `.latest`, handed off on every call.
 
 ## Testing Approach
 

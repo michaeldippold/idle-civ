@@ -6,6 +6,29 @@
 
 ---
 
+## STATUS — session handoff (2026-08-15)
+
+Everything through **v17** is implemented, machine-verified (harness: **422 checks, 20/20
+consecutive runs** — now checked into the repo as `harness.js`, run with `node harness.js`), and
+live-verified in the browser by Claude. **But nothing since the ideation sprint has been
+human-playtested.** Awaiting first human contact:
+
+- ⚠️ **v15.4** queue-card type icons (hammer / sword / coins)
+- ⚠️ **v16** Siege & Fortifications — walls, persistent damage, Siege Workshop + Engine, fort flavor
+- ⚠️ **v17** Unit re-denomination — settler→family relabel at Bronze, family→holdfast
+  consolidation (keep 0.7) at Iron, all noun surfaces manifest-driven
+
+**Playtest notes:** an existing save already *in* the Iron Age gets walls patched in on load, but
+consolidation only fires at the border — it will keep its family-scale count under holdfast names;
+a fresh run-through feels the full arc. **Tuning dials** if pacing feels off: `consolidate.keep`
+(iron delta), each adversary's `walls`, `CONFIG.siegeWallBonus`, `CONFIG.wallRetreatLoss`.
+
+**Open design threads** (`deleteme.md`): §2 siege and §4 scale are resolved AND implemented;
+§1 religion/morale is **in progress** (framework gisted; proposed monk-attaché skeleton judged
+unsatisfying — revisit fresh); §3 Enlightenment is **undiscussed**. Delete the file when emptied.
+
+---
+
 ## Todo
 
 ### Bronze Age — ✅ complete

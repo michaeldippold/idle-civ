@@ -6,6 +6,34 @@
 
 ---
 
+## STATUS — first full completion (2026-08-21)
+
+**The play pass happened: a human has now touched every part of the shipped game.** One full run
+through all three eras to Iron-exhaustion, personally validating everything previously flagged
+awaiting-human-contact (v15.4 icons, v16 siege, v17 re-denomination, the Bureau board, both click
+fixes v18/v18.1 — found *during* this playtest and fixed).
+
+**End-state record (tuning data):** playtime 34h37m simulated (8× + long tabbed-out stretches —
+wall-clock much shorter). Pop 38/38 (housing full, 6 idle), 26 holdfasts + 3/3/3/3 units. Every
+upgrade owned; every cap-1 building built. Every resource pegged at cap **except gold (72/150)**
+— the only number still moving, correctly, since gold is expedition-fed. Adversaries: Salt Nomads
+breached in one assault and plundered; River Kingdom breached, plundered, then traded back up to
+**Friendly** (premium caravan 18 gold — the forgiveness loop got real use); Hill Clans Wary,
+stock part-drained. The era ends signal-less by design: the terminal signal IS the next capstone,
+which doesn't exist yet — this end-state is exactly what "done, awaiting an exit" looks like.
+
+**Next-session agenda (dev work required to progress):**
+1. **Population growth rethink** (user-flagged 2026-08-21): the free-timer + housing-gate model
+   is unchanged since v11 and this end-state shows its late-era thinness — growth stops at the
+   housing cap, idle pop has no sink but units, and the only growth interaction is "build
+   housing, wait." To be debated, not yet designed.
+2. **Religion / morale** (`deleteme.md` §1, in progress — skeleton judged unsatisfying, revisit
+   fresh) → **Enlightenment scoping** (§3, undiscussed): one arc, since religion is morale's
+   generation one and the Enlightenment capstone (gold-priced, per canonical rule 3) is what
+   gives the Iron end-state its exit.
+
+---
+
 ## STATUS — session handoff (2026-08-20)
 
 ### The Bureau port has landed, been polished, and shipped.

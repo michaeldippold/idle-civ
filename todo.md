@@ -22,15 +22,13 @@ breached in one assault and plundered; River Kingdom breached, plundered, then t
 stock part-drained. The era ends signal-less by design: the terminal signal IS the next capstone,
 which doesn't exist yet — this end-state is exactly what "done, awaiting an exit" looks like.
 
-**Next-session agenda (dev work required to progress):**
-1. **Population growth rethink** (user-flagged 2026-08-21): the free-timer + housing-gate model
-   is unchanged since v11 and this end-state shows its late-era thinness — growth stops at the
-   housing cap, idle pop has no sink but units, and the only growth interaction is "build
-   housing, wait." To be debated, not yet designed.
-2. **Religion / morale** (`deleteme.md` §1, in progress — skeleton judged unsatisfying, revisit
-   fresh) → **Enlightenment scoping** (§3, undiscussed): one arc, since religion is morale's
-   generation one and the Enlightenment capstone (gold-priced, per canonical rule 3) is what
-   gives the Iron end-state its exit.
+**Design debate CONCLUDED (2026-08-21) — next session is IMPLEMENTATION.** The growth rethink
+and religion's mechanism resolved together as **Conquest Growth & the Peace Path** — promoted to
+design.md (settled), with the implementation contract in tech.md (phases G1 engine rework /
+G2 minor tier & capture / G3 priests & envoy). Also locked as canon: the
+**progressive-enhancement law** (presence rewarded, never required; modal choices carry designed
+defaults; observational narration of true state always legal; loss-size sets story-size).
+Enlightenment scoping (`deleteme.md` §3) waits until the Iron rework has shipped and played.
 
 ---
 

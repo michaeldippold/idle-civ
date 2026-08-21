@@ -331,7 +331,7 @@ No test framework; verification is a headless Node harness — **checked into th
 
 ## Settled But Not Yet Built
 
-Everything above documents the game **as it currently runs** — free timed growth, the Phase A manifest parity refactor, and the Phase B transition machinery have all shipped. The manifest architecture is complete and waiting for its first real consumer.
+Everything above documents the game **as it currently runs** — free timed growth, the Phase A manifest parity refactor, and the Phase B transition machinery have all shipped. The manifest architecture is complete and battle-tested by its first real consumer (the Iron Age, Phase C); the next consumer is the Conquest Growth rework below.
 
 ### The settled invariants (all in force)
 
@@ -345,6 +345,44 @@ Recorded here as the standing contract every future era must honor — rationale
 6. **The snapshot is archived** in `S.eraHistory[fromEra]`, one per era left, kept forever.
 
 **Explicit non-goals, still:** no ECS, no event-sourcing, no reactive state framework. The simulation is small; the pain was content lifecycle, and manifests solve exactly that with plain data.
+
+### Conquest Growth & the Peace Path — implementation contract (next build)
+
+Design settled in `design.md` (*Conquest Growth & the Peace Path*, plus the revised Border
+policy and the progressive-enhancement law). **Implement from the documents, not from memory.**
+Suggested phasing — each slice playable, harness-verified, committed on its own:
+
+**G1 — the engine rework (population & levy).**
+- Era-scoped **growth mode** in the manifest (`growth: "timer" | "conquest"`): `accrueGrowth`
+  runs only under `timer`; Stone/Bronze unchanged, Iron+ conquest-only.
+- **Deep consolidation + output multiplier**: crank the iron delta's `consolidate.keep` hard and
+  add an era-fact `outputMult` applied in `rates()`/`mults()`, targeting `keep × output ≈ 1` so
+  existing costs stay valid. Both are single manifest values — THE tuning pair.
+- **Pop/units separation**: units stop being part of `S.pop` (levied, not consumed). popCost
+  dies at Iron (era-scoped or removed with unit overrides). `civilians()`/`reserved()`/
+  `reconcileWorkforce()` simplify accordingly; upkeep charges pop + units explicitly.
+- **Levy cap**: max total units = holdfasts × levy rate (era-fact). Training refuses beyond it,
+  with the tooltip carrying the reason.
+- **Housing retired at Iron**: iron delta removes `hut`; a narrated migration handles existing
+  longhouses; `housing()` becomes era-aware (no cap under conquest mode). Validator must pass
+  with a founding building absent.
+- Migration/back-compat: existing iron saves get a narrated one-time adjustment.
+
+**G2 — the minor tier & capture.**
+- Adversary slates gain minor entries (freeholds/petty lords): weak stat-stacks, each worth one
+  sworn holdfast + modest stock. Campaign resolution gains the capture outcome (+1 pop, small
+  windfall, Chronicle line that names the place for the last time).
+- Wholesale annexation of majors: scoped here or deferred — decide at build time.
+
+**G3 — priests & the envoy.**
+- Religious building + priest unit (barracks pattern); **envoy** as a third adversary action:
+  slow expedition, costs gifts + the caravan-or-own slot (decide), no casualties, standing +,
+  intact holdfast on success. Per-target affinity: disposition modulates envoy odds (as walls
+  modulate assaults). Failure cost real (martyrdom-lite; standing consequences).
+- The **annexation/conversion ceremony modal** — the first ceremony built *under* progressive
+  enhancement: modal live with (optionally) a defaulted choice, full Chronicle resolution AFK.
+- Event **state hooks**: event weights/conditions may read standing (and later morale);
+  observational-narration events keyed to low/high standing enter the slates.
 
 ### Phase C — the Iron Age (designed; C1 shipped, C2 next)
 

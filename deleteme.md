@@ -7,11 +7,13 @@
 
 ---
 
-## 5. Conquest growth & the peace path — CONVERGED (2026-08-21, ready to promote)
+## 5. Conquest growth & the peace path — ✅ RESOLVED & PROMOTED (2026-08-21)
 
-The population-growth rethink (user proposal, refined in debate). This supersedes the growth
-model from Iron onward AND resolves §1's stuck religion mechanism. Not yet in design.md — one
-more read-through, then promote.
+**Promoted to `design.md` → "Conquest Growth & the Peace Path (settled)"** along with the
+progressive-enhancement law, the observational-narration ruling, and amendments to Border
+policy, the free-growth section, the conscription model, and the housing ladder. tech.md
+carries the implementation contract; todo.md carries the phase plan. Kept below for the record
+until this file is deleted.
 
 **The settled shape:**
 1. **Deeper consolidation at Bronze→Iron** — crank the existing `keep` dial hard (a holdfast is
@@ -75,7 +77,7 @@ diagnostic that started all this: **flavor friction is a gameplay smell** — "m
 minor-tier count/stats per era; envoy timer/cost/odds; capture windfall sizing so neither path
 is strictly better; what a wholesale major-annexation is worth.
 
-## 1. Religion & monks — ⏳ superseded in principle by §5 (2026-08-21); morale gist below still stands
+## 1. Religion & monks — ✅ mechanism RESOLVED via §5 (priests → the envoy/peace path); morale gist below still stands for the Enlightenment
 
 **Gist of the debate so far — tentative agreements:**
 - Morale framework (conditional yes, reversing the Dispatch verdict): must be **derived, never
@@ -84,8 +86,10 @@ is strictly better; what a wholesale major-annexation is worth.
   each one an event the Chronicle can narrate ("a family slips away in the night"), never
   continuous multipliers; **both-edged** (every state offers something; no death spirals);
   **era-gated** (arrives when units are Cities and "the people" are an abstraction).
-- Flavor-only morale REJECTED by our own law: flavor is load-bearing, so morale text that hints
-  at nothing would be a lie of implication.
+- ~~Flavor-only morale REJECTED by our own law~~ *(refined 2026-08-21, user: "I overstated the
+  prior canonical ruling")*: **observational narration of a true stat is always legal** — the
+  lie-of-implication ban only forbids text hinting at consequences that don't exist. See the
+  progressive-enhancement law in design.md.
 - **Religion = generation one of the feeling-of-the-people system**: faith at holdfast scale in
   Iron, secularized into public opinion in the Enlightenment, laws replacing rites as the levers.
 - The "benevolent leader vs iron fist" sketch was diagnosed as *laws, not morale* (input vs
@@ -139,7 +143,12 @@ don't template) canonized as an authoring rule. Original text below until deleti
 
 </details>
 
-## 3. The Enlightenment — two pillars
+## 3. The Enlightenment — two pillars (still to be scoped; NOTE: §5 pre-seeded it)
+
+*(2026-08-21: §5 handed this age three inputs — morale now has a mechanical family to join
+(standing), passive attraction-growth is shelved here as one of morale's both-edged
+consequences, and the benevolent/iron-fist law pair from §1 still waits. Scope when Iron's
+rework has shipped and played.)*
 
 The age needs two things to *scream* Enlightenment:
 

@@ -211,6 +211,17 @@ a fresh run-through feels the full arc. **Tuning dials** if pacing feels off: `c
 §1 religion/morale is **in progress** (framework gisted; proposed monk-attaché skeleton judged
 unsatisfying — revisit fresh); §3 Enlightenment is **undiscussed**. Delete the file when emptied.
 
+**v18.1 — The time-capsule click.** Second click bug from the same playtest, different cause:
+Archers and Horsemen wouldn'''t train in Iron while Soldiers and Siege Engines would. A buy card'''s
+click listener captured the def object of the era it was CREATED in — cards born in Bronze (the
+player fielded archers there) still called build() with the bronze-era def, whose cost names a
+resource that no longer exists. The display path reads the active manifest, so the card showed
+iron prices and looked buyable; only the click was stale. Soldier never broke (cost identical in
+every era) and Siege Engine never broke (born in Iron) — the exact symptom pattern. Fix: resolve
+the def by id AT CLICK TIME via defById, which answers with the active era'''s version. Verified
+live with the true repro: bronze-born cards clicked in Iron queue both units and pay iron, not
+bronze. (Also covers the latent Stables case, hidden behind its Maxed state.)
+
 **v18 — The click-eater, found and killed.** The oldest bug in the project: buys sometimes took
 2-3 clicks. Cause: the three buy-card renderers rewrote `card.innerHTML` on every 200ms render
 tick, and a click is not instantaneous — mousedown landed on a child span, the next tick

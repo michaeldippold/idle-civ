@@ -2524,7 +2524,11 @@ function renderBuildings() {
       card = document.createElement("button");
       card.className = "building";
       card.id = "bcard-" + def.id;
-      card.addEventListener("click", () => build(def));
+      // Resolve by id AT CLICK TIME, never through the captured def: a card
+      // created in one era outlives it, and a stale closure would buy at the
+      // old era's prices -- the Bronze-priced Archer that silently refused to
+      // train in Iron. defById answers with the active era's def.
+      card.addEventListener("click", () => { const d = defById(def.id); if (d) build(d); });
       list.appendChild(card);
     }
     if (!revealed) continue;
@@ -2589,7 +2593,11 @@ function renderUpgrades() {
       card = document.createElement("button");
       card.className = "building";
       card.id = "bcard-" + def.id;
-      card.addEventListener("click", () => build(def));
+      // Resolve by id AT CLICK TIME, never through the captured def: a card
+      // created in one era outlives it, and a stale closure would buy at the
+      // old era's prices -- the Bronze-priced Archer that silently refused to
+      // train in Iron. defById answers with the active era's def.
+      card.addEventListener("click", () => { const d = defById(def.id); if (d) build(d); });
       list.appendChild(card);
     }
     if (!revealed) continue;
@@ -2673,7 +2681,11 @@ function renderTraining() {
       card = document.createElement("button");
       card.className = "building";
       card.id = "bcard-" + def.id;
-      card.addEventListener("click", () => build(def));
+      // Resolve by id AT CLICK TIME, never through the captured def: a card
+      // created in one era outlives it, and a stale closure would buy at the
+      // old era's prices -- the Bronze-priced Archer that silently refused to
+      // train in Iron. defById answers with the active era's def.
+      card.addEventListener("click", () => { const d = defById(def.id); if (d) build(d); });
       list.appendChild(card);
     }
     if (!revealed) continue;

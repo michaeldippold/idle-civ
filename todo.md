@@ -211,6 +211,16 @@ a fresh run-through feels the full arc. **Tuning dials** if pacing feels off: `c
 §1 religion/morale is **in progress** (framework gisted; proposed monk-attaché skeleton judged
 unsatisfying — revisit fresh); §3 Enlightenment is **undiscussed**. Delete the file when emptied.
 
+**v18 — The click-eater, found and killed.** The oldest bug in the project: buys sometimes took
+2-3 clicks. Cause: the three buy-card renderers rewrote `card.innerHTML` on every 200ms render
+tick, and a click is not instantaneous — mousedown landed on a child span, the next tick
+destroyed it, mouseup landed on its replacement, and the browser dropped the click because the
+pressed element no longer existed (~50% of presses straddle a tick). The steppers never suffered
+because they update stable nodes — which was already the codebase'''s stated rendering law; these
+renderers had violated it since v1. Cards now build a skeleton once and update via textContent/
+classList only; cost spans rebuild only when the part-count changes (era re-pricing, capped
+flips). Verified live: child nodes survive 20 render ticks identically; all card states correct.
+
 **Bureau addenda (2026-08-20, user decisions):** the **speed changer is a dev/testing tool
 only** — it stays in the header while the only player is the developer, and gets locked behind
 dev tooling before any public release (policy noted in tech.md). And the **holding-tile tints

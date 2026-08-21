@@ -2451,6 +2451,66 @@ function renderHoldings() {
   }
 }
 
+// Buy cards update IN PLACE, never via innerHTML on the render path. The old
+// per-tick `card.innerHTML = ...` destroyed the card's children five times a
+// second, and a human click is not instantaneous: mousedown landed on a child
+// span, the next tick replaced it before mouseup, and the browser dropped the
+// click because the pressed element no longer existed -- the long-standing
+// "buys take 2-3 clicks" bug, as old as the first build. The skeleton is
+// built once per card; per-tick updates touch only textContent and classList,
+// which never replace the element a press started on. (No description on the
+// card: it lives in the tooltip, where it can afford to be longer and where
+// the refusal reason can sit beside it.)
+function cardSkeleton(card) {
+  if (card.__skel) return card.__skel;
+  card.innerHTML =
+    `<div class="b-top"><span class="b-name"></span>` +
+    `<span class="b-owned"><span class="bo-n"></span> <span class="b-pending hidden"></span></span></div>` +
+    `<div class="b-cost"><span class="b-costs"></span><span class="b-time"></span></div>`;
+  card.__skel = {
+    name: card.querySelector(".b-name"),
+    ownedBox: card.querySelector(".b-owned"),
+    n: card.querySelector(".bo-n"),
+    pending: card.querySelector(".b-pending"),
+    costs: card.querySelector(".b-costs"),
+    time: card.querySelector(".b-time"),
+  };
+  return card.__skel;
+}
+
+function setText(el, text) { if (el && el.textContent !== text) el.textContent = text; }
+
+// parts: [{ text, short }]. The spans (and their comma separators) are only
+// rebuilt when the COUNT of parts changes -- era re-pricing, capped/owned
+// flips -- which is rare and never correlated with a click in flight.
+function setCostParts(skel, parts) {
+  const box = skel.costs;
+  if (box.childElementCount !== parts.length) {
+    box.innerHTML = parts.map(() => `<span></span>`).join(", ");
+  }
+  const spans = box.children;
+  parts.forEach((p, i) => {
+    const s = spans[i];
+    if (!s) return;
+    setText(s, p.text);
+    if (s.classList) s.classList.toggle("short", !!p.short);
+  });
+}
+
+function setPending(skel, count) {
+  if (count > 0) {
+    setText(skel.pending, `+${count}`);
+    skel.pending.classList.remove("hidden");
+  } else {
+    skel.pending.classList.add("hidden");
+  }
+}
+
+function costPartsFor(def) {
+  const cost = buildCost(def);
+  return Object.keys(cost).map((k) => ({ text: `${cost[k]} ${k}`, short: S.res[k] < cost[k] }));
+}
+
 function renderBuildings() {
   const panel = document.getElementById("panel-build");
   const list = document.getElementById("buildingList");
@@ -2470,29 +2530,22 @@ function renderBuildings() {
     if (!revealed) continue;
     anyRevealed = true;
 
+    const skel = cardSkeleton(card);
     const owned = S.builds[def.id] || 0;
     const pending = pendingCount(def.id);
     const capped = isCapped(def);
-    const ownedStr = pending > 0 ? `${owned} <span class="b-pending">+${pending}</span>` : `${owned}`;
 
-    const bottom = capped
-      ? `<div class="b-cost"><span class="b-costs">Maxed.</span></div>`
-      : (() => {
-          const cost = buildCost(def);
-          const costStr = Object.keys(cost).map((k) => {
-            const short = S.res[k] < cost[k];
-            return `<span class="${short ? "short" : ""}">${cost[k]} ${k}</span>`;
-          }).join(", ");
-          return `<div class="b-cost"><span class="b-costs">${costStr}</span>` +
-                 `<span class="b-time">${def.buildTime}s</span></div>`;
-        })();
-
-    // No description on the card: it lives in the tooltip, where it can afford
-    // to be longer and where the refusal reason can sit beside it.
-    card.innerHTML =
-      `<div class="b-top"><span class="b-name">${def.name}</span>` +
-      `<span class="b-owned${capped ? " is-owned" : ""}">${capped ? "Maxed" : ownedStr}</span></div>` +
-      bottom;
+    setText(skel.name, def.name);
+    setText(skel.n, capped ? "Maxed" : String(owned));
+    setPending(skel, capped ? 0 : pending);
+    skel.ownedBox.classList.toggle("is-owned", capped);
+    if (capped) {
+      setCostParts(skel, [{ text: "Maxed.", short: false }]);
+      setText(skel.time, "");
+    } else {
+      setCostParts(skel, costPartsFor(def));
+      setText(skel.time, `${def.buildTime}s`);
+    }
     card.disabled = S.dead || capped || !canAfford(buildCost(def));
     card.classList.toggle("owned", capped);
     attachTip(card, () => ({
@@ -2545,17 +2598,19 @@ function renderUpgrades() {
     const cost = buildCost(def);
     const owned = !!S.upgrades[def.id];
     const pending = pendingCount(def.id) > 0;
-    const statusStr = owned ? "owned" : pending ? "queued" : "";
-    const bottom = owned
-      ? `<div class="b-cost"><span class="b-costs">Permanent.</span></div>`
-      : `<div class="b-cost"><span class="b-costs">${Object.keys(cost).map((k) => {
-          const short = S.res[k] < cost[k];
-          return `<span class="${short ? "short" : ""}">${cost[k]} ${k}</span>`;
-        }).join(", ")}</span><span class="b-time">${def.buildTime}s</span></div>`;
-    card.innerHTML =
-      `<div class="b-top"><span class="b-name">${def.name}</span>` +
-      `<span class="b-owned${owned ? " is-owned" : pending ? " is-queued" : ""}">${statusStr}</span></div>` +
-      bottom;
+    const skel = cardSkeleton(card);
+    setText(skel.name, def.name);
+    setText(skel.n, owned ? "owned" : pending ? "queued" : "");
+    setPending(skel, 0);
+    skel.ownedBox.classList.toggle("is-owned", owned);
+    skel.ownedBox.classList.toggle("is-queued", !owned && pending);
+    if (owned) {
+      setCostParts(skel, [{ text: "Permanent.", short: false }]);
+      setText(skel.time, "");
+    } else {
+      setCostParts(skel, costPartsFor(def));
+      setText(skel.time, `${def.buildTime}s`);
+    }
     card.disabled = S.dead || owned || pending || !canAfford(cost);
     card.classList.toggle("owned", owned);
     attachTip(card, () => ({
@@ -2625,24 +2680,17 @@ function renderTraining() {
     anyRevealed = true;
 
     const cost = buildCost(def);
-    const costParts = Object.keys(cost).map((k) => {
-      const short = S.res[k] < cost[k];
-      return `<span class="${short ? "short" : ""}">${cost[k]} ${k}</span>`;
-    });
+    const parts = costPartsFor(def);
     if (def.popCost) {
-      const short = idle() < def.popCost;
       const noun = def.popCost > 1 ? active().popNoun.plural : active().popNoun.singular;
-      costParts.push(`<span class="${short ? "short" : ""}">${def.popCost} ${noun}</span>`);
+      parts.push({ text: `${def.popCost} ${noun}`, short: idle() < def.popCost });
     }
-    const pendingUnits = pendingCount(def.id);
-    const ownedStr = pendingUnits > 0
-      ? `${S.units[def.id] || 0} <span class="b-pending">+${pendingUnits}</span>`
-      : `${S.units[def.id] || 0}`;
-    card.innerHTML =
-      `<div class="b-top"><span class="b-name">${def.name}</span>` +
-      `<span class="b-owned">${ownedStr}</span></div>` +
-      `<div class="b-cost"><span class="b-costs">${costParts.join(", ")}</span>` +
-      `<span class="b-time">${def.buildTime}s</span></div>`;
+    const skel = cardSkeleton(card);
+    setText(skel.name, def.name);
+    setText(skel.n, String(S.units[def.id] || 0));
+    setPending(skel, pendingCount(def.id));
+    setCostParts(skel, parts);
+    setText(skel.time, `${def.buildTime}s`);
     card.disabled = S.dead || !canAfford(cost) || (def.popCost && idle() < def.popCost);
     attachTip(card, () => ({
       title: def.name,

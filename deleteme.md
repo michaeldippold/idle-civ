@@ -57,6 +57,20 @@ resolves alone), confirmed by play: expeditions are BY FAR the most fun part of 
 diagnostic that started all this: **flavor friction is a gameplay smell** — "my longhouse holds
 3 holdfasts" was the fiction correctly reporting un-re-denominated mechanics.
 
+**Locked in follow-up debate (2026-08-21):**
+- **Presence is rewarded, never required** — promoted straight to design.md (canonical): major
+  events get modal ceremony live, full Chronicle resolution AFK; any modal choice ships with a
+  designed default and rolls off unattended. The out-of-scope entry on interactive events is
+  refined accordingly (the ban is on events that WAIT).
+- **Standing/morale starts now, grows teeth later.** The no-dominant-path architecture requires
+  standing implemented early even with minimal effects this age; when TRADE becomes an explicit
+  verb (future), the system turns fully load-bearing. State stats may emit **observational
+  narration** via the events engine ("violence breaks out in a bread line") — this is legal and
+  distinct from the rejected flavor-only morale: the stat is real and the text reports it; the
+  lie-of-implication ban is on text hinting at consequences that don't exist. The events system
+  gains state hooks (weights/conditions keyed on standing/morale) — the windfall dice finally
+  get a worldview.
+
 **Open tunables (implementation-time, not design blockers):** the keep/output pair; levy rate;
 minor-tier count/stats per era; envoy timer/cost/odds; capture windfall sizing so neither path
 is strictly better; what a wholesale major-annexation is worth.

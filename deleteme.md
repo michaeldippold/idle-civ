@@ -7,7 +7,61 @@
 
 ---
 
-## 1. Religion & monks — ⏳ IN PROGRESS (debated 2026-08-15, NOT settled)
+## 5. Conquest growth & the peace path — CONVERGED (2026-08-21, ready to promote)
+
+The population-growth rethink (user proposal, refined in debate). This supersedes the growth
+model from Iron onward AND resolves §1's stuck religion mechanism. Not yet in design.md — one
+more read-through, then promote.
+
+**The settled shape:**
+1. **Deeper consolidation at Bronze→Iron** — crank the existing `keep` dial hard (a holdfast is
+   a couple dozen people under a lord; you should enter Iron with single digits). Paired with an
+   **era output multiplier** so `keep × output ≈ 1`: total throughput unchanged, every existing
+   cost stays valid, zero re-tuning cascade.
+2. **Units are levied, not consumed** — popCost dies at Iron ("losing a holdfast to gain one
+   soldier is thematically wrong"). Army capacity = holdfasts × levy rate: population stops
+   *containing* the army and starts *supporting* it. (Engine note: pop and units separate —
+   this simplifies civilians()/reserved()/reconcile substantially.)
+3. **Housing dies at Iron** — the iron delta removes the hut line entirely (first founding
+   building retired; the manifest machinery's moment). Stone/Bronze keep huts + the growth
+   timer; growth MODE becomes era-data: timer → conquest → (later) conquest + attraction.
+4. **Growth = conquest or conversion, only.** No automatic arrivals, no passive trickle — and
+   that's deliberate (user ruling): active growth forces engagement with the new mechanics,
+   keeps growth-stopping a player choice (the housing cap's one good job, replaced), and
+   moves population onto the fun side of the game. AFK growth stalling is as idle-legal as the
+   build queue stalling. *Passive attraction is shelved for the Enlightenment*: cities
+   petitioning to join because morale is high — one of morale's both-edged consequences.
+5. **Two adversary tiers**: the named majors stay strategic entities (siege, plunder, trade,
+   maybe wholesale annexation as an era-defining act); the delta adds a **minor tier** of
+   freeholds/petty lords — more numerous, individually weak stat-stacks, each worth one sworn
+   holdfast + a modest stock. The era's capturable holdfasts = a designed population budget.
+6. **The peace path — religion's mechanism, found.** Priests (trained unit) enable the ENVOY, a
+   third action on an adversary: slow, costs gifts + the expedition slot, no casualties,
+   standing RISES, the holdfast arrives intact. War is fast, pays plunder immediately, costs
+   casualties/siege/standing. **No-dominant-path architecture**: the paths pay in different
+   currencies and out in different currencies — plunder is one-shot, goodwill COMPOUNDS —
+   plus per-target affinity (disposition modulates envoy odds as walls modulate assaults;
+   hinted via flavor, so reading the target IS choosing the tool) and shared standing as the
+   self-balancing meter (heavy war poisons your envoys' welcome).
+7. **Absorbed = generic** (user ruling): flavor spends its budget while the entity is outside
+   and hostile; a sworn holdfast is just +1 pop, and the Chronicle keeps the name it had.
+8. **Stakes scale with narration** (user ruling, canon-worthy): hazards keep taking troops and
+   goods; big losses (a holdfast, one day a planet) stay possible but rare — and the size of
+   the loss sets the size of the story. Bigger consequence, bigger Chronicle.
+9. **Military nouns re-denominate too** — unit names are already era-facts (Horseman →
+   cavalry-flavored successors per age).
+
+**Identity line worth promoting to design.md with it:** *the fun concentrates where the verbs
+are* — "active play, passive resolution" is the niche (you act whenever you choose; the world
+resolves alone), confirmed by play: expeditions are BY FAR the most fun part of Iron. And the
+diagnostic that started all this: **flavor friction is a gameplay smell** — "my longhouse holds
+3 holdfasts" was the fiction correctly reporting un-re-denominated mechanics.
+
+**Open tunables (implementation-time, not design blockers):** the keep/output pair; levy rate;
+minor-tier count/stats per era; envoy timer/cost/odds; capture windfall sizing so neither path
+is strictly better; what a wholesale major-annexation is worth.
+
+## 1. Religion & monks — ⏳ superseded in principle by §5 (2026-08-21); morale gist below still stands
 
 **Gist of the debate so far — tentative agreements:**
 - Morale framework (conditional yes, reversing the Dispatch verdict): must be **derived, never

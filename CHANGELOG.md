@@ -36,6 +36,40 @@ version-by-version shipped record crowding out the working plan. `deleteme.md` a
 `interface-brief.md` were retired: the live questions in them were promoted into canon, the rest is
 history and the files had become a place where settled things went to look unsettled.
 
+**Two ladders became one, in a follow-up pass the same day.** The design had carried a *population*
+noun ladder (Person → Family → Holdfast → City → … → System) while `map.md` proposed a *tile* noun
+ladder, and they collided at Iron where both wanted the word **holdfast** — a collision that had
+already forced a defensive rule into `design.md` reserving the name for population and pushing siege
+flavor elsewhere. A name you have to defend is a name two concepts are fighting over, and this fight
+was unwinnable: from Iron onward *every* rung of the population ladder was already a place. The
+ladders merged, **the tile became the game's anchor noun**, and *holdfast* was promoted rather than
+renamed. Population stays a real, small, assignable lever for Stone and Bronze — the one stretch
+where a person and a place are genuinely different scales — and from Iron it simply *is* the count of
+places held, with worker assignment retiring into terrain-derived production.
+
+Three long-open questions closed with it: **worker assignment retires at Iron**, into territory;
+**the map regenerates when the tile noun changes** and only then, carrying dominion forward as a
+narrated pre-owned block (persist-and-extend was rejected because consolidation would force the owned
+region to *shrink* exactly as the world grew); and **captured tiles do have economic identity**, via
+terrain yield, because once population is tiles, terrain is the only thing left making one tile worth
+more than another.
+
+One thing was added rather than removed: **the odometer** — a single running count of individual
+beings under your control, derived (`Σ tiles × soulsPerTile`), never stored, never a lever, and
+permitted to reach the trillions. It exists because every *playable* number stays between 3 and 50
+and the interface never changes shape, which is the design's own stated risk of the late game feeling
+samey. It is an odometer rather than a score: you cannot act on it, it gates nothing, and it moves in
+jolts when you annex something — so a player who idles watches it sit perfectly still. It is also the
+one display in the game permitted number compaction, which is recorded as a deliberate exception
+rather than the small-numbers pillar quietly eroding.
+
+Flagged, not solved: **Bronze→Iron now carries seven simultaneous changes** — housing retires, free
+growth ends, units become levied, population becomes tiles, the map rescales, worker assignment
+retires, production moves to terrain. That is a genre change mid-game. It is deliberately not spread
+across two borders, because the story it tells (you stop being a village headman and become a lord)
+deserves to be one moment; the mitigation is to ship the map *early and inert* in Bronze, so it is
+familiar before it is load-bearing.
+
 No code shipped in this pass. The build is exactly where **v18.1** left it.
 
 ---

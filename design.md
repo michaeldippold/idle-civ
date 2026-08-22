@@ -207,10 +207,12 @@ Population is a roster of **person-types**, each an icon-and-count tile: **Settl
 assignable) plus the trained military types. The format is built to scale to more types without a
 redesign.
 
-*Retirement age:* worker assignment is a Stone/Bronze/Iron mechanic. When the population unit becomes
-a city or larger, assigning individuals stops making sense and the verb re-denominates into something
-like doctrine or specialization. Not yet designed; flagged so the ages before it can taper rather than
-cliff.
+**Retirement age: Iron.** *(Settled 2026-08-22.)* Worker assignment is a Stone/Bronze mechanic only.
+It works there because a tile is a clearing and a person is a person — the one stretch of the game
+where a place and an individual are genuinely different scales. From Iron a tile *is* the population
+unit, so there is nobody left to assign, and production derives from the tiles you hold and their
+terrain instead. See *Scale: The Tile Ladder*. The steppers themselves survive — they move from job
+assignment to mustering columns, which is the same gesture pointed at the era's actual decision.
 
 ### Resources & Storage
 
@@ -387,37 +389,113 @@ The rules that make it safe:
   named errors at load rather than features that silently do nothing. Given that this project's worst
   bugs have all been silent-wrongness bugs, this is the model's biggest payoff.
 
-### Population & Scale: Unit Re-denomination
+### Scale: The Tile Ladder
 
-The game reaches interstellar scale by scaling **what one population unit means**, never the number on
-screen. Displayed counts stay roughly 3–50 forever. The implied real population compounds through
-conversion ratios that live entirely in fiction and narration.
+*(Merged 2026-08-22. This section previously described a population ladder and `map.md` a separate
+tile ladder. They were the same ladder.)*
 
-| Age | Unit | | Age | Unit |
+**The tile is the game's anchor noun.** One place on the map is the unit the whole era's vocabulary
+hangs off, and every other scale question resolves against it. Displayed counts stay roughly 3–50
+forever; the game reaches interstellar scale by scaling **what one tile means**, never the number.
+
+| Age | A tile is a… | | Age | A tile is a… |
 |---|---|---|---|---|
-| Stone | Person | | Mechanized | Nation |
-| Bronze | Family | | Global | Bloc |
+| Stone | Clearing | | Mechanized | Nation |
+| Bronze | Clearing *(unchanged)* | | Global | Bloc |
 | Iron | Holdfast | | Silicon | Bloc *(unchanged)* |
 | Enlightenment | City | | Space | Settlement |
 | Gunpowder | Colony | | Galactic | World |
 | Industrial | Territory | | Kardashev | System |
 
+**Historical note, because the merge is instructive.** These were two ladders — one for the
+population unit, one (in `map.md`) for what a map tile represented — and they collided at Iron, where
+both wanted the word *holdfast*. A defensive rule was written to protect it ("holdfast is reserved for
+the population unit; fortification flavor must use other words"). A name you have to defend is a name
+two concepts are fighting over, and the fight was unwinnable: from Iron onward **every rung of the
+population ladder was already a place.** A holdfast, a city, a colony, a territory, a nation, a bloc,
+a settlement, a world, a system — all of them are locations with people in them. The population ladder
+had been a tile ladder in disguise for ten of its twelve rungs. Merging deleted a ladder rather than
+adding one, and *holdfast* was not renamed but promoted.
+
+**Population is a lever for two ages, then it is the tiles.**
+
+- **Stone and Bronze:** a tile is a clearing and population is individual people inside it. Small,
+  assignable, load-bearing — the tactile early game. This is the one stretch where a person and a
+  place are genuinely different scales, which is exactly why worker assignment works here.
+- **Iron onward: population *is* how many places you hold.** There is no second number. Conquest
+  Growth already said this without noticing — "army capacity = holdfasts × levy rate", "each worth one
+  sworn holdfast", "a designed population budget" are all tile counts. Worker assignment retires here
+  (see *Settlers & Jobs*), and production derives from tiles and their terrain instead.
+
+**Terrain is what keeps the economy a decision.** If production were merely `tiles × rate` the
+allocation choice would vanish. It isn't: a tile yields according to its terrain, so *which* tiles you
+take is the decision, and geography becomes opportunity cost. This is the most Civ-shaped mechanic in
+the game and it is **explicitly permanent** — terrain yield *is* the economy from Iron on, so it has no
+retirement age, and per the retirement rule that has to be said out loud rather than assumed.
+
+**The odometer: one big number, purely flavor.**
+
+A single running count of individual intelligent beings under your control — souls, subjects,
+citizens, beings, re-denominated per era like everything else. It exists because every playable number
+in this game stays between 3 and 50 and the interface never changes shape, which is precisely the
+design's own stated risk of the late game feeling samey. One number reading 3,000,000,000,000 makes
+scale *felt* in a way no small number can.
+
+It is an **odometer, not a score** — the distinction that keeps it from turning the game into Cookie
+Clicker, where the big number *is* the objective. Four rules enforce that:
+
+1. **It never appears in a cost, cap, rate, requirement, or stepper.** The moment it gates anything it
+   is a lever and the small-numbers pillar is broken.
+2. **It is derived, never stored** — `souls = Σ tiles × soulsPerTile(era)`. It cannot drift from truth,
+   it re-denominates automatically at every border, and it needs no save state.
+3. **The jumps are the point, not the ticking.** Nothing, nothing, nothing, then +3 trillion because
+   you annexed something. That lumpiness *proves* the design: a player who idles watches it sit
+   perfectly still, because growth is an event you caused.
+4. **Its noun ladder is its own** and cannot collide with the tile ladder, because one names a place
+   and one names a mass of people — and only the tile ladder touches mechanics.
+
+In Stone and Bronze the odometer and the lever are the same small number. At Iron the lever moves to
+tiles and the same display keeps counting as flavor. **It never appears or disappears; it just stops
+being load-bearing** — continuity of display, discontinuity of meaning, the same re-denomination
+pattern the game runs everywhere else.
+
+Two consequences, recorded so neither reads later as drift: this is **the one place the game needs
+number compaction**, which `todo.md` otherwise defers on the grounds that numbers never get big enough
+to need it — one formatter for one display, not the pillar being abandoned. And the per-era
+`soulsPerTile` multipliers want **choosing deliberately once**: nobody will audit 3 trillion, but if a
+holdfast is forty thousand people the ladder should read as roughly plausible rather than randomly
+generous. Cheap now, annoying to retrofit.
+
 **Border policy.** Stone→Bronze is a **1:1 relabel** — pure text, zero re-balance, protecting the
 proven early pacing. **Consolidation begins at Bronze→Iron** and cuts **deep**: you should enter an era
-with a *handful* of units, each weighty enough that gaining or losing one is an event. The trick that
-makes depth free: consolidation pairs with an **era output multiplier** so that `keep × output ≈ 1` —
-total throughput unchanged, every existing cost stays valid, no re-tuning cascade. Narrated as a
+with a *handful* of tiles held, each weighty enough that gaining or losing one is an event. The trick
+that makes depth free: consolidation pairs with an **era output multiplier** so that `keep × output ≈
+1` — total throughput unchanged, every existing cost stays valid, no re-tuning cascade. Narrated as a
 standard migration, and a soft tithe on min-maxed stockpiling.
+
+**The map regenerates when the tile noun changes.** That is the whole test, and it is why Bronze
+inherits Stone's clearing unchanged (same valley, new tileset, no regeneration) while Bronze→Iron
+rescales. Declared as an era-fact, exactly like `consolidate`. Rescale borders will usually coincide
+with consolidation borders because they are the same event — the scope zooming out — but they stay
+separate facts so they *can* diverge. See `map.md` §2 and §10.3.
 
 **Notes:**
 
 - **The noun changes when the scope genuinely changes, not on a schedule.** Silicon keeps Bloc: across
-  Global + Silicon the story is blocs consolidating until you implicitly hold the whole planet.
+  Global + Silicon the story is blocs consolidating until you implicitly hold the whole planet. Bronze
+  keeps Clearing for the same reason — the first transition deliberately consolidates nothing.
 - **The Space border is deliberately non-monotonic.** A Bloc implies billions; a Settlement implies the
-  few who leave. The lens narrows to the frontier.
-- **Naming guardrail:** unit names avoid pointing at any specific real Earth entity. *Compact* is the
+  few who leave. The lens narrows to the frontier. It is also where hexes retire for a node network.
+- **Naming guardrail:** tile names avoid pointing at any specific real Earth entity. *Compact* is the
   parked fallback if *Bloc*'s Cold-War ring grates in play.
-- **"Holdfast" is reserved for the population unit.** Fortification flavor must use other words.
+- **Bronze→Iron now carries seven simultaneous changes** — housing retires, free growth ends, units
+  become levied, population becomes tiles, the map rescales, worker assignment retires, production
+  moves to terrain. That is a genre change mid-game, and the failure mode is two games with a cliff
+  between them. It is deliberately *not* spread across two borders, because the story here — you stop
+  being a village headman and become a lord — deserves to be one moment. The mitigation is to
+  **introduce the map an age before it becomes mechanical**: Bronze gets a map you can look at and do
+  nothing on, so by the time it is load-bearing the player has been reading it for forty minutes.
+  That is *unravel the contents, not the board* pointed at geography.
 
 ### Conquest Growth & the Peace Path
 
@@ -672,12 +750,18 @@ Both were excluded for reasons that no longer hold.
    briefs. Not answerable until (2) is.
 4. **What replaces storage caps' friction when they retire?**
 5. **What is the Enlightenment's science mechanic?** The emptiest slot in the age list.
-6. **When does worker assignment retire, and into what?**
-7. **Does the map regenerate at an era border, or persist and extend?** Owned by `map.md` (§10.3),
-   flagged here because it is not only a map question — it collides directly with consolidation.
-   Persisting and extending is the emotionally obvious answer, but consolidation means twelve
-   holdfasts become three cities, so the owned region would have to *shrink* at the exact moment the
-   world grows, and there is no graceful version of that. Regenerating wholesale is cheapest and
-   matches the wholesale-adversary law, but evaporates a whole age's conquest at the border — the
-   invisible-sink mistake this project already made once and wrote a rule against. The likely answer
-   is regenerate-with-a-carried-summary, narrated as an ordinary migration. Not decided.
+6. **What are the `soulsPerTile` multipliers per era?** Tuning, not design — but do it deliberately in
+   one pass rather than a rung at a time. See *Scale: The Tile Ladder*.
+
+**Closed 2026-08-22, recorded so they aren't reopened by accident:**
+
+- *When does worker assignment retire, and into what?* — Iron, into territory and terrain yield.
+- *Does the map regenerate at an era border, or persist and extend?* — It regenerates **when the tile
+  noun changes**, carrying your dominion forward as a pre-owned block sized from post-consolidation
+  holdings and narrated as an ordinary migration. Neither pure option worked: persist-and-extend
+  collides with consolidation (twelve holdfasts becoming three cities means the owned region must
+  *shrink* exactly as the world grows), and regenerate-every-era evaporates an age of conquest at the
+  border — the invisible-sink mistake this project already made once and wrote a rule against.
+- *Do captured tiles have an ongoing economic identity?* — Yes, via terrain yield. This reverses
+  `map.md` §10.6's lean toward purely generic, because once population *is* tiles, terrain is the only
+  thing left making one tile worth more than another.

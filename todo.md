@@ -148,6 +148,14 @@ Designed in `map.md`. Gated behind the engine work because phases 1–4 make it 
 - [ ] Hand-authored adversary pool per era, larger than the slate; role-constrained slate
       generation.
 - [ ] Distance as a design lever (campaign time, provisions, caravan routes).
+- [ ] **Ship the map early and inert, in Bronze** — visible, readable, no adversaries, no yield, no
+      actions (`map.md` §2.5). Bronze→Iron already carries seven simultaneous changes; this is the
+      mitigation that stops the map being an eighth. It also makes the M1 slice shippable content
+      rather than scaffolding.
+- [ ] **Terrain yield** is the Iron economy once worker assignment retires — this lands with phase 6,
+      not after it. Sequencing between phases 6 and 8 needs deciding before either starts.
+- [ ] **The odometer** — derived `souls = Σ tiles × soulsPerTile(era)`, never stored, never a lever.
+      Cheap, and worth doing early because it is the thing that makes scale *felt*.
 
 ### Phase 9 — Interface re-architecture around the map
 **Open and deferred.** Whether the map becomes the interface's centre with panels moved to the
@@ -198,8 +206,12 @@ These survive the pivot unchanged.
 - [ ] **Mobile layout** is a basic stacked-column `@media` fallback, not designed for. Matches the
       stated non-goal; flagged only so it stays true.
 - [ ] **Holdings tiles show raw counts with no compaction.** Fine at current scale. The
-      re-denomination design means numbers should never get big enough to need it — if they do,
-      that's a design bug, not a display bug.
+      re-denomination design means playable numbers should never get big enough to need it — if they
+      do, that's a design bug, not a display bug.
+      **One deliberate exception**, added 2026-08-22: the **odometer** (`design.md` → *Scale: The
+      Tile Ladder*) is a purely-flavor count of individual beings under your control, and it is meant
+      to reach the trillions. That is one formatter for one display, not the small-numbers pillar
+      being abandoned. Do not let it grow into a general compaction system.
 - [ ] **Conflict's numbers are first-guess** (`conflictBaseChance`, `conflictPopScale`, raid-size
       weights, the `repelChance` ratio, casualty and theft fractions).
 - [ ] **The migration runner and DOM purge are lightly exercised** relative to their importance. The

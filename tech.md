@@ -401,6 +401,16 @@ Snapshots exclude `eraHistory` itself so they never nest; they are a few hundred
 
 `applyConsolidation({keep, narrate})` re-denominates the population unit at a border: civilians and each job scale by `keep` (floored, pop floored at 1), units scale by `keep` but never below their deployed count, and `S.pop` is recomputed as civilians + units. Iron currently keeps 0.7. It is **THE** pacing dial for the border, and phase 6 (G1) cranks it hard and pairs it with an era output multiplier so `keep × output ≈ 1`.
 
+**Naming consequence of the merged ladder — read before touching `popNoun`.** *(Design settled 2026-08-22; implementation pending — phases 6 and 8.)* `design.md` merged the population ladder and the map's tile ladder into one, because from Iron onward every rung of the population ladder was already a place. The shipped `popNoun` era-fact therefore changes meaning rather than going away:
+
+- **Stone and Bronze:** `popNoun` keeps its current job. Population is individual people, it is a lever, and a tile is a clearing that holds several of them. Nothing changes.
+- **Iron onward:** `popNoun` *is* the tile noun. Population is not a separate quantity — it is the count of places held, so `S.pop` past Iron should derive from the map rather than being tracked beside it. Expect `popNoun` to be renamed `tileNoun` (or for both names to point at one era-fact) when phase 8 lands; do not introduce a second, competing noun field in the meantime.
+- **A third, independent string arrives with the odometer** — souls / subjects / citizens / beings. It names a mass of people rather than a place, never touches a mechanic, and therefore cannot collide with the tile noun. Keep it a separate era-fact for exactly that reason.
+
+The odometer itself is **derived and never stored**: `souls = Σ tiles × soulsPerTile(era)`. It must never appear in a cost, cap, rate, requirement, or stepper — the moment it gates anything, the small-numbers pillar is broken. It is the one display in the game permitted number compaction.
+
+A sequencing question this opens, and it needs answering before either phase starts: **terrain-derived production lands with phase 6 (G1), not phase 8.** Worker assignment retires at Iron, so something has to produce resources the moment G1 ships — but terrain lives on the map. Either G1 carries an interim production model, or phase 8's M1 slice has to land inside phase 6. Do not discover this mid-G1.
+
 `purgeDom(fromM, toM)` removes the DOM nodes (`bcard-`, `hold-`, `ptile-`, `job-`, `res-` prefixed) of every id that didn't survive — the one place content ever leaves the screen. "Nothing can un-reveal" holds everywhere except an era boundary. Renderers only create nodes for manifest members, so a purged id stays gone.
 
 `manifestDiff(fromM, toM)` computes `{added, removed, renamed}` across buildings/units/upgrades — **one diff, two consumers**: the purge mirrors it, and the era modal derives everything but the flavor lead from it. `ERA_TRANSITIONS[era]` holds only a `lead` sentence; the hand-maintained change list is gone and cannot go stale.

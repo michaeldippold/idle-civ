@@ -158,6 +158,55 @@ nothing to do. An old save with no `S.map` generates one on first load and nothi
 This is the same "schema grows additively, no migration step" property `tech.md` documents under
 Persistence, and there is no reason for the map to be the first thing that breaks it.
 
+### 2.5 The tile noun decides everything
+
+*(Settled 2026-08-22, and the resolution to §10.3.)*
+
+**The tile is the game's anchor noun**, and `design.md` → *Scale: The Tile Ladder* is its home. This
+document had proposed a tile ladder while `design.md` carried a population ladder; they were the same
+ladder, and they collided at Iron where both wanted the word *holdfast*. From Iron onward every rung
+of the population ladder was already a place — a holdfast, a city, a colony, a nation, a world, a
+system. The ladders merged; *holdfast* was promoted, not renamed.
+
+Three rules follow, and they close most of what §10 was holding open:
+
+**1. The map regenerates when the tile noun changes — and only then.** That is the entire test.
+Bronze inherits Stone's clearing unchanged, so Stone→Bronze keeps its geometry and swaps only the
+tileset. Bronze→Iron rescales, because a clearing becomes a holdfast. Declared as an era-fact on the
+delta, in the same shape as `consolidate`:
+
+```js
+// on the iron delta
+tileNoun: "holdfast",     // changed from "clearing" -> rescale fires
+mapScale: { regenerate: true, narrate: "..." },
+```
+
+Rescale borders will usually coincide with consolidation borders, because they are the same event —
+the scope zooming out. Keep them separate facts anyway so they *can* diverge.
+
+The important property: **this is cheaper than regenerating every era, not more expensive.** "Does
+not rescale" means "do nothing to the map," and doing nothing needs no code. The only new machinery
+is one comparison at era entry, which `ensureMap()` already performs.
+
+**2. On a rescaling border, dominion carries as a summary.** A new world, with your holdings arriving
+as a pre-owned block sized from *post-consolidation* holdings, narrated through `runEraMigrations`
+like any other state transformation. This is candidate (c) from §10.3, and consolidation is exactly
+why the other two fail — see there.
+
+**3. Terrain carries the economy from Iron.** Once population *is* tiles, production derives from
+tiles, and terrain is the only thing that makes one tile worth more than another. See §10.6.
+
+**Build consequence: introduce the map an age before it becomes mechanical.** Bronze→Iron already
+carries seven simultaneous changes (housing retires, free growth ends, units become levied,
+population becomes tiles, the map rescales, worker assignment retires, production moves to terrain).
+That is a genre change mid-game, and it is deliberately not spread across two borders because the
+story — you stop being a village headman and become a lord — deserves to be one moment. The
+mitigation is to ship the map *early and inert*: **Bronze gets a map you can look at and do nothing
+on.** Your clearing, a few neighbouring ones, no adversaries, no yield, no actions. By the time it is
+load-bearing the player has been reading it for forty minutes. That is *unravel the contents, not the
+board* pointed at geography — and it makes M1 in the build order shippable content rather than
+scaffolding.
+
 ---
 
 ## 3. Hexes: pointy-top, and why hexes win here
@@ -628,9 +677,13 @@ Honest list. Several of these are not decidable from a desk and should not be fo
 2. **Does Bureau survive the map?** Unchanged from `design.md`'s Open Question 3, with one new
    input: the SVG-filter placeholder (§8) is itself a test of whether paper-and-ink extends to
    geography. Build the placeholder, then look at it, then decide.
-3. **Is the map regenerated per era, or does it persist and extend?** **This is the big one.**
-   It has large consequences for generation, for the save, and for how an era transition *feels*,
-   and it is genuinely undecided. Three candidates:
+3. ~~**Is the map regenerated per era, or does it persist and extend?**~~ **DECIDED 2026-08-22 —
+   see §2.5, *The tile noun decides everything*.** The answer is candidate (c), plus a rule the
+   original framing was missing: it does not happen at *every* border, only at the ones where the
+   tile noun changes. The analysis below is kept because the two rejected options each fail for a
+   reason worth remembering.
+
+   Three candidates were on the table:
    - **(a) Regenerate wholesale.** Matches existing law exactly — adversaries are already declared
      "wholesale per era, never inherited," and the code comment says each age's world arrives
      fresh. Cheapest to build, and every era gets a world sized to its own scale. **Cost: the
@@ -652,16 +705,20 @@ Honest list. Several of these are not decidable from a desk and should not be fo
      sized from post-consolidation holdings. **Probably the answer. Not decided.**
 4. **Tile art bleed** (§8). Deliberately deferred until art exists.
 5. **Tile pixel dimensions** (§8). Decidable once the map has a real home in the layout.
-6. **Do captured tiles have an ongoing economic identity, or are they +1 to a generic pool?**
-   `design.md`'s "absorbed is generic" rule says the latter, unambiguously, and its reasoning is
-   good: flavor spends its budget while an entity is *outside and hostile*, and the empire is a
-   machine while the Chronicle is the memory. **But a map makes the question live again**, because
-   a rendered tile *invites* the player to expect it to do something — you can see it, so surely it
-   is a place. Options: purely generic (current canon; the map shows extent, never yield);
-   terrain-tinted yield (a captured hills tile nudges iron a little); per-tile named holdings
-   (**rejected** — that is unit micro under another name, and it breaks the small-numbers law).
-   Apply the retirement-age test before adopting the middle option: if terrain grants yield, when
-   does that stop, and why?
+6. ~~**Do captured tiles have an ongoing economic identity?**~~ **DECIDED 2026-08-22 — yes, via
+   terrain yield.** The section below leaned toward purely generic on the strength of `design.md`'s
+   "absorbed is generic" rule. Merging the population and tile ladders overturned it: once
+   population *is* the tiles you hold, production must derive from tiles, and if it derives from
+   tiles alone (`tiles × rate`) the economy loses its allocation decision entirely. Terrain is what
+   puts the decision back — *which* tiles you take becomes the question, and geography becomes
+   opportunity cost. Per-tile named holdings stay **rejected**: that is unit micro under another
+   name and it breaks the small-numbers law. "Absorbed is generic" survives intact in its actual
+   domain, which is *flavor* — a captured place stops having a name and a personality; it does not
+   stop having ground under it.
+
+   The retirement-age test was applied and answered: **terrain yield never retires**, because from
+   Iron onward it *is* the economy. Per the retirement rule, a permanent mechanic has to say so out
+   loud rather than leave it assumed.
 7. **Must you border a place to campaign against it?** Ungated preserves today's behaviour exactly
    and costs nothing. Gated turns the map into a real strategy layer — you must take the freehold
    to reach the kingdom — but it is a genuine new constraint that could deadlock a run if the

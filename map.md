@@ -4,17 +4,14 @@
 > not built.** What exists: the place-graph model, the seeded blob-growth hex generator (own rng
 > stream), `S.map` persistence with seed-rebuilt geometry, tile-noun-keyed regeneration, the Bronze
 > inert chart, Iron's seated majors, and the wide map modal with its click-to-read detail pane.
-> Distance, yield, dominion, capture, generation polish and art are still ahead. Nothing in this document exists in `game.js`. The arc
-> is gated behind the engine work in `todo.md`'s phase plan — hard-gated on **phase 2 (seeded
-> RNG)**, which is what makes a generated world reproducible from a number, and practically gated
-> on **phase 1 (the file split)**, because this arc wants three new modules and adding them to a
-> 3,400-line single file is how you get a 4,600-line single file. It also wants **phase 6
-> (Conquest Growth G2, the minor tier)** to have landed, because the minor tier is what the map is
-> *for*.
+> Distance, yield, dominion, capture, generation polish and art are still ahead — they land through
+> the rest of phase 6 (see `todo.md` 6b–6e) and the eventual phase 8/9 arcs.
 >
-> Read this as a scoping document. `design.md` is the canon it serves; `tech.md` is the
-> architecture it must fit into. Where this file says "proposed," it means proposed — the open
-> questions in §10 are real and several of them are load-bearing.
+> Read the unshipped parts as a scoping document. `design.md` is the canon it serves; `tech.md` is
+> the architecture it must fit into. Where this file says "proposed," it means proposed — the open
+> questions in §10 are real and several of them are load-bearing. Where the shipped code diverged
+> from a proposal here (it does in small ways — the state shape is leaner, ownership is a list
+> rather than per-place `owner` fields), the code and `todo.md` win, per the standing rule.
 
 ---
 

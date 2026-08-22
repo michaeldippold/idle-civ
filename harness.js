@@ -54,7 +54,29 @@ globalThis.__api = {
   CONFIG,
   get S(){ return S; }, set S(v){ S = v; },
 };`;
-const code = fs.readFileSync(require("path").join(__dirname, "game.js"), "utf8") + exportHook;
+// Interim bootstrap for the module split (phase 1, commit A): rebuild the old
+// single-scope program by concatenating the modules in canonical order with
+// import/export syntax stripped. Proves the SPLIT changed nothing before the
+// harness itself moves to real ESM imports (commit B). Order matters only for
+// the top-level const evaluations (content before compile); functions hoist.
+const path = require("path");
+const MODULES = [
+  "src/core/config.js", "src/content/lib.js", "src/content/stone.js",
+  "src/content/bronze.js", "src/content/iron.js", "src/content/compile.js",
+  "src/ui/icons.js", "src/core/state.js", "src/core/derived.js",
+  "src/sim/combat.js", "src/sim/events.js", "src/sim/expeditions.js",
+  "src/core/step.js", "src/core/actions.js", "src/sim/era.js",
+  "src/ui/log.js", "src/ui/dom.js", "src/ui/panels-ledger.js",
+  "src/ui/panels-people.js", "src/ui/panels-holdings.js", "src/ui/panels-buy.js",
+  "src/ui/expeditions.js", "src/ui/modal.js", "src/ui/chrome.js",
+  "src/core/persist.js", "src/main.js",
+];
+const code = MODULES.map((f) => fs.readFileSync(path.join(__dirname, f), "utf8"))
+  .join("\n")
+  .split("\n")
+  .filter((l) => !/^import /.test(l))
+  .map((l) => l.replace(/^export /, ""))
+  .join("\n") + exportHook;
 vm.createContext(sandbox);
 try { vm.runInContext(code, sandbox, { filename: "game.js" }); console.log("BOOT OK"); }
 catch (e) { console.log("BOOT ERROR:", e.stack); process.exit(1); }

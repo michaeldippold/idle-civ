@@ -198,7 +198,7 @@ tiles, and terrain is the only thing that makes one tile worth more than another
 
 **Build consequence: introduce the map an age before it becomes mechanical.** Bronze→Iron already
 carries seven simultaneous changes (housing retires, free growth ends, units become levied,
-population becomes tiles, the map rescales, worker assignment retires, production moves to terrain).
+population becomes tiles, the map rescales, the job steppers give way to per-hex allocation, production moves to terrain).
 That is a genre change mid-game, and it is deliberately not spread across two borders because the
 story — you stop being a village headman and become a lord — deserves to be one moment. The
 mitigation is to ship the map *early and inert*: **Bronze gets a map you can look at and do nothing

@@ -176,8 +176,9 @@ mechanism changes even if its intent doesn't. See `map.md` and Open Questions.)*
 *(Canonical 2026-08-22.)* The manifest architecture retires *things* — a building, a resource, a job
 — effortlessly. Making it doctrine that it also retires *verbs* is what keeps twelve ages from
 becoming a palimpsest. Housing retires at Iron. Storage caps are scheduled to retire somewhere around
-the second-to-fourth age. Worker assignment retires when the population unit grows too large to
-assign. Anything that cannot answer "when does this stop, and why" is a candidate for never having
+the second-to-fourth age. Individual-person assignment retires at Iron, though the allocation *verb*
+it served does not — see *Allocation — the permanent verb* for the distinction, which is the one this
+rule most often gets wrong. Anything that cannot answer "when does this stop, and why" is a candidate for never having
 been an age-spanning mechanic in the first place.
 
 ---
@@ -197,22 +198,45 @@ themselves. See *Conquest Growth & the Peace Path*.
 
 ## Systems
 
-### Settlers & Jobs
+### Allocation — the permanent verb
 
-Settlers are assigned to gather jobs with a stepper — no pathing, no individual identity, just a
-headcount per job. Everyone eats, working or idle, which makes population a trade-off rather than a
-pure win.
+**You assign production units to resources. That verb never retires; it re-denominates.**
+*(Settled 2026-08-22, correcting a same-day ruling that called it a retirement.)*
 
-Population is a roster of **person-types**, each an icon-and-count tile: **Settler** (freely
-assignable) plus the trained military types. The format is built to scale to more types without a
-redesign.
+What a production unit *is*, and what you click to allocate it, both change. The decision does not.
 
-**Retirement age: Iron.** *(Settled 2026-08-22.)* Worker assignment is a Stone/Bronze mechanic only.
-It works there because a tile is a clearing and a person is a person — the one stretch of the game
-where a place and an individual are genuinely different scales. From Iron a tile *is* the population
-unit, so there is nobody left to assign, and production derives from the tiles you hold and their
-terrain instead. See *Scale: The Tile Ladder*. The steppers themselves survive — they move from job
-assignment to mustering columns, which is the same gesture pointed at the era's actual decision.
+- **Stone and Bronze — people, allocated with steppers.** Settlers are assigned to gather jobs with a
+  stepper: no pathing, no individual identity, just a headcount per job. Everyone eats, working or
+  idle, which makes population a trade-off rather than a pure win. This is the one stretch of the
+  game where a person and a place are genuinely different scales, and it is why individual assignment
+  works here at all.
+- **Iron onward — holdings, allocated on the map.** A tile *is* the production unit, so you click a
+  hex and set what it gathers. Terrain constrains the menu rather than the outcome: a hills holding
+  can be turned to iron or stone but not grain; a river holding can do grain or timber. Conquest
+  therefore decides what you *can* produce, and allocation decides what you *are* producing —
+  reversible, every-few-minutes, with the ledger responding immediately, exactly as steppers behave
+  today.
+
+**The stepper retires as a control at Iron; it does not retire as an idea.** Assigning a holding on a
+hex is the same mechanic as assigning a settler in a form field — it is simply more legible, and it
+puts the decision where the information already is. Steppers survive elsewhere for quantity
+allocation that isn't spatial, principally mustering a column.
+
+*Historical note.* This was briefly recorded as "worker assignment retires at Iron." That was the
+wrong diagnosis, and it left a real hole: with production deriving from terrain alone there would be
+no economic decision between conquests at all, which would drop decision density to zero and break the
+pillar directly above it. What retires is **assigning individual people** — the noun and the widget,
+not the verb. The precedent was already on the books: when the population ladder was settled, the
+ruling was that the housing→growth verb *doesn't vanish, it re-denominates*. Same shape, same answer.
+
+**Person-types survive as a roster** — each an icon-and-count tile: Settler (freely assignable, Stone
+and Bronze) plus the trained military types, which persist through every era. The format scales to
+more types without a redesign.
+
+*The pulse is the thing to watch in playtest.* Steppers give you something to touch every thirty
+seconds; hex allocation is a decision every few minutes, with expeditions and waiting decisions
+filling the gaps. That is probably the right rhythm for the era, but the *density never falls* pillar
+is the one most at risk here, and it is measurable.
 
 ### Resources & Storage
 
@@ -424,8 +448,13 @@ adding one, and *holdfast* was not renamed but promoted.
   place are genuinely different scales, which is exactly why worker assignment works here.
 - **Iron onward: population *is* how many places you hold.** There is no second number. Conquest
   Growth already said this without noticing — "army capacity = holdfasts × levy rate", "each worth one
-  sworn holdfast", "a designed population budget" are all tile counts. Worker assignment retires here
-  (see *Settlers & Jobs*), and production derives from tiles and their terrain instead.
+  sworn holdfast", "a designed population budget" are all tile counts. Production comes from the
+  holdings you hold, allocated per hex (see *Allocation — the permanent verb*).
+
+  This was not the map's idea. The decision to move production units from people to holdfasts predates
+  the map entirely — it was how the small-numbers pillar survived scale, and it is why population
+  retired as a separate quantity. **A hex is simply a holdfast made visible.** The map renders a model
+  already chosen rather than introducing a new one, which is most of why it costs so little.
 
 **Terrain is what keeps the economy a decision.** If production were merely `tiles × rate` the
 allocation choice would vanish. It isn't: a tile yields according to its terrain, so *which* tiles you
@@ -489,8 +518,8 @@ separate facts so they *can* diverge. See `map.md` §2 and §10.3.
 - **Naming guardrail:** tile names avoid pointing at any specific real Earth entity. *Compact* is the
   parked fallback if *Bloc*'s Cold-War ring grates in play.
 - **Bronze→Iron now carries seven simultaneous changes** — housing retires, free growth ends, units
-  become levied, population becomes tiles, the map rescales, worker assignment retires, production
-  moves to terrain. That is a genre change mid-game, and the failure mode is two games with a cliff
+  become levied, population becomes tiles, the map rescales, the job steppers give way to per-hex
+  allocation, production moves to terrain. That is a genre change mid-game, and the failure mode is two games with a cliff
   between them. It is deliberately *not* spread across two borders, because the story here — you stop
   being a village headman and become a lord — deserves to be one moment. The mitigation is to
   **introduce the map an age before it becomes mechanical**: Bronze gets a map you can look at and do
@@ -732,7 +761,14 @@ description of capturable tiles.
   fallback stays as a courtesy so the page doesn't break on a phone; it is not a design surface.
 
 *No longer out of scope:* a map (see `map.md`), and interactive events (see *Time, Presence & Pause*).
-Both were excluded for reasons that no longer hold.
+
+**Why the map rule fell, stated carefully, because the rule itself was right.** "No rendered map,
+ever" read as a ban on maps and was actually a ban on **RTS spatial micro** — pathing, drawn units,
+clicking soldiers around terrain, an art budget the project doesn't have. Every one of those is still
+banned, and the four entries above are what that rule was really defending. A hex you click to say
+*this holding mines iron*, or to march a column at a neighbour, has none of it: no unit is drawn, no
+unit moves, nothing is pathed, and the art is a finite tile kit rather than an illustrated world. The
+rule was aimed at the right danger and pointed at the wrong noun.
 
 ---
 
@@ -741,9 +777,12 @@ Both were excluded for reasons that no longer hold.
 1. **The name.** "Idle Civ" is wrong now. "Paper Civ" was floated and is complicated by (3) below.
    Deferred deliberately until the pivoted game is playable — deciding a name against an imagined game
    is how you get a name you have to change twice.
-2. **Does the map become the centre of the interface?** Likely eventually, with everything else moved to
-   the periphery. Explicitly gated on having a map good enough to deserve it. Until then, Bureau's 4×2
-   grid stands and is not in question.
+2. **When does the map take the centre of the interface?** *(The "whether" is settled: it does.)* The
+   stated end-state is **map in the middle, controls on the edges of the screen**, with the Expeditions
+   panel dissolving into the map rather than surviving beside it — a list of adversaries next to a map
+   showing the same adversaries is the worse of the two. Only the *timing* is open, and it is gated on
+   having a map good enough to deserve it. Until then Bureau's 4×2 grid stands and is not in question,
+   and phase 8 must be buildable without answering this.
 3. **Does Bureau survive the map?** Bureau is pure CSS with zero assets, which is part of why it shipped
    fast and reads cohesively. If commissioned art arrives, paper is either a placeholder aesthetic to be
    replaced or the identity the art should be commissioned *in the style of*. Those are very different
@@ -755,7 +794,12 @@ Both were excluded for reasons that no longer hold.
 
 **Closed 2026-08-22, recorded so they aren't reopened by accident:**
 
-- *When does worker assignment retire, and into what?* — Iron, into territory and terrain yield.
+- *When does worker assignment retire, and into what?* — **It doesn't.** The allocation verb is
+  permanent and re-denominates: people-with-steppers in Stone and Bronze, holdings-on-hexes from Iron.
+  What retires at Iron is assigning individual *people*, and the stepper as the control for it. See
+  *Allocation — the permanent verb*. (Recorded briefly on the same day as a retirement; that was
+  wrong, and the correction is kept because the hole it would have left — zero economic decision
+  between conquests — is the kind a plausible-sounding ruling can open without anyone noticing.)
 - *Does the map regenerate at an era border, or persist and extend?* — It regenerates **when the tile
   noun changes**, carrying your dominion forward as a pre-owned block sized from post-consolidation
   holdings and narrated as an ordinary migration. Neither pure option worked: persist-and-extend

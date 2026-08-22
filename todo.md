@@ -152,8 +152,10 @@ Designed in `map.md`. Gated behind the engine work because phases 1–4 make it 
       actions (`map.md` §2.5). Bronze→Iron already carries seven simultaneous changes; this is the
       mitigation that stops the map being an eighth. It also makes the M1 slice shippable content
       rather than scaffolding.
-- [ ] **Terrain yield** is the Iron economy once worker assignment retires — this lands with phase 6,
-      not after it. Sequencing between phases 6 and 8 needs deciding before either starts.
+- [x] **Sequencing between phases 6 and 8: decided 2026-08-22.** Per-hex allocation replaces the job
+      steppers at Iron, so hexes must exist the moment G1 ships. **M1 (map model + readout) lands
+      inside phase 6** rather than G1 carrying a throwaway interim production model. Revert target if
+      it goes badly is commit `fff278c`+1.
 - [ ] **The odometer** — derived `souls = Σ tiles × soulsPerTile(era)`, never stored, never a lever.
       Cheap, and worth doing early because it is the thing that makes scale *felt*.
 

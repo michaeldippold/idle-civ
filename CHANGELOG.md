@@ -45,9 +45,13 @@ was unwinnable: from Iron onward *every* rung of the population ladder was alrea
 ladders merged, **the tile became the game's anchor noun**, and *holdfast* was promoted rather than
 renamed. Population stays a real, small, assignable lever for Stone and Bronze — the one stretch
 where a person and a place are genuinely different scales — and from Iron it simply *is* the count of
-places held, with worker assignment retiring into terrain-derived production.
+places held, allocated per hex against terrain.
 
-Three long-open questions closed with it: **worker assignment retires at Iron**, into territory;
+Three long-open questions closed with it — one of them wrongly at first, and corrected the same day.
+The allocation verb (assign a production unit to a resource) turned out to be **permanent, not
+retiring**: it re-denominates from people-with-steppers to holdings-clicked-on-hexes, and only the
+noun and the widget change. Calling it a retirement would have left the Iron economy with no decision
+between conquests at all. Also closed:
 **the map regenerates when the tile noun changes** and only then, carrying dominion forward as a
 narrated pre-owned block (persist-and-extend was rejected because consolidation would force the owned
 region to *shrink* exactly as the world grew); and **captured tiles do have economic identity**, via
@@ -64,8 +68,8 @@ one display in the game permitted number compaction, which is recorded as a deli
 rather than the small-numbers pillar quietly eroding.
 
 Flagged, not solved: **Bronze→Iron now carries seven simultaneous changes** — housing retires, free
-growth ends, units become levied, population becomes tiles, the map rescales, worker assignment
-retires, production moves to terrain. That is a genre change mid-game. It is deliberately not spread
+growth ends, units become levied, population becomes tiles, the map rescales, the job steppers give
+way to per-hex allocation, production moves to terrain. That is a genre change mid-game. It is deliberately not spread
 across two borders, because the story it tells (you stop being a village headman and become a lord)
 deserves to be one moment; the mitigation is to ship the map *early and inert* in Bronze, so it is
 familiar before it is load-bearing.

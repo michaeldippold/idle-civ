@@ -267,6 +267,10 @@ game, including all future eras, which are authored as data against this same gr
    (name above, rate and stepper beneath): at ~180px column width there is no honest way to fit name +
    rate + stepper on one, and the name is the control's primary label. Used for job assignment and for
    mustering forces in the campaign/caravan modals.
+   **Era-scoped (pending — phase 6/8):** job assignment retires the stepper at Iron, replaced by
+   clicking a hex and setting what that holding gathers. Same mechanic, better surface — the decision
+   moves to where the information already is. The stepper survives for non-spatial quantity
+   allocation, principally mustering.
 4. **Buy card** — the workhorse, one grammar for buildings, upgrades and units alike. Name +
    right-aligned status (owned count / "owned" / "queued" / "Maxed"), cost line with each unaffordable
    resource in red, build time. **Unaffordable is a lighter border and nothing else** — text stays at

@@ -11,6 +11,30 @@
 
 ---
 
+## 2026-08-22 — Phase 5: asking modals hold the world
+
+**The modal-hold seam, built for what's coming.** `openModal()` grew an `opts` bag — deliberately
+extensible, because the phase-7 decision queue adds its keys (designed defaults, dismiss-to-tray)
+without another signature change. `pause` defaults true: an asking modal freezes the simulation
+while open, closing releases it, and the hold composes with the player's pause and the hidden-tab
+stop as three independent flags, so each releases without clobbering the others. Anything a modal
+can render — steppers, choices, prose — can now ask the player to think for as long as they like
+at zero cost to the world. The ask/tell rule shipped with one extension now canon: **the ceremony
+register holds too** (era transition, game over) — stillness is part of the weight — while the
+Info reference, browsed during play, is the one telling modal.
+
+**The header learned its new job.** Pause and speed became a grouped transport instrument beside
+the clock (2px borders against the utilities' 1px — weight, never opacity), Reset stands alone at
+the far edge, and the number row 1–5 sets speed directly. The old "speed is a dev tool, lock it
+before release" policy is fully dead. Seven new checks (447 total); live-verified: ticks frozen
+under the reset confirm, running under Info, released on close.
+
+**This closes the harness-green rail (phases 1–5).** Five phases, each landed with the suite
+green: modules, the seed, the death of offline, the tick clock, controls. The engine the pivot
+specced now exists; what remains is content — Conquest Growth, the decision queue, the map.
+
+---
+
 ## 2026-08-22 — Phase 4: the clock is a count
 
 **`S.tick` is the master clock.** `step()` takes no argument: one call, one tick, exactly

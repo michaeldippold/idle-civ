@@ -4,7 +4,7 @@ How the game is actually built. **Docs map:** `design.md` is why any of this exi
 
 ## How to read this file
 
-**Every section carries a status line directly under its heading.** This is not decoration. The 2026-08-22 pivot (`design.md`, *Time, Presence & Pause*) redefined the target game, and the code has been catching up phase by phase since — phases 1–4 (modules, the seed, the death of offline, the tick clock) are in; controls and everything after are not. A session that can't tell the target from the code will do something bad; the status line tells you which world a paragraph is describing.
+**Every section carries a status line directly under its heading.** This is not decoration. The 2026-08-22 pivot (`design.md`, *Time, Presence & Pause*) redefined the target game, and the code has been catching up phase by phase since — phases 1–5 (modules, the seed, the death of offline, the tick clock, controls) are in; Conquest Growth and everything after are not. A session that can't tell the target from the code will do something bad; the status line tells you which world a paragraph is describing.
 
 - **Status: shipped.** — running in `game.js` today. Claims here are verified against the file.
 - **Status: pending — phase N.** — settled design, no code. Nothing in the section is true yet.
@@ -23,7 +23,7 @@ How the game is actually built. **Docs map:** `design.md` is why any of this exi
 | 2 | Seeded RNG | **shipped 2026-08-22** | *Determinism & the Seeded RNG* |
 | 3 | Kill offline | **shipped 2026-08-22** | *Time, Presence & Pause (implementation)* |
 | 4 | Fixed ticks | **shipped 2026-08-22** | *Simulation Model* |
-| 5 | Player controls (pause/speed, modal pause flag) | pending | *Time, Presence & Pause (implementation)* |
+| 5 | Player controls (pause/speed, modal pause flag) | **shipped 2026-08-22** | *Time, Presence & Pause (implementation)* |
 | 6 | Conquest Growth G1–G3 | pending | *Conquest Growth — implementation contract* |
 | 7 | Decision queue (interactive events) | pending | *The Decision Queue* |
 | 8 | Map | pending | `map.md` |
@@ -240,15 +240,30 @@ reborn on a new event and closed with one flag instead of listener juggling.
 
 ### Phase 5 — controls
 
-**Pause and speed are promoted to player controls.** They already exist as module-level `let paused` / `let speed` outside `S`, with a header button each; phase 5 changes their *status*, not primarily their implementation. Two things do change: the 2026-08-20 "speed is a dev-only tool, to be locked away before release" policy is **revoked** (it was a consequence of the idle framing), and both controls need to read as first-class chrome rather than as a debug affordance.
+**Status: shipped (2026-08-22).**
 
-They stay out of `S` deliberately, and the reasons hold: pause in the save means loading into a frozen game wondering why nothing happens, and speed in the save means resuming at 12× as a nasty surprise. Auto-pause state is doubly not-saved — it's a property of the tab, not the run.
+**The modal hold.** `openModal(title, bodyHTML, actions, onMount, opts)` — `opts` is deliberately
+an open bag rather than more positional flags, because the decision queue (phase 7) grows it
+(designed defaults, dismiss-to-tray, whatever future asks need) without another signature change.
+`opts.pause` defaults **true**: an asking modal holds the simulation while open; `closeModal()`
+releases. The hold (`modalHold`, in chrome.js beside `paused`) is a third independent flag
+composed in the loop — `paused || hidden || modalHold` — so each releases without clobbering the
+others, the same design that made the hidden-tab behavior clean. Anything a modal can render —
+steppers, choices, prose, future decision cards — can now ask the player to think for as long as
+they like at zero cost to the world. **This is the seam the whole opened design space stands on;
+keep it generic.**
 
-**The modal pause flag.** `openModal()` gains a `pause` option, **defaulting to true**, with `openInfoPanel()` the explicit opt-out. The ask/tell split from `design.md` maps directly: muster, escort, decision events, reset confirm and game over all ask (or are terminal) and pause; the Info reference tells and does not. Default-to-pause is right because that failure mode is harmless — the worst case is a player who paused for a second without meaning to.
+**The ask/tell ruling, extended.** Asks hold (muster, escort, reset confirm, every future
+decision). The **ceremony register holds too** — era transition, game over — because stillness is
+part of the weight and reading the age's obituary should not cost world-time. The Info reference,
+material browsed *during* play, is the one telling modal and passes `{ pause: false }`.
 
-Implementation: a module-level `modalPause` flag that the effective-pause composite reads alongside `paused` and `document.hidden`. `closeModal()` clears it. It must not touch `paused`, or dismissing a modal will resume a game the player had deliberately frozen.
-
-**Interactions stay enabled while paused** (reassigning jobs, queuing builds), as they are today. There is no exploit — nothing progresses and nothing accrues — and planning while frozen is most of the point. Pausing is deliberately **not** logged to the Chronicle; that log is the settlement's memory, not a record of UI actions.
+**Controls.** The header groups Pause + speed as a transport instrument (see `interface.md`);
+keys 1–5 land on the `CONFIG.speeds` notches via `setSpeed()`, Space toggles pause. The old
+"speed is a dev tool, lock it before release" policy is dead. `paused`, `speed` and `upgradeTab`
+remain deliberately excluded from the save — confirmed still right now that pause is a primary
+verb: reloading into a silently frozen (or 12×) game is a trap, and the world already stopped
+with you when the tab closed.
 
 ## The Decision Queue
 

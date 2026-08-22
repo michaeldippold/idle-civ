@@ -72,7 +72,10 @@ no reward is forfeited by being away. Within that, the game is meant to be watch
    think; speed is how you get on with it. They sit in the header as first-class chrome.
 3. **Modals that ask something pause the game. Modals that tell you something don't.** Campaign
    muster, caravan escort, decision events, destructive confirms — all pause. Reference material
-   does not. The default is to pause, because that failure mode is harmless.
+   does not. The default is to pause, because that failure mode is harmless. *(Extended when
+   built, 2026-08-22: the **ceremony register pauses too** — era transition, game over. Stillness
+   is part of the weight; reading the age's obituary should not cost world-time. Info remains the
+   one telling modal.)*
 4. **Decisions may wait; nothing expires.** A choice presented by the world sits patiently until
    you get to it. No countdowns, no claim buttons, no "act now." *Resolution never creates a window
    the player must catch* remains canonical — that rule was always about expiry, never about

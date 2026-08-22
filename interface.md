@@ -232,13 +232,15 @@ that **new capability announces itself**: today, by a named empty panel filling 
 
 ### The header
 
-**Pending — phase 5.** The header currently reads as a utility strip: `Info · 1× · Pause · Save ·
-Reset`, uniform `.chrome-btn` plates, with speed and pause sitting beside Save and Reset as though
-they were the same kind of thing. Under the old contract that was right — the sim needed no
-supervision, so its controls were housekeeping. Under the new one it is wrong. **Pause is how you
-think and speed is how you get on with it**; they are among the game's most-used verbs and the header
-must read that way — grouped as transport controls, weighted above the file-management verbs, and
-separated from Reset. Spacebar already toggles pause; speed deserves a binding too.
+**Shipped (phase 5, 2026-08-22).** The header reads `clock · [Pause|1×] · Info · Save · · · Reset`:
+Pause and speed are one grouped transport instrument beside the clock they govern — shared edge
+like the segmented stepper, borders at 2px against the utilities' 1px, because **weight carries
+the hierarchy, never opacity** — and Reset is pushed off to the far edge so the dangerous verb
+stands alone. Keys: Space toggles pause, 1–5 land on the speed notches. **Pause is how you think
+and speed is how you get on with it**; the header now says so.
+
+*Historical note:* the pre-pivot header was a uniform utility strip, which was right under the old
+contract — the sim needed no supervision, so its controls were housekeeping.
 
 What is already shipped and worth keeping: the fast state is *visible* (`.chrome-btn.fast` goes
 amber, the semantic value for in-progress, because running fast is a state you can forget you are

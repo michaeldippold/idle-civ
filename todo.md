@@ -126,13 +126,18 @@ harness failure that doesn't reproduce should be recorded verbatim rather than r
 - [x] Harness: 440 checks. The phase-2 determinism check now describes the browser too — seed +
       tick count + actions = bit-identical state everywhere.
 
-### Phase 5 — Controls
-- [ ] Promote pause and speed out of dev-only status. `tech.md` previously recorded speed as a
-      dev/testing tool to be locked away before release; that policy is reversed.
-- [ ] Modal `pause` flag with the ask/tell split: modals that ask something pause the game, modals
-      that tell you something don't. Default true; Info opts out.
-- [ ] Header chrome updated to read as game controls rather than debug affordances — see
-      `interface.md`.
+### Phase 5 — Controls ✅ *(shipped 2026-08-22)*
+- [x] `openModal()` grows an `opts` bag (extensible by design — the phase-7 decision queue adds its
+      keys without another signature change). `pause` defaults **true**; closing releases. The hold
+      is a third independent flag beside `paused` and the hidden stop, composed in the loop.
+- [x] Ask/tell ruled, with one extension now canon: the **ceremony register holds too** (era
+      transition, game over) — stillness is part of the weight. Info is the one telling modal and
+      opts out. Recorded in `design.md` rule 3 and `interface.md`.
+- [x] Header re-weighted: Pause + speed as a grouped transport instrument (2px borders vs the
+      utilities' 1px — weight, never opacity), Reset pushed off alone. Keys: 1–5 set speed notches,
+      Space pauses. The dev-only-speed policy is fully dead.
+- [x] Seven new checks (447); live-verified ticks frozen under an ask, running under Info.
+- [x] Confirmed still right: `paused`/`speed`/`upgradeTab` stay excluded from the save.
 
 ### Phase 6 — Conquest Growth (G1–G3)
 Already specced in `tech.md` → *Conquest Growth & the Peace Path — implementation contract*, and in

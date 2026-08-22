@@ -1,4 +1,5 @@
 import { CONFIG } from "../core/config.js";
+import { rng } from "../core/rng.js";
 import { caps, totalUnits } from "../core/derived.js";
 import { S, SIM } from "../core/state.js";
 import { CONFLICT_FLAVOR, armorFactor, counterCoverage, militaryStrength, pick, removeRandomUnit, removeSettler, rollRaidSize, rollRaidType, stealResources } from "../sim/combat.js";
@@ -74,7 +75,7 @@ export const EVENT_LIB = {
       // hostilityMultiplier: every Hostile warlike neighbor raids you more.
       const chance = CONFIG.conflictBaseChance * (1 + S.pop * CONFIG.conflictPopScale) * hostilityMultiplier();
       const p = 1 - Math.pow(1 - chance, dt);
-      if (Math.random() >= p) return;
+      if (rng() >= p) return;
 
       const raidSize = rollRaidSize();
       const raid = rollRaidType();
@@ -82,12 +83,12 @@ export const EVENT_LIB = {
       const repelChance = defense / (defense + raidSize);
       const say = (pool, sev) => { if (!SIM) log(pick(pool).replace("{raid}", raid.name), sev); };
 
-      if (Math.random() < repelChance) {
+      if (rng() < repelChance) {
         // Second dial: fielding the countering unit type doesn't just help you
         // win, it means fewer of your own die when you do.
         const relief = 1 - CONFIG.counterCasualtyRelief * counterCoverage(raid);
         const costlyChance = (raidSize / (defense + raidSize)) * armorFactor() * relief;
-        if (Math.random() < costlyChance) {
+        if (rng() < costlyChance) {
           const lost = removeRandomUnit();
           if (!SIM) log(`The ${raid.name} is driven off, but not without cost — a ${lost || "defender"} falls in the fighting.`, "bad");
         } else {

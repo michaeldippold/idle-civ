@@ -1,4 +1,5 @@
 import { CONFIG } from "./config.js";
+import { newSeed } from "./rng.js";
 
 // ---------- State -------------------------------------------
 export let S;
@@ -11,7 +12,14 @@ export function freshState() {
   // active manifest decides which of them the engine actually reads. The
   // schema is deliberately unchanged by the manifest refactor: old saves load
   // as-is.
+  const seed = newSeed();
   return {
+    // The world's number (phase 2): `seed` is the run's permanent identity,
+    // shown on the game-over screen and logged at boot; `rngState` is the
+    // dice stream's current position, advanced by every rng() draw and
+    // carried in the save so a reload resumes the sequence mid-stream.
+    seed,
+    rngState: seed,
     res:   { food: CONFIG.startFood, wood: 0, stone: 0, copper: 0, tin: 0, bronze: 0,
              iron: 0, steel: 0, gold: 0 },
     jobs:  { forager: 0, woodcutter: 0, miner: 0, copperMiner: 0, tinMiner: 0, ironMiner: 0 },

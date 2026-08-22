@@ -1,4 +1,5 @@
 import { active } from "../content/compile.js";
+import { rng } from "../core/rng.js";
 import { CONFIG } from "../core/config.js";
 import { availableUnits } from "../core/derived.js";
 import { S } from "../core/state.js";
@@ -129,7 +130,7 @@ export function removeDeployedUnit(ex) {
   const ids = Object.keys(ex.units);
   const totalW = ids.reduce((s, uid) => s + weightOf(uid), 0);
   if (totalW <= 0) return null;
-  let roll = Math.random() * totalW;
+  let roll = rng() * totalW;
   for (const uid of ids) {
     const w = weightOf(uid);
     if (roll < w) {
@@ -158,7 +159,7 @@ export function resolveCampaign(ex, adv, st) {
     if (power < st.walls) {
       st.walls -= power;
       log(`The walls of ${adv.name} hold. Your column withdraws in good order — but its work is carved into the stone.`, "bad");
-      if (Math.random() < CONFIG.wallRetreatLoss * armorFactor()) {
+      if (rng() < CONFIG.wallRetreatLoss * armorFactor()) {
         const lost = removeDeployedUnit(ex);
         if (lost) log(`A ${lost} falls beneath the walls.`, "bad");
       }
@@ -173,7 +174,7 @@ export function resolveCampaign(ex, adv, st) {
   const attack = campaignStrength(ex.units, adv);
   const winChance = attack / (attack + adv.strength);
 
-  if (Math.random() < winChance) {
+  if (rng() < winChance) {
     const takes = [];
     for (const k in st.stock) {
       const take = Math.floor(st.stock[k] * CONFIG.plunderFraction);
@@ -181,7 +182,7 @@ export function resolveCampaign(ex, adv, st) {
     }
     log(`Victory over ${adv.name}. The column returns with ${takes.length ? takes.join(", ") : "little worth taking"}.`, "big");
     // Winning can still cost someone -- softened by armor, same dial as home.
-    if (Math.random() < (adv.strength / (attack + adv.strength)) * armorFactor()) {
+    if (rng() < (adv.strength / (attack + adv.strength)) * armorFactor()) {
       const lost = removeDeployedUnit(ex);
       if (lost) log(`The victory had a price — a ${lost} does not come home.`, "bad");
     }
@@ -198,15 +199,15 @@ export function resolveCaravan(ex, adv, st) {
   // roads at a flat chance. Escorts don't lower the odds of being found --
   // they decide how the ambush ENDS: fight through and the trade completes.
   const raiders = riskAdversary();
-  if (raiders && Math.random() < CONFIG.caravanRaidChance) {
+  if (raiders && rng() < CONFIG.caravanRaidChance) {
     const escortStr = ex.units ? campaignStrength(ex.units, raiders) : 0;
     if (escortStr <= 0) {
       log(`Your caravan to ${adv.name} never arrives — ${raiders.name} took it on the road. The cargo is lost.`, "bad");
       return;
     }
-    if (Math.random() < escortStr / (escortStr + raiders.strength)) {
+    if (rng() < escortStr / (escortStr + raiders.strength)) {
       log(`${raiders.name} fall on your caravan — and the escort fights them through.`, "good");
-      if (Math.random() < (raiders.strength / (escortStr + raiders.strength)) * armorFactor()) {
+      if (rng() < (raiders.strength / (escortStr + raiders.strength)) * armorFactor()) {
         const lost = removeDeployedUnit(ex);
         if (lost) log(`The road took its toll — a ${lost} does not come home.`, "bad");
       }

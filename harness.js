@@ -12,6 +12,7 @@
 // still mid-evaluation, and EVENT_LIB is a TDZ ReferenceError.
 import * as mCompile from "./src/content/compile.js";
 import * as mConfig from "./src/core/config.js";
+import * as mRng from "./src/core/rng.js";
 import * as mLib from "./src/content/lib.js";
 import * as mStone from "./src/content/stone.js";
 import * as mBronze from "./src/content/bronze.js";
@@ -35,8 +36,11 @@ import * as mExpedUi from "./src/ui/expeditions.js";
 import * as mModal from "./src/ui/modal.js";
 import * as mChrome from "./src/ui/chrome.js";
 import * as mPersist from "./src/core/persist.js";
+import fs from "node:fs";
+import nodePath from "node:path";
+import { fileURLToPath } from "node:url";
 
-const MODS = [mConfig, mLib, mStone, mBronze, mIron, mCompile, mIcons, mState,
+const MODS = [mConfig, mRng, mLib, mStone, mBronze, mIron, mCompile, mIcons, mState,
   mDerived, mCombat, mEvents, mExped, mStep, mActions, mEra, mLog, mDom,
   mPLedger, mPPeople, mPHold, mPBuy, mExpedUi, mModal, mChrome, mPersist];
 
@@ -141,7 +145,7 @@ check("can't queue a 2nd barracks once built either", S().buildQueue.length === 
 console.log("\n--- Soldier: popCost reserves a civilian the instant it's queued ---");
 // Deterministic block: a rare sickness during the training window would kill a
 // civilian and shift every count this section asserts on.
-const _sr = Math.random; Math.random = () => 0.999999;
+api.setRngSource(() => 0.999999);
 reset();
 S().pop = 6; S().jobs = { forager: 2, woodcutter: 2, miner: 0 }; // 4 assigned, 2 idle civilians
 S().builds.hut = 1; S().builds.barracks = 1;
@@ -162,7 +166,7 @@ check("civilians() dropped by 1 -- permanently converted", api.civilians() === 5
 check("idle back to where it started (reservation -> conversion is a wash)", api.idle() === 1);
 
 // ---- Cancelling a queued Soldier order frees the reservation ----
-Math.random = _sr;
+api.setRngSource(null);
 
 console.log("\n--- Cancel a queued Soldier order -- reservation freed ---");
 reset();
@@ -202,12 +206,11 @@ check("hideArmor halves the casualty-chance factor", api.armorFactor() === 0.5);
 // ---- Conflict: gated below pop 4 ----
 console.log("\n--- Conflict: gated below pop 4, same as sickness ---");
 reset();
-const origRandom = Math.random;
-Math.random = () => 0;   // force every roll to "hit" if attempted at all
+api.setRngSource(() => 0);   // force every roll to "hit" if attempted at all
 const popBefore2 = S().pop;
 api.resolveEvents(1);
 check("no conflict effect below the pop gate", S().pop === popBefore2 && S().dead === false);
-Math.random = origRandom;
+api.setRngSource(null);
 
 // Call conflict's resolve() directly (not resolveEvents()) for these -- Sickness
 // sits earlier in the events slate and *also* consumes Math.random() calls when
@@ -221,13 +224,12 @@ S().pop = 5; S().units.soldier = 0;
 S().res.food = 40; S().res.wood = 40;
 check("repelChance is exactly 0 with no soldiers", 0 / (0 + 2) === 0);
 {
-  const origR = Math.random;
   let calls = 0;
   // call1: trigger fires. call2: rollRaidSize -> 0 lands in the first (smallest) tier.
   // call3: repel check -- with defense 0, ANY value fails to repel (0 < 0 is always false).
-  Math.random = () => { calls++; return calls <= 2 ? 0 : 0.99; };
+  api.setRngSource(() => { calls++; return calls <= 2 ? 0 : 0.99; });
   conflictEv.resolve(S(), 1);
-  Math.random = origR;
+  api.setRngSource(null);
   console.log(`  after forced raid: pop=${S().pop} food=${S().res.food} wood=${S().res.wood}`);
   check("resources were stolen", S().res.food < 40 && S().res.wood < 40);
   check("civilian lost too -- defense was 0", S().pop === 4);
@@ -238,15 +240,14 @@ console.log("\n--- Conflict: strong defense (many soldiers) can repel cleanly --
 reset();
 S().pop = 30; S().units.soldier = 20;   // defense=20 vs a small raid(2) -> repelChance ~0.909
 {
-  const origR = Math.random;
   let calls = 0;
   // call1: trigger fires. call2: raid size -> 0 = smallest tier (2).
   // call3: raid TYPE -> 0 = warband (no counter, so composition is irrelevant).
   // call4: repel check -> 0.01 < 0.909, repelled. call5: costly check -> 0.99, NOT costly.
-  Math.random = () => { calls++; return [0, 0, 0, 0.01, 0.99][calls - 1] ?? 0.99; };
+  api.setRngSource(() => { calls++; return [0, 0, 0, 0.01, 0.99][calls - 1] ?? 0.99; });
   const soldiersBefore = S().units.soldier;
   conflictEv.resolve(S(), 1);
-  Math.random = origR;
+  api.setRngSource(null);
   check("clean repel: no soldiers lost", S().units.soldier === soldiersBefore);
   check("population untouched", S().pop === 30);
 }
@@ -256,14 +257,13 @@ console.log("\n--- Conflict: repelled-but-costly still costs a Soldier ---");
 reset();
 S().pop = 30; S().units.soldier = 20;
 {
-  const origR = Math.random;
   let calls = 0;
   // Same as above but force the costly-repel roll LOW instead of high.
   // Sequence: trigger, raid size, raid TYPE, repel check, costly-repel check.
-  Math.random = () => { calls++; return [0, 0, 0, 0.01, 0][calls - 1] ?? 0.99; };
+  api.setRngSource(() => { calls++; return [0, 0, 0, 0.01, 0][calls - 1] ?? 0.99; });
   const soldiersBefore = S().units.soldier;
   conflictEv.resolve(S(), 1);
-  Math.random = origR;
+  api.setRngSource(null);
   check("costly repel: exactly one soldier lost", S().units.soldier === soldiersBefore - 1);
   check("still just attrition, not a wipe", S().dead === false);
 }
@@ -321,11 +321,10 @@ S().pop = 5;
 const huntEv = findEv("greatHunt");
 const traderEv = findEv("trader");
 {
-  const origR = Math.random;
-  Math.random = () => 0; // force the trigger to fire
+  api.setRngSource(() => 0); // force the trigger to fire
   const foodBefore = S().res.food;
   api.resolveEvents(1); // forced roll: greatHunt fires first in the list
-  Math.random = origR;
+  api.setRngSource(null);
   console.log(`  after forced greatHunt/trader tick: food=${S().res.food} wood=${S().res.wood} stone=${S().res.stone}`);
   check("food increased (Great Hunt landed)", S().res.food > foodBefore);
 }
@@ -437,7 +436,7 @@ console.log(`  capstone cost: ${JSON.stringify(api.buildCost(bronzeAgeDef))}, bu
 console.log("\n--- Bronze P1: completing the capstone flips the era ---");
 // Deterministic block: over the 120s build, an unlucky raid could steal the
 // remaining food and starve the settlement before the capstone completes.
-const _cr = Math.random; Math.random = () => 0.999999;
+api.setRngSource(() => 0.999999);
 reset();
 S().pop = 10; S().units.soldier = 1;
 S().res.food = 400; S().res.wood = 400; S().res.stone = 400;
@@ -457,7 +456,7 @@ check("snapshot captured pre-flip facts (era still stone inside it)",
   S().eraHistory.stone.era === "stone" && S().eraHistory.stone.pop >= 10);
 check("snapshots don't nest snapshots", S().eraHistory.stone.eraHistory === undefined);
 
-Math.random = _cr;
+api.setRngSource(null);
 
 console.log("\n--- Bronze P1: bronze-gated content (gate = manifest membership) ---");
 check("Bronze Tools in the active manifest now that era is bronze",
@@ -620,8 +619,7 @@ console.log("\n--- Free timed growth: no cost, steady cadence, housing-gated ---
   console.log(`  settler interval: ${N}s`);
   // Force every chancePerSecond roll to miss so windfalls, sickness and raids
   // can't perturb population or stores -- these tests are about cadence math.
-  const origRandom = Math.random;
-  Math.random = () => 0.999999;
+  api.setRngSource(() => 0.999999);
 
   // Frozen while housing is full (the starting state: pop 3 / housing 3).
   reset();
@@ -668,7 +666,7 @@ console.log("\n--- Free timed growth: no cost, steady cadence, housing-gated ---
   check("population parks exactly at housing", S().pop === api.housing());
   check("still alive throughout (tests were fed)", S().dead === false);
 
-  Math.random = origRandom;
+  api.setRngSource(null);
 }
 
 // ================= BRONZE AGE PHASE 2: THE ALLOY =================
@@ -1038,13 +1036,12 @@ console.log("\n--- P3: end-to-end raid with composition ---");
   S().era = "bronze"; S().pop = 30;
   S().units = { soldier: 0, archer: 20, horseman: 0 };
   const conflictEv2 = findEv("conflict");
-  const origR = Math.random;
   let calls = 0;
   // trigger fires; smallest raid size; raid type = warband; repel succeeds; not costly.
-  Math.random = () => { calls++; return [0, 0, 0, 0.01, 0.99][calls - 1] ?? 0.99; };
+  api.setRngSource(() => { calls++; return [0, 0, 0, 0.01, 0.99][calls - 1] ?? 0.99; });
   const unitsBefore = api.totalUnits();
   conflictEv2.resolve(S(), 1);
-  Math.random = origR;
+  api.setRngSource(null);
   check("a well-defended settlement repels cleanly", api.totalUnits() === unitsBefore);
   check("nobody died", S().pop === 30);
 }
@@ -1365,7 +1362,7 @@ console.log("\n--- C1: the iron manifest ---");
 
 console.log("\n--- C1: capstone gating and the real transition ---");
 {
-  const _ir = Math.random; Math.random = () => 0.999999;   // no hazards during the long build
+  api.setRngSource(() => 0.999999);   // no hazards during the long build
   reset();
   S().era = "bronze";
   const capstone = api.MANIFESTS.bronze.upgrades.find(u => u.id === "ironAge");
@@ -1408,12 +1405,12 @@ console.log("\n--- C1: capstone gating and the real transition ---");
   check("bronze-era snapshot archived pre-consolidation", !!S().eraHistory.bronze &&
     S().eraHistory.bronze.res.bronze === 70 && S().eraHistory.bronze.jobs.copperMiner === 2);
   check("housing jumped retroactively (4 huts: 3 + 4x7 = 31)", api.housing() === 31);
-  Math.random = _ir;
+  api.setRngSource(null);
 }
 
 console.log("\n--- C1: iron-era economy runs ---");
 {
-  const _r2 = Math.random; Math.random = () => 0.999999;
+  api.setRngSource(() => 0.999999);
   reset();
   S().era = "iron";
   S().pop = 10; S().jobs.forager = 3; S().jobs.ironMiner = 2;
@@ -1430,7 +1427,7 @@ console.log("\n--- C1: iron-era economy runs ---");
   const c = api.caps();
   check("Iron Yard and Treasury raise their caps", c.iron === 150 && c.gold === 150);
   check("steel is generous-capped with no building", c.steel === 200);
-  Math.random = _r2;
+  api.setRngSource(null);
 }
 
 console.log("\n--- C1: tiers supersede across eras ---");
@@ -1564,14 +1561,13 @@ console.log("\n--- C2.1: escorts decide how an ambush ends ---");
   S().pop = 15; S().units = { soldier: 6, archer: 0, horseman: 0 };
   S().adversaries.hillClans.standing = -3;    // the roads are dangerous
   S().res.food = 300; S().builds.granary = 3; S().builds.treasury = 1;
-  const origR = Math.random;
 
   // Unescorted + forced ambush: cargo gone, their books never move.
   api.launchCaravan("riverKingdom");
   S().expeditions[0].remaining = 0.1;
-  Math.random = () => 0;         // ambush fires
+  api.setRngSource(() => 0);         // ambush fires
   api.resolveExpeditions(0.2);
-  Math.random = origR;
+  api.setRngSource(null);
   check("unescorted ambush: cargo lost, nothing paid",
     S().expeditions.length === 0 && S().res.gold === 0);
   check("the kingdom's books never moved", S().adversaries.riverKingdom.stock.gold === 240);
@@ -1586,9 +1582,9 @@ console.log("\n--- C2.1: escorts decide how an ambush ends ---");
   S().expeditions = S().expeditions.filter(e => e.type === "caravan");   // put the column back
   S().expeditions[0].remaining = 0.1;
   let seq = [0, 0, 0.999];       // ambush fires; escort wins; no casualty
-  Math.random = (() => { let n = 0; return () => seq[n++] ?? 0.999; })();
+  api.setRngSource((() => { let n = 0; return () => seq[n++] ?? 0.999; })());
   api.resolveExpeditions(0.2);
-  Math.random = origR;
+  api.setRngSource(null);
   check("the escort fought through and the trade completed", S().res.gold === 15);
   check("their gold moved this time", S().adversaries.riverKingdom.stock.gold === 225);
   check("the escort came home whole", api.deployedCount("soldier") === 0 && S().units.soldier === 6);
@@ -1598,9 +1594,9 @@ console.log("\n--- C2.1: escorts decide how an ambush ends ---");
   api.launchCaravan("riverKingdom", { soldier: 2 });
   S().expeditions[0].remaining = 0.1;
   seq = [0, 0.999];              // ambush fires; escort overwhelmed
-  Math.random = (() => { let n = 0; return () => seq[n++] ?? 0.5; })();
+  api.setRngSource((() => { let n = 0; return () => seq[n++] ?? 0.5; })());
   api.resolveExpeditions(0.2);
-  Math.random = origR;
+  api.setRngSource(null);
   check("a lost ambush costs the cargo and a guard",
     S().res.gold === 15 && S().units.soldier === 5 && S().pop === 14);
   check("no payment on a lost ambush", S().adversaries.riverKingdom.stock.gold === 225);
@@ -1618,10 +1614,9 @@ console.log("\n--- C2: campaign resolution -- victory (one-shot breach) ---");
   const st = S().adversaries.hillClans;
   const stockBefore = Object.assign({}, st.stock);
   S().expeditions[0].remaining = 0.1;
-  const origR = Math.random;
-  Math.random = (() => { let n = 0; return () => [0, 0.999][n++] ?? 0.999; })();  // win, no casualty
+  api.setRngSource((() => { let n = 0; return () => [0, 0.999][n++] ?? 0.999; })());  // win, no casualty
   api.resolveExpeditions(0.2);
-  Math.random = origR;
+  api.setRngSource(null);
   check("expedition resolved and cleared", S().expeditions.length === 0);
   check("the palisade came down in the same assault (power 6 >= walls 5)", st.walls === 0);
   check("plunder took 40% of each stock, floored",
@@ -1647,10 +1642,9 @@ console.log("\n--- Siege: repelled at the walls, and the walls remember ---");
   api.launchCampaign("riverKingdom", { soldier: 2 });   // wall-power 2 vs walls 26: repelled
   S().expeditions[0].remaining = 0.1;
   const goldBefore = S().res.gold;
-  const origR = Math.random;
-  Math.random = () => 0.999;   // light-loss roll misses
+  api.setRngSource(() => 0.999);   // light-loss roll misses
   api.resolveExpeditions(0.2);
-  Math.random = origR;
+  api.setRngSource(null);
   check("a failed breach is a retreat: everyone came home", S().units.soldier === 2 && S().pop === 10);
   check("no defender ever fell -- walls precede the field battle", true);
   check("no loot from a repelled assault", S().res.gold === goldBefore);
@@ -1662,17 +1656,17 @@ console.log("\n--- Siege: repelled at the walls, and the walls remember ---");
   S().res.food = 200;
   api.launchCampaign("riverKingdom", { soldier: 2, siegeEngine: 3 });  // wall-power 2 + 3x6 = 20 < 24
   S().expeditions[0].remaining = 0.1;
-  Math.random = () => 0.999;
+  api.setRngSource(() => 0.999);
   api.resolveExpeditions(0.2);
-  Math.random = origR;
+  api.setRngSource(null);
   check("engines carve deep: walls 24 -> 4", st.walls === 4);
 
   S().res.food = 200;
   api.launchCampaign("riverKingdom", { soldier: 2, siegeEngine: 3 });  // 20 >= 4: breached at last
   S().expeditions[0].remaining = 0.1;
-  Math.random = () => 0.999;   // field: lose the win roll; casualty draws follow
+  api.setRngSource(() => 0.999);   // field: lose the win roll; casualty draws follow
   api.resolveExpeditions(0.2);
-  Math.random = origR;
+  api.setRngSource(null);
   check("the battered walls finally give way -- and stay down", st.walls === 0);
   check("the field battle happened this time: casualties taken",
     S().units.soldier + S().units.siegeEngine < 5);
@@ -1766,10 +1760,9 @@ console.log("\n--- C2: caravan resolution and the gold well running dry ---");
   const st = S().adversaries.riverKingdom;
   api.launchCaravan("riverKingdom");
   S().expeditions[0].remaining = 0.1;
-  const origR = Math.random;
-  Math.random = () => 0.999;   // no route risk roll matters (no hostile warlike anyway)
+  api.setRngSource(() => 0.999);   // no route risk roll matters (no hostile warlike anyway)
   api.resolveExpeditions(0.2);
-  Math.random = origR;
+  api.setRngSource(null);
   check("the caravan paid out", S().res.gold === 15);
   check("their gold came out of their stock", st.stock.gold === 225);
   check("the sold food JOINED their stock", st.stock.food === 250 + 60);
@@ -1779,9 +1772,9 @@ console.log("\n--- C2: caravan resolution and the gold well running dry ---");
   st.stock.gold = 4;
   api.launchCaravan("riverKingdom");
   S().expeditions[0].remaining = 0.1;
-  Math.random = () => 0.999;
+  api.setRngSource(() => 0.999);
   api.resolveExpeditions(0.2);
-  Math.random = origR;
+  api.setRngSource(null);
   check("a nearly-dry partner pays what they have left", S().res.gold === 19 && st.stock.gold === 0);
   api.launchCaravan("riverKingdom");
   check("a traded-dry partner is refused at launch", S().expeditions.length === 0);
@@ -1791,15 +1784,15 @@ console.log("\n--- C2: caravan resolution and the gold well running dry ---");
   S().res.food = 200;
   api.launchCaravan("riverKingdom");
   S().expeditions[0].remaining = 0.1;
-  Math.random = () => 0.999;
+  api.setRngSource(() => 0.999);
   api.resolveExpeditions(0.2);
-  Math.random = origR;
+  api.setRngSource(null);
   check("a Friendly partner pays a premium", S().res.gold === 19 + Math.floor(15 * 1.25));
 }
 
 console.log("\n--- C2: expeditions resolve through step() (offline-safe) ---");
 {
-  const _er = Math.random; Math.random = () => 0.999999;
+  api.setRngSource(() => 0.999999);
   reset();
   S().era = "iron";
   api.initAdversaries();
@@ -1815,7 +1808,7 @@ console.log("\n--- C2: expeditions resolve through step() (offline-safe) ---");
   run(api.MANIFESTS.iron.adversaries.find(a => a.id === "saltNomads").caravanTime + 2);
   check("the caravan resolved mid-simulation, no interaction needed",
     S().expeditions.length === 0 && S().res.gold > 0);
-  Math.random = _er;
+  api.setRngSource(null);
 }
 
 console.log("\n--- C2: an era flip mid-flight strands nobody ---");
@@ -1896,6 +1889,58 @@ console.log("\n--- Phase B: legacy saves default eraHistory ---");
   const merged = Object.assign(api.freshState(), legacy);
   check("a save from before eraHistory existed defaults to {}",
     merged.eraHistory && typeof merged.eraHistory === "object");
+}
+
+console.log("\n--- Seeded RNG: determinism and the source ban ---");
+{
+  // Same seed + same fixed-dt steps + same actions = identical state. This is
+  // the phase 2 acceptance test at harness scale: the harness always steps a
+  // constant 0.2s, so replay is exact here even before the phase 4 tick clock
+  // makes it exact in the browser too.
+  const play = () => {
+    reset();
+    S().seed = 123456789; S().rngState = 123456789;
+    S().lastSeed = 0;  // the offline wall-clock stamp -- the one non-sim field; dies in phase 3
+    api.assign("forager", 1); api.assign("woodcutter", 1); api.assign("woodcutter", 1);
+    run(120);
+    api.build(findB("hut"));
+    run(240);
+    return JSON.stringify(S());
+  };
+  const a = play(), b = play();
+  check("same seed, same actions, bit-identical state", a === b);
+
+  reset();
+  S().rngState = 42;
+  const first = [api.rng(), api.rng(), api.rng()];
+  S().rngState = 42;
+  const again = [api.rng(), api.rng(), api.rng()];
+  check("rngState alone determines the stream", JSON.stringify(first) === JSON.stringify(again));
+  check("draws land in [0, 1)", first.every((v) => v >= 0 && v < 1));
+
+  // Save/load must resume the dice mid-stream: the round-trip is Object.assign
+  // over freshState, and rngState must survive it verbatim.
+  reset();
+  S().seed = 7; S().rngState = 7;
+  api.rng(); api.rng();
+  const mid = S().rngState;
+  const restored = Object.assign(api.freshState(), JSON.parse(JSON.stringify(S())));
+  check("rngState survives a save/load round-trip", restored.rngState === mid);
+
+  // The ban: no global die anywhere in src/. A stray draw outside rng() is
+  // invisible wrongness -- it works, it just silently breaks replay.
+  const banned = "Math." + "random";  // don't flag this file's own scan
+  const offenders = [];
+  const walk = (dir) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = nodePath.join(dir, e.name);
+      if (e.isDirectory()) walk(full);
+      else if (e.name.endsWith(".js") && fs.readFileSync(full, "utf8").includes(banned)) offenders.push(e.name);
+    }
+  };
+  walk(fileURLToPath(new URL("./src", import.meta.url)));
+  check("Math.random appears nowhere in src/", offenders.length === 0);
+  if (offenders.length) console.log("   offenders:", offenders.join(", "));
 }
 
 console.log(`\n${fails === 0 ? "ALL CHECKS PASSED" : fails + " CHECK(S) FAILED"}`);

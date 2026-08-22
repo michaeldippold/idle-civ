@@ -13,6 +13,9 @@ import { setUpgradeTab } from "./ui/panels-buy.js";
 export function boot() {
   const had = load();
   initAdversaries();
+  // Same channel as the [pacing] telemetry: the seed is how a mid-run bug
+  // report becomes reproducible, so it should be readable without dying.
+  console.log(`[seed] ${S.seed}`);
 
   if (!had) {
     log("A handful of survivors gather where the road ends.");

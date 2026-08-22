@@ -1,4 +1,5 @@
 import { active } from "../content/compile.js";
+import { rng } from "../core/rng.js";
 import { dropQueueItem } from "../core/actions.js";
 import { CONFIG } from "../core/config.js";
 import { availableUnits, civilians, defById, jobsUsed, releaseOrder, reserved } from "../core/derived.js";
@@ -33,7 +34,7 @@ export const RAID_SIZES = [
 ];
 export function rollRaidSize() {
   const total = RAID_SIZES.reduce((s, r) => s + r.weight, 0);
-  let roll = Math.random() * total;
+  let roll = rng() * total;
   for (const r of RAID_SIZES) {
     if (roll < r.weight) return r.size;
     roll -= r.weight;
@@ -47,7 +48,7 @@ export function counterUnitFor(raid) { return raid ? active().units.find((u) => 
 export function rollRaidType() {
   const types = active().raidTypes;
   const total = types.reduce((s, r) => s + r.weight, 0);
-  let roll = Math.random() * total;
+  let roll = rng() * total;
   for (const r of types) {
     if (roll < r.weight) return r;
     roll -= r.weight;
@@ -103,7 +104,7 @@ export function stealResources(raidSize) {
   }
 }
 
-export function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+export function pick(arr) { return arr[Math.floor(rng() * arr.length)]; }
 
 // How likely a landed hazard is deflected, based on its counter-building count.
 // `reducePerUnit` may be a flat number or (S) => number, for counters whose
@@ -184,7 +185,7 @@ export function removeRandomUnit() {
   const total = units.reduce((sum, def) => sum + weightOf(def), 0);
   if (total <= 0) return null;
 
-  let roll = Math.random() * total;
+  let roll = rng() * total;
   for (const def of units) {
     const w = weightOf(def);
     if (roll < w) {

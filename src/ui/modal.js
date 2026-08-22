@@ -202,6 +202,9 @@ export function openGameOverModal(cause) {
       stat("Age reached", active().name) +
       stat("Buildings raised", built) +
       stat("Arrivals welcomed", S.bought) +
+      // The run's number: with it (and, after phase 4, the action log) the
+      // whole game is reproducible. This is how a bug report becomes a repro.
+      stat("World seed", S.seed) +
     `</div>`;
   openModal("The Settlement Has Fallen", `<p class="modal-lead">${lead}</p>${stats}`, [
     { label: "Try Again", onClick: hardReset },

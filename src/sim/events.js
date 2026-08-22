@@ -1,4 +1,5 @@
 import { active } from "../content/compile.js";
+import { rng } from "../core/rng.js";
 import { caps } from "../core/derived.js";
 import { S, SIM } from "../core/state.js";
 import { negateChance, pick } from "./combat.js";
@@ -26,8 +27,8 @@ export function resolveEvents(dt) {
 
     if (ev.chancePerSecond) {
       const p = 1 - Math.pow(1 - ev.chancePerSecond, dt);
-      if (Math.random() < p) {
-        if (Math.random() < negateChance(ev)) {
+      if (rng() < p) {
+        if (rng() < negateChance(ev)) {
           if (!SIM) log(pick(ev.flavor.negated), "good");
         } else {
           const custom = ev.effect(S);

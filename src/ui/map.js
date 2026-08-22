@@ -7,20 +7,20 @@ import { hexDistance, hexPoints, toPixel } from "../map/model.js";
 import { expeditionOut, standingWord } from "../sim/expeditions.js";
 import { attachTip } from "./dom.js";
 import { openCampaignModal, openCaravanModal, stockLine } from "./expeditions.js";
-import { openModal } from "./modal.js";
 
-// ---------- The map modal (6a readout; 6c interaction) ------
-// THE interaction pattern for the map, ruled by the user and carried forward
-// to the node network unchanged: HOVER previews a tile (name, flavor, the
-// short numbers); CLICK opens its details, and the details are where every
-// stat, every line of flavor and every ACTION for that place lives. Under
-// tile allocation that means the allocation buttons (this is where the
-// stepper verb went); on a seat it means March and Caravan, the beginning of
-// the Expeditions panel's dissolution into the map.
+// ---------- The map stage (the flip, 2026-08-22) ------------
+// The map is the game's main surface now -- not a modal, the CANVAS, with
+// every panel floating over it. One layout for the whole game: Stone shows
+// a single hex (the ground you happen to be standing on), Bronze widens to
+// the ring around it, Iron recuts a country. The interaction pattern is the
+// permanent one: HOVER previews a tile; CLICK opens the Selected Tile panel,
+// where every stat, every line of flavor and every action lives.
 //
-// SVG geometry + DOM detail pane (map.md §7). A telling surface -- it does
-// not hold the world; allocating while the sim runs is exactly as legal as
-// clicking a stepper was.
+// Render discipline: the SVG rebuilds only when its SIGNATURE changes (era,
+// view, ownership, assignments, selection) -- never on the 5Hz tick, so a
+// click can never land on a node the renderer just destroyed (the
+// click-eater rule). The tile detail re-renders only when its content
+// string changes.
 
 const HEX = 30;
 const WORK_GLYPH = { food: "F", wood: "W", stone: "S", iron: "I" };
@@ -33,21 +33,26 @@ const TERRAIN_FLAVOR = {
   water:  "Open water. Nothing to hold here.",
 };
 
+let selectedId = null;
+let lastSignature = "";
+let lastDetail = "";
+
 function advName(adv) { return adv.name.charAt(0).toUpperCase() + adv.name.slice(1); }
 function spec() { return active().map; }
 function tilesEra() { return active().allocation === "tiles"; }
 function worksFor(terrain) { return (spec().works && spec().works[terrain]) || {}; }
-function fmtRate(x) { return "\u00d7" + (Math.round(x * 10) / 10); }
+function fmtRate(x) { return "×" + (Math.round(x * 10) / 10); }
 function specialties(terrain) {
   const w = worksFor(terrain);
   return Object.keys(w).filter((r) => w[r] >= 1);
 }
+function visiblePlaces() {
+  const view = spec().view != null ? spec().view : Infinity;
+  return Object.values(world.places).filter((p) => hexDistance(p.q, p.r, 0, 0) <= view);
+}
 
 function mapSVG() {
-  // The era's view: how much of the world is shown. The rest exists (same
-  // seed, same terrain) and simply is not yet part of the story.
-  const view = spec().view != null ? spec().view : Infinity;
-  const pts = Object.values(world.places).filter((p) => hexDistance(p.q, p.r, 0, 0) <= view);
+  const pts = visiblePlaces();
   let minX = 0, minY = 0, maxX = 0, maxY = 0;
   const centers = pts.map((p) => {
     const c = toPixel(p.q, p.r, HEX);
@@ -61,7 +66,7 @@ function mapSVG() {
   let cells = "", marks = "";
   for (const { p, c } of centers) {
     const owned = isOwned(p.id);
-    cells += `<polygon class="tile t-${p.terrain}${owned ? " tile-owned" : ""}${p.adversary ? " tile-seat" : ""}"
+    cells += `<polygon class="tile t-${p.terrain}${owned ? " tile-owned" : ""}${p.adversary ? " tile-seat" : ""}${p.id === selectedId ? " selected" : ""}"
       points="${hexPoints(c.x, c.y, HEX - 1)}" data-id="${p.id}"></polygon>`;
     if (p.id === world.home) {
       marks += `<text class="tile-mark" x="${c.x}" y="${c.y + 5}" text-anchor="middle">⌂</text>`;
@@ -70,9 +75,6 @@ function mapSVG() {
       marks += `<text class="tile-mark seat" x="${c.x}" y="${c.y + 5}" text-anchor="middle">◆</text>` +
         `<text class="tile-label" x="${c.x}" y="${c.y + HEX * 0.95}" text-anchor="middle">${adv ? advName(adv) : p.adversary}</text>`;
     } else if (owned) {
-      // The work glyph: one letter for what this holdfast is turned to.
-      // Present (empty) on every owned non-seat tile so allocation updates
-      // never rebuild the SVG -- textContent only, per the rendering law.
       const w = (S.map.work || {})[p.id];
       marks += `<text class="tile-work" data-work-for="${p.id}" x="${c.x}" y="${c.y + 5}" text-anchor="middle">${w ? WORK_GLYPH[w] || "" : ""}</text>`;
     }
@@ -82,7 +84,6 @@ function mapSVG() {
 
 // ---------- Hover: the preview ------------------------------
 function tipFor(p) {
-  const noun = capWord(spec().tileNoun.singular);
   if (p.adversary) {
     const adv = active().adversaries.find((a) => a.id === p.adversary);
     const st = S.adversaries[p.adversary];
@@ -95,14 +96,14 @@ function tipFor(p) {
     }
   }
   if (p.id === world.home) {
-    return { title: `Your seat`, body: `The ${spec().tileNoun.singular} everything else is measured from.`,
+    return { title: "Your seat", body: `The ${spec().tileNoun.singular} everything else is measured from.`,
       why: tilesEra() ? "Click to set what it works." : null };
   }
   if (isOwned(p.id)) {
     const w = (S.map.work || {})[p.id];
     return {
       title: `Your ${spec().tileNoun.singular} · ${p.terrain}`,
-      body: w ? `Turned to ${w}.` : `Resting — producing nothing.`,
+      body: w ? `Turned to ${w}.` : "Resting — producing nothing.",
       why: tilesEra() ? "Click to direct it." : null,
     };
   }
@@ -114,7 +115,7 @@ function tipFor(p) {
   };
 }
 
-// ---------- Click: the details, and the actions -------------
+// ---------- Click: the Selected Tile panel ------------------
 function detailHTML(p) {
   const parts = [];
   if (p.adversary) {
@@ -122,8 +123,8 @@ function detailHTML(p) {
     const st = S.adversaries[p.adversary];
     if (adv && st) {
       parts.push(`<b>${advName(adv)}</b> — ${adv.disposition} · ${standingWord(st.standing)}<br>${adv.desc}<br>Known stock: ${stockLine(st)}.`);
-      // The same refusals the Expeditions panel carries, or the map's buttons
-      // silently no-op and read as broken (found in play: no Muster Ground).
+      // The same refusals the Expeditions panel carried, or the buttons
+      // silently no-op and read as broken (found in play).
       const noGround = (S.builds.musterGround || 0) < 1;
       const marchOut = expeditionOut("campaign"), caravanOut = expeditionOut("caravan");
       const acts = [`<button class="map-act" data-act="march" data-adv="${adv.id}"${noGround || marchOut ? " disabled" : ""}>March</button>`];
@@ -145,8 +146,7 @@ function detailHTML(p) {
     const resIds = Object.keys(works);
     const current = (S.map.work || {})[p.id] || null;
     if (resIds.length) {
-      // Every ground works everything; the rate is the trade-off. Specialty
-      // buttons read x1+; the rest are priced overpay routes.
+      // Every ground works everything; the rate is the trade-off.
       const btns = resIds.map((r) =>
         `<button class="map-act alloc${current === r ? " active" : ""}" data-act="work" data-tile="${p.id}" data-res="${r}">${capWord(r)} ${fmtRate(works[r])}</button>`);
       btns.push(`<button class="map-act alloc${current ? "" : " active"}" data-act="rest" data-tile="${p.id}">Rest</button>`);
@@ -161,43 +161,78 @@ function detailHTML(p) {
   return parts.join("");
 }
 
-export function openMapModal() {
-  if (!world) return;
-  const html =
-    `<div id="mapWrap">${mapSVG()}</div>` +
-    `<p id="mapDetail" class="map-detail">The known world. Hover to read a tile; click for its details and actions.</p>`;
-  openModal(`The Known World — ${active().name}`, html, null, (body) => {
-    const detail = body.querySelector("#mapDetail");
-    const svg = body.querySelector("#mapSvg");
-    let selectedId = null;
+function titleFor(p) {
+  if (p.adversary) {
+    const adv = active().adversaries.find((a) => a.id === p.adversary);
+    if (adv) return advName(adv);
+  }
+  if (p.id === world.home) return "Your Seat";
+  if (isOwned(p.id)) return `Your ${capWord(spec().tileNoun.singular)}`;
+  return capWord(p.terrain);
+}
 
-    // Hover previews, through the game's one tooltip (getters, never
-    // snapshots -- assignments change under an open map).
-    svg.querySelectorAll(".tile").forEach((poly) => {
-      const p = world.places[poly.dataset.id];
-      if (p) attachTip(poly, () => tipFor(p));
-    });
+// ---------- Stage rendering ---------------------------------
+function signature() {
+  if (!world) return "none";
+  return [S.era, spec().view, ((S.map && S.map.owned) || []).join("|"),
+    JSON.stringify((S.map && S.map.work) || {}), selectedId].join("~");
+}
 
-    const renderDetail = () => {
-      if (!selectedId) return;
-      detail.innerHTML = detailHTML(world.places[selectedId]);
-    };
+export function renderMapStage() {
+  const stage = document.getElementById("mapStage");
+  if (!stage) return;
+  if (!world) { stage.innerHTML = ""; lastSignature = "none"; return; }
+  const sig = signature();
+  if (sig === lastSignature) return;
+  lastSignature = sig;
+  stage.innerHTML = mapSVG();
+  const svg = stage.querySelector("#mapSvg");
+  if (!svg || !svg.querySelectorAll) return;
+  svg.querySelectorAll(".tile").forEach((poly) => {
+    const p = world.places[poly.dataset.id];
+    if (p) attachTip(poly, () => tipFor(p));
+  });
+}
 
-    svg.addEventListener("click", (e) => {
+export function renderTileDetail() {
+  const panel = document.getElementById("panel-tile");
+  if (!panel) return;
+  const p = selectedId && world ? world.places[selectedId] : null;
+  panel.classList.toggle("hidden", !p);
+  if (!p) { lastDetail = ""; return; }
+  const html = detailHTML(p);
+  if (html === lastDetail) return;
+  lastDetail = html;
+  const t = document.getElementById("tileTitle");
+  if (t) t.textContent = titleFor(p);
+  const b = document.getElementById("tileBody");
+  if (b) b.innerHTML = html;
+}
+
+export function selectTile(id) {
+  selectedId = id;
+  lastSignature = "";   // the selection ring lives in the svg
+  renderMapStage();
+  renderTileDetail();
+}
+
+// One-time wiring: stage clicks select; detail clicks act. Both by
+// delegation, so innerHTML swaps never orphan a listener.
+export function initMapStage() {
+  const stage = document.getElementById("mapStage");
+  if (stage) {
+    stage.addEventListener("click", (e) => {
       const id = e.target && e.target.dataset && e.target.dataset.id;
-      if (!id || !world.places[id]) return;
-      svg.querySelectorAll(".tile.selected").forEach((t) => t.classList.remove("selected"));
-      e.target.classList.add("selected");
-      selectedId = id;
-      renderDetail();
+      if (id && world && world.places[id]) selectTile(id);
     });
-
-    // Actions live in the detail pane. Allocation commits immediately (and
-    // saves -- it is a player action); March/Caravan hand off to the muster
-    // and escort modals, which replace this one (single-modal law).
-    detail.addEventListener("click", (e) => {
-      const btn = e.target.closest ? e.target.closest("button.map-act") : null;
-      if (!btn) return;
+  }
+  const close = document.getElementById("tileClose");
+  if (close) close.addEventListener("click", () => selectTile(null));
+  const body = document.getElementById("tileBody");
+  if (body) {
+    body.addEventListener("click", (e) => {
+      const btn = e.target && e.target.closest ? e.target.closest("button.map-act") : null;
+      if (!btn || btn.disabled) return;
       const act = btn.dataset.act;
       if (act === "march") { openCampaignModal(btn.dataset.adv); return; }
       if (act === "caravan") { openCaravanModal(btn.dataset.adv); return; }
@@ -206,11 +241,11 @@ export function openMapModal() {
         if (!isOwned(tid)) return;
         if (act === "work") S.map.work[tid] = btn.dataset.res;
         else delete S.map.work[tid];
-        const glyph = svg.querySelector(`[data-work-for="${tid}"]`);
-        if (glyph) glyph.textContent = act === "work" ? (WORK_GLYPH[btn.dataset.res] || "") : "";
-        save();
-        renderDetail();
+        save();               // a player action commits, like any other
+        lastSignature = "";   // the work glyph changed
+        renderMapStage();
+        renderTileDetail();
       }
     });
-  }, { pause: false, wide: true });  // a telling surface, same ruling as Info
+  }
 }

@@ -5,9 +5,10 @@ import { S } from "../core/state.js";
 import { campaignStrength, expeditionOut, findAdversary, hostileRouteRisk, launchCampaign, launchCaravan, riskAdversary, standingWord, wallPower } from "../sim/expeditions.js";
 import { closeModal, openModal } from "./modal.js";
 
-export function expeditionsUnlocked() {
-  return active().adversaries.length > 0;
-}
+// The Expeditions panel is gone (the flip, 2026-08-22): the map's Selected
+// Tile panel carries the adversary card and its actions now. The muster and
+// escort modals below are its surviving -- and thriving -- machinery.
+
 
 // Muster allocation is UI state, not game state (like `paused`): it's what
 // the NEXT expedition would take. It lives in the campaign/caravan modals
@@ -155,91 +156,4 @@ export function openCaravanModal(advId) {
   });
 }
 
-export function renderExpeditions() {
-  const panel = document.getElementById("panel-expeditions");
-  if (!panel) return;
-  const open = expeditionsUnlocked();
-  panel.classList.toggle("hidden", !open);
-  if (!open) return;
-
-  // Prose status only -- the countdowns and progress bars live in the
-  // Underway (queue) panel, where in-progress things belong.
-  const campaignAway = expeditionOut("campaign");
-  const caravanAway = expeditionOut("caravan");
-  const status = document.getElementById("expeditionStatus");
-  const parts = [];
-  if (campaignAway) parts.push("A campaign is in the field.");
-  if (caravanAway) parts.push("A caravan is on the road.");
-  if (!parts.length) {
-    parts.push((S.builds.musterGround || 0) >= 1
-      ? "The Muster Ground stands ready."
-      : "You know your neighbors, but you have no one to send. A Muster Ground would change that.");
-  }
-  status.textContent = parts.join(" ");
-
-  // One card per adversary: who they are, what's left of them, what you can do.
-  const list = document.getElementById("adversaryList");
-  for (const adv of active().adversaries) {
-    const st = S.adversaries[adv.id];
-    if (!st) continue;
-    let card = document.getElementById("adv-" + adv.id);
-    if (!card) {
-      card = document.createElement("div");
-      card.className = "adv-card";
-      card.id = "adv-" + adv.id;
-      card.innerHTML =
-        `<div class="b-top"><span class="b-name" id="advname-${adv.id}"></span>` +
-        `<span class="b-owned" id="advstand-${adv.id}"></span></div>` +
-        `<div class="b-desc" id="advdesc-${adv.id}"></div>` +
-        `<div class="b-desc adv-stock" id="advstock-${adv.id}"></div>` +
-        `<div class="adv-actions">` +
-          `<button class="modal-btn" id="advmarch-${adv.id}"></button>` +
-          `<button class="modal-btn" id="advtrade-${adv.id}"></button>` +
-        `</div>`;
-      list.appendChild(card);
-      document.getElementById(`advmarch-${adv.id}`).addEventListener("click", () => openCampaignModal(adv.id));
-      document.getElementById(`advtrade-${adv.id}`).addEventListener("click", () => {
-        if (hostileRouteRisk()) openCaravanModal(adv.id);
-        else launchCaravan(adv.id);
-      });
-    }
-
-    document.getElementById(`advname-${adv.id}`).textContent = advDisplayName(adv);
-    document.getElementById(`advstand-${adv.id}`).textContent =
-      `${adv.disposition} · ${standingWord(st.standing)}`;
-    document.getElementById(`advdesc-${adv.id}`).textContent =
-      `${adv.desc} Strength ${adv.strength}, fights as ${fightsAsLabel(adv)}.`;
-    document.getElementById(`advstock-${adv.id}`).textContent = stockLine(st) + wallsState(adv, st);
-
-    // The panel now stands before the Muster Ground does, so both verbs gate on
-    // it here rather than the whole panel gating on it. Reading the neighbours
-    // before you can act on them is the point: the cards are the recruiting
-    // poster for the building.
-    const noMuster = (S.builds.musterGround || 0) < 1;
-
-    const march = document.getElementById(`advmarch-${adv.id}`);
-    march.textContent = `March (${CONFIG.campaignFoodCost} food, ${adv.campaignTime}s)`;
-    march.disabled = S.dead || campaignAway || noMuster;
-    march.title = noMuster ? "You have nowhere to muster a column. Build a Muster Ground." :
-      campaignAway ? "A campaign is already in the field." : "";
-
-    const trade = document.getElementById(`advtrade-${adv.id}`);
-    if (adv.buys) {
-      const premium = st.standing >= 2 ? 1.25 : 1;
-      const wouldPay = Math.min(Math.floor(adv.buys.pays * premium), Math.floor(st.stock.gold || 0));
-      trade.classList.remove("hidden");
-      trade.textContent = `Caravan: ${adv.buys.amount} ${adv.buys.res} → ${wouldPay} gold (${adv.caravanTime}s)`;
-      trade.disabled = S.dead || caravanAway || noMuster || st.standing <= -2 || wouldPay <= 0 ||
-        (S.res[adv.buys.res] || 0) < adv.buys.amount;
-      trade.title = noMuster ? "You have no one to send. Build a Muster Ground." :
-        caravanAway ? "A caravan is already on the road." :
-        st.standing <= -2 ? "They remember your raids. They will not trade with you." :
-        wouldPay <= 0 ? "They have no gold left to pay with." :
-        (S.res[adv.buys.res] || 0) < adv.buys.amount ? `Not enough ${adv.buys.res}.` :
-        hostileRouteRisk() ? "The roads are dangerous — you'll be offered an escort." : "";
-    } else {
-      trade.classList.add("hidden");
-    }
-  }
-}
 

@@ -357,10 +357,10 @@ S().pop = 5;
 console.log("\n--- Board: every panel the era can fill is present from the start ---");
 reset();
 {
-  // Panels the Stone Age can fill. Expeditions is excluded deliberately: no
-  // adversaries exist in this era's manifest, so there is nothing it could hold.
-  const PANELS = ["panel-village", "panel-holdings", "panel-queue", "panel-log",
-                  "panel-training", "panel-build", "panel-upgrades"];
+  // The floating panels of the flip. The Selected Tile panel is excluded
+  // deliberately: with nothing selected it is not a blank form, it is no
+  // selection at all -- the one sanctioned hider.
+  const PANELS = ["panel-village", "panel-actions", "panel-queue", "panel-log"];
   const hidden = [];
   const realGetById = globalThis.document.getElementById;
   globalThis.document.getElementById = (id) => {

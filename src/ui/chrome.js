@@ -2,17 +2,13 @@ import { active } from "../content/compile.js";
 import { CONFIG } from "../core/config.js";
 import { playtime } from "../core/derived.js";
 import { S } from "../core/state.js";
-import { expeditionsUnlocked, renderExpeditions } from "./expeditions.js";
 import { log } from "./log.js";
 import { renderBuildings, renderTraining, renderUpgrades } from "./panels-buy.js";
 import { renderHoldings, renderQueue } from "./panels-holdings.js";
 import { renderResources } from "./panels-ledger.js";
+import { renderMapStage, renderTileDetail } from "./map.js";
 import { renderPeople } from "./panels-people.js";
 
-export function updateSpans() {
-  const log = document.getElementById("panel-log");
-  if (log) log.classList.toggle("shrunk", expeditionsUnlocked());
-}
 
 // The Expeditions panel belongs to any era whose manifest declares adversaries
 // -- i.e. once the world has an outside at all. Era-scoped rather than global,
@@ -107,11 +103,10 @@ export function renderEraChrome() {
     const h2 = document.querySelector(`#${panelId} h2`);
     if (h2) h2.textContent = titles[panelId];
   }
-  // The Map button exists only in eras whose manifest declares a map --
-  // Stone has no chart, so the button arriving at Bronze is the capability
-  // announcing itself, the same grammar as a panel filling for the first time.
-  const mb = document.getElementById("mapBtn");
-  if (mb) mb.classList.toggle("hidden", !active().map);
+  // The holdings group inside the Build pane keeps the era's title
+  // (Settlement -> Village -> Town) now that the old panel header is gone.
+  const ht = document.getElementById("holdingsTitle");
+  if (ht) ht.textContent = titles["panel-holdings"] || "Settlement";
 }
 
 export function renderAll() {
@@ -124,7 +119,7 @@ export function renderAll() {
   renderBuildings();
   renderUpgrades();
   renderTraining();
-  renderExpeditions();
-  updateSpans();
+  renderMapStage();
+  renderTileDetail();
 }
 

@@ -347,27 +347,55 @@ button { font-family: inherit; cursor: pointer; }
 
    People is narrowest (it is mostly steppers); Chronicle widest (it is prose). */
 #mainArea {
-  flex: 1 1 auto;
-  display: grid;
-  grid-template-columns: 0.86fr 1fr 1fr 1.24fr;
-  grid-template-rows: 1fr 1.7fr;   /* roster row smaller, action row larger -- tune by feel */
-  gap: 12px;
-  min-height: 0;
+  /* The flip: the map is the canvas; panels float over it. The desk color
+     (era-tinted via body[data-era]) shows through as the stage ground. */
+  position: relative;
+  overflow: hidden;
 }
-#panel-village   { grid-column: 1; grid-row: 1; }
-#panel-training  { grid-column: 1; grid-row: 2; }
-#panel-holdings  { grid-column: 2; grid-row: 1; }
-#panel-build     { grid-column: 2; grid-row: 2; }
-#panel-queue     { grid-column: 3; grid-row: 1; }
-#panel-upgrades  { grid-column: 3; grid-row: 2; }
-#panel-log       { grid-column: 4; grid-row: 1 / 3; }
-#panel-expeditions { grid-column: 4; grid-row: 2; }
+#mapStage {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+#mapStage svg { width: min(70vw, 1500px); max-height: 94%; height: auto; }
 
-/* A roster panel expands to fill its whole column while its paired
-   action-panel has nothing revealed yet, instead of leaving a blank cell. */
-#panel-village.span-both,
-#panel-holdings.span-both,
-#panel-queue.span-both { grid-row: 1 / 3; }
+/* Floating panels reuse the full Bureau .block shell. They sit ON the map,
+   so they get the modal's hard offset shadow -- the same "on the board"
+   ceremony, deliberately extended from one surface to the panel layer. */
+.float-panel { box-shadow: 5px 5px 0 rgba(25, 23, 16, .18); }
+
+#floatLeft, #floatRight {
+  position: absolute; top: 10px; bottom: 10px;
+  display: flex; flex-direction: column; gap: 10px;
+  z-index: 2;
+}
+#floatLeft  { left: 10px;  width: 262px; }
+#floatRight { right: 10px; width: 306px; }
+#floatLeft .block, #floatRight .block { min-height: 0; }
+#panel-village { flex: 0 1 auto; max-height: 42%; }
+#panel-actions { flex: 1 1 auto; }
+#panel-tile    { flex: 0 0 auto; max-height: 46%; }
+#panel-log     { flex: 1 1 auto; }
+
+#panel-queue {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: 10px; width: min(52vw, 700px); max-height: 140px; z-index: 2;
+}
+#panel-queue .queue-list { display: flex; flex-direction: row; gap: 8px; overflow-x: auto; }
+#panel-queue .queue-list > * { flex: 0 0 210px; }
+
+/* The action-panel tabs live in the ink header plate itself. */
+#actionsHead { display: flex; gap: 0; padding: 0; }
+.ptab {
+  flex: 1; border: none; background: transparent; color: inherit;
+  font: inherit; text-transform: inherit; letter-spacing: inherit;
+  padding: 6px 0 5px; cursor: pointer; border-bottom: 3px solid transparent;
+}
+.ptab.active { border-bottom-color: currentColor; }
+.pane-sub {
+  font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--text-2); margin: 0 0 6px;
+}
+#panel-tile h2 { display: flex; justify-content: space-between; align-items: center; }
 
 /* The Chronicle spans both rows as a luxury until Expeditions unravels in
    beneath it -- the same span idea, pointed the other way. */

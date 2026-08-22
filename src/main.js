@@ -5,7 +5,7 @@ import { S, setLoops } from "./core/state.js";
 import { step } from "./core/step.js";
 import { cycleSpeed, modalHold, paused, renderAll, renderSpeed, setPaused, setSpeed, speed } from "./ui/chrome.js";
 import { ensureMap } from "./map/map.js";
-import { openMapModal } from "./ui/map.js";
+import { initMapStage } from "./ui/map.js";
 import { checkReveals, log } from "./ui/log.js";
 import { closeModal, modalIsOpen, openInfoPanel, openResetModal } from "./ui/modal.js";
 import { setUpgradeTab } from "./ui/panels-buy.js";
@@ -43,7 +43,17 @@ export function boot() {
   document.getElementById("tabAvailable").addEventListener("click", () => setUpgradeTab("available"));
   document.getElementById("tabOwned").addEventListener("click", () => setUpgradeTab("owned"));
   document.getElementById("infoBtn").addEventListener("click", openInfoPanel);
-  document.getElementById("mapBtn").addEventListener("click", openMapModal);
+  initMapStage();
+  // The action panel's Train/Build/Upgrade tabs.
+  document.querySelectorAll(".ptab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".ptab").forEach((t) => t.classList.toggle("active", t === tab));
+      ["pane-train", "pane-build", "pane-upgrade"].forEach((id) => {
+        const pane = document.getElementById(id);
+        if (pane) pane.classList.toggle("hidden", id !== tab.dataset.pane);
+      });
+    });
+  });
   document.getElementById("modalClose").addEventListener("click", closeModal);
   // Clicking the dimmed backdrop closes; clicks inside the panel bubble up to
   // the overlay too, so check the target is the overlay itself.

@@ -32,7 +32,6 @@
         <button id="pauseBtn" class="chrome-btn transport" title="Freeze the world and think (Space)">Pause</button>
         <button id="speedBtn" class="chrome-btn transport" title="How fast the world runs — click to cycle, keys 1–5 to set. Everything resolves normally, just sooner.">1×</button>
       </span>
-      <button id="mapBtn" class="chrome-btn hidden" title="The known world — your holdings and your neighbours">Map</button>
       <button id="infoBtn" class="chrome-btn" title="Reference: everything in the game, by era">Info</button>
       <button id="saveBtn" class="chrome-btn" title="Progress also saves automatically, and on every action">Save</button>
       <button id="resetBtn" class="chrome-btn danger" title="Wipe all progress">Reset</button>
@@ -54,89 +53,80 @@
        Every panel the current era can fill is present from frame one, empty
        and waiting. What unravels is their CONTENTS, not the board itself --
        see design.md, "Unravel the contents, not the board". -->
+  <!-- The flip (2026-08-22): the map is the game's main surface, and every
+       panel floats over it. One layout for the whole game -- Stone shows one
+       hex, Bronze the ring around it, Iron a country. Structure follows the
+       Claude Design sketch; the SKIN stays Bureau until the identity question
+       (paper vs whatever replaces it) is resolved in the design thread. -->
   <div id="mainArea">
+    <div id="mapStage"><!-- SVG injected by renderMapStage() --></div>
 
-    <!-- Row 1 -->
-    <section class="block" id="panel-village">
-      <h2>Your People</h2>
-      <!-- Cork, not paper: this column is about people rather than paperwork.
-           Everything on it is an opaque box, so it reads as cards on a pinboard. -->
-      <div class="block-body ruled-cork">
-        <div id="personTiles" class="holdings-grid"></div>
-        <div class="growthline" id="growthLine"></div>
-        <div id="jobList" class="job-list"></div>
-      </div>
-    </section>
+    <div id="floatLeft">
+      <section class="block float-panel" id="panel-village">
+        <h2>Your People</h2>
+        <div class="block-body ruled-cork">
+          <div id="personTiles" class="holdings-grid"></div>
+          <div class="growthline" id="growthLine"></div>
+          <div id="jobList" class="job-list"></div>
+        </div>
+      </section>
 
-    <section class="block" id="panel-holdings">
-      <h2>Settlement</h2>
-      <div class="block-body ruled-graph">
-        <p class="holdings-empty" id="holdingsEmpty">Nothing built yet.</p>
-        <div id="holdingsBody" class="holdings-grid hidden"></div>
-      </div>
-    </section>
+      <!-- Train / Build / Upgrade as one tabbed panel (per the sketch): the
+           three buy surfaces share one home so the map keeps the room. The
+           renderers are untouched -- their target ids just moved house. -->
+      <section class="block float-panel" id="panel-actions">
+        <h2 id="actionsHead">
+          <button class="ptab active" data-pane="pane-train">Train</button>
+          <button class="ptab" data-pane="pane-build">Build</button>
+          <button class="ptab" data-pane="pane-upgrade">Upgrade</button>
+        </h2>
+        <div class="block-body ruled-cork" id="pane-train">
+          <p class="holdings-empty hidden" id="trainingEmpty">Nothing to train yet.</p>
+          <div id="trainingList" class="build-list"></div>
+        </div>
+        <div class="block-body ruled-graph hidden" id="pane-build">
+          <h3 class="pane-sub" id="holdingsTitle">Settlement</h3>
+          <p class="holdings-empty" id="holdingsEmpty">Nothing built yet.</p>
+          <div id="holdingsBody" class="holdings-grid hidden"></div>
+          <p class="holdings-empty hidden" id="buildEmpty">Nothing to build yet.</p>
+          <div id="buildingList" class="build-list"></div>
+        </div>
+        <div class="block-body ruled-dot hidden" id="pane-upgrade">
+          <p class="holdings-empty hidden" id="upgradesUnknown">Nothing to learn yet.</p>
+          <div class="tabs hidden" id="upgradeTabs">
+            <button class="tab active" id="tabAvailable">Available</button>
+            <button class="tab" id="tabOwned">Owned</button>
+          </div>
+          <p class="holdings-empty hidden" id="upgradesEmpty">Nothing owned yet.</p>
+          <div id="upgradeList" class="build-list"></div>
+        </div>
+      </section>
+    </div>
 
-    <section class="block" id="panel-queue">
+    <div id="floatRight">
+      <!-- The Selected Tile panel: the map's click target. Hidden until a
+           tile is selected -- the one panel allowed to, since an empty
+           selection is not a blank form, it is no selection at all. -->
+      <section class="block float-panel hidden" id="panel-tile">
+        <h2><span id="tileTitle">Selected</span><button id="tileClose" class="modal-x" title="Close">×</button></h2>
+        <div class="block-body" id="tileBody"></div>
+      </section>
+      <section class="block float-panel" id="panel-log">
+        <h2>Chronicle</h2>
+        <div class="block-body legal-pad">
+          <div id="log" class="log"></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Underway: docked bottom-centre, cards running horizontally. -->
+    <section class="block float-panel" id="panel-queue">
       <h2>Build Queue</h2>
       <div class="block-body ruled-dot">
         <p class="holdings-empty" id="queueEmpty">Nothing queued.</p>
         <div id="queueBody" class="queue-list hidden"></div>
       </div>
     </section>
-
-    <section class="block" id="panel-log">
-      <h2>Chronicle</h2>
-      <!-- The one panel where the material is allowed to be the point: a legal
-           pad, ruled at 28px with a red margin rule. Entries sit on the rules. -->
-      <div class="block-body legal-pad">
-        <div id="log" class="log"></div>
-      </div>
-    </section>
-
-    <!-- Row 2 -->
-    <section class="block" id="panel-training">
-      <h2>Training</h2>
-      <div class="block-body ruled-cork">
-        <p class="holdings-empty hidden" id="trainingEmpty">Nothing to train yet.</p>
-        <div id="trainingList" class="build-list"></div>
-      </div>
-    </section>
-
-    <section class="block" id="panel-build">
-      <h2>Construction</h2>
-      <div class="block-body ruled-graph">
-        <p class="holdings-empty hidden" id="buildEmpty">Nothing to build yet.</p>
-        <div id="buildingList" class="build-list"></div>
-      </div>
-    </section>
-
-    <section class="block" id="panel-upgrades">
-      <h2>Upgrades</h2>
-      <div class="block-body ruled-dot">
-        <!-- Owned upgrades are filtered out rather than dimmed in place: faded
-             text read as "you can't have this", which is the opposite of true. -->
-        <p class="holdings-empty hidden" id="upgradesUnknown">Nothing to learn yet.</p>
-        <div class="tabs hidden" id="upgradeTabs">
-          <button class="tab active" id="tabAvailable">Available</button>
-          <button class="tab" id="tabOwned">Owned</button>
-        </div>
-        <p class="holdings-empty hidden" id="upgradesEmpty">Nothing owned yet.</p>
-        <div id="upgradeList" class="build-list"></div>
-      </div>
-    </section>
-
-    <!-- Present in any era whose manifest declares adversaries -- i.e. once the
-         world has an outside at all. The Muster Ground gates the ACTIONS, not
-         the panel. The Chronicle gives up its double-row span to make room
-         (see updateSpans). -->
-    <section class="block hidden" id="panel-expeditions">
-      <h2>Expeditions</h2>
-      <div class="block-body ruled-dot">
-        <div id="expeditionStatus" class="exp-status"></div>
-        <div id="adversaryList" class="adv-list"></div>
-      </div>
-    </section>
-
   </div>
 
   <!-- Descriptions live here and nowhere else. Inline descriptions clog the

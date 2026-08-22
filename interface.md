@@ -243,7 +243,10 @@ separated from Reset. Spacebar already toggles pause; speed deserves a binding t
 What is already shipped and worth keeping: the fast state is *visible* (`.chrome-btn.fast` goes
 amber, the semantic value for in-progress, because running fast is a state you can forget you are
 in), the `#pauseFlag` plate appears next to the era badge, and the clock is unstyled tabular text at
-title color — a readout, not a control. Note that `paused`, `speed` and `upgradeTab` are deliberately
+title color — a readout, not a control. Since phase 4 the clock reads elapsed world time *and* the
+raw tick count (`4h 26m · t79,831`) — the tick a deliberate debugging readout, because with a
+seeded, tick-counted sim, *what tick did it happen on* is the coordinate a bug report wants. Phase 5
+decides whether the tick display survives into player-facing chrome or moves behind a dev toggle. Note that `paused`, `speed` and `upgradeTab` are deliberately
 UI state excluded from the save; phase 5 should confirm that still holds once pause is a primary verb
 and the world genuinely stops with it.
 

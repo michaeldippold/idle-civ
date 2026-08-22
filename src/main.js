@@ -1,6 +1,6 @@
 import "./content/compile.js";  // side-effect first: build + validate the manifests before anything else evaluates
 import { CONFIG } from "./core/config.js";
-import { initAdversaries, load, save, simulateOffline } from "./core/persist.js";
+import { initAdversaries, load, save } from "./core/persist.js";
 import { S, setLoops } from "./core/state.js";
 import { step } from "./core/step.js";
 import { cycleSpeed, paused, renderAll, renderSpeed, setPaused, speed } from "./ui/chrome.js";
@@ -20,8 +20,6 @@ export function boot() {
   if (!had) {
     log("A handful of survivors gather where the road ends.");
     log("They are hungry. Put someone to forage, or they will starve.");
-  } else {
-    simulateOffline();
   }
 
   checkReveals();
@@ -59,29 +57,41 @@ export function boot() {
   });
 
   let last = Date.now();
+  let hidden = document.hidden === true;
   const newLoopId = setInterval(() => {
     if (S.dead) return;
     const now = Date.now();
-    let dt = (now - last) / 1000;
-    // `last` advances even while paused -- otherwise dt would keep accruing
-    // through the whole pause and hand back a free (clamped) chunk of
-    // production the instant you resume.
+    const dt = (now - last) / 1000;
+    // `last` advances even while paused or hidden -- otherwise dt would keep
+    // accruing through the whole stop and hand the gap back as one giant step
+    // the instant the simulation resumes.
     last = now;
-    if (paused) return;
-    if (dt > 2) dt = 2;            // large gaps are handled by the offline sim
-    // The clamp is applied BEFORE the multiplier, deliberately: clamping is
-    // about the browser having been descheduled, and speed is about how fast
-    // we want to watch. Scaling the clamp would let a background tab bank time
-    // and hand it back multiplied.
+    if (paused || hidden) return;
     for (let i = 0; i < speed; i++) step(dt);
     checkReveals();
     renderAll();
   }, CONFIG.tickMs);
 
-  // Autosave keeps running while paused, deliberately: it refreshes lastSeed,
-  // so time spent paused is never mistaken for offline time on the next load.
+  // The clock runs while you're looking at it (design.md, Time, Presence &
+  // Pause): hiding the tab stops the simulation outright -- no offline
+  // catch-up, no background running -- and commits a save. Returning resumes
+  // automatically (a MANUAL pause is a separate flag and survives the round
+  // trip untouched). `last` is re-anchored on return because a hidden tab's
+  // intervals are throttled -- eventually to once a minute -- so the gap
+  // since the final throttled tick would otherwise arrive as one oversized
+  // dt now that the clamp is gone.
+  document.addEventListener("visibilitychange", () => {
+    hidden = document.hidden;
+    if (hidden) save();
+    else last = Date.now();
+  });
+  // pagehide, not beforeunload: it fires reliably on tab close and on
+  // mobile page freeze, and never blocks the unload.
+  window.addEventListener("pagehide", save);
+
+  // Autosave. Keeps running while paused -- a paused game is still a game
+  // you can lose to a crash.
   setLoops(newLoopId, setInterval(save, 10000));
-  window.addEventListener("beforeunload", save);
 }
 
 boot();

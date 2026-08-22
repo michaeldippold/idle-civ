@@ -2,6 +2,7 @@ import { active } from "../content/compile.js";
 import { rng } from "../core/rng.js";
 import { CONFIG } from "../core/config.js";
 import { availableUnits } from "../core/derived.js";
+import { save } from "../core/persist.js";
 import { S } from "../core/state.js";
 import { armorFactor, weaponMultiplier } from "./combat.js";
 import { renderAll } from "../ui/chrome.js";
@@ -13,9 +14,8 @@ import { log } from "../ui/log.js";
 // two tracks run in parallel, but never two of a kind: the split is still
 // the decision on each track. Resolution happens in step() on the world's
 // schedule, and there are NO catch windows -- outcomes self-apply and land
-// in the Chronicle. Resolution lines log even under SIM, same rule as
-// migration narrates: rare and story-critical, they belong in the record
-// even if they happened while you were away.
+// in the Chronicle. Resolution lines always log, same rule as migration
+// narrates: rare and story-critical, they belong in the record.
 export function findAdversary(id) { return active().adversaries.find((a) => a.id === id); }
 export function expeditionOut(type) { return S.expeditions.some((e) => e.type === type); }
 
@@ -96,6 +96,7 @@ export function launchCampaign(advId, unitCounts) {
   S.expeditions.push({ uid: ++S.buildSeq, type: "campaign", adversary: advId,
     units: Object.assign({}, unitCounts), total: adv.campaignTime, remaining: adv.campaignTime });
   log(`A column of ${total} marches against ${adv.name}. The walls are thinner until they return.`);
+  save();
   renderAll();
 }
 
@@ -117,6 +118,7 @@ export function launchCaravan(advId, escort) {
   if (guards > 0) ex.units = Object.assign({}, escort);
   S.expeditions.push(ex);
   log(`A caravan sets out for ${adv.name}, laden with ${adv.buys.amount} ${adv.buys.res}${guards ? `, under guard of ${guards}` : ""}.`);
+  save();
   renderAll();
 }
 

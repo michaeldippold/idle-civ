@@ -1,7 +1,7 @@
 import { ERA_ORDER, MANIFESTS, active, manifestDiff } from "../content/compile.js";
 import { CONFIG } from "../core/config.js";
 import { housing } from "../core/derived.js";
-import { save } from "../core/persist.js";
+import { suppressSaves } from "../core/persist.js";
 import { S } from "../core/state.js";
 import { fmtTime } from "./chrome.js";
 
@@ -170,9 +170,10 @@ export function openEraModal(era, before) {
 
 // Shared by the Reset button and the game-over "Try Again" button.
 export function hardReset() {
-  // Reload fires beforeunload -> save(), which would silently re-write the very
-  // save we're clearing (S is still in memory). Drop the listener first.
-  window.removeEventListener("beforeunload", save);
+  // location.reload() fires pagehide -> save(), which would silently re-write
+  // the very save we're clearing (S is still in memory). Suppress saves first;
+  // the reload itself resets the flag.
+  suppressSaves();
   try { localStorage.removeItem(CONFIG.saveKey); } catch (e) {}
   location.reload();
 }

@@ -1,6 +1,6 @@
 import { BOOST_BUILDING, DEF_INDEX, active } from "../content/compile.js";
 import { CONFIG } from "./config.js";
-import { S, SIM } from "./state.js";
+import { S } from "./state.js";
 import { log } from "../ui/log.js";
 
 // ---------- Derived values ----------------------------------
@@ -129,7 +129,7 @@ export function accrueGrowth(dt) {
     S.pop += 1;
     S.bought += 1;
     // What "one more" means -- and how it's told -- is an era-fact.
-    if (!SIM) log(active().arrivalLine, "good");
+    log(active().arrivalLine, "good");
   }
 }
 

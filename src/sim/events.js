@@ -1,7 +1,7 @@
 import { active } from "../content/compile.js";
 import { rng } from "../core/rng.js";
 import { caps } from "../core/derived.js";
-import { S, SIM } from "../core/state.js";
+import { S } from "../core/state.js";
 import { negateChance, pick } from "./combat.js";
 import { log } from "../ui/log.js";
 
@@ -20,7 +20,7 @@ export function resolveEvents(dt) {
         // An effect may return its own line, for events whose message needs a
         // number only the effect knows (e.g. what a settler actually cost).
         const custom = ev.effect(S);
-        if (!SIM) log(custom || pick(ev.flavor.hit), ev.sev);
+        log(custom || pick(ev.flavor.hit), ev.sev);
       }
       continue;
     }
@@ -29,10 +29,10 @@ export function resolveEvents(dt) {
       const p = 1 - Math.pow(1 - ev.chancePerSecond, dt);
       if (rng() < p) {
         if (rng() < negateChance(ev)) {
-          if (!SIM) log(pick(ev.flavor.negated), "good");
+          log(pick(ev.flavor.negated), "good");
         } else {
           const custom = ev.effect(S);
-          if (!SIM) log(custom || pick(ev.flavor.hit), ev.sev);
+          log(custom || pick(ev.flavor.hit), ev.sev);
         }
       }
     }

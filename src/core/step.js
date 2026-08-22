@@ -2,7 +2,7 @@ import { active } from "../content/compile.js";
 import { completeConstruction } from "./actions.js";
 import { CONFIG } from "./config.js";
 import { accrueGrowth, caps, rates } from "./derived.js";
-import { S, SIM, loopId, saveId, setSimStop } from "./state.js";
+import { S, loopId, saveId } from "./state.js";
 import { resolveEvents, runConverters } from "../sim/events.js";
 import { resolveExpeditions } from "../sim/expeditions.js";
 import { renderAll } from "../ui/chrome.js";
@@ -35,7 +35,6 @@ export function step(dt) {
   // Starvation: food hits zero while the settlement can't feed itself.
   if (S.res.food <= 0 && r.foodNet < 0) {
     S.res.food = 0;
-    if (SIM) { setSimStop(true, "starvation"); return; }
     die("starvation");
     return;
   }
@@ -64,7 +63,6 @@ export function step(dt) {
   // Conflict (and in principle anything else) can zero out population --
   // checked generically here rather than attributed to a specific event.
   if (S.pop <= 0) {
-    if (SIM) { setSimStop(true, "conflict"); return; }
     die("conflict");
   }
 }

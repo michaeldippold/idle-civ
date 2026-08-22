@@ -1,7 +1,7 @@
 import { DEF_CATEGORIES, active } from "../content/compile.js";
 import { civilians, deployedCount, housing } from "../core/derived.js";
 import { initAdversaries } from "../core/persist.js";
-import { S, SIM } from "../core/state.js";
+import { S } from "../core/state.js";
 import { reconcileWorkforce } from "./combat.js";
 import { fmtTime } from "../ui/chrome.js";
 import { log } from "../ui/log.js";
@@ -25,9 +25,6 @@ export function advanceEra(era) {
   purgeDom(fromM, toM);
   reconcileWorkforce();
 
-  // Silent during offline catch-up -- simulateOffline() announces it instead,
-  // rather than firing a modal at someone the instant the page loads.
-  if (SIM) return;
   log(`The ${toM.name} begins.`, "big");
   openEraModal(era, before);
 }
@@ -41,9 +38,8 @@ export function advanceEra(era) {
 //   { bucket, id, vanish: true, narrate }              -- state zeroed
 //   { bucket, id, convertTo, ratio?, narrate }         -- moved within the bucket, floor'd
 //   { bucket, id, fn: (snapshot) => value, narrate }   -- computed fresh
-// Formulas read the frozen snapshot, never live state. Narrate lines log
-// even under SIM: an era transition is rare enough that its story belongs in
-// the Chronicle even when it happened while you were away.
+// Formulas read the frozen snapshot, never live state. Narrate lines always
+// log: an era transition is rare, and its story belongs in the Chronicle.
 export function runEraMigrations(fromM, toM, snapshot) {
   for (const j of fromM.jobs) {
     if (!toM.jobs.some((x) => x.id === j.id) && (S.jobs[j.id] || 0) > 0) {
@@ -91,9 +87,7 @@ export function applyConsolidation(spec) {
 // Remove the DOM nodes of every id that didn't survive the era hop -- cards,
 // holdings tiles, person tiles, job rows, resource rows. Renderers only ever
 // CREATE nodes for ids in the active manifest, so after this purge a
-// retired id is fully gone: no stale card, no frozen tile. Runs under SIM
-// too -- the page's DOM exists during offline catch-up and would otherwise
-// keep the stale nodes.
+// retired id is fully gone: no stale card, no frozen tile.
 export function purgeDom(fromM, toM) {
   const kill = (elId) => {
     const el = document.getElementById(elId);

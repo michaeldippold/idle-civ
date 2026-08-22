@@ -3,7 +3,7 @@ import { rng } from "../core/rng.js";
 import { dropQueueItem } from "../core/actions.js";
 import { CONFIG } from "../core/config.js";
 import { availableUnits, civilians, defById, jobsUsed, releaseOrder, reserved } from "../core/derived.js";
-import { S, SIM } from "../core/state.js";
+import { S } from "../core/state.js";
 import { log } from "../ui/log.js";
 
 // ---------- Events / combat helpers -------------------------
@@ -164,7 +164,7 @@ export function reconcileWorkforce() {
     const def = defById(S.buildQueue[idx].id);
     dropQueueItem(idx);
     over -= def.popCost || 1;
-    if (!SIM) log(`${def.name} training is abandoned — there is no one left to train.`, "bad");
+    log(`${def.name} training is abandoned — there is no one left to train.`, "bad");
   }
 }
 

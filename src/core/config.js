@@ -43,7 +43,6 @@ export const CONFIG = {
   wallRetreatLoss: 0.35,       // chance a failed breach costs one fighter (before armor)
   caravanRaidChance: 0.25,     // chance a caravan is lost en route while any warlike neighbor is Hostile
   hostileConflictMult: 1.5,    // home-raid frequency multiplier per Hostile warlike neighbor
-  offlineCapHours: 4,
   saveKey: "idleCiv.v6",
 };
 

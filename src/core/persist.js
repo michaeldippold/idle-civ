@@ -1,13 +1,22 @@
 import { active } from "../content/compile.js";
 import { CONFIG } from "./config.js";
-import { S, SIM_STOP, SIM_STOP_CAUSE, freshState, setS, setSIM, setSimStop } from "./state.js";
-import { step } from "./step.js";
-import { log } from "../ui/log.js";
+import { S, freshState, setS } from "./state.js";
 
-// ---------- Save / load / offline ---------------------------
+// ---------- Save / load -------------------------------------
+// Save is load-bearing (design.md, Time, Presence & Pause): the world stops
+// when the player does, so stopping and resuming EXACTLY is a correctness
+// requirement, not a convenience. It runs on a 10s interval, after every
+// player action (assign, build, cancel, launch), and when the tab is hidden
+// or closed. There is no offline catch-up to paper over a stale save.
+
+// hardReset() wipes the save and reloads -- and the reload fires pagehide,
+// whose save() would silently re-write the very save being cleared (S is
+// still in memory). One flag instead of listener juggling; a reload resets it.
+let suppressed = false;
+export function suppressSaves() { suppressed = true; }
+
 export function save() {
-  if (S.dead) return;
-  S.lastSeed = Date.now();
+  if (S.dead || suppressed) return;
   try { localStorage.setItem(CONFIG.saveKey, JSON.stringify(S)); } catch (e) {}
 }
 
@@ -42,45 +51,5 @@ export function initAdversaries() {
       // Saves from before fortifications existed get their walls raised once.
       S.adversaries[adv.id].walls = adv.walls || 0;
     }
-  }
-}
-
-export function simulateOffline() {
-  const elapsed = (Date.now() - (S.lastSeed || Date.now())) / 1000;
-  const capped = Math.min(elapsed, CONFIG.offlineCapHours * 3600);
-  if (capped < 5) return;
-
-  const before = { ...S.res, pop: S.pop };
-  const eraBefore = S.era;
-  setSIM(true); setSimStop(false, null);
-  let t = capped;
-  while (t > 0 && !SIM_STOP) { const dt = Math.min(1, t); step(dt); t -= dt; }
-  setSIM(false);
-
-  const g = {
-    food: Math.floor(S.res.food - before.food),
-    wood: Math.floor(S.res.wood - before.wood),
-    stone: Math.floor(S.res.stone - before.stone),
-    pop: S.pop - before.pop,
-  };
-  const parts = [];
-  if (g.food > 0) parts.push(`${g.food} food`);
-  if (g.wood > 0) parts.push(`${g.wood} wood`);
-  if (g.stone > 0) parts.push(`${g.stone} stone`);
-  if (g.pop > 0) parts.push(`${g.pop} new ${g.pop > 1 ? active().popNoun.plural : active().popNoun.singular}`);
-  else if (g.pop < 0) parts.push(`${-g.pop} lost while you were away`);
-  const mins = Math.floor(capped / 60);
-  if (SIM_STOP) {
-    const msg = SIM_STOP_CAUSE === "conflict"
-      ? "You return to find the settlement overrun — there was nothing left to defend."
-      : "You return to find the stores emptied — your people barely hung on.";
-    log(msg, "bad");
-  } else if (parts.length) {
-    log(`While you were away (${mins}m): ${parts.join(", ")}.`, "good");
-  }
-  // An era can flip mid-catch-up; advanceEra() stays silent under SIM, so the
-  // milestone gets announced here instead of passing without comment.
-  if (S.era !== eraBefore) {
-    log(`You return to a changed people — the ${active().name} began in your absence.`, "big");
   }
 }

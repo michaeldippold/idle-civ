@@ -1,7 +1,7 @@
 import { CONFIG } from "../core/config.js";
 import { rng } from "../core/rng.js";
 import { caps, totalUnits } from "../core/derived.js";
-import { S, SIM } from "../core/state.js";
+import { S } from "../core/state.js";
 import { CONFLICT_FLAVOR, armorFactor, counterCoverage, militaryStrength, pick, removeRandomUnit, removeSettler, rollRaidSize, rollRaidType, stealResources } from "../sim/combat.js";
 import { hostilityMultiplier } from "../sim/expeditions.js";
 import { log } from "../ui/log.js";
@@ -81,7 +81,7 @@ export const EVENT_LIB = {
       const raid = rollRaidType();
       const defense = militaryStrength(raid);
       const repelChance = defense / (defense + raidSize);
-      const say = (pool, sev) => { if (!SIM) log(pick(pool).replace("{raid}", raid.name), sev); };
+      const say = (pool, sev) => log(pick(pool).replace("{raid}", raid.name), sev);
 
       if (rng() < repelChance) {
         // Second dial: fielding the countering unit type doesn't just help you
@@ -90,7 +90,7 @@ export const EVENT_LIB = {
         const costlyChance = (raidSize / (defense + raidSize)) * armorFactor() * relief;
         if (rng() < costlyChance) {
           const lost = removeRandomUnit();
-          if (!SIM) log(`The ${raid.name} is driven off, but not without cost — a ${lost || "defender"} falls in the fighting.`, "bad");
+          log(`The ${raid.name} is driven off, but not without cost — a ${lost || "defender"} falls in the fighting.`, "bad");
         } else {
           say(CONFLICT_FLAVOR.repelledClean, "good");
         }

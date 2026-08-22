@@ -41,11 +41,10 @@ export function renderClock() {
   if (el) el.textContent = fmtTime(S.playtime || 0);
 }
 
-// Speed is a lens, never a cheat: the loop runs `speed` ordinary steps per tick
-// rather than one oversized one, which is exactly how simulateOffline() already
-// compresses time. Every rate, probability roll, build tick and upkeep charge
-// therefore behaves identically to real time -- there is just more of it per
-// second. Nothing needs to know it's happening.
+// Speed is a lens, never a cheat: the loop runs `speed` ordinary steps per
+// tick rather than one oversized one, so every rate, probability roll, build
+// tick and upkeep charge behaves identically to real time -- there is just
+// more of it per second. Nothing needs to know it's happening.
 export function renderSpeed() {
   const btn = document.getElementById("speedBtn");
   if (!btn) return;

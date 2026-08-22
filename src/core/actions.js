@@ -1,5 +1,6 @@
 import { buildCost, canAfford, defById, housing, idle, isCapped, pendingCount } from "./derived.js";
 import { S } from "./state.js";
+import { save } from "./persist.js";
 import { advanceEra } from "../sim/era.js";
 import { fmtTime, renderAll } from "../ui/chrome.js";
 import { log } from "../ui/log.js";
@@ -9,6 +10,7 @@ export function assign(jobId, delta) {
   if (S.dead) return;
   if (delta > 0) { if (idle() <= 0) return; S.jobs[jobId] += 1; }
   else           { if (S.jobs[jobId] <= 0) return; S.jobs[jobId] -= 1; }
+  save();  // save is load-bearing now: every player action commits (see persist.js)
   renderAll();
 }
 
@@ -35,6 +37,7 @@ export function build(def) {
   } else {
     log(wasEmpty ? `Ground is broken for a ${def.name}.` : `A ${def.name} joins the queue (#${S.buildQueue.length}).`);
   }
+  save();
   renderAll();
 }
 
@@ -60,6 +63,7 @@ export function cancelBuild(uid) {
   const item = dropQueueItem(idx);
   if (CAPSTONES[item.id]) console.log(`[pacing] ${defById(item.id).name} research cancelled at ${fmtTime(S.playtime)}`);
   log(`Construction of the ${defById(item.id).name} is called off; materials recovered.`);
+  save();
   renderAll();
 }
 

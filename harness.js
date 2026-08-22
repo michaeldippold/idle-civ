@@ -1790,7 +1790,7 @@ console.log("\n--- C2: caravan resolution and the gold well running dry ---");
   check("a Friendly partner pays a premium", S().res.gold === 19 + Math.floor(15 * 1.25));
 }
 
-console.log("\n--- C2: expeditions resolve through step() (offline-safe) ---");
+console.log("\n--- C2: expeditions resolve through step() ---");
 {
   api.setRngSource(() => 0.999999);
   reset();
@@ -1891,6 +1891,46 @@ console.log("\n--- Phase B: legacy saves default eraHistory ---");
     merged.eraHistory && typeof merged.eraHistory === "object");
 }
 
+console.log("\n--- Phase 3: offline is gone; the save is load-bearing ---");
+{
+  check("simulateOffline no longer exists", api.simulateOffline === undefined);
+  check("the SIM flag no longer exists", api.SIM === undefined);
+  check("offlineCapHours no longer exists", api.CONFIG.offlineCapHours === undefined);
+  check("freshState carries no wall-clock stamp", api.freshState().lastSeed === undefined);
+
+  // Mid-construction round-trip through the REAL save/load path: the queue
+  // survives serialization verbatim and the revived save finishes the build.
+  reset();
+  S().res.wood = 100;
+  api.build(findB("hut"));
+  run(3);
+  const midRemaining = S().buildQueue[0].remaining;
+  api.save();
+  S().res.wood = 9999;               // scribble on live state...
+  api.load();                        // ...and prove load restores the saved copy
+  check("save/load round-trips a build mid-construction",
+    S().buildQueue.length === 1 && Math.abs(S().buildQueue[0].remaining - midRemaining) < 1e-9);
+  check("load restores the saved copy, not live state", S().res.wood < 9999);
+  run(15);
+  check("the revived save finishes the build", S().builds.hut === 1 && S().buildQueue.length === 0);
+
+  // Mid-flight expedition round-trip: a column in the field survives the
+  // save, and the revived save resolves it on the world's schedule.
+  reset();
+  S().era = "iron"; api.initAdversaries();
+  S().pop = 12; S().units.soldier = 5; S().builds.musterGround = 1;
+  S().res.food = 200;
+  api.launchCampaign("hillClans", { soldier: 4 });
+  run(2);
+  api.save(); api.load();
+  check("a campaign in the field survives the round-trip",
+    S().expeditions.length === 1 && S().expeditions[0].type === "campaign");
+  S().expeditions[0].remaining = 0.4;
+  run(2);
+  check("the revived campaign resolves on schedule", S().expeditions.length === 0);
+  check("resolution had consequences (standing moved)", S().adversaries.hillClans.standing < 0);
+}
+
 console.log("\n--- Seeded RNG: determinism and the source ban ---");
 {
   // Same seed + same fixed-dt steps + same actions = identical state. This is
@@ -1900,7 +1940,6 @@ console.log("\n--- Seeded RNG: determinism and the source ban ---");
   const play = () => {
     reset();
     S().seed = 123456789; S().rngState = 123456789;
-    S().lastSeed = 0;  // the offline wall-clock stamp -- the one non-sim field; dies in phase 3
     api.assign("forager", 1); api.assign("woodcutter", 1); api.assign("woodcutter", 1);
     run(120);
     api.build(findB("hut"));

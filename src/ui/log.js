@@ -1,5 +1,5 @@
 import { active } from "../content/compile.js";
-import { S, SIM } from "../core/state.js";
+import { S } from "../core/state.js";
 
 // ---------- Progressive reveal / one-time hints -------------
 // Hint content lives in HINT_LIB up top; which hints are live is the active
@@ -9,7 +9,7 @@ export function checkReveals() {
     if (S.seen[rv.id]) continue;
     if (rv.when()) {
       S.seen[rv.id] = true;
-      if (!SIM && rv.msg) log(rv.msg);
+      if (rv.msg) log(rv.msg);
     }
   }
 }

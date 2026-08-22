@@ -3,9 +3,6 @@ import { newSeed } from "./rng.js";
 
 // ---------- State -------------------------------------------
 export let S;
-export let SIM = false;         // true while fast-simulating (suppresses log spam)
-export let SIM_STOP = false;    // offline sim halts here instead of killing you
-export let SIM_STOP_CAUSE = null;
 
 export function freshState() {
   // State buckets span every era's ids, not just the starting era's -- the
@@ -43,15 +40,12 @@ export function freshState() {
     playtime: 0,      // seconds the simulation has actually advanced -- see step()
     seen: {},
     dead: false,
-    lastSeed: Date.now(),
   };
 }
 
 // ES-module live bindings are read-only from outside their home module; every
 // cross-module reassignment of the mutables above goes through these.
 export function setS(v) { S = v; }
-export function setSIM(v) { SIM = v; }
-export function setSimStop(v, cause) { SIM_STOP = v; SIM_STOP_CAUSE = cause; }
 
 // The two interval handles boot() starts and die() clears. They live here, not
 // in main.js, so that no core module ever imports main -- main's body STARTS

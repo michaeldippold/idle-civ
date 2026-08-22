@@ -757,7 +757,21 @@ Honest list. Several of these are not decidable from a desk and should not be fo
    estate and is the largest surface the interface can currently hand out for free. Whether the
    Expeditions panel then survives as a separate surface, or becomes a list view of the same data,
    is a phase-9 question.
-10. **Map size per era.** ~20 / ~150 / a few hundred are sketches. They interact directly with the
+10. **Pan and zoom over a larger continent** *(flagged 2026-08-22, ideation only — expect it to
+    come up when maps outgrow one screen)*. The honest answer: **not hard.** SVG pans and zooms by
+    manipulating the `viewBox` — pan is translating its origin, zoom is scaling its width/height
+    toward the cursor — with a wheel listener and a drag listener, roughly 60–100 lines, no
+    library. Hover tooltips and click targets keep working untouched, because they are DOM events
+    on the polygons and never cared where the viewBox sits. The real work is the fiddly 20%:
+    click-vs-drag disambiguation (a small movement threshold), clamping so the player can't scroll
+    the world off screen, zoom limits, and keeping the auto-fit behavior as the default framing.
+    Touch stays out of scope with the rest of mobile. Performance is a non-issue until the low
+    thousands of polygons. One design interaction worth deciding when it lands: the era `view`
+    radius currently hard-filters what renders — under pan/zoom it could instead become a soft
+    edge (unexplored country visible as blank parchment at the map's rim), which pairs naturally
+    with directed scouting. Wants deciding together with map size per era, below.
+
+11. **Map size per era.** ~20 / ~150 / a few hundred are sketches. They interact directly with the
     minor-tier count, which `design.md` already lists as an open implementation-time tunable, and
     with generation quality (a 20-tile world has no room for coherent noise to look like anything).
     Tune together, not separately.

@@ -1,0 +1,657 @@
+# Idle Civ — Changelog
+
+> **The shipped record.** Everything below actually landed in the build — what changed, what broke
+> on the way, and why it mattered. Newest first. Entries that shipped no code are marked as such.
+>
+> This file is history, not canon. `todo.md` carries the forward plan — what's next, what's
+> deferred, what's a known rough edge. `design.md` holds the reasoning about the game, `tech.md`
+> the reasoning about the code, `map.md` the map arc, `interface.md` the interface system. Where an
+> entry here disagrees with those, they win: this is a record of what was true at the time, and
+> several things below have since been reversed on purpose.
+
+---
+
+## 2026-08-22 — The docs pivot *(DOCS ONLY — no code shipped)*
+
+**The game stopped being an idle game.** The old contract was *the game never needs you*, and it
+turned out to ban every interesting decision, because a decision the player might not be present
+for is a decision the game "needs" them for. The replacement bans only **loss**: nothing expires,
+nothing decays, nothing is missed, no reward is forfeited by being away — and within that, the game
+is meant to be *watched*. The clock now runs only while the page is visible; **offline progress,
+catch-up and background running are slated for removal outright**. Pause and fast-forward are
+promoted from developer affordances to first-class player chrome (pause is how you think, speed is
+how you get on with it), modals that *ask* something pause while modals that *tell* you something
+don't, and decisions presented by the world sit patiently until you reach them. The old law
+*resolution never creates a window the player must catch* survives untouched — it was always about
+expiry, never about waiting. A consequence worth stating: "Idle Civ" no longer describes the game,
+and renaming is a live open question deferred until the pivot is implemented and playable.
+
+**The documents were restructured around it.** `design.md` was rewritten with *Time, Presence &
+Pause* as the section every other system now rests on, and with historical notes kept only where
+the reasoning behind a reversal is still load-bearing rather than as a log of every decision ever
+taken. `map.md` and `interface.md` were split out as documents in their own right — the map arc and
+the interface system had both outgrown being subsections of the design doc. **`CHANGELOG.md` (this
+file) was split out of `todo.md`**, which had reached 999 lines with roughly half of them a
+version-by-version shipped record crowding out the working plan. `deleteme.md` and
+`interface-brief.md` were retired: the live questions in them were promoted into canon, the rest is
+history and the files had become a place where settled things went to look unsettled.
+
+No code shipped in this pass. The build is exactly where **v18.1** left it.
+
+---
+
+## v18.1 — The time-capsule click
+
+Second click bug from the same playtest, different cause: Archers and Horsemen wouldn't train in
+Iron while Soldiers and Siege Engines would. A buy card's click listener captured the def object of
+the era it was *created* in — cards born in Bronze (the player fielded archers there) still called
+`build()` with the bronze-era def, whose cost names a resource that no longer exists. The display
+path reads the active manifest, so the card showed iron prices and looked buyable; only the click
+was stale. Soldier never broke (cost identical in every era) and Siege Engine never broke (born in
+Iron) — the exact symptom pattern. Fix: resolve the def by id AT CLICK TIME via `defById`, which
+answers with the active era's version. Verified live with the true repro: bronze-born cards clicked
+in Iron queue both units and pay iron, not bronze. (Also covers the latent Stables case, hidden
+behind its Maxed state.)
+
+---
+
+## v18 — The Bureau interface
+
+**The click-eater, found and killed** — the oldest bug in the project shipped alongside the
+redesign: buys sometimes took 2–3 clicks. Cause: the three buy-card renderers rewrote
+`card.innerHTML` on every 200ms render tick, and a click is not instantaneous — mousedown landed on
+a child span, the next tick destroyed it, mouseup landed on its replacement, and the browser dropped
+the click because the pressed element no longer existed (~50% of presses straddle a tick). The
+steppers never suffered because they update stable nodes — which was already the codebase's stated
+rendering law; these renderers had violated it since v1. Cards now build a skeleton once and update
+via `textContent`/`classList` only; cost spans rebuild only when the part-count changes (era
+re-pricing, capped flips). Verified live: child nodes survive 20 render ticks identically.
+
+**The redesign itself.** The interface commissioned in `interface-brief.md` came back and went in,
+wholesale. `styles.css` rewritten around a token palette (the prototype authored every value
+inline; we have a stylesheet, a per-era desk, and nine more ages coming), `index.html`
+restructured, the render layer reworked. Four decisions reached past styling and account for most
+of the work: **opacity retired as a state channel** — unaffordable is now a lighter border and
+nothing else, because most cards spend most of their life unaffordable and *reading* them is how
+players plan; **descriptions moved to hover**, carrying the refusal reason ("Short 9 wood.") and
+computed at hover time rather than baked in, since cards update in place; **population moved into
+the ledger** as `POP 6/6 · 2 idle`, killing two sentences that a red at-cap number says better; and
+**the board acquired materials** — per-era desk, era badge plate, and a different paper stock per
+column (cork / graph / dot grid / legal pad). Components: segmented steppers, icon+count tiles,
+Available/Owned tabs on Upgrades, maxed buildings sinking to the bottom of Construction, and
+Chronicle entries on ruled lines with a severity mark in the gutter that survives both skimming and
+colour blindness.
+
+Two structural changes rode along. **A founding pillar was rewritten**: the board is now whole from
+the first frame and only its *contents* unravel — the old rule was calibrated for a pen-on-paper
+wireframe where an empty panel and a full one were the same hairline box, and Bureau's named ink
+headers and per-column stock removed that premise (see `design.md`). And a **speed control**
+(1×–12×) landed first, deliberately, because it makes every subsequent playtest cheaper; it runs N
+ordinary steps per tick rather than one oversized one, so nothing in the simulation can tell the
+difference. Measured at exactly 12.0×.
+
+Eight pieces of live human feedback were folded in afterward: cost lines that overflowed instead of
+wrapping (a real bug — a hidden resource means you can't see why a purchase was refused), the
+ledger becoming an aligned grid with proper rules, a doubled rule where rows met, a dot grid that
+had silently never rendered (`background-image` rejects the `background` shorthand's position/size
+syntax), rulings strengthened now that nothing sits on them unboxed, stronger post-it tints,
+steppers centred against the whole row, and corkboard — parked earlier the same day as an idea with
+no home — spent on the one column that lacked a material of its own. Shipped to GitHub Pages.
+
+---
+
+## v17 — Unit re-denomination
+
+The population ladder is live: what one unit *means* now scales while the number never does. Stone
+counts settlers; the Bronze transition relabels them 1:1 ("You count your people in families now."
+— pure text, proven pacing untouched); the Iron transition **consolidates** — `consolidate: { keep:
+0.7 }` on the delta, the playtest flex dial — floored per unit type (never below what's deployed
+abroad), civilians and units summed back into pop so the books can't desync, jobs floored alongside,
+all narrated: "Families band together behind shared walls — your people now count themselves in
+holdfasts." Every noun-bearing surface reads from the manifest now: the person tile
+(Settler/Family/Holdfast), the growth countdown ("Next holdfast joins in 45s."), arrival lines ("A
+holdfast swears fealty to your banner."), training costs, the offline summary, and a diff-derived
+era-modal line. Verified live across both borders in one run: 10 settlers → 12 families (growth
+during the build) → snapshot 23 families → 14 holdfasts. 422 checks, 20/20 runs.
+
+---
+
+## v16 — Siege & Fortifications
+
+Adversaries carry a second number beside strength — `walls` — and combat now sequences: the walls
+fall before a single defender does. Wall damage **persists** in the living remnant
+(stock-not-economy, extended to stone): a failed assault is a retreat with at most one loss, but the
+scars stay carved, so hard targets become sagas — live-verified as one: wall-power 16 vs the
+Kingdom's castle at 26 bounced but left it at 10; the second column breached ("The battered walls of
+the River Kingdom finally give way."), won the field, and carried home 96 gold at the price of one
+Soldier. Siege Engines train behind a cap-1 Siege Workshop, hit walls at ×6, and are ordinary units
+everywhere else, home defense included. Fort tiers are pure flavor per the law — the Nomads' wagon
+laager, the Clans' timber palisade, the Kingdom's stone-walled castle — cross-cutting disposition so
+the slate doesn't template. Cards narrate damage ("Their walls are battered" / "lie in ruin"); the
+campaign modal carries the numbers. 404 checks, 20/20 runs.
+
+---
+
+## v15.4 — Queue-card type icons
+
+The dashed expedition border is gone (playtest verdict: hated it, and the mix wasn't confusing
+anyway). Every Underway card now opens with a tiny line-art type marker in the game's doodle style —
+hammer for builds, sword for campaigns, coins for caravans — so the eye sorts the panel without
+reading. Cards share one uniform border; the missing cancel × remains the expeditions' only
+structural difference.
+
+---
+
+## v15.3 — Expedition legibility pass
+
+All four playtest asks, plus two design laws. One campaign AND one caravan can now be out at once —
+parallel tracks, never two of a kind. Expeditions show as cancel-less progress cards at the top of
+the queue panel, which the Iron Age retitles **Underway** (one manifest line — the machinery keeps
+paying). Campaigns launch through a modal: the target's description, muster steppers, and a live
+strength estimate — the era's biggest decision got its ceremony, and the cramped panel steppers are
+gone. Caravans stay one-click on safe roads, but when a warlike neighbor is Hostile the send opens
+an escort modal: escorts don't lower ambush odds, they *decide* ambushes — fight through and the
+trade completes; lose and the cargo goes with a guard. Trading at Wary now returns "…counted out in
+silence under armed watch. They have not forgotten." — the rep system hinted through narration,
+never printed. And two laws recorded in `design.md`: **flavor is load-bearing** (strength is hinted
+via description, not odds — so adversary descs are mechanics-bearing text and must stay truthful),
+and the standing system narrates rather than displays. 389 checks, 20/20 runs.
+
+---
+
+## v15.2 — Converter rates in the ledger
+
+The resource bar now shows what's *actually happening* to each pile: `ledgerRates()` folds live
+converter flows into the displayed rates — outputs positive, inputs negative — using the same three
+clamps as `runConverters`, so a starved or storage-capped Forge honestly reads as stopped rather
+than advertising its theoretical speed (user call: the red number should scan as "problem" — and it
+does, via the existing pos/neg coloring). The input clamp counts incoming production alongside
+stock, so the designed 2:1-miner equilibrium displays as it deserves: copper and tin quietly netting
+zero while bronze flows at +0.10/s. The simulation itself is untouched — `rates()` stays gross and
+`step()` unchanged; folding flows into the real rates would have converted everything twice. Iron
+era included free: steel shows its flow and wood shows mining minus the Forge's burn. 378 checks.
+
+---
+
+## v15.1 — QoL from live testing
+
+Owned one-time upgrades sort to the bottom of the Upgrades panel (buyable and queued stay on top,
+manifest order within each group), so what's still purchasable is never buried under a pile of
+"Permanent." cards. DOM only reorders when ownership actually changes, preserving the create-once
+card pattern.
+
+---
+
+## v15 — Adversaries & Expeditions (C2)
+
+The game's first outward-facing verbs. The Iron Age declares three named neighbors — the warlike
+Hill Clans (weak, fight as a massed charge), the strong peaceful River Kingdom (deep gold, buys
+food), the middling Salt Nomads (buy iron) — each a static stock + strength + disposition,
+wholesale-declared like the slates and validated like everything else. Build the Muster Ground and
+the Expeditions panel unravels in beneath the Chronicle (which gives up its double-row span — no
+panel cut, no toggles). One expedition at a time: muster any mix of fighters and **march** (the
+existing combat math pointed outward, counter-vs-fighting-style included, provisions paid up front,
+and the walls genuinely thinner while they're gone — deployed units neither defend nor die at home),
+or send a **caravan** in fixed lots against a partner's actual gold stock, which depletes — and the
+goods you sell them join their stock, where a later campaign could steal them back; the game never
+mentions this, it's simply true. Standing is one number read as a word with exactly three
+consequences: Hostile warlike neighbors raid you 1.5× more, Hostile peaceful ones refuse your
+caravans, Friendly partners pay 25% over. Everything resolves in `step()` on the world's schedule —
+no catch windows, offline-safe, Chronicle-narrated. Live verification produced an unscripted proof:
+while a test caravan was on the road, the Hostile Hill Clans raided the thinned town and killed two
+fighters the next muster was counting on. The gold economy now closes: heirloom seed →
+trade/plunder → Iron Tools/Weapons/Armor, with the future capstone's gold cost waiting on the far
+side. Also: `[pacing]` console stamps at capstone start/finish/cancel (playtest aid). 365 checks,
+20/20 runs.
+
+---
+
+## Design consensus — Adversaries & Expeditions *(documentation only — no code changed)*
+
+Born from a candid worry that the game felt passive: every existing verb points inward (allocate,
+build, upgrade, train), leaving the player the object of the simulation's sentences, never the
+subject. The answer sharpened the idle contract into what was then its final form — the world never
+interrupts the player, but the player may act *on* the world at any time, with resolution always
+self-applying and landing in the Chronicle. Set in stone: **resolution never creates a window the
+player must catch** (a claim button is an interactive event wearing armor). Adversaries are
+manifest-declared counterparties that exist only to the extent they can be interacted with — a
+static stock (not an economy), a strength, a disposition — refreshed free at era boundaries because
+manifests redeclare them. Campaigns and directed trade become Iron's deepening mechanic, reusing the
+existing combat math pointed outward, with "the army isn't home" as the core passive trade-off.
+Interactive events were also formally killed and moved to out-of-scope in this same arc: the settled
+identity is idle Age of Empires, not active Civilization.
+
+*(Both halves of that identity have since moved: the "never interrupts" contract was replaced on
+2026-08-22, and "idle Age of Empires" had already drifted to lo-fi Civilization by then. The
+catch-window law is the part that survived intact.)*
+
+---
+
+## v14 — The Iron Age economy (C1)
+
+The game has a third era, and getting there is the first transition with teeth. The `ironAge`
+capstone (bronze manifest: pop ≥ 16, an Archer or Horseman fielded, 400/400/400 + 50 bronze, 180s)
+flips into an era where the alloy economy is *gone*: copper, tin, bronze, both ore jobs, the Ore
+Yard, and four stranded upgrades all retire — and the machinery earned its keep. The delta compiled
+validator-green on the first run; the era modal derived the whole story itself ("No longer needed:
+Ore Yard, Flint-Tipped Spears, Bronze Tools, Bronze Weapons, Scouting, Iron Age"); the DOM purge
+swept every dead card, row, and tile; and the Chronicle narrated the collapse: the copper road falls
+silent, no tin comes up the river, and your suddenly-antique bronze sells to collectors at 1:4 —
+seeding **gold**, the era's genuinely new idea, which no job can ever mine. Iron mines at full rate;
+the Forge persists retargeted (3 iron + 2 wood → 1 steel — wood's first late-game sink); Iron Yard
+and Treasury store the new stocks; Iron Tools/Iron Weapons/Steel Armor extend the tiers (armor is
+now lowest-wins like weapons); Longhouses hold 7 and the Village becomes a Town. Owned bronze-era
+upgrades keep working forever — a bought trait reads from state, not the shop shelf. Iron's gold
+sinks deliberately exceed the heirloom seed: expeditions (C2) are the era's real gold supply,
+landing next. Harness: 318 checks, 20/20 runs.
+
+---
+
+## v13 — Transition machinery (Phase B)
+
+The manifest architecture is now complete and waiting on its first real consumer.
+`validateManifests()` runs at load against every compiled era and throws with a full problem list on
+any within-era dangling reference — cost keys, converter recipes, storage/boost buildings, job
+resources, unit counters, event counters — which is what makes *removal* safe to author: retire a
+resource and everything still mentioning it becomes a load-time error instead of NaN production.
+`advanceEra()` grew the full transition sequence: a frozen pre-flip snapshot archived in
+`S.eraHistory` (kept forever, never nested), a migration runner whose `vanish`/`convertTo`/`fn`
+instructions read only the snapshot (instruction order provably can't matter — the harness runs an
+`fn` against a value an earlier instruction already zeroed), workers on removed jobs returning to
+idle with a Chronicle line, and a DOM purge that removes the cards/tiles/rows of ids that didn't
+survive — the one sanctioned exception to "nothing can un-reveal," live-verified by watching the
+capstone's card vanish at the flip. The era modal is now fully derived from `manifestDiff()`:
+renames ("The Hut is now the Stone House."), the housing rise, panel-title shifts, new resources and
+work, "Now available," and a new "No longer needed" section; `ERA_TRANSITIONS` keeps only the
+hand-written flavor lead. Stone→bronze declares zero migrations, so today the machinery mostly
+proves itself in the harness (281 checks, 20/20 runs) — the Iron Age is where it earns its keep.
+Adding an age is now: write one delta, write one lead sentence, read the compiler's and validator's
+complaints until they stop.
+
+---
+
+## v12 — The Era Manifest Architecture, Phase A
+
+The entire content layer is rewritten: the Stone Age is a full base manifest (resources, jobs,
+buildings, upgrades, units, raid types, era-scoped values, and wholesale `events`/`hints` slates),
+and the Bronze Age is a **delta** — remove the capstone, override three defs, add its content,
+redeclare its slates. A compiler builds both into full manifests at load and **throws before a frame
+renders** on any dangling id: unknown remove/override targets, duplicate adds, missing or misspelled
+slates. Everything the engine or renderer reads now goes through `active()` — flipping `S.era` swaps
+the whole world in one assignment. The old era scatter (`names`/`descs` maps, `era`/`untilEra` tags,
+`eras` allowlists, `ERA_NAMES`, `HOUSING_PER_HUT`, `PANEL_TITLES`, era checks inside reveals) is
+gone; era-gating is now *membership* — bronze content isn't hidden in stone, it doesn't exist there.
+The era modal's "Now available" list is a manifest diff, so it can never go stale. Zero state-schema
+change: old saves load untouched, and the whole thing was verified live — fresh stone game, real
+capstone build → era flip with all nine additions in the modal, forge smelting, and a bronze-era
+save/reload (offline catch-up even ran the Forge during the gap). Harness rewritten against
+manifests + a new compiler suite: 255 checks, 20/20 runs. This is the machine that makes new ages
+cheap: authoring the Iron Age is now writing one delta and reading the compiler's complaints.
+
+---
+
+## v11 — Free timed population growth
+
+The wanderer event and its escalating food price are gone. Settlers now arrive free, every 45
+seconds (`CONFIG.settlerIntervalSeconds` — deliberately a single dial), whenever housing has room;
+progress **freezes** rather than resets while housing is full, so a partially-waited arrival lands
+soon after a new hut. Housing is now the sole lever on population and food's pressure lives entirely
+in upkeep. The Your People line became a countdown — strictly more informative than the old price
+tag. Verified live: 50 seconds at pop 3→4 cost 6.2 food (pure upkeep; the old model would have
+charged a lump sum on top, up to ~500+ at high pop). The whole invisible-food-sink bug class dies
+with the purchase model, and the harness asserts the excision is total: no wanderer event, no
+`growthCost`, and a cap raise can never again trigger a hidden spend. Hardening the new cadence
+tests also surfaced two *pre-existing* flaky tests (a rare raid could starve the capstone test's
+settlement mid-build; a rare sickness could shift the soldier-training counts) — both now run under
+forced-miss RNG, and the suite passes 20/20 runs. 229 checks.
+
+---
+
+## Design consensus — free growth + the Era Manifest Architecture *(documentation only — no code changed)*
+
+Two connected decisions, both born from the invisible-food-sink investigation. First: settlers become
+free and timed — the food cost is abolished, growth leaves the events system entirely, and housing
+becomes the sole lever on population. Second, and much larger: with the Iron Age intending to
+*remove* the whole bronze economy, the era-tags-on-global-content approach was headed for a
+palimpsest, so the architecture inverts — each era declares a complete **manifest** of everything
+that exists while it's active, authored as a delta against the previous era, with absence-as-removal,
+snapshot-based migration instructions (the `rescale` primitive covers everything from melting bronze
+into iron salvage to eventually re-denominating billions of citizens into colonies), a boot-time
+validator that turns this project's signature silent-wrongness bug class into loud named errors, and
+an era modal whose factual lists derive from the manifest diff so they can never lie. Full contracts
+in `tech.md`; rationale in `design.md`. Sequenced as parity-refactor → transition machinery → Iron
+Age, so engine risk and content risk never travel together.
+
+---
+
+## Post-Bronze playtest fixes
+
+**Bug fix: `idle` could go negative.** Reported from a full Bronze-age playthrough — the idle count
+displayed **-1**, and clicking a job's minus button then "absorbed" the deficit, which looked like a
+worker being deleted. Root cause: a civilian can be committed in two ways, assigned to a job *or*
+reserved by a queued unit order, and the death handler only balanced against jobs. A death while a
+Soldier sat in the queue therefore left the books short by exactly the reserved worker. Replaced
+with `reconcileWorkforce()`, which balances against jobs *and* reservations, releasing workers first
+and then — if more orders are queued than there are survivors to fill them — abandoning the newest
+orders with a full refund. Writing the repro also surfaced a second, unreported bug:
+`removeSettler()` could push population below the number of trained units, making `civilians()`
+negative; it now no-ops when there are no civilians left to take. Both are covered by a
+400-settlement fuzz test asserting neither value can go negative.
+
+**Bug fix: the invisible food sink.** Reported as "building a Granary zeroed my food — 550 down to
+30, nothing in the Chronicle to explain it." No food was lost to the building. A settler cost food
+(escalating 30% per person; at pop 19 that's 532), growth was automatic the instant you could afford
+it, and the Chronicle line said only "A wanderer joins your settlement" — never the price. The
+Granary *did* cause it, indirectly: food had been parked at a cap below the settler price with
+nowhere to go, and raising the cap let food climb past the price, firing the purchase instantly. The
+event line now states the cost. Also gave the events engine a small generic capability: an `effect`
+may return its own log line, for events whose message needs a number only the effect knows. The
+deeper finding — that because growth auto-spends, **your practical food ceiling is the settler price,
+not your storage cap** — is what led directly to v11 abolishing the purchase model entirely.
+
+**Playtest milestone:** reached the Bronze Age in ~35 minutes of real play, on the *old* (harsher,
+pre-fix) settler cost curve. A later full playthrough built every unit and building in the age.
+Transition verified end to end in a real session: housing jumped to 23, buildings reflavored
+correctly, Bronze Tools unlocked and purchased.
+
+---
+
+## v10 — Bronze Age, Phase 3: the army
+
+Completes the age. **Archery Range → Archer** and **Stables → Horseman** (both buildings capped at
+1, both units costing bronze — Soldiers stay the cheap generalist and the only unit needing no
+bronze, so they're still buildable when the Forge is starved). Raids now roll a **type** alongside
+their size — warband, massed charge, band of riders — and `militaryStrength(raid)` sums each unit
+type's contribution with a counter bonus applied only to the unit that excels. The load-bearing rule
+holds: the non-matching multiplier is **1, never below**, so being the wrong unit costs you the
+bonus and never your base strength. Measured: 5 Archers are worth 10 against a massed charge and 5
+against everything else; a specialist army swings 2.00× between matchups where a mixed one swings
+1.43×. Composition mismatch feeds a *second* dial rather than the win chance — `counterCoverage()`
+softens the costly-repel roll, so the right units both win more fights and bury fewer of your own.
+**Scouting** rides on the Stables (gated on the upgrade, not the building) and unlocks two new
+events, one of which is deliberately pure flavor since the value of a warning is the knowing.
+`removeSoldier()` became `removeRandomUnit()`, drawing casualties weighted by what's actually
+fielded; `stealResources()` now raids the ores and bronze too.
+
+One genuine bug caught by the harness, and it was the invisible kind: the counter relationship was
+stored in **two** places pointing at each other — the raid held a unit id, the unit held a raid id —
+and the comparison used the wrong pair, so it was always false and **every counter bonus in the game
+silently did nothing**. No error, no crash, the feature just wasn't there. Fixed by deleting the
+redundant field so only one direction exists, with a test asserting the duplicate can't come back.
+
+**Casualty exposure by role** (post-phase tweak). Playtest note: archers didn't *feel* like archers
+— mechanically they were a differently-priced soldier, since casualties were drawn evenly by
+headcount. Losses are now weighted by role exposure (Soldier 1.0, Horseman 0.6, Archer 0.35), so the
+front line takes the brunt and archers fight from behind it. Every weight is above zero on purpose:
+this bends the odds and never grants immunity, so an archer can always be the one who falls and an
+all-archer army — having no front line to hide behind — gets no protection at all. Measured over
+30,000 draws from an even 10/10/10 army: soldier 50.9%, horseman 31.1%, archer 17.9%. A pleasant
+side effect: mixing your army now buys your specialists safety, a second reason to diversify beyond
+matchup coverage.
+
+---
+
+## v9 — Bronze Age, Phase 2: the alloy
+
+The conversion chain lands, and with it the first building archetype that *transforms* rather than
+produces or boosts. Adding three resources forced a refactor first: `rates()`, `mults()`, `caps()`,
+the clamp loop, `jobsUsed()`, `removeSettler()` and the ledger markup each hardcoded exactly three
+resources by name. All now iterate a `RESOURCES` table (with `baseCap`, `capBuilding`, `reveal`) and
+a `JOBS` table (gaining `rateMult` and `reveal`); ledger rows are generated rather than written into
+HTML, so future resources need no markup change.
+
+New content: **copper** and **tin** (tin yields half — the scarce half of the alloy, as it was
+historically), **bronze**, two new mining jobs, the **Forge** (4 copper + 1 tin → 1 bronze,
+continuously, no workers), the **Ore Yard** (one building lifting both ore caps), **Bronze
+Weapons**, and Bronze Tools re-costed in actual bronze — closing the Phase 1 carry-over that left it
+thematically odd. Weapon tiers replace rather than stack: highest owned wins.
+
+The Forge clamps throughput three ways — by forge count, by inputs in store, and **by headroom under
+the output cap**, so a full bronze store stops it rather than silently eating ore. The numbers were
+picked so a clean equilibrium exists to be found: 2 copper miners : 1 tin miner produces ore at
+exactly the recipe's 4:1 ratio, and 2 Forges consume exactly that. Verified live.
+
+Caught in passing: `removeSettler()` unassigned workers from a hardcoded three-job list, so with
+five jobs a dead copper miner could have left `jobsUsed() > civilians()` and driven `idle()`
+negative. Now derived from `JOBS`, reversed so specialised jobs empty first and foraging is released
+last.
+
+---
+
+## v8 — Bronze Age, Phase 1: the transition
+
+The first age advance, and the plumbing every future one rides on. Advancing is a hidden **Bronze
+Age** capstone Upgrade (reveals at pop ≥ 10 with ≥1 Soldier trained; 300 food/wood/stone; 120s
+build) that sits in the ordinary build queue — so Sickness and Conflict keep rolling the whole time
+it's under construction, which is exactly where "and some luck" was supposed to come from.
+Completing it calls `advanceEra()`, the only place `S.era` is ever assigned; everything the
+transition changes is derived from `S.era` at render time, so flipping it *is* the whole operation.
+
+Added a **per-era display layer**: optional `names`/`descs` maps on any def, read through
+`displayName()`/`displayDesc()`, with ids permanently fixed so saves never need migrating for a
+rename. On advancing: the Settlement panel becomes **Village**, Hut becomes **Stone House** worth 5
+housing instead of 3 *retroactively* (every hut you already own upgrades at once — in testing,
+housing jumped 12 → 18 and six wanderers immediately arrived to fill it, exactly the cascade the
+design wanted), Medicine Tent becomes **Infirmary**, and **Bronze Tools** (+15%, stacking with Stone
+Tools) unlocks. Infirmary was also retroactively renamed to **Medicine Tent** in the Stone Age to
+free the fancier word for Bronze.
+
+Two real bugs caught, one of which the harness structurally could not have found. First: every
+existing event was tagged `eras: ["stone"]`, so the instant the era flipped, **births, sickness,
+raids and both windfalls would have silently stopped forever** — no error, just a quietly dead
+economy. All five are now `["stone", "bronze"]`, and the harness asserts each explicitly so a future
+age can't regress it by omission. Second, found only in live play: `renderTile()` baked a tile's
+name in at creation and thereafter only updated its count, so after advancing, the Village tile
+still read "Medicine Tent" while its buy-card correctly read "Infirmary" — fixed to rewrite the name
+every render, with a targeted regression test. Also swept two bits of prose that hardcoded
+"infirmary" (one became a `descs` override, one was reworded era-neutral).
+
+**Pause + playtime clock.** A `[ Pause ]` button (spacebar also works) freezes the simulation so the
+game state can be studied without moving, with a red `— PAUSED —` marker in the topbar. Alongside
+it, a playtime clock counting how long the settlement has actually been running. The clock lives
+inside `step()` rather than the tick loop, which means it freezes when paused, counts offline
+catch-up, and stops at death — all for free, no special cases. The non-obvious trap, caught by
+design rather than by accident: the tick loop has to keep advancing its `last` timestamp *while
+paused*, otherwise `dt` accumulates across the whole pause and gets handed back (clamped to 2s) the
+moment you resume, quietly gifting production for frozen time. Verified live — a 9-second pause
+produces zero `step()` calls and resumes on a normal 0.202s tick. Pause is deliberately not saved
+(UI state, not game state) and deliberately not logged to the Chronicle (that's the settlement's
+memory, not a UI action log).
+
+**Modal system + game-over and Info panels.** A deliberately minimal overlay: one modal at a time,
+centered, 30% dim backdrop, dismissed by the header ×, a backdrop click, or Escape. No dragging,
+resizing, or minimizing. It reuses the `.block` shell so it matches the board for free, and opening
+one never pauses the game. **Game over** moved out of the Chronicle into a proper modal — narrative
+line, run stats (time survived, age reached, buildings raised, settlers grown), and a **Try Again**
+button; one terse line still lands in the Chronicle so the settlement's record ends with its own
+ending. **The Info panel** (`[ Info ]` in the topbar) is a full reference of every building, unit,
+and upgrade, grouped by era behind tabs — it intentionally shows everything regardless of what's
+been revealed, a deliberate exception to "unravel, don't dump" since a reference that hides things
+is useless.
+
+Building it surfaced a modeling error worth recording: filtering the reference by "defs whose era
+equals this tab" left the Bronze tab nearly empty, because most things *persist* once introduced (a
+Hut is still there in Bronze, just displayed as "Stone House"). Replaced with `availableInEra(def,
+era)` — availability runs from a def's introduction era forward, with an optional `untilEra` to
+retire things (used now by age capstones, and the hook a future consolidating age will need). Also
+caught in live play: `body.dead .block { opacity: .7 }` was dimming the game-over modal itself,
+since the modal panel is also a `.block` — now scoped to the board only.
+
+**Settler cost un-ratcheted.** Playtest finding: `growthCost()` was priced off `S.bought`, a
+lifetime counter of every settler ever grown that never decreased — so after a raid or plague you
+kept paying the price for people who were already dead. A single bad roll became a permanent
+handicap, and recovery was strictly harder than the original climb had been. Repriced off *current*
+population, which made the settlement self-stabilising. `S.bought` survives purely as a lifetime
+stat on the game-over screen. *(The whole purchase model was abolished in v11; this entry is kept
+because the diagnosis — a lifetime counter used as a live price — is the kind of mistake worth
+recognising again.)*
+
+**Era advancement moved into the modal.** Reaching a new age now opens an announcement panel —
+flavor lead, a "What changed" list quoting real before/after numbers (housing 15 → 23), and a "Now
+available" list derived from the defs themselves so it can't go stale. No buttons; dismissed like
+any other modal. A single milestone line still goes to the Chronicle. This is where the "every age
+must land as a visible *whoa* moment" rule from `design.md` actually gets staged — previously the
+transition was three Chronicle lines that scrolled past.
+
+**Reset uses the modal instead of `confirm()`.** Native dialogs are suppressed outright in some
+environments (they were being silently swallowed in the dev browser pane), and a real panel gives
+consistent styling and control. Cancel / Escape / backdrop are all equivalent and verified
+non-destructive; the destructive button renders in warning red via a new `danger` flag on modal
+actions, and the copy quotes the run's playtime so the consequence is concrete. Also DRY'd out
+`hardReset()`, which was duplicated inline between the Reset button and game-over's Try Again — the
+subtle part it centralises is unregistering `beforeunload` *before* clearing, since the reload it
+triggers would otherwise fire `save()` and instantly rewrite the save being deleted.
+
+---
+
+## v7 — Stone Age content pack
+
+A design brainstorm ("what else belongs in Stone Age before we touch eras") turned into five small,
+well-scoped additions, each reusing existing systems rather than adding new ones: **Herbal Medicine**
+(Upgrade) raises how much *each* Infirmary reduces Sickness's odds — the first time a counter's own
+strength (not just its owned count) became upgradeable, which needed `negateChance()`'s
+`reducePerUnit` to accept a function as well as a flat number. Deliberately shipped with Infirmary's
+*base* effectiveness lowered (0.35 → 0.2) so the Upgrade is a real improvement rather than padding,
+per the standing "tune hard, walk back" principle. **Stone Yard** closes a real asymmetry — Food and
+Wood both rotted past their cap, Stone never had one — Stone is now capped and clamped exactly like
+the other two (flavored as "unorganized, lost" rather than "rots," since stone doesn't decay;
+gameplay symmetry won out over strict realism, a deliberate call). **Stone Tools** (Upgrade) is the
+first of a pattern meant to repeat every era: one broad, cheap, early, flat-percent bump to *all*
+gathering, revealed almost immediately (`wood >= 5`) so it competes directly with your very first
+Hut for early wood — intentional tension. **Great Hunt** and **Trader** are the first positive-only
+probabilistic events (small/frequent food windfall, larger/rarer wood+stone windfall) — until now
+every `chancePerSecond` event was a hazard; these prove the shape was never hazard-specific, it just
+hadn't been used for good news yet. Neither is gated behind a population threshold, unlike the
+hazards — no fairness reason to delay good news. Verified via harness (including a flaky-test fix: a
+windfall landing on the very last tick of a 600-second test loop can be observed a tick before its
+cap-clamp runs, exactly as it would in real play for one frame — not a game bug, just meant the test
+needed one extra flush tick before asserting) plus live browser testing of the full chain, including
+watching Trader fire organically mid-session.
+
+---
+
+## v6 — Military system + 4-column layout
+
+The big one: a full design pass (recorded in `design.md`/`tech.md`) resolving both remaining open
+questions about hazards and implemented end to end. **Barracks** (a new *capped* building — the
+first of a third category alongside scaling buildings and one-time upgrades: `cap: 1`, greys out to
+"Maxed" once built, same visual slot as an owned Upgrade). **Soldier** (a new *unit* kind —
+trainable through the same shared build queue, but `popCost: 1` permanently reserves an idle
+civilian the instant the order is queued, not when it completes, and conversion is one-way;
+ownership lives in `S.units`, deliberately separate from `S.builds`, so it renders in Your People
+instead of Settlement). **Flint-Tipped Spears** and **Hide Armor** (one-time Upgrades — weapon tier
+raises repel odds, armor tier softens casualties — deliberately Stone-Age-named rather than "Sword,"
+since the Bronze Age itself was still a parked design question). **Conflict**, the second hazard on
+the Events engine: raid size rolls independently (small and common vs. large and rare), a
+ratio-based repel check (`defense / (defense + raidSize)`, so never 0% or 100% no matter how
+invested), and tiered consequences (clean repel / costly repel / raid succeeds with Soldier losses,
+resource theft, and — if defense was thin — a civilian death too). Needed a new `resolve(S, dt)`
+escape-hatch archetype on `EVENTS` since Conflict's multi-stage resolution didn't fit the generic
+`chancePerSecond`+`counter` shape Sickness uses — a generic engine addition, not a special case.
+Unlike Sickness (floored at 1 survivor), **Conflict is allowed to zero out population outright** — a
+deliberate second failure state, on purpose, per design discussion.
+
+Also shipped: **Your People now shows person-type tiles** (Settler, Soldier — icon+count, reusing
+the Settlement holdings visual style but living in a different panel/state bucket, since "who your
+people are" and "what you've built" are different questions) instead of a bare "settlers" number.
+And the **whole layout was rebuilt as a real 2-row × 4-column CSS Grid** — Your
+People/Settlement/Build Queue/Chronicle over Training/Construction/Upgrades/(Chronicle spans both
+rows) — replacing the earlier nested-flex-column approach, which couldn't cleanly express "two
+independent stacked panels per column, four equal columns." Roster panels (Your People, Settlement)
+dynamically expand to fill their whole column while their paired action-panel has nothing revealed
+yet, rather than leaving an unexplained blank grid cell — genuinely useful for a while in practice,
+since Barracks is a mid-game unlock and Training stays empty until then.
+
+Verified via an extensively rewritten headless harness (cap enforcement, popCost reservation math
+including cancel-refunds freeing it, `removeSoldier` vs. `removeSettler` distinction, weapon/armor
+math, every Conflict outcome branch, the Sickness-floors/Conflict-doesn't asymmetry) plus live
+browser testing of the full progression (Hut → Barracks → Soldier → a forced raid, both a
+thin-defense wipe-out-adjacent loss and a full population wipe-out) — including catching that a
+hand-traced RNG sequence for one test was wrong because Sickness's own trigger roll, sitting earlier
+in `EVENTS`, was silently consuming `Math.random()` calls before Conflict's turn; fixed by testing
+Conflict's `resolve()` directly rather than through the full `resolveEvents()` iteration.
+
+**Conflict retuned from real playtest data.** A long, attentive online session saw zero organic
+raids — confirmed via forced-trigger testing that the code path itself worked correctly, ruling out
+a bug, then ruled out the leading offline-invisibility theory once the player confirmed the session
+was online-only. Concluded the rate itself was too rare for the intended "persistent, checkable
+threat" feel. `conflictBaseChance` tripled (0.0006 → 0.0018), bringing the expected wait at a
+mid-game population from ~19 min down to ~6–7 min, similar cadence to Sickness rather than
+meaningfully rarer than it.
+
+---
+
+## v5 — Build Queue as its own panel + one-time Upgrades + cancel/refund
+
+Pulled the build queue back out of the merged Construction panel into its own always-present box
+(Settlement / Build Queue / Upgrades now split column 2 evenly) — it shows an explicit "Nothing
+queued." empty state rather than disappearing, per design intent. Added a second buy-list,
+`UPGRADES`: one-time purchases with a flat cost that never scale and can't be re-bought once owned
+or already queued, distinct from `BUILDINGS`' repeatable/stacking model. Both feed the same FIFO
+queue and respect its ordering. Shipped **Fire Mastery** (permanent −15% food upkeep) as the first
+concrete upgrade — deliberately *not* Bronze Age, since eras were still an open design question.
+Added cancel-for-refund: every queue card gets a small × that removes it and refunds exactly what was
+paid, even mid-construction (the queue item now stores its own paid cost so a later-queued, more
+expensive copy of the same building refunds correctly). Found and fixed a real bug via live testing:
+`reveal()` was re-evaluated fresh every render with no memory, so a resource dipping back below its
+reveal threshold (trivially easy — e.g. spending wood on the very Hut that revealed the panel) could
+make the entire Construction/Settlement/Upgrades panel vanish mid-game. Fixed with `isRevealed()`,
+which makes reveals permanently sticky via the existing `S.seen` mechanism, consistent with how
+every other reveal in the game already behaves.
+
+---
+
+## Docs — the project gets a written record
+
+`design.md` (player-facing vision, philosophy, systems, open questions), `tech.md` (architecture,
+state shape, simulation model, known limitations), and `todo.md` created to give the project a real
+record — previously all context for "what exists and why" lived only in conversation history.
+
+---
+
+## v4 — Events engine
+
+Built the generic four-part event system (trigger / effect / negate / flavor) described in
+`design.md`. Refactored population growth ("a wanderer joins your settlement") out of a hardcoded
+loop into the first entry on this system. Shipped the first real hazard as a working proof of the
+pattern: **Sickness**, gated to only become possible past `pop >= 4` (with a foreshadowing Chronicle
+hint the moment that threshold crosses), mitigated by a new **Infirmary** building. Verified
+end-to-end: gating, kill effect, job-reassignment safety on death, negation odds capping at 100%
+with enough Infirmaries, and correct Chronicle coloring for both outcomes.
+
+---
+
+## v3 — Queue-based construction + fixed layout + restored color
+
+Removed the worker-assignment requirement for construction entirely (decided it was "too Age of
+Empires for an idle game") in favor of a FIFO build queue — pay on click, only the front item
+progresses, cost escalates against owned+queued count so stacking clicks doesn't undercut the curve.
+Doubled all build times to compensate for the new ability to effectively parallelize via queuing.
+Rebuilt the layout again: fixed to the viewport (no page scroll), each panel scrolls internally,
+specific panel placement (People top-left, Construction beneath it at 2/3 height, Settlement to the
+right at 1/3 height, deliberate blank space reserved below it, Chronicle as a fixed quarter-width
+column). Restored color semantics that an earlier monochrome pass had accidentally flattened: green
+for genuinely new/positive Chronicle information, red for danger, positive/negative resource rates
+colored to match. Found and fixed a real bug along the way: the Reset button's `beforeunload`
+handler was silently re-writing the save it had just cleared.
+
+---
+
+## v2 — Friction pass + light theme + full redesign
+
+Added food upkeep (every settler eats, whether working or idle) and a real failure state (starvation
+ends the game). Added storage caps on food/wood — surplus rots without a Granary/Woodshed. Added
+timed construction (originally worker-assigned, AoE-style; the worker requirement was removed again
+in v3). Full visual rewrite: dark theme → off-white "paper" theme, monochrome ink + one red accent,
+no shadows/gradients. Layout rebuilt from a centered card column into a flex-wrap "doodle board"
+that fills top-left outward. Added the Settlement/holdings panel (owned buildings as icon tiles, not
+just numbers in the buy menu) in response to feedback that ownership was too abstracted.
+
+---
+
+## v1 — Core loop
+
+Zero-build `index.html` you can double-click and play. Three settlers, three gather jobs
+(forage/chop/gather stone), a Hut as the first building (raises housing), an escalating per-building
+cost curve, auto-save + capped offline catch-up. Verified via a headless Node harness before any UI
+existed.

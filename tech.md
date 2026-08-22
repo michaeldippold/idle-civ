@@ -1,341 +1,415 @@
 # Idle Civ — Technical Design
 
-How the game is actually built. See `design.md` for why any of this exists; this doc is purely the how.
+How the game is actually built. **Docs map:** `design.md` is why any of this exists; this file is the how; `map.md` is the map arc; `interface.md` is the interface system; `todo.md` is the running phase log. When two files disagree about *what is built*, this one and `todo.md` win.
+
+## How to read this file
+
+**Every section carries a status line directly under its heading.** This is not decoration. As of 2026-08-22 the documents describe a game that does not fully exist: the time pivot (`design.md`, *Time, Presence & Pause*) retired offline progress and made the clock presence-bound, and none of that is in the code yet. A session that reads "the sim auto-pauses on a hidden tab", goes looking, finds `simulateOffline()`, and starts reconciling the two will do something bad. The status line tells you which world a paragraph is describing.
+
+- **Status: shipped.** — running in `game.js` today. Claims here are verified against the file.
+- **Status: pending — phase N.** — settled design, no code. Nothing in the section is true yet.
+- **Status: shipped; changes pending — phase N.** — the section describes live code that a named phase will alter or delete. Both halves are marked inline.
+
+**Historical notes** appear only where the reasoning behind a reversal is still load-bearing — a trap you would otherwise re-enter, or a rationale whose *shape* still teaches. This file used to be a running record of every decision ever taken; it isn't any more, and reintroducing that is a regression.
+
+## The phase plan
+
+**Status: authoritative order. Phase 0 (docs) is this pass.**
+
+| # | Phase | State | Where it's specced |
+|---|---|---|---|
+| 0 | Docs | in progress | — |
+| 1 | Module structure (file split) | pending | *Module Structure*, below |
+| 2 | Seeded RNG | pending | *Determinism & the Seeded RNG* |
+| 3 | Kill offline | pending | *Time, Presence & Pause (implementation)* |
+| 4 | Fixed ticks | pending | *Simulation Model* |
+| 5 | Player controls (pause/speed, modal pause flag) | pending | *Time, Presence & Pause (implementation)* |
+| 6 | Conquest Growth G1–G3 | pending | *Conquest Growth — implementation contract* |
+| 7 | Decision queue (interactive events) | pending | *The Decision Queue* |
+| 8 | Map | pending | `map.md` |
+| 9 | Interface re-architecture around the map | open | `design.md`, Open Questions |
+
+**The harness stays green at every boundary from 1 through 5.** That rail is the whole difference between a refactor and a rewrite: phase 1 is mechanical with zero behaviour change, phase 2 changes which numbers come out but not which code paths run, phase 3 deletes code, phase 4 changes the unit of time under an unchanged economy. Any phase that cannot leave the harness green needs its own decomposition before it starts.
 
 ## Stack
 
-Plain HTML/CSS/JS. No build step, no bundler, no dependencies, no framework. Three files:
+**Status: shipped; changes pending — phase 1.**
 
-- `index.html` — structure/markup only
+Plain HTML/CSS/JS. No build step, no bundler, no dependencies, no framework. Four files today:
+
+- `index.html` — structure/markup only (one `<script src="game.js">` at the end of `<body>`)
 - `styles.css` — all styling
-- `game.js` — all logic and rendering
+- `game.js` — all logic and rendering, 3,409 lines
+- `harness.js` — the headless Node test harness, 420 checks
 
-Open `index.html` directly in a browser; nothing needs to be served or compiled. (A local static server is used during development purely so the in-tool browser preview can execute JS — see the note on `file://` limitations below — but it is not required to play the game.)
+**The `file://` double-click promise is formally retired** (phase 1). It was already broken in practice — development runs `npx http-server` via `.claude/launch.json` on port 8123 because the in-tool browser pane cannot execute JS off `file://`, and the game ships to GitHub Pages, which is http by definition. The promise's only remaining effect was forcing everything into one 3,409-line file. No build step and no dependencies are the parts of "plain" that were ever actually load-bearing; both survive ES modules untouched.
 
-## Simulation Model: Continuous Delta-Time, Not Discrete Ticks
+### Why this stack, and why it is not negotiable
 
-The game loop is a `setInterval` at `CONFIG.tickMs` (200ms) that computes real elapsed time (`dt`, in fractional seconds) since the last frame and calls `step(dt)`. All production, upkeep, and event probabilities are expressed as **rates per second**, not per discrete tick — `S.res.food += rate * dt`, `chancePerSecond` converted to a per-`dt` roll via `1 - (1 - chancePerSecond) ** dt`.
+**Status: standing constraint.**
 
-This was a deliberate choice (discussed and confirmed against an alternative): a discrete fixed-tick model — like the one used in a sibling project, `dispatch`, where a `state.tick` integer counter drives everything and cooldowns/story-beats are expressed as tick counts — is a better fit for a scripted, time-of-day-driven simulation. Idle Civ's genre is the opposite: long unattended stretches and offline catch-up are core to how the game is played, which is exactly what continuous delta-time simulation is built for (it degrades gracefully to "however much time passed," rather than needing to replay potentially tens of thousands of discrete ticks). If a need for tick-counted bookkeeping (cooldowns, scripted beats at a specific moment) shows up later, the plan is to add a lightweight monotonic `S.tick` counter *alongside* the existing continuous economy, not replace it.
+Recorded here because it is a real architectural constraint that looks like a preference, and a session that mistakes it for one will helpfully suggest a game engine.
 
-## Modals
+This project is written almost entirely by LLM agents. The binding requirement is therefore not "what renders fastest" or "what is most expressive" — it is **which stack lets the agent verify its own work.** The DOM does: an agent can read the accessibility tree and assert on real text, real structure, real state. `harness.js` does: it boots the entire simulation headlessly with no browser and no framework, and 420 assertions run in under a second. A canvas does not — it is a bag of pixels, and an agent that renders into one has no way to check what it drew short of asking a human to look.
 
-One modal at a time, centered over a 30%-black fixed overlay. Deliberately minimal: **no dragging, resizing, or minimizing** — the panel sizes to its content up to a `max-height`, past which its `.block-body` scrolls internally like any other panel. It reuses the `.block` shell so it matches the board visually for free. Dismiss via the header ×, a click on the dim backdrop, or Escape; clicks *inside* the panel are checked against `e.target.id === "modalOverlay"` so they don't bubble up and close it.
+The instructive counter-example is **Forge of Empires**, the nearest commercial relative to this game. It runs on Haxe + OpenFL, automatically transpiled in 2018 from ~500,000 lines of AS3 across ~4,000 Flash classes, and it renders — interface included — into a WebGL canvas that hard-fails without hardware acceleration. That architecture is a *migration artifact*, not a greenfield choice: the only evidence it offers is that you can transpile a 2012 Flash game. Nothing about it is what a project starting today would pick, and for an agent-authored project it is close to a worst case — a custom compiler, a thinly-represented language, no DOM, and a UI with no inspectable surface. (The tell: the large community extension for that game reads the JSON on the wire rather than the page, because there is no page worth reading.)
 
-`openModal(title, bodyHTML, actions, onMount)` is the whole API. `actions` renders a button row along the bottom edge; `onMount` runs after `innerHTML` is set, which is how the Info panel attaches its tab listeners (they can't be bound before the markup exists). Opening a modal never pauses the game — the only apparent exception is game over, and that's incidental: death already stops the loop on its own.
+The consequences that follow, and that should survive any future redesign:
 
-**Gotcha, found in live play:** a `body.dead .block` rule was intended to dim the board on death, but the modal panel is also a `.block`, so the game-over modal — which by definition only ever appears while dead — got dimmed too. The rule is now scoped to `body.dead #mainArea .block`. Anything else styling `.block` broadly needs the same consideration. (The rule itself changed under Bureau — death now drains the board's saturation rather than fading it, since opacity is retired as a state channel — but the scoping trap is identical and still live.)
+- **The interactive layer stays DOM and SVG.** This is why `map.md` specifies SVG geometry with a DOM overlay and explicitly rules canvas out — the map peaks in the low hundreds of elements, so performance was never the argument; inspectability was.
+- **A canvas layer is permitted only for non-interactive paint** (texture, terrain wash) beneath an SVG interaction layer that carries the geometry and the hit targets.
+- **Nothing goes behind a compile step that an agent cannot read through.** No build step is a convenience; a *legible* build output is the actual requirement, and ES modules satisfy it because the served file is the authored file.
+- Godot and equivalent engines are ruled out for the same reason plus two more: GDScript is thinly represented in training data, and scene files are GUI-mediated rather than comfortably agent-authorable.
 
-Under Bureau the modal is also the **ceremony register**, and it looks the part: legal-pad stock, a hard 6px offset shadow (the only shadow in the game), and a Newsreader lead in a box. The game interrupts the player exactly never, so the few moments staged here land with disproportionate weight — new features should earn a modal rather than default to one.
+## Module Structure
 
-**Era advancement** announces itself in a modal too (no action buttons — dismiss normally). `ERA_TRANSITIONS[era]` hand-authors only the flavor lead; every list beneath it — "What changed" (renames, the pop-noun line, housing, panel titles, new resources/jobs), "Now available", and "No longer needed" — is **derived from `manifestDiff()`** between the outgoing and incoming manifests, so none of it can go stale as content moves. The `before` snapshot is captured pre-flip, which is how the housing line quotes real before/after numbers. A single milestone line still goes to the Chronicle. `advanceEra()` stays silent under `SIM`, so an era crossed during offline catch-up is reported by `simulateOffline()`'s summary rather than firing a modal the instant the page loads.
+**Status: pending — phase 1.**
 
-**Reset** confirms through the same modal rather than a native `confirm()` — consistent styling, and native dialogs are outright suppressed in some environments (they were being swallowed in the dev browser pane, which is how this surfaced). Its destructive button carries a `danger: true` flag that renders it in the warning red, and the copy quotes the run's playtime so the consequence is concrete. Cancel, Escape, and a backdrop click are all equivalent and all provably non-destructive. Both this and the game-over "Try Again" call a shared `hardReset()`, which was previously duplicated inline in two places — it must unregister the `beforeunload` handler *before* clearing, or the reload it triggers fires `save()` and immediately rewrites the save being deleted.
+`game.js` has clean seams already — the section-comment banners in the file are close to the module boundaries, which is what makes this mechanical. Verified line ranges as of today:
 
-**Game over** moved out of the Chronicle and into a modal: a cause-specific narrative line, run stats (time survived, age reached, buildings raised, settlers grown — the playtime clock is what made this worth showing), and a **Try Again** button that clears the save and reloads. A single terse line still goes to the Chronicle so the settlement's own record ends with its ending.
+| Range | Contents | Lines |
+|---|---|---|
+| 10–49 | `CONFIG` | 40 |
+| 73–226 | `EVENT_LIB` | 154 |
+| 227–264 | `HINT_LIB` | 38 |
+| 265–429 | `STONE` (base manifest) | 165 |
+| 430–555 | `BRONZE_DELTA` | 126 |
+| 556–728 | `IRON_DELTA` | 173 |
+| 729–837 | manifest compiler (`compileBase`, `extendEra`) | 109 |
+| 838–944 | validator (`validateManifests`, `manifestDiff`) | 107 |
+| 945–995 | icon maps | 51 |
+| 996–1047 | state (`S`, `freshState`, module-level flags) | 52 |
+| 1048–1225 | derived values (`rates`/`mults`/`caps`/`civilians`/…) | 178 |
+| 1226–1484 | events & combat helpers | 259 |
+| 1485–1732 | adversaries & expeditions | 248 |
+| 1733–1812 | core sim (`step`, `die`) | 80 |
+| 1813–1918 | actions (`assign`, `build`, `completeConstruction`) | 106 |
+| 1919–2022 | era transition (`advanceEra`, migrations, `purgeDom`) | 104 |
+| 2023–2062 | reveals & logging | 40 |
+| 2063–2729 | rendering | 667 |
+| 2739–2976 | expedition UI (muster/escort modals, `renderExpeditions`) | 238 |
+| 2977–3255 | modals (shell, Info, era, reset, game over) | 279 |
+| 3256–3409 | save / load / offline / boot | 154 |
 
-**The Info panel** is a reference of every building, unit, and upgrade, grouped by era behind tabs. It deliberately shows *all* content regardless of what the player has revealed — it's a reference, and hiding things would defeat its purpose. That was a real tension with the old "unravel, don't dump" principle and a deliberate exception to it; since the 2026-08-20 revision (*Unravel the contents, not the board*) the tension is milder but still real, because card-level reveals do still gate the board.
+Target 100–300 lines per file. Most seams map one-to-one; **the rendering layer is the one that needs real subdivision** — 667 lines is three or four files (resource ledger + people, holdings + queue, the three buy-card renderers plus the shared card skeleton, tooltips + spans). Proposed tree:
 
-Historical note, kept because the lesson generalizes: the Info panel originally forced `displayName(def, era)` and `availableInEra(def, era)` helpers into existence, and the first implementation of the latter (filtering on "what *debuted* in this era") was wrong — a reference should answer "what *exists* in this era." Under the manifest architecture (shipped — Phase A), all of that dissolved exactly as planned: each tab now reads its era's **compiled manifest** directly (`MANIFESTS[era].buildings/units/upgrades/adversaries`), so defs carry their era-correct names inherently and "what exists in era E" is a direct lookup, not a predicate.
+```
+index.html
+main.js                  boot, wiring, the loop
+core/config.js           CONFIG
+core/state.js            S, freshState, module-level UI flags
+core/rng.js              phase 2 (see Determinism)
+core/derived.js          rates, mults, caps, housing, civilians/reserved/idle
+core/step.js             step(), die()
+core/actions.js          assign, build, cancelBuild, completeConstruction
+core/persist.js          save, load, migrations-on-load
+content/config-lib.js    EVENT_LIB, HINT_LIB
+content/stone.js         STONE
+content/bronze.js        BRONZE_DELTA
+content/iron.js          IRON_DELTA
+content/compile.js       compileBase, extendEra, MANIFESTS, DEF_INDEX, active()
+content/validate.js      validateManifests, manifestDiff
+sim/events.js            resolveEvents, negation, Conflict's resolve()
+sim/combat.js            strength, counters, casualty draw, removeSettler/removeRandomUnit
+sim/converters.js        runConverters, converterFlows, ledgerRates
+sim/expeditions.js       launch/resolve campaign + caravan, standing, walls
+sim/era.js               advanceEra, runEraMigrations, applyConsolidation, purgeDom
+ui/icons.js              BUILDING_ICONS, PERSON_ICONS, QUEUE_ICONS
+ui/dom.js                renderTile, cardSkeleton, setText/setCostParts, tooltips
+ui/panels-*.js           the split rendering layer
+ui/modal.js              openModal/closeModal + Info/era/reset/game-over
+ui/expeditions.js        muster + escort modals, renderExpeditions
+ui/log.js                log(), checkReveals()
+```
 
-## Pause & the Playtime Clock
+**All DOM access in `game.js` sits inside functions, never at module top level.** That is what makes the split clean — no import-order-dependent side effects, no "this module must load after the document is ready." The one top-level side effect is `validateManifests(MANIFESTS)` at line 918, which is deliberate and should stay: a broken manifest must throw before a frame renders.
 
-**Pause** is a module-level `let paused`, deliberately *not* part of `S`. It's UI state, not game state — keeping it out of the save means no schema change and no loading into a frozen game wondering why nothing is happening. The tick loop skips `step()` while paused but still runs its `last = now` bookkeeping. That last detail is the whole trick: if `last` froze along with the simulation, `dt` would accumulate across the entire pause and then be handed back (clamped to 2s) the instant you resumed, silently gifting production for time that was supposed to be frozen. Verified in a live browser test — a 9-second pause produces zero `step()` calls and resumes on a normal 0.202s tick.
+**Circular imports are the real risk**, not line counts. `derived.js` needs `active()`; `events.js` needs `derived`; `combat.js` needs both; `era.js` needs nearly everything. Keep the dependency graph pointing one way — content → core → sim → ui — and put anything genuinely shared (the `S` reference, `active()`) at the bottom of the stack where everyone may import it and it imports nothing.
 
-Interactions stay enabled while paused (reassigning jobs, queuing builds). There's no exploit available — nothing progresses and nothing accrues — and being able to plan while frozen is most of the point. Autosave also deliberately keeps running: it refreshes `lastSeed`, so time spent paused is never later mistaken for offline time. Pausing is intentionally *not* logged to the Chronicle; that log is the settlement's memory, not a record of the player's UI actions, and the paused state is already unmissable on screen.
+**The harness bootstrap is a real rewrite, and it should be honest about that.** `harness.js` currently reads `game.js` as text, appends an `exportHook` string that captures ~60 internals into `globalThis.__api`, and runs the whole thing through `vm.createContext` against a stubbed `document`/`localStorage`/`window`. Under modules that entire mechanism can be replaced by ordinary `import`s — cleaner, no string concatenation, no sandbox — but the stubs still have to exist somewhere (the UI modules touch `document` the moment they're called), and the `__api` surface becomes a set of real exports. **The ~420 assertions themselves are unaffected**; only the first 60 lines of the file change. Do the bootstrap rewrite as the *last* commit of phase 1, after the split is proven green through the old `vm` path, so a harness failure can only mean one thing.
 
-**Speed** is a second module-level `let` beside `paused`, and out of `S` for the same reasons plus one more: coming back from a reload into a game silently running at 12× would be a genuinely nasty surprise. The header button cycles `CONFIG.speeds` (1/2/4/8/12) and wraps. The implementation is deliberately *not* `step(dt * speed)` — the loop runs `speed` ordinary `step(dt)` calls per tick, which is exactly how `simulateOffline()` already compresses time. Nothing in the simulation needs to know it's happening: rates, `chancePerSecond` rolls, build ticks, upkeep and growth all behave identically to real time, there is just more of it per second. The `dt > 2` clamp is applied *before* the multiplier, deliberately — clamping is about the browser having been descheduled, speed is about how fast you want to watch, and scaling the clamp would let a backgrounded tab bank real time and hand it back multiplied. Pause is conceptually just speed 0 but stays its own control, since it's the one you reach for without looking. **Status (user decision, 2026-08-20): the speed changer is a dev/testing tool only.** It ships in the header for now because the sole player is the developer, but it will be locked behind dev tooling before any public release — it is not, and will never be, a player-facing feature. (Same policy applies to anything else later marked dev-only.)
+## Simulation Model
 
-**The playtime clock** (`S.playtime`, seconds) is incremented inside `step()` rather than in the tick loop, so it measures exactly one thing: how far the world actually moved. That placement gets three behaviors for free — it freezes when paused (no `step()` calls), it counts the hours that offline catch-up simulates (which repeatedly calls `step()`), and it stops at death (`step()`'s early return). `die()` ends with a final `renderAll()` so the run's total time stays on screen after the loop stops.
+**Status: shipped is continuous delta-time; fixed ticks pending — phase 4.**
+
+### What runs today (delta-time)
+
+A `setInterval` at `CONFIG.tickMs` (200ms) computes real elapsed seconds since the last frame (`dt`) and calls `step(dt)`. All production, upkeep, and event probability is authored as **rates per second**: `S.res.food += rate * dt`, and `chancePerSecond` becomes a per-`dt` roll via `1 - (1 - chancePerSecond) ** dt`. `dt` is clamped at 2s before use. Speed multiplies by running `speed` ordinary `step(dt)` calls per tick rather than one oversized one.
+
+### What replaces it (fixed ticks — phase 4)
+
+**`S.tick` becomes the master clock.** An integer, incremented once per simulation step, part of the save. `S.playtime` stops being accumulated separately and *derives* from it (`S.tick * secondsPerTick`) — one clock, not two that can disagree.
+
+- **Authoring stays per-second.** `CONFIG` and the manifests keep reading `0.20/s`, `45 seconds`, `chancePerSecond: 0.0018`, because those are the numbers a designer reasons about. **The manifest compiler converts them to per-tick at compile time**, alongside everything else it already normalizes. Nothing in the content files changes; `compileBase`/`extendEra` grow one pass.
+- **Speed is N ticks per frame.** The loop already does exactly this (`for (let i = 0; i < speed; i++) step(dt)`), so phase 4 mostly deletes the `dt` plumbing rather than restructuring the loop.
+- **Pause is zero ticks per frame.** Not a skipped `step()` guarded by a flag — literally a loop that runs zero times. The pause bookkeeping that currently keeps `last = now` advancing so `dt` doesn't bank up disappears entirely, because there is no `dt` to bank.
+- **The frame rate stops being observable.** Today a browser that fires the interval late produces a bigger `dt` and slightly different rounding; after phase 4 a slow frame produces exactly the same number of ticks, just later on the wall clock.
+
+**The payoff is determinism**, and it is why this phase exists at all: *same seed + same tick count + same player actions = bit-identical state*. That property is worth more than anything delta-time bought, and it is unreachable with a variable `dt` no matter how good the RNG is — a seeded `rng()` under floating-point `dt` gives you the same *rolls* against different *thresholds*. Ticks and the seed are one feature delivered in two phases; neither is finished without the other. See *Testing Approach* for what this turns the harness into.
+
+**Historical note, kept because the reasoning was correct and is instructive about how requirements move.** Delta-time was chosen deliberately, over an explicit alternative (the discrete `state.tick` model used in the sibling project `dispatch`), on the grounds that Idle Civ's genre was long unattended stretches and offline catch-up — and continuous simulation degrades gracefully to "however much time passed" instead of replaying tens of thousands of discrete ticks. That argument was sound. It is also entirely contingent on offline catch-up existing. Once the pivot deleted offline progress (`design.md`, *Time, Presence & Pause*), the sole justification evaporated and the cost — non-determinism — became the only remaining term. Nothing about the original analysis was wrong; the requirement it served was.
+
+## Determinism & the Seeded RNG
+
+**Status: pending — phase 2.**
+
+**One `rng()`, module-level, seeded, state in the save. `Math.random()` becomes forbidden.**
+
+The PRNG should be small, fast, seedable from a single 32-bit integer, and well-distributed — **mulberry32** is the reference choice (a dozen lines, no dependencies, passes the tests that matter at this scale). Any equivalent is fine; what matters is that its entire state is one integer that serializes into the save and restores exactly.
+
+```js
+// core/rng.js
+let rngState = 0;
+export function seed(n) { rngState = n >>> 0; }
+export function rng() { /* mulberry32 step over rngState */ }
+export function rngState_() { return rngState; }   // for save()
+```
+
+`S.seed` (the run's founding seed, never changes) and `S.rngState` (the current position, saved every autosave) both live in state. A fresh run seeds from `Date.now()`; the harness seeds explicitly.
+
+**All 16 `Math.random()` call sites in `game.js` route through it.** They are, by area: Conflict's `resolve()` (trigger roll, repel check, costly-repel check — 3), `rollRaidSize`/`rollRaidType` weighted picks (2), `pick()` for flavor lines (1), `removeRandomUnit`'s exposure-weighted draw (1), `resolveEvents`'s probability roll and negation roll (2), `removeDeployedUnit`'s draw (1), `resolveCampaign`'s wall-retreat loss, win check, and victory-casualty check (3), `resolveCaravan`'s ambush, fight-through, and escort-casualty checks (3). After phase 2 a lint-grade grep for `Math.random` in the repo must return zero hits; that grep is the enforcement mechanism, and it is worth putting in the harness.
+
+**Three jobs, all of which need the same one number:**
+
+1. **Deterministic test replay.** A rare-event balance question ("how often does a well-defended settlement actually lose a fighter?") is currently answerable only by Monte Carlo over unseeded noise. With a seed it becomes a fixture: the same run every time, and a *diff* when the balance changes.
+2. **Reproducible procedural maps** (`map.md`). A map generated from `S.seed` regenerates identically on every load, which means the map does not have to be serialized — only the seed and whatever the player has changed since. That is a large amount of save schema that never has to exist.
+3. **Reproducible adversary slates** (`map.md`). Which adversaries appear and where they sit is generated per run under role constraints; the same seed must produce the same world, or "load your save" stops meaning anything.
+
+**Ordering discipline is now a correctness property.** Once every roll comes off one stream, the *order* in which systems draw becomes part of the observable state. Adding a roll to an event that fires early therefore shifts every later roll in the run. This is fine and expected — it just means a balance change and a "the numbers moved" harness diff are the same event, and a replay fixture pinned to an exact sequence is a fixture that will need regenerating whenever content changes. Pin fixtures to *outcomes with tolerances* where you can, exact sequences only where the sequence is the thing under test.
+
+## Time, Presence & Pause (implementation)
+
+**Status: pending — phases 3 and 5.** Design canon in `design.md`, *Time, Presence & Pause*. Nothing below is in `game.js` today.
+
+### Phase 3 — kill offline
+
+**What gets deleted, by name:**
+
+- `simulateOffline()` (lines 3297–3335) and its call site in `boot()`.
+- `SIM`, `SIM_STOP`, `SIM_STOP_CAUSE` (lines 998–1000) and every branch that reads them.
+- `S.lastSeed` (state field, and the write in `save()`).
+- `CONFIG.offlineCapHours`.
+- The `if (dt > 2) dt = 2` clamp in the loop. Its comment says it outright — "large gaps are handled by the offline sim" — and with the tab pausing itself there are no large gaps to handle. (Phase 4 removes `dt` entirely; phase 3 removes the clamp's *reason*, which is why it goes here.)
+
+**Removing the `SIM` branches is a genuine simplification, not just a subtraction.** Roughly a dozen places in the file currently ask *am I fast-forwarding?* and behave differently on the answer: `advanceEra()` returns early and skips the modal (1939); `step()` converts both death paths into a silent halt (1759, 1788); `resolveEvents()` suppresses three separate log lines (1441, 1450, 1453); `accrueGrowth()` suppresses the arrival line (1174); `reconcileWorkforce()` suppresses the abandoned-order line (1384); Conflict's `resolve()` wraps its entire narration in a `say()` helper that no-ops under SIM (148); `checkReveals()` suppresses hint text (2031); `purgeDom()` carries a comment explaining why it must run under SIM anyway. Every one of these is a *second* code path through logic that already had one, exercised only in a mode nobody watches, and they have been a genuine source of subtle wrongness — the era modal being suppressed and then re-announced from a different function is a two-place invariant that only holds by hand. After phase 3 there is one path: things happen, and they are narrated.
+
+**Auto-pause on hidden tab.** `document.addEventListener("visibilitychange", …)`: hidden ⇒ pause, visible ⇒ restore the player's *chosen* state. That distinction matters — the auto-pause must not clobber a manual pause, so keep the player's intent (`paused`) separate from the effective state (`paused || document.hidden`), and let the loop read the composite. The header's pause button reads and writes intent only, so returning to the tab does not silently un-pause a game the player deliberately froze.
+
+**Save hardening.** Save becomes a correctness requirement, so:
+
+- **`visibilitychange` replaces `beforeunload` as the primary save trigger.** `beforeunload` is unreliable — mobile and background-killed tabs frequently never fire it — and `visibilitychange` → hidden fires in every path that matters, including the one where the tab is about to be discarded. Keep `pagehide` as a belt-and-braces second registration if it's free; do not keep `beforeunload` as the only one.
+- **Save on every player action.** Assign, build, cancel, launch, decide. These are cheap (`JSON.stringify` of a few kilobytes) and they are exactly the moments where losing state is felt as a bug rather than as a rounding error. The 10s autosave interval stays as a floor for the passive case.
+- **`hardReset()` must still unregister whatever the save trigger is before clearing** — see *Persistence*, below. The failure mode survives the change of event: any handler that fires on teardown and calls `save()` will rewrite the save being deleted.
+
+### Phase 5 — controls
+
+**Pause and speed are promoted to player controls.** They already exist as module-level `let paused` / `let speed` outside `S`, with a header button each; phase 5 changes their *status*, not primarily their implementation. Two things do change: the 2026-08-20 "speed is a dev-only tool, to be locked away before release" policy is **revoked** (it was a consequence of the idle framing), and both controls need to read as first-class chrome rather than as a debug affordance.
+
+They stay out of `S` deliberately, and the reasons hold: pause in the save means loading into a frozen game wondering why nothing happens, and speed in the save means resuming at 12× as a nasty surprise. Auto-pause state is doubly not-saved — it's a property of the tab, not the run.
+
+**The modal pause flag.** `openModal()` gains a `pause` option, **defaulting to true**, with `openInfoPanel()` the explicit opt-out. The ask/tell split from `design.md` maps directly: muster, escort, decision events, reset confirm and game over all ask (or are terminal) and pause; the Info reference tells and does not. Default-to-pause is right because that failure mode is harmless — the worst case is a player who paused for a second without meaning to.
+
+Implementation: a module-level `modalPause` flag that the effective-pause composite reads alongside `paused` and `document.hidden`. `closeModal()` clears it. It must not touch `paused`, or dismissing a modal will resume a game the player had deliberately frozen.
+
+**Interactions stay enabled while paused** (reassigning jobs, queuing builds), as they are today. There is no exploit — nothing progresses and nothing accrues — and planning while frozen is most of the point. Pausing is deliberately **not** logged to the Chronicle; that log is the settlement's memory, not a record of UI actions.
+
+## The Decision Queue
+
+**Status: pending — phase 7.** Design canon in `design.md`, *Events & Decisions*.
+
+`S.pending` — an array of choices the world has put in front of the player and is waiting on. It is what makes interactive events possible now that no clock runs while you think.
+
+```js
+S.pending = [
+  { uid, eventId, tick, payload?, }      // one entry per undecided choice
+];
+```
+
+**Shape and rules:**
+
+- An event with a `decide` field enqueues rather than self-applying: `resolveEvents()` pushes `{uid, eventId, tick: S.tick, payload}` and returns. The event library entry supplies the modal copy and the option list; **`S.pending` stores only the id and whatever roll-dependent payload the event already computed**, never functions or def objects. It must survive `JSON.stringify` and it must survive a content edit that renames the option labels.
+- **It is part of the save**, and it is the strongest reason save is now load-bearing. A player who closes the tab with a decision open must find that decision open on return.
+- **Nothing in it ever expires.** No `expiresAt`, no timer field, no sweep pass. There is no code that removes an entry except the player resolving it (or a migration retiring the event outright, which is a narrated migration like any other). If a future change wants a decision to lapse, that is a design reversal to argue in `design.md`, not an engine feature to leave lying around.
+- **Every option ships with a designed default**, declared on the event, and that default is not an engine fallback — it is what the option list resolves to when the player fast-forwards past the prompt or simply doesn't care. Progressive enhancement (`design.md`) means the game must be playable by someone who never opens the queue.
+- **Opening one pauses the game**, via the phase-5 modal pause flag, with no special-casing: a decision modal asks, and asking pauses.
+- The UI surface is a badge/affordance that a decision is waiting, plus the modal. Where it lives is an interface question deferred to phase 9; the *engine* half is independent of that and can land first.
+
+**Ordering:** the queue is FIFO for presentation, but resolution order is the player's — they may answer the second one first. Nothing in the engine may assume `S.pending[0]` is the one being resolved; find by `uid`, the same discipline `cancelBuild(uid)` already uses.
 
 ## Persistence
 
-`localStorage`, under a single versioned key (`CONFIG.saveKey`, currently `"idleCiv.v6"`). Load uses a defensive merge pattern so the schema can grow additively without a migration step:
+**Status: shipped; changes pending — phase 3.**
+
+`localStorage`, under a single versioned key (`CONFIG.saveKey`, currently `"idleCiv.v6"`). Load uses a defensive merge so the schema grows additively without a migration step:
 
 ```js
-S = Object.assign(freshState(), data);       // fresh defaults, then override with saved data
-S.builds = Object.assign(freshState().builds, data.builds);  // same pattern, nested
+S = Object.assign(freshState(), data);
+S.builds = Object.assign(freshState().builds, data.builds);   // same pattern, nested
 ```
 
-Any field present in `freshState()` but absent from an old save (e.g. `era`, or a newly added building like `infirmary`) silently defaults correctly — this has already been exercised in practice across schema changes and needed no version bump.
+Any field present in `freshState()` but absent from an old save (a new resource, a new building, `eraHistory` before it existed) silently defaults correctly. This has been exercised across every schema change so far and has never needed a version bump. Arrays (`buildQueue`, `expeditions`) are `Array.isArray`-guarded rather than merged; id-keyed bags (`upgrades`, `seen`, `eraHistory`, `adversaries`) take the saved object or `{}`.
 
-**Offline catch-up**: on load, if a previous save exists, elapsed real time since `lastSeed` is computed and capped at `CONFIG.offlineCapHours` (4h), then simulated in ≤1-second chunks via repeated `step(dt)` calls with a module-level `SIM = true` flag. `SIM` suppresses per-event Chronicle spam (you don't want 200 individual "a wanderer joins" lines from an afternoon away) while still applying real state changes; a single summary line is logged afterward instead. If food would hit zero during offline simulation, `SIM_STOP` halts the catch-up early rather than actually killing the settlement while you were away — you return to a stores-emptied warning, not a game over screen you didn't get to see happen.
+`initAdversaries()` runs at boot and on era entry: any adversary in the active manifest without a state entry gets one seeded from the manifest template. It **never re-initializes** — a half-plundered stock stays half-plundered, and a breached wall stays breached. The manifest entry is the template; the state entry is the living remnant.
 
-**Known fixed bugs**:
-- The Reset button used to call `localStorage.removeItem(key)` then `location.reload()`. `location.reload()` fires `beforeunload`, which was still wired to `save()` — and since the in-memory `S` object was untouched, that `save()` call silently re-wrote the very save being cleared, making Reset a no-op in some cases. Fixed by calling `window.removeEventListener("beforeunload", save)` before clearing.
-- `reveal()` conditions based on a resource *threshold* (Woodshed, Granary, and by extension anything gated only by `hut > 0` before the hut actually completes) were re-evaluated fresh every render with no memory — a resource dipping back below its threshold (e.g. spending wood on the very building that revealed the panel) could make the *entire panel* disappear mid-game, including panels with an actively-building queue item behind them. Fixed with `isRevealed(def)`, which caches the first true result in `S.seen["rev:" + id]` — reveals are now permanently sticky, consistent with how every other reveal in the game already behaves (resource rows, Chronicle hints).
+**Offline catch-up** is documented under *Time, Presence & Pause (implementation)* as a deletion list. Do not extend it.
+
+**Two fixed bugs whose lessons generalize** (the rest of the old catalogue is deleted):
+
+- **Reset was a no-op, because teardown saved.** `localStorage.removeItem(key)` then `location.reload()` — and `location.reload()` fires `beforeunload`, which was wired to `save()`, and since in-memory `S` was untouched that call rewrote the save being cleared. Fixed by unregistering the handler before clearing. **The lesson survives the specific event**: any teardown-triggered save races any teardown-triggered wipe, and phase 3 moves the save trigger without changing that.
+- **Reveals had no memory, so panels could un-reveal.** `reveal()` predicates keyed on a resource *threshold* (Woodshed, Granary) were re-evaluated fresh every render — spending wood on the very building that revealed the panel could make the panel vanish mid-game, queue item and all. Fixed with `isRevealed(def)`, which caches the first true result in `S.seen["rev:" + id]`. **Reveals are permanently sticky**, consistent with every other reveal in the game, and the only sanctioned un-reveal in the entire codebase is `purgeDom()` at an era boundary.
 
 ## State Shape
 
-The entire simulation lives in one module-level object, `S` (see `freshState()` for the authoritative shape):
+**Status: shipped.** `freshState()` is the authoritative shape; this table is the annotated version.
 
 | Field | Type | Purpose |
 |---|---|---|
-| `res` | one key per resource id (all eras) | Current resource stockpiles |
+| `res` | one key per resource id (all eras) | Current stockpiles |
 | `jobs` | one key per job id (all eras) | Civilians assigned per gather job |
-| `builds` | one key per building id (all eras) | Completed building counts (repeatable, unless `cap`ped) |
-| `units` | `{soldier, archer, horseman}` | Trained person-types owned. Separate from `builds` specifically so it renders in Your People, not Settlement |
-| `upgrades` | `{[upgradeId]: true}` | One-time upgrades owned; key presence = owned |
-| `buildQueue` | `[{id, kind, uid, total, remaining, cost}]` | FIFO queue shared by buildings, upgrades, and units; only index `[0]` progresses. `cost` is the exact price paid, stored for cancel-refunds |
-| `buildSeq` | `number` | Monotonic counter for queue item `uid`s (DOM diffing key) |
-| `pop` | `number` | Total population, **including** trained units — they still eat and occupy housing |
-| `growth` | `number` | Seconds accrued toward the next free settler; freezes (not resets) while housing is full |
-| `bought` | `number` | Lifetime settlers grown — a stat for the game-over screen only (it once drove the settler cost curve; that role is gone) |
-| `era` | `string` | `"stone"` or `"bronze"` — the key into `MANIFESTS`; the whole era system is this one string |
-| `eraHistory` | `{[era]: snapshot}` | Frozen pre-transition snapshot of `S` (minus itself), archived by `advanceEra()`; migration formulas read it, humans debug with it |
-| `playtime` | `number` | Seconds the simulation has actually advanced (frozen while paused) |
-| `seen` | `{[revealId]: true}` | One-time UI reveal hints already shown |
-| `dead` | `boolean` | Game-over flag |
-| `lastSeed` | `number` | `Date.now()` at last save, used for offline catch-up |
+| `builds` | one key per building id (all eras) | Completed building counts (repeatable unless `cap`ped) |
+| `units` | one key per unit id | Trained person-types. Separate from `builds` so it renders in Your People, not Settlement |
+| `upgrades` | `{[id]: true}` | One-time upgrades; key presence = owned |
+| `buildQueue` | `[{id, kind, uid, total, remaining, cost}]` | FIFO, shared by buildings/upgrades/units; only `[0]` progresses. `cost` is the exact price paid, stored for cancel-refunds |
+| `buildSeq` | number | Monotonic counter for queue `uid`s (the DOM diffing key) |
+| `pop` | number | Total population, **including** trained units — they eat and occupy housing |
+| `growth` | number | Seconds accrued toward the next free settler; **freezes** (not resets) while housing is full |
+| `bought` | number | Lifetime settlers grown — a game-over stat only |
+| `era` | string | `"stone" \| "bronze" \| "iron"` — the key into `MANIFESTS`. The entire era system is this one string |
+| `eraHistory` | `{[era]: snapshot}` | Frozen pre-transition snapshot, archived by `advanceEra()`; migration formulas read it, humans debug with it |
+| `playtime` | number | Seconds the simulation has actually advanced (frozen while paused) |
+| `seen` | `{[revealId]: true}` | One-time reveal hints already fired, plus sticky `rev:` entries |
+| `dead` | boolean | Game-over flag |
+| `adversaries` | `{[id]: {stock, standing, walls}}` | The living remnant per adversary (see Adversaries & Expeditions) |
+| `expeditions` | `[{uid, type, adversary, units?, cargo?, total, remaining}]` | At most one campaign and one caravan |
+| `lastSeed` | number | `Date.now()` at last save. **Deleted in phase 3** |
 
-Population is **not** `S.jobs` summed plus idle — a person can now be in one of three states: assigned to a civilian job, idle (civilian, unassigned), or converted to a unit (`S.units.soldier`, permanently outside the job-assignable pool). See Military & Units, below, for the derived-value math that keeps these consistent.
+**Pending additions:** `S.tick` (phase 4), `S.seed` / `S.rngState` (phase 2), `S.pending` (phase 7).
+
+Population is **not** `jobs` summed plus idle. A person is in one of three states: assigned to a civilian job, idle, or converted to a unit (permanently outside the assignable pool). See *Units & Military* for the derived-value math.
 
 ## `step(dt)` — Order of Operations
 
-1. Bail immediately if `S.dead`.
-2. Advance `S.playtime` by `dt` (see Pause & the Playtime Clock).
+**Status: shipped.** Phase 4 renames the parameter and changes its unit; the order does not change.
+
+1. Bail if `S.dead`.
+2. Advance `S.playtime` — here rather than in the loop, so it measures exactly one thing: how far the world actually moved. It therefore freezes when paused and stops at death for free.
 3. Compute `rates()` (production, upkeep, net food).
-4. Apply production/upkeep to every resource in `active().resources` (scaled by `dt`).
-5. Run `runConverters(dt)` — the Forge and anything else with a `converts` spec.
-6. Clamp every resource to its storage cap (`caps()`) — silent; a one-time Chronicle hint covers it.
-7. Starvation check: if `food <= 0` and net food rate is negative, either halt (`SIM_STOP`, offline) or call `die("starvation")` (live).
-8. Advance the front of `buildQueue` by `CONFIG.buildSpeed * dt`; on completion, `shift()` it and call `completeConstruction()`.
-9. Call `accrueGrowth(dt)` — a free settler every `CONFIG.settlerIntervalSeconds` while housing has room. Progress **freezes** (not resets) while housing is full, so a partially-waited arrival lands soon after a new hut. Settlers cost nothing; growth is a background process, deliberately not an event (see `design.md`). Placement inside `step()` means offline catch-up grows population with no extra code.
-10. Call `resolveEvents(dt)` — sickness, conflict, windfalls: whatever the active manifest's events slate holds.
-11. Wipe-out check: if `S.pop <= 0`, call `die("conflict")`. Unlike starvation this can only happen via Conflict (Sickness floors at 1 survivor by design — see Military & Units), but the check itself is generic rather than attributed to a specific event, since in principle anything could tip population to zero.
+4. Apply production/upkeep to every resource in `active().resources`, scaled by `dt`.
+5. `runConverters(dt)` — the Forge and anything else with a `converts` spec.
+6. Clamp every resource to `caps()` — silently; a one-time Chronicle hint covers the concept.
+7. Starvation check: `food <= 0` and net food negative ⇒ `die("starvation")`.
+8. Advance `buildQueue[0]` by `CONFIG.buildSpeed * dt`; on completion `shift()` and `completeConstruction()`.
+9. `accrueGrowth(dt)` — a free settler every `CONFIG.settlerIntervalSeconds` while housing has room. **Growth is a background process, deliberately not an event** (`design.md`). Progress freezes rather than resetting when housing is full, so a partly-waited arrival lands soon after a new hut.
+10. `resolveEvents(dt)` — whatever the active manifest's slate holds.
+11. `resolveExpeditions(dt)` — outbound columns tick and resolve.
+12. Wipe-out check: `S.pop <= 0` ⇒ `die("conflict")`. Generic rather than attributed, so "what happens when population hits zero" lives in exactly one place regardless of cause. In practice only Conflict can reach it (Sickness floors at one survivor by design).
 
 ## Resource System
 
-All three iterate the active manifest's `resources` / `jobs` lists (`active().resources`, `active().jobs`) rather than naming resources individually — see "Table-driven resources and jobs" below.
+**Status: shipped.**
 
-- `rates()` returns gross per-second production for every resource plus `upkeep` (`pop * CONFIG.upkeep`) and `foodNet` (production minus upkeep — food is the only resource with an upkeep drain). Converter consumption is *not* netted in here.
-- `mults()` returns each resource's production multiplier: `1 + (boost building count) * CONFIG.buildingBonus + tool bonuses`. Tool upgrades (Stone Tools, Bronze Tools) are flat additive terms applied to every resource and stack with each other and with the per-resource boost buildings.
-- `caps()` returns current storage ceilings from each resource's `baseCap` plus `(its capBuilding count) * CONFIG.storageAdd`. Every resource is capped; bronze simply has no `capBuilding`, so it sits at its (generous) base forever.
+`rates()`, `mults()`, `caps()` all iterate the active manifest's lists rather than naming resources individually.
 
-## Construction Queue
-
-Buildings are **not** modeled as in-place worker-assignable sites (an earlier version was, and was deliberately simplified away — see `design.md`). One shared FIFO queue (`S.buildQueue`) serves both `BUILDINGS` (repeatable, scaling cost) and `UPGRADES` (one-time, flat cost) — `build(def)`:
-
-1. Computes cost via `buildCost(def)`. For a `kind: "building"` def this scales by `(S.builds[id] + pendingCount(id))` — cost escalates against *owned + already-queued* count, so queuing several of the same building back-to-back doesn't undercut the intended cost curve. For a `kind: "upgrade"` def this is always the flat `base` cost.
-2. For upgrades only: refuses if already owned (`S.upgrades[id]`) or already queued (`pendingCount(id) > 0`) — one-time means one-time.
-3. Deducts the cost immediately (payment happens at click time, not completion).
-4. Pushes `{id, kind, uid, total: buildTime, remaining: buildTime, cost}` onto `S.buildQueue` — `cost` is stored on the item itself (not recomputed later) specifically so `cancelBuild(uid)` can refund exactly what was paid, even though a later-queued item of the same building type may have cost more than an earlier one.
-
-`step()` only ever decrements `S.buildQueue[0].remaining`; everything behind it sits at full `remaining` (and therefore renders at 0% progress) until it becomes the front. `pendingCount(id)` — used for cost escalation, the "already queued" upgrade check, and the buy-menu's "(+N queued)" label — counts matches anywhere in the queue, not just the front. `cancelBuild(uid)` finds the item by `uid`, refunds `item.cost` back into `S.res`, and splices it out — this works identically whether the item is mid-construction (index `0`) or still waiting, since cancelling index `0` simply promotes index `1` to the front on the next tick with no special-casing needed.
-
-## Buildings & Upgrades
-
-The active manifest's `buildings` is a flat data array; each entry has `id`, `name`, `kind: "building"`, `desc`, `base` cost, `scale` (per-owned-unit cost multiplier), `buildTime` (seconds once at the front of the queue), and `reveal()` — a predicate deciding whether the buy-card exists yet (see `isRevealed()` below for how this is made sticky). This is the mechanism behind "the interface unravels": a card is created in the DOM the first time it reveals and never removed.
-
-`upgrades` is the same shape minus `scale` (flat cost, never repeats) and tagged `kind: "upgrade"`. `units` (see Units & Military, below) is a third list, `kind: "unit"`, also flat-cost. `defById(id)` searches all three lists of the **active manifest** first — that's what gives a log line or queue card its era-correct name — falling back to `DEF_INDEX` (latest-era def per id, built at compile) for ids that can outlive their era, like the capstone finishing at the very moment it retires itself. The rest of the engine (`completeConstruction`, `renderQueue`, `cancelBuild`) never needs to know or care which list a queued item came from — it branches on `def.kind` only where they genuinely differ: `buildCost()` scales only for `kind: "building"` (everything else is flat), and completion writes to a different bucket per kind (`S.builds[id]++` / `S.upgrades[id] = true` / `S.units[id]++`).
-
-Buildings may also carry an optional `cap` (e.g. Barracks: `cap: 1`). Once `(S.builds[id] || 0) + pendingCount(id) >= cap`, the card is disabled and shows "Maxed" in place of a cost — same visual slot Upgrades already use for "owned". `build()` itself also refuses a capped purchase (not just the UI), so this is enforced at the data layer, not just rendering.
-
-`BUILDING_ICONS` maps each building id to a small inline `<svg>` line-art doodle (stroke-only, `currentColor`, no fill except two intentional dot accents on Stone Pit) — used in the Settlement/holdings panel so owned buildings are visually distinct tiles, not just numbers in the buy menu. Upgrades don't currently appear in that panel — they're a different kind of thing (a permanent trait, not a countable holding) and have no icon. `PERSON_ICONS` is the equivalent map for person-types (Settler, Soldier), used by Your People's tiles the same way.
-
-## Eras: The Manifest Model (Phase A — implemented)
-
-Design rationale in `design.md` (*The Era Manifest Model*); the settled contract's Phase B/C remainder is under Settled But Not Yet Built. What runs today:
-
-**Authoring.** `STONE` is a full base manifest: `name`, `housingPerHut`, `panelTitles`, `raidTypes`, the five def categories (`resources`, `jobs`, `buildings`, `upgrades`, `units`), and two slates (`events`, `hints`) naming entries in the id-keyed `EVENT_LIB` / `HINT_LIB` libraries. `BRONZE_DELTA` is authored as a **delta**: `remove` (the capstone), `override` (hut → Stone House, infirmary → Infirmary, herbalMedicine desc), `add` (per-category lists of new defs), fresh slates, and any era-scoped scalars it changes. Reading the delta *is* reading the era's design.
-
-**Compilation.** `compileBase(STONE)` + `extendEra(parent, delta)` run at load into `MANIFESTS = { stone, bronze }`. Every def is shallow-copied, so an override can never mutate the parent era's copy. The compiler **throws** on: remove/override targets missing from the parent, duplicate `add` ids, a missing `events`/`hints` slate, and unknown slate ids — at load, before a frame renders. Silent wrongness from a dangling id is this game's signature bug class; the compiler converts it into a loud one. (Phase B adds the full cross-reference validator on top.)
-
-**The indirection.** `active()` returns `MANIFESTS[S.era]`; every engine and render read of content goes through it — rates, caps, converters, events, hints, combat math, all seven render functions. Nothing outside the active manifest renders, produces, fires, or can be purchased. The engine never consults `S.era` for content decisions; `S.era` is nothing more than the key into `MANIFESTS`, so `advanceEra()` swaps the entire world in one assignment. `DEF_INDEX` (latest-era def per buildable id) backs `defById()` for ids referenced across an era boundary.
-
-**What dissolved.** The old per-era scatter — `names`/`descs` maps, `era`/`untilEra` tags, `eras` allowlists on events, `ERA_NAMES`, `HOUSING_PER_HUT`, `PANEL_TITLES`, `RELEASE_ORDER`, `displayName()`/`displayDesc()`/`defEra()`/`availableInEra()`, and every `S.era === "bronze"` check inside `reveal()` predicates — is gone. Defs carry their era-correct `name`/`desc` directly; renderers read `def.name`. Era-gating a def now means *membership*: bronze content isn't hidden in stone, it doesn't exist there. In-era immediate reveals are `reveal: () => true`.
-
-**Slates never inherit.** Each era declares its complete `events` and `hints` lists even in delta form — a forgotten event is a loud authoring decision, not a silent omission. (The old `eras`-allowlist model once silently stopped events firing after a flip; the harness now asserts slate membership per era instead.) Hints that used to carry `S.era` checks (`rotOre`, `bronzeAvailable`) are gated purely by slate membership.
-
-**Era-varying values.** `housingPerHut()`, panel titles, and the age-badge name read `active()`. The Info panel iterates `ERA_ORDER` and reads each era's compiled manifest directly, so the Bronze tab shows Bronze names while you're still in Stone. The era modal is **fully diff-derived** (see The Era Transition, below): only the flavor lead is hand-authored in `ERA_TRANSITIONS`.
-
-Two rendering gotchas that predate manifests and still apply:
-- **Anything era-dependent must be re-rendered, not written once at creation.** `renderTile()` once baked the name in at tile creation, leaving "Medicine Tent" on the Settlement tile after the flip. Name spans get rewritten every render.
-- **Prose that names a building goes stale too.** Herbal Medicine's desc is overridden in the bronze delta; Sickness's flavor was reworded era-neutral ("your healers") instead, since era-keying flavor arrays is more machinery than the problem deserves.
-
-**The capstone Upgrade.** Advancing is an ordinary upgrade (`id: "bronzeAge"`) in the stone manifest, inheriting the queue, cost check, build timer, cancel-and-refund, and "owned" state for free — and the bronze delta **removes** it: a capstone exists only in the era it ends. `reveal: () => S.pop >= 10 && (S.units.soldier || 0) >= 1` reads *current* soldier count rather than an "ever trained" flag, because sticky reveals already handle the case where every soldier later dies. Completing it calls `advanceEra("bronze")`, the only place `S.era` is ever assigned. Because it sits in the normal queue, Sickness and Conflict keep resolving throughout its long build — the design's intended source of "and some luck." `advanceEra()` captures its `before` snapshot (for the modal's housing line) while the old manifest is still active, and is silent under `SIM`; if an era flips during offline catch-up, `simulateOffline()` announces it separately so the milestone isn't swallowed.
-
-**Semantics sharpened by `active()`** (all unreachable in normal play, now uniform by construction): stone-era `stealResources()` only touches stone-era resources; `releaseOrder()`/`jobsUsed()` cover exactly the era's jobs; combat iterates the era's units. A unit type with a nonzero count but no manifest entry neither fights nor dies — inert state, per the settled invariant that state is never implicitly destroyed.
-
-**The validator (Phase B).** `validateManifests(MANIFESTS)` runs at load, immediately after compilation, and throws with a full problem list on any within-era dangling reference: cost keys, `converts.in`/`out` keys and `job.res` against that era's resources; `capBuilding` and `BOOST_BUILDING` targets and event `counter.building` against that era's buildings; unit `counters` against that era's raid types; plus def-shape checks (`id`/`name`/`kind`/`reveal()`) and migration-instruction sanity (known bucket, at least one primitive). This is what makes *removal* safe to author: retire a resource, and everything still mentioning it becomes a load-time error instead of NaN production or a converter that silently never runs. Honest limit, unchanged: `reveal()` predicates are arbitrary code — a stale reference there yields a card that never appears, but cannot break the economy.
-
-**The Era Transition (Phase B).** `advanceEra(era)` is the whole machine, in deliberate order: capture `before` values and a frozen deep-copy **snapshot** while the old manifest is still active → archive it in `S.eraHistory[fromEra]` (kept for every era, forever — a few hundred bytes each, and the raw material for diagnosing or recovering a bad migration, the project's first genuinely destructive state change; snapshots exclude `eraHistory` itself so they never nest) → flip `S.era` → `runEraMigrations()` → `purgeDom()` → `reconcileWorkforce()` → announce (modal live, summary line under `SIM`).
-
-`runEraMigrations(fromM, toM, snapshot)` applies one built-in default — workers assigned to a job that left the manifest return to idle, with a Chronicle line — then the entering era's `migrations` list (authored on the delta, never inherited): `{bucket, id, vanish}` zeroes state (deletes for `upgrades`), `{bucket, id, convertTo, ratio?}` moves it within the bucket (floored), `{bucket, id, fn}` computes a fresh value. **Formulas read only the frozen snapshot and write only live state**, so instruction order cannot matter by construction — the harness proves it with an `fn` that reads a value an earlier instruction already vanished. Everything else carries implicitly; state under departed ids stays inert, never deleted. Narrate lines log even under `SIM` — an era transition is rare enough that its story belongs in the Chronicle even when it happened while you were away. (Stone→bronze declares zero migrations; the machinery's first real consumer is the Iron Age.)
-
-`purgeDom(fromM, toM)` removes the DOM nodes (`bcard-`, `hold-`, `ptile-`, `job-`, `res-` prefixed) of every id that didn't survive the hop — the one place content ever leaves the screen; "nothing can un-reveal" holds everywhere except an era boundary. Runs under `SIM` too, since the page's DOM exists during offline catch-up. Renderers only create nodes for manifest members, so a purged id stays gone. Today its only live effect is removing the completed capstone's card.
-
-`manifestDiff(fromM, toM)` computes `{added, removed, renamed}` across buildings/units/upgrades — one diff, two consumers: the purge logic mirrors it, and the era modal derives **everything but the flavor lead** from it: "What changed" (renames as "The Hut is now the Stone House.", the housing rise, panel-title shifts, plus new-resource and new-job summary lines, since those have no buy-card to announce themselves), "Now available" (added defs with descs), and "No longer needed" (removed defs). `ERA_TRANSITIONS` now holds only each era's `lead` sentence — the hand-maintained change list is gone and cannot go stale.
+- **`rates()`** returns gross per-second production per resource plus `upkeep` (`pop * CONFIG.upkeep`) and `foodNet`. Converter consumption is deliberately *not* netted here (see Converters).
+- **`mults()`** returns each resource's multiplier: `1 + (boost building count) * CONFIG.buildingBonus + tool bonuses`. Tool upgrades are flat additive terms applied to every resource and stack with each other and with per-resource boost buildings, forever (Stone 0.08 → Bronze 0.15 → Iron 0.22).
+- **`caps()`** returns ceilings from each resource's `baseCap` plus `(capBuilding count) * CONFIG.storageAdd`. Every resource is capped; a resource with `capBuilding: null` simply sits at a generous base forever.
 
 ### Table-driven resources and jobs
 
-Adding three resources once forced a refactor: `rates()`, `mults()`, `caps()`, `step()`'s clamp loop, `jobsUsed()`, `removeSettler()` and the resource-bar markup each hardcoded exactly three resources by name. All of them now iterate the active manifest's lists:
+Adding three resources once forced a refactor: `rates()`, `mults()`, `caps()`, the clamp loop, `jobsUsed()`, `removeSettler()` and the ledger markup each hardcoded exactly three resources by name. All of them now iterate:
 
-- **`resources`** — `{ id, name, baseCap, capBuilding, reveal? }`. `capBuilding: null` means no storage building exists for it (bronze). Ledger rows are *generated* from this at render time rather than written into `index.html`, so a new resource needs no markup change. In-era resources that should show immediately at zero carry `reveal: () => true`.
-- **`jobs`** — may carry `rateMult` (tin yields ×0.5) and an optional `reveal`; a job in the manifest with no `reveal` simply shows.
+- **`resources`** — `{id, name, baseCap, capBuilding, reveal?}`. Ledger rows are *generated* at render time rather than written into `index.html`, so a new resource needs no markup change. In-era resources that should show immediately at zero carry `reveal: () => true`.
+- **`jobs`** — may carry `rateMult` (tin yields ×0.5) and an optional `reveal`.
 
-`BOOST_BUILDING` maps a resource to the building that boosts it (kept global — era-neutral identity data, like icons; it graduates into the manifests if an era ever remaps a boost). Tool upgrades apply to *all* gather rates including the ores. `releaseOrder()` is derived from the active manifest's jobs (reversed, with `forager` forced last) and drives `removeSettler()` — previously that unassigned from a hardcoded three-job list, which with five jobs could have left `jobsUsed() > civilians()` and driven `idle()` negative.
+`BOOST_BUILDING` maps a resource to the building that boosts it, kept global as era-neutral identity data like icons; it graduates into the manifests if an era ever remaps a boost. `releaseOrder()` derives from the active manifest's jobs (reversed, foraging forced last) and drives `removeSettler()` — the old hardcoded three-job list could, with five jobs, leave `jobsUsed() > civilians()` and drive `idle()` negative.
 
 ### Converters
 
-The Forge is a new building archetype: it *transforms* resources rather than producing or boosting them. An optional `converts: { in: {...}, out: {...}, rate }` field on a building def, processed by `runConverters()` in `step()` after production and before the storage clamp. Throughput is clamped three ways so it degrades smoothly rather than erroring or destroying inputs:
+The Forge transforms resources rather than producing or boosting them: an optional `converts: {in, out, rate}` on a building def, processed by `runConverters()` in `step()` after production and before the storage clamp. Throughput is clamped three ways so it degrades smoothly instead of erroring or destroying inputs:
 
 1. by `owned × rate × dt`,
 2. by the inputs actually in store — partial rate when short, idle at zero,
-3. **by headroom under the output's cap**, so a full bronze store stops the Forge instead of quietly eating copper and tin for nothing.
+3. **by headroom under the output's cap**, so a full store stops the Forge instead of quietly eating its inputs for nothing.
 
-No worker assignment (see `design.md`), so it needs no `popCost` or job wiring. `rates()` reports *gross* production (the simulation applies converters separately in `step()`), but the **ledger displays `ledgerRates()`**: gross plus live converter flows — outputs positive, inputs negative — computed with the same three clamps as `runConverters`, so a starved or output-capped Forge honestly displays as stopped rather than advertising its theoretical speed. The input clamp counts incoming production alongside stock, so a Forge fed at exactly its consumption rate (the designed equilibrium) reads steady instead of flickering. Negative flows pick up the ledger's existing red styling — a draining pile scans as a problem at a glance. Folding flows into `rates()` itself would double-convert; the split is deliberate.
+No worker assignment (`design.md`), so no `popCost` or job wiring. `rates()` reports gross; the **ledger displays `ledgerRates()`** — gross plus live converter flows, outputs positive, inputs negative, computed with the same three clamps — so a starved or output-capped Forge honestly reads as stopped rather than advertising its theoretical speed. The input clamp counts incoming production alongside stock, so a Forge fed at exactly its consumption rate reads steady instead of flickering. Negative flows pick up the ledger's red styling, so a draining pile scans as a problem at a glance. Folding flows into `rates()` itself would double-convert; the split is deliberate.
 
-**The intended equilibrium**, which falls out of the numbers rather than being special-cased: copper mines at 0.20/s and tin at half that, so **2 copper miners : 1 tin miner** produce ore in exactly the 4:1 ratio the recipe consumes — no wasted ore — and **2 Forges** (0.05 bronze/s each) consume precisely that output. Verified live.
+**The bronze equilibrium falls out of the numbers rather than being special-cased**: copper mines at 0.20/s, tin at half that, so 2 copper miners : 1 tin miner produce ore in exactly the 4:1 ratio the recipe consumes, and 2 Forges (0.05 bronze/s each) consume precisely that output. Nothing hints at it; it is simply there. Iron retargets the same building to `{iron: 3, wood: 2} → {steel: 1}`, which finally gives wood a late-game sink.
 
-Storage asymmetry is deliberate: one **Ore Yard** raises the copper *and* tin caps together rather than two near-identical buildings, and bronze gets a generous base cap with no storage building, since it's spent rather than stockpiled.
+## Construction Queue
 
-### Raid types & composition
+**Status: shipped.**
 
-The active manifest's `raidTypes` (declared in stone, inherited unchanged by bronze) rolls independently of `RAID_SIZES`. `militaryStrength(raid)` sums `unitStrength()` across the era's unit types, each contributing `count × strength × weaponMultiplier() × (matched ? CONFIG.counterBonus : 1)`. The critical property is enforced by that formula's shape rather than a special case: the non-matching multiplier is **1, never below** — units are never penalized for being the wrong type, only un-bonused, so any army always beats no army (see `design.md`).
+One shared FIFO queue serves buildings (repeatable, scaling cost), upgrades (one-time, flat) and units (flat, plus `popCost`). `build(def)`:
 
-**The counter relationship is stored in exactly one place**: a unit def's `counters` field naming a raid id (`archer` counters `"massed"`). An earlier pass *also* put the reverse mapping on the raid type (`counter: "archer"`), and `unitStrength()` compared `def.counters === raid.counter` — a raid id against a unit id, always false, silently disabling every counter bonus in the game with no error. The redundant field is gone; `counterUnitFor(raid)` searches `active().units` instead. A `warband` is simply a raid no unit names, so nothing counters it, with no null-handling needed.
+1. Costs via `buildCost(def)`. For `kind: "building"` this scales by `(S.builds[id] + pendingCount(id))` — cost escalates against *owned + already-queued*, so stacking clicks doesn't undercut the curve. Everything else is flat.
+2. For upgrades: refuses if already owned or already queued. One-time means one-time.
+3. Deducts cost immediately — payment at click time, not completion.
+4. Pushes `{id, kind, uid, total, remaining, cost}`. **`cost` is stored on the item**, not recomputed later, specifically so `cancelBuild(uid)` refunds exactly what was paid even when a later-queued copy of the same building cost more.
 
-Composition mismatch feeds a second, softer dial rather than `repelChance`: `counterCoverage(raid)` returns the share of your defense coming from the countering unit, and the costly-repel probability is multiplied by `1 - CONFIG.counterCasualtyRelief × coverage`. Fielding the right unit therefore both wins more fights *and* buries fewer of your own.
+`step()` only ever decrements `buildQueue[0].remaining`; everything behind it sits at full `remaining` and renders at 0%. `pendingCount(id)` counts matches anywhere in the queue and backs cost escalation, the already-queued check, and the "(+N queued)" label. `cancelBuild(uid)` finds by `uid`, refunds, and splices — identical whether the item is at index 0 or waiting, since cancelling the front simply promotes index 1 next tick with no special-casing.
 
-`removeRandomUnit()` replaces the old soldier-specific helper: it drops one unit, decrements `S.pop` alongside, and returns the lost unit's display name for flavor. `stealResources()` now loops every resource including the ores and bronze.
+## Buildings, Upgrades & Units
 
-**Casualty exposure.** The draw is weighted by headcount × the unit's `casualtyWeight` (Soldier 1.0, Horseman 0.6, Archer 0.35), so the front line absorbs most losses and archers read as the backline unit they're meant to be. Every weight is deliberately **greater than zero**, which is what makes this bend the odds rather than grant immunity: an archer can always be the one who falls, and an all-archer army degenerates to "the archer dies" with no protection whatsoever. Measured over 30,000 draws from an even 10/10/10 army: soldier 50.9%, horseman 31.1%, archer 17.9%. A trailing fallback loop covers the floating-point case where accumulated subtraction walks the roll past the end of the list — without it, a rounding error would return `null` and silently skip a casualty.
+**Status: shipped.**
 
-**Scouting** is gated on the *upgrade*, not the Stables that reveals it — building the Stables alone doesn't hand you the event category, you have to invest in it. Its two events are ordinary `chancePerSecond` entries; one is deliberately pure flavor with an empty `effect`, since the value of a warning is the knowing.
+The active manifest's `buildings` is a flat array; each entry has `id`, `name`, `kind`, `desc`, `base` cost, `scale`, `buildTime`, and `reveal()` — a predicate deciding whether the buy-card exists yet (made sticky by `isRevealed()`; see Persistence). This is the mechanism behind "the interface unravels": a card is created in the DOM the first time it reveals and never removed.
 
-## Units & Military
+`upgrades` is the same shape minus `scale`; `units` is a third list carrying `popCost`, `strength`, `casualtyWeight`, an optional `counters`, and an optional `siege: true`. `defById(id)` searches all three lists of the **active manifest** first — that's what gives a log line or queue card its era-correct name — falling back to `DEF_INDEX` (latest-era def per id, built at compile) for ids that outlive their era, like a capstone completing at the moment it retires itself.
 
-The manifest's `units` (Soldier; plus Archer and Horseman in bronze) is a third buildable-defs list. Unlike buildings/upgrades, a unit def carries `popCost` — the number of civilians it permanently consumes. This changes the derived-value math for population:
+The rest of the engine never needs to know which list an item came from. It branches on `def.kind` only where the categories genuinely differ: `buildCost()` scales only for buildings, and completion writes to a different bucket per kind (`S.builds[id]++` / `S.upgrades[id] = true` / `S.units[id]++`).
 
-```js
-function civilians()   { return S.pop - Object.values(S.units).reduce((a, b) => a + b, 0); }
-function reserved()    { return S.buildQueue.reduce((sum, q) => sum + (defById(q.id).popCost || 0), 0); }
-function jobsUsed()    { return active().jobs.reduce((sum, j) => sum + (S.jobs[j.id] || 0), 0); }
-function idle()        { return civilians() - jobsUsed() - reserved(); }
-```
+Buildings may carry a `cap` (Barracks and Muster Ground: `cap: 1`). Once `(S.builds[id] || 0) + pendingCount(id) >= cap` the card disables and shows "Maxed". **`build()` itself also refuses**, so the cap is enforced at the data layer rather than only in rendering.
 
-`civilians()` excludes anyone already converted to a unit. `reserved()` sums `popCost` across the **entire queue**, front and waiting alike — a civilian is pulled out of the available pool the instant a unit order is queued (matching "it takes one civ out, runs a progress bar, then you get a soldier"), not when it completes. `build()` checks `idle() >= (def.popCost || 0)` alongside the normal resource-affordability check, so recruiting competes directly with job assignment for the same pool. On completion, `completeConstruction()` writes to `S.units[id]` rather than `S.builds[id]` — the civilian was already subtracted via `reserved()` while queued, and now permanently exits `civilians()` via `S.units` instead of returning to the idle pool.
+`BUILDING_ICONS` / `PERSON_ICONS` / `QUEUE_ICONS` map ids to small inline `<svg>` line art (1.6px stroke on a 24px grid, `currentColor`, rendered at 21px). Upgrades have no icon and appear in no holdings panel — a permanent trait is a different kind of thing from a countable holding.
 
-A unit's ongoing food upkeep needs no new code — `S.pop` already includes units, and `rates()`'s upkeep line is just `S.pop * CONFIG.upkeep`.
+## Eras: The Manifest Model
 
-Unit deaths go through `removeRandomUnit()` — see Raid types & composition for the exposure-weighted draw. (Its predecessor, a soldier-specific `removeSoldier()`, is gone.)
+**Status: shipped (Phases A, B, C1, C2, C2.1).** Design rationale in `design.md`, *The Era Manifest Model*. This is the architecture the rest of the game hangs off, and it is the part of the codebase that has paid back the most.
 
-### Conflict
+**Authoring.** `STONE` is a full base manifest: `name`, `housingPerHut`, `panelTitles`, `popNoun`, `raidTypes`, the five def categories (`resources`, `jobs`, `buildings`, `upgrades`, `units`), `adversaries`, and two slates (`events`, `hints`) naming entries in the id-keyed `EVENT_LIB` / `HINT_LIB`. `BRONZE_DELTA` and `IRON_DELTA` are authored as **deltas**: `remove`, `override`, `add` (per category), fresh slates, an optional `consolidate` spec, `migrations`, and any era-scoped scalars. Reading the delta *is* reading the era's design — Iron's literally reads "remove the bronze economy; add iron and gold; the Forge now smelts steel."
 
-Conflict doesn't fit the generic `chancePerSecond` + single `counter` shape Sickness uses — it needs its own population-scaled trigger chance, a variable raid size, a two-stage outcome (repel check, then a consequence roll), and outcome-dependent flavor text. Rather than contort the generic shape, `EVENTS` entries may define `resolve(S, dt)` instead of `canFire`/`chancePerSecond` — a full escape hatch that owns its own trigger roll and effect application; `resolveEvents()` just calls it every tick if present. This is a generic engine change (any future event with this much internal complexity can use the same escape hatch), not a Conflict-specific special case.
+**Compilation.** `compileBase(STONE)` + `extendEra(parent, delta)` run at load into `MANIFESTS`. Every def is shallow-copied, so an override can never mutate the parent era's copy. The compiler **throws** on: remove/override targets missing from the parent, duplicate `add` ids, a missing slate, and unknown slate ids — at load, before a frame renders. Silent wrongness from a dangling id is this project's signature bug class; the compiler converts it into a loud one. (Phase 4 adds per-second → per-tick conversion to this pass.)
 
-Conflict's `resolve()`:
+**The indirection.** `active()` returns `MANIFESTS[S.era]`, and every engine and render read of content goes through it — rates, caps, converters, events, hints, combat math, expeditions, every render function. Nothing outside the active manifest renders, produces, fires, or can be purchased. The engine never consults `S.era` for content decisions; `S.era` is nothing more than the key, so `advanceEra()` swaps the entire world in one assignment.
 
-1. **Trigger** — `chance = CONFIG.conflictBaseChance * (1 + S.pop * CONFIG.conflictPopScale)`, converted to a per-`dt` roll the same way Sickness's flat chance is. Frequency scales continuously with population (a bigger settlement is a bigger target), rather than Sickness's one-time threshold gate. Also gated behind `S.pop >= 4`, matching Sickness's early grace period.
-2. **Raid size and type** — independent weighted picks from `RAID_SIZES` (small/common, large/rare) and `RAID_TYPES` (warband / massed charge / band of riders). Size is "sometimes 2 scouts, sometimes 10"; type is what military composition plays against.
-3. **Defense** — `militaryStrength(raid)`, the composition-aware sum described under Raid types & composition: every unit type contributes `count × strength × weaponMultiplier()`, with the counter bonus for the type that excels against this raid. `weaponMultiplier()` is tiered, highest owned wins: Bronze Weapons 2.2 > Flint-Tipped Spears 1.6 > unarmed 1.0. Zero units means zero defense, full stop.
-4. **Repel check** — `repelChance = defense / (defense + raidSize)`. A ratio, not a threshold: always some chance either way, more investment always shifts the odds, nothing ever reaches exactly 0% or 100%.
-5. **Consequences**, banded by outcome:
-   - **Repelled, clean** — no losses.
-   - **Repelled, costly** — rolled separately (`raidSize / (defense + raidSize)`, softened by Hide Armor and by `counterCoverage()`); if it lands, one unit is lost via the exposure-weighted `removeRandomUnit()`.
-   - **Raid succeeds** — `1 + floor(raidSize / 5)` units lost (capped at however many exist, drawn by exposure weight), a fraction of every resource stolen (`stealResources()`, fraction scales with raid size, capped at 50%), and — only if defense was especially thin relative to the raid (roughly `defense < raidSize / 2`, including the `defense === 0` case) — one civilian lost via `removeSettler(true)`.
+**Slates never inherit.** Each era declares its complete `events`, `hints` and `adversaries` lists even in delta form — a forgotten event is a loud authoring decision, not a silent omission. The predecessor design (per-event `eras: [...]` allowlists) once silently stopped events firing after a flip, with no error; the harness now asserts slate membership per era instead.
 
-`removeSettler()` takes an optional `allowZero` param (default `false`, used by Sickness, which floors at 1 survivor by design) — Conflict passes `true`, since it's the one hazard allowed to end a run outright (see `design.md`, Failure). The generic `S.pop <= 0` check in `step()` is what actually ends the game in that case, not Conflict itself — keeping "what happens when population hits zero" in one place regardless of cause.
+**Era-varying values.** `housingPerHut()`, panel titles and the age badge read `active()`. The Info panel iterates `ERA_ORDER` and reads each era's compiled manifest directly, so the Iron tab shows Iron names while you are still in Stone.
 
-## Events Engine
+**Two rendering gotchas that predate manifests and still apply:**
 
-`EVENT_LIB` (id-keyed) holds every event that exists in any era; the active manifest's `events` slate decides which are live — there are no era tags on events. Each entry:
+- **Anything era-dependent must be re-rendered, not written once at creation.** `renderTile()` once baked the name in at tile creation, leaving "Medicine Tent" on the Settlement tile after the flip. Name spans get rewritten every render. The same trap, in a nastier form, produced the time-capsule click bug — see *Rendering*.
+- **Prose that names a building goes stale too.** Herbal Medicine's desc is overridden per era; Sickness's flavor was instead reworded era-neutral ("your healers"), because era-keying flavor arrays is more machinery than the problem deserves.
 
-```js
-{
-  sev: "good" | "bad",
-  // exactly one of:
-  canFire: (S) => boolean,        // deterministic, re-checked & fired repeatedly per tick
-  chancePerSecond: number,        // probabilistic, converted to a per-dt roll
-  resolve: (S, dt) => { ... },    // full escape hatch -- owns its own trigger + effect + flavor
-  condition: (S) => boolean,      // optional extra gate (e.g. sickness needs pop >= 4)
-  counter: { building, reducePerUnit },  // optional negation source; reducePerUnit may be
-                                          // a flat number or (S) => number, for counters whose
-                                          // own strength is itself upgradeable (Herbal Medicine)
-  effect: (S) => { /* mutate state */ },
-  flavor: { hit: [...strings], negated: [...strings] },  // negated only used if `counter` present
-}
-```
+**The capstone Upgrade.** Advancing is an ordinary upgrade in the outgoing era's manifest (`bronzeAge`, `ironAge`), inheriting the queue, cost check, build timer, cancel-and-refund and "owned" state for free — and the incoming delta **removes** it: a capstone exists only in the era it ends. Its `reveal` reads *current* state (`S.pop >= 16 && (archer || horseman) >= 1`) rather than an ever-trained flag, because sticky reveals already cover the case where the units later die. `CAPSTONES` (id → era) maps completion to `advanceEra()`, the only place `S.era` is ever assigned. Because it sits in the normal queue, hazards keep resolving throughout its long build — the design's intended source of "and some luck."
 
-`resolveEvents(dt)`, called once per `step()`, iterates `active().events`:
+**The validator.** `validateManifests(MANIFESTS)` runs at load immediately after compilation and throws with a full problem list on any within-era dangling reference: cost keys, `converts.in`/`out` keys and `job.res` against that era's resources; `capBuilding`, `BOOST_BUILDING` targets and event `counter.building` against its buildings; unit `counters` and adversary `fightsAs` against its raid types; adversary `stock` keys and `buys.res` against its resources; `buys` only on peaceful adversaries; `consolidate.keep` in `(0, 1]`; plus def-shape checks and migration-instruction sanity. **This is what makes removal safe to author**: retire a resource and everything still mentioning it becomes a load-time error instead of NaN production or a converter that silently never runs. Honest limit, unchanged: `reveal()` predicates are arbitrary code, so a stale reference there yields a card that never appears — annoying, but it cannot break the economy.
 
-1. Skips events whose `condition` fails. (Era eligibility needs no check — an event absent from the slate doesn't exist right now.)
-2. **`resolve`-based events** (Conflict, currently the only one): called directly with `(S, dt)` and left entirely to their own devices — no generic trigger roll, negation, or flavor logging happens around them. See Units & Military for Conflict's specific algorithm.
-3. **Deterministic events** (`canFire`): loop-fires the effect repeatedly (guarded at 50 iterations) while the condition holds. Currently has no users — population growth was its only occupant before moving out to `accrueGrowth()` — but the archetype stays as the generic deterministic shape.
-4. **Probabilistic events** (`chancePerSecond`): one roll per `step()` at the dt-adjusted probability. If it lands, `negateChance(ev)` (`min(1, counterBuildingCount * reducePerUnit)`) gets a second roll; negated events log the `negated` flavor line (always styled `"good"` — averting bad news is good news) and skip the effect entirely, otherwise the effect applies and the `hit` flavor line logs at the event's own `sev`.
+**The era transition.** `advanceEra(era)` is the whole machine, in deliberate order:
 
-`removeSettler(allowZero = false)` (used by Sickness's effect, and by Conflict's civilian-casualty case with `allowZero: true`) is the shared "a civilian dies" helper. It no-ops when `civilians() <= 0` — a settlement of nothing but trained units has no one for it to take, and without that guard `S.pop` could be pushed below `totalUnits()`, making `civilians()` negative. Otherwise it decrements `pop` (floored at 1 unless `allowZero`) and calls `reconcileWorkforce()`. Contrast with `removeRandomUnit()` (Units & Military), which drops a unit and `pop` together so `civilians()` is unchanged and no reconciliation is needed.
+capture `before` values and a frozen deep-copy **snapshot** while the old manifest is still active → archive it in `S.eraHistory[fromEra]` → flip `S.era` → `initAdversaries()` → `runEraMigrations()` → `applyConsolidation()` if the era declares one → `purgeDom()` → `reconcileWorkforce()` → announce.
 
-**`reconcileWorkforce()` — and the bug that produced it.** A civilian can be spoken for in *two* ways: assigned to a job, or reserved by a queued unit order. The original code balanced deaths against `jobsUsed()` alone, so a death while a Soldier sat in the queue left the books short by exactly the reserved worker and `idle()` displayed **-1**. Reported from real play; the visible symptom was that clicking a job's minus button then "absorbed" the deficit, which read as a worker vanishing. The reconciler now balances against `jobsUsed() + reserved() - civilians()` and resolves the shortfall in two stages:
+Snapshots exclude `eraHistory` itself so they never nest; they are a few hundred bytes each, kept forever, and are the raw material for diagnosing or recovering a bad migration — the project's first genuinely destructive state change.
 
-1. Release people from jobs, following `RELEASE_ORDER` (derived from `JOBS`, reversed, foraging last).
-2. If emptying every job still isn't enough — possible when more unit orders are queued than there are survivors — abandon the newest unit orders, refunding materials exactly as a manual cancel would, until the books balance. `dropQueueItem()` is shared with `cancelBuild()` so the refund path can't diverge.
+`runEraMigrations(fromM, toM, snapshot)` applies one built-in default (workers on a job that left the manifest return to idle, with a Chronicle line) then the entering era's `migrations` list, authored on the delta and never inherited:
 
-The harness fuzzes this: 400 random settlements with random armies, queues and death sequences, asserting `idle()` and `civilians()` never go negative.
+- `{bucket, id, vanish}` — zeroes state (deletes, for `upgrades`)
+- `{bucket, id, convertTo, ratio?}` — moves it within the bucket, floored
+- `{bucket, id, fn}` — computes a fresh value
 
-Flavor lines are picked at random from each pool (`pick()`) for light variety across repeat occurrences.
+**Formulas read only the frozen snapshot and write only live state**, so instruction order cannot matter by construction; the harness proves it with an `fn` that reads a value an earlier instruction already vanished. Everything else carries implicitly. Every instruction carries its own Chronicle line — state silently rearranging itself is exactly the invisible-sink mistake this project already made once.
 
-**Great Hunt** and **Trader** are the first positive-only entries using the plain `chancePerSecond` + `effect` shape (no `counter`, no `condition`, no `resolve`) — proof the generic shape was never inherently hazard-specific, it just happened to only have hazards using it until now. Both just add resources in `effect()` and log a `"good"`-severity `flavor.hit` line; the negation branch in `resolveEvents()` is skipped automatically since `negateChance()` returns `0` when `ev.counter` is absent.
+`applyConsolidation({keep, narrate})` re-denominates the population unit at a border: civilians and each job scale by `keep` (floored, pop floored at 1), units scale by `keep` but never below their deployed count, and `S.pop` is recomputed as civilians + units. Iron currently keeps 0.7. It is **THE** pacing dial for the border, and phase 6 (G1) cranks it hard and pairs it with an era output multiplier so `keep × output ≈ 1`.
 
-## Progressive Reveal Hints
+`purgeDom(fromM, toM)` removes the DOM nodes (`bcard-`, `hold-`, `ptile-`, `job-`, `res-` prefixed) of every id that didn't survive — the one place content ever leaves the screen. "Nothing can un-reveal" holds everywhere except an era boundary. Renderers only create nodes for manifest members, so a purged id stays gone.
 
-Distinct from events: `HINT_LIB` (id-keyed) holds one-time Chronicle hints (`{when, msg}`); the active manifest's `hints` slate decides which are live, and `checkReveals()` iterates that slate every tick. These aren't stateful occurrences — they're narration for "you've discovered a new mechanic" (first wood gathered, storage cap first hit, sickness becoming possible at `pop >= 4`). Each fires exactly once, tracked in `S.seen`. Era-specific hints (`rotOre`, `bronzeAvailable`) are gated purely by slate membership, not by `S.era` checks inside `when()`.
+`manifestDiff(fromM, toM)` computes `{added, removed, renamed}` across buildings/units/upgrades — **one diff, two consumers**: the purge mirrors it, and the era modal derives everything but the flavor lead from it. `ERA_TRANSITIONS[era]` holds only a `lead` sentence; the hand-maintained change list is gone and cannot go stale.
 
-## Rendering
+**Semantics sharpened by `active()`** (all unreachable in normal play, now uniform by construction): `stealResources()` only touches this era's resources; `releaseOrder()`/`jobsUsed()` cover exactly this era's jobs; combat iterates this era's units. A unit type with a nonzero count but no manifest entry neither fights nor dies — inert state, per invariant 4.
 
-No framework — direct DOM manipulation, with one consistent pattern used everywhere something repeats (job rows, building buy-cards, holdings tiles, queue cards): **create the element once, on first appearance, and update its contents in place on every subsequent render** rather than tearing down and rebuilding. This matters because `renderAll()` runs on every tick (5×/second) — rebuilding via `innerHTML` every tick would both be wasteful and would silently drop event listeners attached to child elements (this was an actual bug caught and fixed earlier in the build, on the construction-progress panel).
+### The settled invariants
 
-**Panels no longer hide themselves** (2026-08-20). Every panel the active manifest can fill is in the DOM and visible from the first frame; only its *contents* are reveal-gated. Rows and cards still carry a `hidden` class toggled by the same reveal logic as before, and buy-list visibility still goes through `isRevealed(def)` rather than calling `def.reveal()` directly — see the sticky-reveal fix under Persistence's "Known fixed bugs." What changed is that `renderBuildings`/`renderUpgrades`/`renderTraining`/`renderQueue` now toggle an empty-state sentence instead of the panel's own `hidden` class.
-
-The one panel still gated is **Expeditions**, and it's gated on era rather than progress: `expeditionsUnlocked()` is now simply `active().adversaries.length > 0`, so it stands in any era whose manifest declares an outside world. The Muster Ground gates the *actions* on the adversary cards (with a tooltip reason on each disabled button), not the panel — reading your neighbours before you can act on them is the point, since the cards are the recruiting poster for the building.
-
-This reverses a decision that had itself reversed the original design, so the history is worth keeping straight. The board *was* whole from frame 1 originally; that was changed once live play showed empty panels reading as clutter rather than intent; and it is now back, because the premise of that complaint was the flat pen-on-paper wireframe in which an empty panel and a full one looked identical. Bureau gives every panel an ink header plate and its own paper stock, so an empty one reads as a blank form. See `design.md`, *Unravel the contents, not the board*, for the full reasoning.
-
-Two pieces of machinery went with it. `S.seen.queueUsed` was **removed** — it had become write-only state persisted into every save. And `updateSpans()` shrank to one line: the roster panels' `.span-both` existed to cover a partner panel's empty grid cell, which can no longer occur, leaving only the Chronicle's double-height span (dropped when Expeditions appears).
-
-**Your People** renders person-type tiles (Settler, Soldier) the same create-once-update-in-place way Settlement renders building tiles — reusing the `.holding` visual style, but living in a different panel and a different state bucket (`S.units`, not `S.builds`), since "who your people are" and "what you've built" are deliberately kept as separate questions (see `design.md`). Settler count shown is `civilians()`, not `S.pop` — Soldiers get their own tile instead of being folded into the total.
-
-**Dynamic row-span**: a top-row panel can visually expand to fill its whole grid column (both rows) when its paired bottom-row panel has nothing revealed yet, rather than leaving an unexplained blank grid cell. This is driven by the same reveal-state check already used for `hidden` toggling, just applied to a `.span-both` class instead: `panel-village` gets it when no `UNITS` entry `isRevealed`, `panel-holdings` when no `BUILDINGS` entry `isRevealed`, `panel-queue` when no `UPGRADES` entry `isRevealed`. In practice Settlement/Construction rarely shows this state (Hut reveals almost immediately) and Build Queue/Upgrades essentially never does (Stone Tools reveals at `wood >= 5`, strictly before anything else in the game can possibly be queued, so Upgrades is guaranteed visible by the time Build Queue itself first appears) — but Your People/Training does for a real stretch of early play, since Barracks is a mid-game unlock. Applying the rule to all three uniformly, rather than special-casing just the one panel where it visibly matters, is what makes it cheap insurance rather than one-off code.
-
-## Layout & Visual System
-
-`styles.css` implements the **Bureau** interface (`redesign/`, landed 2026-08-20). The direction: the game is a spreadsheet, so the presentation stops disguising that and becomes dense administrative paper — ledger sheets, ink tab headers, monospace numerals, hard 1px borders, no rounded corners, no shadow anywhere except the modal's hard offset.
-
-**Tokens, not literals.** The prototype authored every value inline on the element using it. Here they are CSS custom properties, because we have a stylesheet, a desk that changes per era, and nine more eras of content coming — a palette that can be re-pointed in one place wins. `:root` holds surfaces, the three-value semantic channel, border weights, the rulings, and the three type registers.
-
-**Two laws run through the whole sheet**, and both are load-bearing rather than stylistic:
-
-1. **Opacity is never used, for anything.** It previously did double duty for *unaffordable*, *queued* and *already owned*, and all three read to players as "you can't have this". State is carried by border weight, border colour, glyph colour and status words instead. Concretely: an unaffordable buy-card is a lighter border and nothing else — its text stays at full contrast, because most cards spend most of their life unaffordable and *reading* them is how players plan. Death is the one whole-board state change, and it drains the board's saturation rather than fading it.
-2. **Legibility outranks texture.** Each column gets its own stock — cork (People/Training), graph 16px (Settlement/Construction), dot grid 14px (Underway/Upgrades/Expeditions), legal pad (Chronicle) — which is what makes the columns distinguishable without spending colour on it. Anything carrying words sits in an opaque box on top.
-
-   One deliberate exception, and the distinction behind it is worth keeping: loose text (empty-state sentences, the growth line) is backed with a patch of paper on the *ruled* panels, because a ruling is geometric lines that cut across letterforms. Cork is a low-contrast speckle field — nothing crosses a letter — so text sits straight on it and only needs a darker ink (`--text-cork`, 6.4:1) to hold contrast. A white patch floating on a big cork field read as a stray label rather than as a note.
-
-   Ruling strengths were raised ~1.7× once every card carried an opaque fill, since the pattern no longer touches a word. Dots carry roughly double the alpha of lines on purpose: 1px dots on a 14px grid cover far less ground than 1px rules on a 16px one.
-
-**Layout.** `body` is `overflow: hidden` (the page itself never scrolls). `#mainArea` is a CSS Grid, `grid-template-columns: 0.86fr 1fr 1fr 1.24fr` and `grid-template-rows: 1fr 1.7fr` — People is narrowest (it is mostly steppers), Chronicle widest (it is prose). Eight `.block` panels are placed explicitly; `panel-log` spans both rows until Expeditions unravels beneath it, and `.span-both` lets a roster panel fill its column while its paired action panel is still empty. Each `.block` is a flex column with a fixed ink header plate and a separately-scrolling `.block-body`.
-
-**Era chrome.** `renderEraChrome()` writes `S.era` to `body[data-era]`, and CSS does the rest: the desk colour behind the board, the era badge's plate/dot/ring, and a wholesale inversion of the header chrome for dark desks (Bronze and Iron). Header chrome is authored as three layers — border, fill, text — so it never assumes a light background, which is what lets later eras go as dark as they like.
-
-**Where the handoff contradicted itself.** The prototype's card names carried `overflow:hidden; text-overflow:ellipsis; white-space:nowrap`, which violates its own locked principle that text wraps and never truncates. Resolved toward the stated principle: names wrap with `text-wrap: pretty`. A live check of the maximal 8-panel Iron board finds zero clipped elements and zero page overflow in either axis.
-
-**Descriptions live only in the tooltip.** `attachTip(el, getter)` stashes a *getter* on the element rather than a snapshot, because cards update in place and a snapshot taken at creation goes stale immediately. The tooltip carries a title, a body that can afford to be more verbose than an inline line ever could, and the refusal reason (`shortfallLine()` → "Short 24 wood.") — so there is exactly one place to look when something won't buy.
-
-**Colour is still a small semantic system**, unchanged in meaning and only re-pointed in value: `--danger` (blocked, negative, at-cap), `--good` (working, gained, owned), `--queued` (in progress), and otherwise ink on paper. Enforced at the call site — `log(text, cls)` takes an explicit severity, never inferred from content.
-
-`log()` prepends rather than appends, so the newest Chronicle line is always the first child, and `el.scrollTop = 0` keeps it in view. The 60-entry trim accordingly removes from `lastChild`. Each entry renders as a 28px-tall row: a mark in a 32px gutter (`+` good, `!` danger, `★` milestone, `·` neutral) whose right edge *is* the legal pad's red margin rule, then the text. The mark repeats what colour already says, deliberately — it survives skimming, and it survives colour blindness. Exactly one entry carries `.latest`, handed off on every call.
-
-## Testing Approach
-
-No test framework; verification is a headless Node harness — **checked into the repo as `harness.js`** (run `node harness.js` from the repo root; originally session-scratchpad-only, promoted once it accumulated 400+ checks worth preserving) — built around `vm.createContext` — it stubs just enough of `document`/`localStorage`/`window` for `game.js` to boot outside a browser, then exercises `step()`, `build()`, `assign()`, `resolveEvents()`, etc. directly, with an exported `__api` object for inspection. This has been the primary correctness check throughout the build (starvation timing, queue escalation math, storage-cap clamping, event negation odds, job-reassignment-on-death safety), with live browser checks reserved for visual/layout verification and DOM-level bugs the headless harness can't see (the beforeunload/save race was actually found via live testing, not the harness).
-
-## Settled But Not Yet Built
-
-Everything above documents the game **as it currently runs** — free timed growth, the Phase A manifest parity refactor, and the Phase B transition machinery have all shipped. The manifest architecture is complete and battle-tested by its first real consumer (the Iron Age, Phase C); the next consumer is the Conquest Growth rework below.
-
-### The settled invariants (all in force)
-
-Recorded here as the standing contract every future era must honor — rationale in `design.md` (*The Era Manifest Model*), mechanics under *Eras: The Manifest Model*, above:
+**Status: in force. Every future era must honor these.** Rationale in `design.md`.
 
 1. **Ids are permanent and global.** The same id in two eras' manifests is *the same entity*; an id, once shipped, is never reused to mean something else.
 2. **The compiled manifest is the complete truth of its era.** Nothing outside it renders, produces, converts, fires, or can be purchased.
@@ -346,72 +420,261 @@ Recorded here as the standing contract every future era must honor — rationale
 
 **Explicit non-goals, still:** no ECS, no event-sourcing, no reactive state framework. The simulation is small; the pain was content lifecycle, and manifests solve exactly that with plain data.
 
-### Conquest Growth & the Peace Path — implementation contract (next build)
+## Events Engine
 
-Design settled in `design.md` (*Conquest Growth & the Peace Path*, plus the revised Border
-policy and the progressive-enhancement law). **Implement from the documents, not from memory.**
-Suggested phasing — each slice playable, harness-verified, committed on its own:
+**Status: shipped.** Phase 7 adds the `decide` shape; nothing below changes.
+
+`EVENT_LIB` (id-keyed) holds every event that exists in any era; the active manifest's `events` slate decides which are live. There are no era tags on events.
+
+```js
+{
+  sev: "good" | "bad",
+  // exactly one of:
+  canFire: (S) => boolean,        // deterministic, re-checked & fired repeatedly per tick
+  chancePerSecond: number,        // probabilistic, converted to a per-dt roll
+  resolve: (S, dt) => { ... },    // full escape hatch: owns its trigger + effect + flavor
+  condition: (S) => boolean,      // optional extra gate
+  counter: { building, reducePerUnit },  // optional negation source; reducePerUnit may be a
+                                          // flat number or (S) => number, for counters whose own
+                                          // strength is upgradeable (Herbal Medicine)
+  effect: (S) => { /* mutate state */ },
+  flavor: { hit: [...], negated: [...] },  // negated only used if `counter` present
+}
+```
+
+`resolveEvents(dt)` iterates `active().events` once per `step()`:
+
+1. Skip events whose `condition` fails. Era eligibility needs no check — an event absent from the slate does not exist right now.
+2. **`resolve`-based events** are called with `(S, dt)` and left entirely to themselves: no generic trigger roll, negation or flavor logging happens around them.
+3. **Deterministic events** (`canFire`) loop-fire while the condition holds, guarded at 50 iterations. Currently no users — population growth was the only one before it moved to `accrueGrowth()` — but the archetype stays as the generic deterministic shape.
+4. **Probabilistic events** (`chancePerSecond`) roll once per step at the dt-adjusted probability. On a hit, `negateChance(ev)` (`min(1, counterBuildingCount * reducePerUnit)`) gets a second roll; negated events log the `negated` line, always styled `"good"` (averting bad news is good news) and skip the effect entirely.
+
+**The `resolve` escape hatch is a generic engine affordance, not a Conflict special case.** Conflict needed a population-scaled trigger, a variable raid size, a two-stage outcome and outcome-dependent flavor; rather than contort the generic shape, any event with that much internal complexity may own its own resolution. Phase 7's decision events are the second archetype that will want it.
+
+**Great Hunt** and **Trader** are positive-only entries using the plain `chancePerSecond` + `effect` shape — proof the generic shape was never inherently hazard-specific, it just happened to only have hazards using it. The negation branch is skipped automatically because `negateChance()` returns 0 when `ev.counter` is absent.
+
+Flavor lines are picked at random from each pool (`pick()`) for variety across repeats.
+
+### `reconcileWorkforce()` — and the bug that produced it
+
+**Status: shipped. Kept in full because the class of bug recurs.**
+
+A civilian can be spoken for in *two* ways: assigned to a job, or reserved by a queued unit order. The original code balanced deaths against `jobsUsed()` alone, so a death while a Soldier sat in the queue left the books short by exactly the reserved worker and `idle()` displayed **−1**. It was reported from real play, and the visible symptom was oblique: clicking a job's minus button "absorbed" the deficit, which read as a worker vanishing.
+
+The reconciler balances against `jobsUsed() + reserved() - civilians()` and resolves the shortfall in two stages:
+
+1. Release people from jobs, following `releaseOrder()` (derived from the era's jobs, reversed, foraging last).
+2. If emptying every job still isn't enough — possible when more unit orders are queued than there are survivors — abandon the newest unit orders, refunding materials exactly as a manual cancel would. `dropQueueItem()` is shared with `cancelBuild()` so the refund path cannot diverge.
+
+The harness fuzzes it: 400 random settlements with random armies, queues and death sequences, asserting `idle()` and `civilians()` never go negative. **The generalizable lesson: any derived quantity with more than one claimant needs a reconciler, and the reconciler needs a fuzz test, because the failure mode is a small negative number on screen rather than a crash.**
+
+`removeSettler(allowZero = false)` is the shared "a civilian dies" helper. It no-ops when `civilians() <= 0` — a settlement of nothing but trained units has no one for it to take, and without the guard `S.pop` could be pushed below the unit total, making `civilians()` negative. Otherwise it decrements `pop` (floored at 1 unless `allowZero`) and reconciles. Contrast `removeRandomUnit()`, which drops a unit and `pop` together so `civilians()` is unchanged and no reconciliation is needed.
+
+## Progressive Reveal Hints
+
+**Status: shipped.**
+
+Distinct from events: `HINT_LIB` (id-keyed) holds one-time Chronicle hints (`{when, msg}`); the active manifest's `hints` slate decides which are live, and `checkReveals()` iterates that slate every tick. These aren't stateful occurrences — they're narration for "you've discovered a new mechanic" (first wood gathered, storage cap first hit, sickness becoming possible at `pop >= 4`). Each fires exactly once, tracked in `S.seen`. Era-specific hints are gated purely by slate membership, never by `S.era` checks inside `when()`.
+
+## Units & Military
+
+**Status: shipped; substantially reworked in phase 6.** Read this together with *Conquest Growth*, below — G1 changes the population math described here.
+
+A unit def carries `popCost` — civilians it permanently consumes. That drives the population math:
+
+```js
+function civilians()   { return S.pop - Object.values(S.units).reduce((a, b) => a + b, 0); }
+function reserved()    { return S.buildQueue.reduce((sum, q) => sum + (defById(q.id).popCost || 0), 0); }
+function jobsUsed()    { return active().jobs.reduce((sum, j) => sum + (S.jobs[j.id] || 0), 0); }
+function idle()        { return civilians() - jobsUsed() - reserved(); }
+```
+
+`reserved()` sums `popCost` across the **entire queue**, front and waiting alike — a civilian leaves the available pool the instant an order is queued, matching "it takes one civ out, runs a progress bar, then you get a soldier." `build()` checks `idle() >= (def.popCost || 0)` alongside resource affordability, so recruiting competes directly with job assignment for the same pool. On completion the civilian permanently exits `civilians()` via `S.units` rather than returning to idle.
+
+Ongoing food upkeep needs no new code: `S.pop` already includes units, and the upkeep line is just `S.pop * CONFIG.upkeep`.
+
+### Raid types & composition
+
+`raidTypes` (declared in stone, inherited unchanged since) rolls independently of `RAID_SIZES`. `militaryStrength(raid)` sums `unitStrength()` across the era's unit types, each contributing `count × strength × weaponMultiplier() × (matched ? CONFIG.counterBonus : 1)`.
+
+**The critical property is enforced by the formula's shape, not by a special case:** the non-matching multiplier is **1, never below**. Units are never penalized for being the wrong type, only un-bonused, so any army always beats no army.
+
+**The counter relationship is stored in exactly one place**: a unit def's `counters` field naming a raid id. An earlier pass *also* put the reverse mapping on the raid type and compared `def.counters === raid.counter` — a raid id against a unit id, always false, silently disabling every counter bonus in the game with no error. The redundant field is gone; `counterUnitFor(raid)` searches `active().units`. A `warband` is simply a raid no unit names, so nothing counters it, with no null-handling needed. **This is the archetype of the bug class the validator exists to catch, and the reason duplicate representations of one relationship are treated as a defect here.**
+
+Composition mismatch feeds a second, softer dial rather than `repelChance`: `counterCoverage(raid)` returns the share of your defense coming from the countering unit, and the costly-repel probability is multiplied by `1 - CONFIG.counterCasualtyRelief × coverage`. Fielding the right unit wins more fights *and* buries fewer of your own.
+
+**Casualty exposure.** `removeRandomUnit()` draws weighted by headcount × the unit's `casualtyWeight` (Soldier 1.0, Horseman 0.6, Siege Engine 0.5, Archer 0.35), so the front line absorbs most losses and archers read as the backline unit they're meant to be. Every weight is deliberately **greater than zero**, which is what makes this bend the odds rather than grant immunity: an archer can always be the one who falls, and an all-archer army degenerates to "the archer dies" with no protection at all. Measured over 30,000 draws from an even 10/10/10 army: soldier 50.9%, horseman 31.1%, archer 17.9%. A trailing fallback loop covers the floating-point case where accumulated subtraction walks the roll past the end of the list — without it a rounding error returns `null` and silently skips a casualty.
+
+`stealResources()` loops every resource in the active era.
+
+### Conflict
+
+Conflict uses the `resolve()` escape hatch. Its algorithm:
+
+1. **Trigger** — `chance = CONFIG.conflictBaseChance * (1 + S.pop * CONFIG.conflictPopScale)`, further multiplied by `hostilityMultiplier()` (×1.5 per Hostile warlike neighbour), converted to a per-`dt` roll. Frequency scales continuously with population — a bigger settlement is a bigger target — rather than using a threshold gate. Also gated behind `S.pop >= 4`, matching Sickness's early grace.
+2. **Raid size and type** — independent weighted picks from `RAID_SIZES` (small/common, large/rare) and the era's raid types. Size is "sometimes 2 scouts, sometimes 10"; type is what composition plays against.
+3. **Defense** — `militaryStrength(raid)`. `weaponMultiplier()` is tiered, highest owned wins (Iron 3.0 > Bronze 2.2 > Flint 1.6 > unarmed 1.0); `armorFactor()` has the same lowest-wins structure pointed the other way. Zero units means zero defense, full stop.
+4. **Repel check** — `repelChance = defense / (defense + raidSize)`. A ratio, not a threshold: always some chance either way, more investment always shifts the odds, nothing ever reaches exactly 0% or 100%.
+5. **Consequences**, banded by outcome:
+   - **Repelled, clean** — no losses.
+   - **Repelled, costly** — rolled separately (`raidSize / (defense + raidSize)`, softened by armor and by `counterCoverage()`); one unit lost via the exposure-weighted draw.
+   - **Raid succeeds** — `1 + floor(raidSize / 5)` units lost (capped at how many exist), a fraction of every resource stolen (scaling with raid size, capped at 50%), and — only if defense was especially thin relative to the raid, including `defense === 0` — one civilian lost via `removeSettler(true)`.
+
+Conflict is the one hazard allowed to end a run (`design.md`, *Failure*), which is why it passes `allowZero: true`. **It does not end the game itself** — the generic `S.pop <= 0` check in `step()` does.
+
+## Adversaries & Expeditions
+
+**Status: shipped (C2, C2.1, plus siege).** Design canon in `design.md`, *Adversaries & Expeditions* and *Siege & Fortifications*.
+
+**`adversaries` is a manifest category declared wholesale per era, never inherited** (stone and bronze: `[]`). Shape: `{id, name, disposition: "peaceful"|"warlike", strength, walls?, fightsAs: raidTypeId, stock: {resId: n}, buys?: {res, amount, pays}, campaignTime, caravanTime?, desc}`.
+
+**State** (additive, defensively merged): `S.adversaries = {[id]: {stock, standing, walls}}`. The manifest entry is the *template*; the state entry is the *living remnant* that depletes. `S.expeditions` holds at most one campaign and one caravan (`expeditionOut(type)` guards per type — never two of a kind).
+
+**Deployment thins home defense, genuinely.** `deployedCount(unitId)` sums over active expeditions; `unitStrength()` counts `S.units[id] - deployed(id)`, and the home-side casualty draw only touches undeployed units. Campaign casualties draw from the deployed set with the same exposure weights and decrement `S.units` + `S.pop` on resolution. An army on campaign is not home; that is a mechanic, not flavor.
+
+`resolveExpeditions(dt)` runs in `step()` after events and before the wipe-out check: tick `remaining`, and at zero resolve.
+
+**Campaign resolution, in strict order:**
+
+1. **Standing falls by 1 immediately** — plunder is not diplomacy, win, lose, or turned back at the walls.
+2. **The breach phase, if the target still has walls.** `wallPower(units)` = `Σ count × strength × weaponMultiplier() × (siege ? CONFIG.siegeWallBonus : 1)`. No counter bonuses — walls have no fighting style. If power is short of the remaining wall, the column withdraws with at most one casualty (`CONFIG.wallRetreatLoss × armorFactor()`) and **the damage it did persists in `st.walls`**. Stock-not-economy extends to fortifications: the scars stay carved for the era, so a failed assault is an investment rather than a wasted reroll, and sieges against hard targets become sagas. The narration distinguishes a wall that fell in one furious assault from a battered one that finally gave way (`fresh = st.walls >= adv.walls`).
+3. **The field battle**, only once the walls are down. `attack = campaignStrength(units, adv)` (the raid math pointed outward, with the counter bonus applied against `adv.fightsAs`); `winChance = attack / (attack + adv.strength)`.
+4. **Win** → plunder `CONFIG.plunderFraction` (0.4, floored) of each stock resource, which leaves the target permanently poorer because a stock is not an economy; plus a possible single casualty, armor-softened. **Lose** → no loot, `1 + floor(adv.strength / 8)` casualties capped at the deployed count.
+
+**Caravan resolution:** gold paid = `min(pays, their remaining gold)`, ×1.25 at Friendly; their gold stock decrements; **the goods you sold join their stock**, where a later campaign could take them back (nothing enforces or even mentions that arbitrage — it is simply true, because stocks are real); standing +1. While any warlike neighbour is Hostile, `riskAdversary()` names the strongest one and the caravan is ambushed at `CONFIG.caravanRaidChance`. **Escorts do not reduce the ambush chance — they contest the ambush**: `escortStr / (escortStr + raiders.strength)` to fight through and complete the trade, with casualties possible either way. Escorted guards deploy like campaigners and thin home defense, so guarding trade is a real allocation, not a checkbox.
+
+**Standing** is one integer per adversary, moved by exactly two things, read out only as a word: ≤−2 Hostile, −1 Wary, 0–1 Neutral, ≥2 Friendly. All the consequences V1 has: each Hostile **warlike** adversary multiplies the home conflict trigger by `CONFIG.hostileConflictMult`; a Hostile **peaceful** one refuses caravans; a Friendly one pays a premium. Trading at Wary gets a cold narrated line — the system is hinted, never printed.
+
+**Validator additions for the category:** `fightsAs` ∈ era raid types; `stock` keys and `buys.res` ∈ era resources; `buys` only on peaceful adversaries and only with a `caravanTime`; `walls >= 0` if present; `campaignTime > 0`.
+
+**Resolution lines log unconditionally.** Rare and story-critical, same rule as migration narration.
+
+**Layout.** `#panel-expeditions` sits at grid row 2 / column 4; the Chronicle's `grid-row: 1 / 3` becomes conditional and drops to row 1 once the Muster Ground reveals — the same sticky-span machinery the roster panels use, pointed the other way. Each adversary renders as a create-once card: name, disposition, standing word, known stock, wall state, campaign allocator (job-style steppers per unit type) and caravan button with the posted exchange. Campaigns launch through a muster **modal** (description, live estimate, steppers; the allocator is module-level UI state like `paused`, reset on launch). Caravans stay one-click on safe roads and open an **escort modal** when the roads are dangerous. Expeditions render as cancel-less progress cards at the top of the queue panel, typed by `QUEUE_ICONS`, with uids prefixed `x` so they share the panel with build uids.
+
+**The panel is gated on era, not progress**: `expeditionsUnlocked()` is `active().adversaries.length > 0`, so it stands in any era whose manifest declares an outside world. The Muster Ground gates the *actions* on the cards (with a tooltip reason on each disabled button), not the panel — reading your neighbours before you can act on them is the point, since the cards are the recruiting poster for the building.
+
+## Rendering
+
+**Status: shipped.**
+
+No framework — direct DOM manipulation, with one law used everywhere something repeats: **create the element once, on first appearance, and update its contents in place on every subsequent render.** `renderAll()` runs 5×/second, so rebuilding via `innerHTML` is both wasteful and silently drops event listeners on child elements.
+
+**Two bugs made that law non-negotiable. Both are still live lessons.**
+
+**The click-eater.** The oldest bug in the project: buys sometimes took two or three clicks. The three buy-card renderers rewrote `card.innerHTML` on every 200ms tick — and a click is not instantaneous. Mousedown landed on a child span, the next tick destroyed it, mouseup landed on its replacement, and the browser dropped the click because the pressed element no longer existed. Roughly half of all presses straddle a tick. The steppers never suffered, because they update stable nodes — which was already the stated rendering law; the card renderers had violated it since v1. Cards now build a skeleton once (`cardSkeleton`) and update via `textContent`/`classList`; cost spans rebuild only when the *part count* changes (era re-pricing, capped flips). Verified live: child nodes survive 20 render ticks identically. **The generalizable rule: a node the player can press must not be replaced on a timer.**
+
+**The time-capsule click.** Different cause, same neighbourhood. Archers and Horsemen wouldn't train in Iron while Soldiers and Siege Engines would. A buy card's click listener had captured the **def object of the era the card was created in** — cards born in Bronze still called `build()` with the bronze-era def, whose cost names a resource that no longer exists. The *display* path reads the active manifest, so the card showed iron prices and looked perfectly buyable; only the click was stale. Soldier never broke (identical cost in every era) and Siege Engine never broke (born in Iron), which is exactly the symptom pattern. Fix: **resolve the def by id at click time via `defById()`**, which answers with the active era's version. **The generalizable rule: a closure created once and invoked later must capture ids, never era-scoped objects.** This is the same trap as "re-render era-dependent text," in the one place where re-rendering doesn't help you.
+
+**Panels no longer hide themselves.** Every panel the active manifest can fill is in the DOM and visible from the first frame; only its *contents* are reveal-gated. Rows and cards carry a `hidden` class toggled by `isRevealed(def)` (never `def.reveal()` directly — see Persistence), and the buy-list renderers toggle an empty-state sentence instead of the panel's own visibility. The only era-gated panel is Expeditions.
+
+*Historical note, kept because the reversal reversed a reversal and the reasoning is the interesting part.* The board *was* whole from frame 1 originally; that changed once live play showed empty panels reading as clutter; and it is now back, because the premise of that complaint was the flat pen-on-paper wireframe in which an empty panel and a full one looked identical. Bureau gives every panel an ink header plate and its own paper stock, so an empty one reads as a blank form. Two pieces of machinery went with the reversal: `S.seen.queueUsed` was removed (it had become write-only state persisted into every save), and `updateSpans()` shrank to the Chronicle's double-height span alone.
+
+**Your People** renders person-type tiles the same create-once way Settlement renders building tiles — reusing the `.holding` visual style, but living in a different panel and a different state bucket, since "who your people are" and "what you've built" are deliberately separate questions. Settler count shown is `civilians()`, not `S.pop`.
+
+**Dynamic row-span.** A top-row panel expands to fill its whole grid column when its paired bottom-row panel has nothing revealed yet, rather than leaving an unexplained blank cell — driven by the same reveal check as `hidden`, applied to a `.span-both` class. In practice only Your People/Training shows it for a real stretch (Barracks is a mid-game unlock); applying the rule uniformly rather than special-casing the one panel where it matters is what makes it cheap insurance instead of one-off code.
+
+**Descriptions live only in the tooltip.** `attachTip(el, getter)` stashes a *getter* on the element rather than a snapshot, because cards update in place and a snapshot taken at creation goes stale immediately — the same class of mistake as the time-capsule click, caught early. The tooltip carries a title, a body that can afford to be verbose, and the refusal reason (`shortfallLine()` → "Short 24 wood."), so there is exactly one place to look when something won't buy.
+
+`log()` prepends rather than appends, so the newest Chronicle line is always the first child and `el.scrollTop = 0` keeps it in view; the 60-entry trim accordingly removes from `lastChild`. Each entry is a 28px row: a mark in a 32px gutter (`+` good, `!` danger, `★` milestone, `·` neutral) whose right edge *is* the legal pad's red margin rule, then the text. The mark repeats what colour already says, deliberately — it survives skimming and it survives colour blindness. Severity is passed explicitly at the call site, never inferred from the text.
+
+## Modals
+
+**Status: shipped; the pause flag is pending — phase 5.**
+
+One modal at a time, centered over a 30%-black fixed overlay. Deliberately minimal: **no dragging, resizing, or minimizing** — the panel sizes to its content up to a `max-height`, past which its `.block-body` scrolls internally like any other panel. It reuses the `.block` shell so it matches the board visually for free. Dismiss via the header ×, a backdrop click, or Escape; clicks *inside* the panel are checked against `e.target.id === "modalOverlay"` so they don't close it.
+
+`openModal(title, bodyHTML, actions, onMount)` is the whole API. `actions` renders a button row along the bottom edge (`danger: true` renders in the warning red); `onMount` runs after `innerHTML` is set, which is how the Info panel attaches its tab listeners and the muster modal wires its steppers.
+
+Under Bureau the modal is the **ceremony register** and looks the part: legal-pad stock, a hard 6px offset shadow (the only shadow in the game), a Newsreader lead in a box. The game interrupts the player rarely, so the few moments staged here land with disproportionate weight — **new features should earn a modal rather than default to one.**
+
+**Gotcha, found in live play, still live:** a `body.dead .block` rule intended to dim the board on death also matched the modal panel, so the game-over modal — which by definition only appears while dead — got dimmed too. Now scoped to `body.dead #mainArea .block`. Anything else styling `.block` broadly needs the same consideration.
+
+**Era advancement** announces in a modal with no action buttons. `ERA_TRANSITIONS[era]` hand-authors only the flavor lead; every list beneath it is derived from `manifestDiff()`, so none of it can go stale as content moves. The `before` snapshot is captured pre-flip, which is how the housing line quotes real before/after numbers. A single milestone line still goes to the Chronicle.
+
+**Reset** confirms through the same modal rather than a native `confirm()` — consistent styling, and native dialogs are outright suppressed in some environments (they were being swallowed in the dev browser pane, which is how this surfaced). The copy quotes the run's playtime so the consequence is concrete. Cancel, Escape and a backdrop click are equivalent and all provably non-destructive.
+
+**Game over** is a modal: a cause-specific narrative line, boxed run stats, and a **Try Again** button. Both it and Reset call the shared `hardReset()` — see Persistence for the teardown-save race it must avoid.
+
+**The Info panel** is a reference of every building, unit, upgrade and neighbour, grouped by era behind tabs, reading each era's compiled manifest directly. It deliberately shows *all* content regardless of what the player has revealed — it's a reference, and hiding things defeats its purpose. It is the one sanctioned exception to the unravel, and the one modal that will **not** pause under phase 5.
+
+## Layout & Visual System
+
+**Status: shipped.** Full treatment in `interface.md`; what follows is the load-bearing summary.
+
+`styles.css` implements **Bureau**: the game is a spreadsheet, so the presentation stops disguising that and becomes dense administrative paper — ledger sheets, ink tab headers, monospace numerals, hard 1px borders, no rounded corners, no shadow anywhere except the modal's hard offset.
+
+**Tokens, not literals.** `:root` holds surfaces, the three-value semantic channel, border weights, the rulings and the three type registers. A palette that can be re-pointed in one place is the only version that survives nine more eras of content.
+
+**Two laws run through the whole sheet, both load-bearing rather than stylistic:**
+
+1. **Opacity is never used, for anything.** It previously did double duty for *unaffordable*, *queued* and *already owned*, and all three read to players as "you can't have this." State is carried by border weight, border colour, glyph colour and status words instead. Concretely: an unaffordable buy-card is a lighter border and nothing else — its text stays at full contrast, because most cards spend most of their life unaffordable and *reading* them is how players plan. Death drains the board's saturation rather than fading it.
+2. **Legibility outranks texture.** Each column gets its own stock — cork, graph 16px, dot grid 14px, legal pad — which is what makes the columns distinguishable without spending colour on it. Anything carrying words sits in an opaque box on top. One exception: loose text on *cork* sits straight on the speckle (nothing crosses a letterform) with a darker ink; on ruled stocks it needs a paper patch, because a ruling is geometric lines cutting through letters.
+
+**Layout.** `body` is `overflow: hidden` — the page itself never scrolls. `#mainArea` is a CSS Grid, `0.86fr 1fr 1fr 1.24fr` × `1fr 1.7fr`: People narrowest (mostly steppers), Chronicle widest (prose). Eight `.block` panels placed explicitly, each a flex column with a fixed ink header plate and a separately-scrolling `.block-body`.
+
+**Era chrome.** `renderEraChrome()` writes `S.era` to `body[data-era]` and CSS does the rest: desk colour, era badge, and a wholesale inversion of the header chrome for dark desks. Header chrome is authored as three layers — border, fill, text — so it never assumes a light background, which is what lets later eras go as dark as they like.
+
+**Colour is a small semantic system**, enforced at the call site: `--danger` (blocked, negative, at-cap), `--good` (working, gained, owned), `--queued` (in progress), otherwise ink on paper. Text wraps and never truncates; a live check of the maximal 8-panel Iron board finds zero clipped elements and zero page overflow in either axis.
+
+## Testing Approach
+
+**Status: shipped at 420 checks, 0 failures; the replay superpower is pending — phases 2 and 4.**
+
+No test framework. Verification is `harness.js`, checked into the repo, run with `node harness.js` from the repo root. It stubs just enough `document`/`localStorage`/`window` for `game.js` to boot outside a browser, runs it through `vm.createContext` with an appended export hook, and exercises `step()`, `build()`, `assign()`, `resolveEvents()`, `advanceEra()`, `resolveExpeditions()` and friends directly through `__api`.
+
+This has been the primary correctness check throughout: starvation timing, queue escalation math, storage-cap clamping, event negation odds, converter equilibrium, migration order-immunity, the workforce fuzz. Live browser checks stay reserved for visual/layout verification and DOM-level bugs the headless harness cannot see — the beforeunload/save race and both click bugs were all found in live play, not by the harness. That division is stable and worth keeping in mind when deciding where to look for a bug.
+
+**What ticks + the seed turn this into.** Today a harness run is a *statistical* argument: run the sim 20 times, assert nothing crashes and nothing goes negative. After phases 2 and 4, a recorded run becomes a value:
+
+```js
+{ seed: 12345, actions: [ {tick: 40, fn: "assign", args: ["forager", 1]}, … ] }
+```
+
+Replay it and you get **bit-identical state**, every time. That converts the regression suite from *does it still work* into *does it still balance*: a fixture can assert "at tick 12,000 of this exact run, pop is 14, the Bronze capstone is 60% built, and the player has survived two raids" — and a content change that moves any of those numbers shows up as a precise diff instead of a vibe. It also makes rare-event balance questions answerable: sweep 200 seeds through the same action script and read the distribution.
+
+Two consequences to plan for: the replay format must record actions **by tick number**, not by wall time; and fixtures pinned to exact roll sequences will need regenerating whenever content changes the draw order (see *Determinism*). Prefer outcome assertions with tolerances; reserve exact-sequence fixtures for cases where the sequence is the thing under test.
+
+## Conquest Growth & the Peace Path — implementation contract
+
+**Status: pending — phase 6.** Design settled in `design.md` (*Conquest Growth & the Peace Path*, the Border policy, progressive enhancement). **Implement from the documents, not from memory.** Each slice is playable, harness-verified, and committed on its own.
 
 **G1 — the engine rework (population & levy).**
-- Era-scoped **growth mode** in the manifest (`growth: "timer" | "conquest"`): `accrueGrowth`
-  runs only under `timer`; Stone/Bronze unchanged, Iron+ conquest-only.
-- **Deep consolidation + output multiplier**: crank the iron delta's `consolidate.keep` hard and
-  add an era-fact `outputMult` applied in `rates()`/`mults()`, targeting `keep × output ≈ 1` so
-  existing costs stay valid. Both are single manifest values — THE tuning pair.
-- **Pop/units separation**: units stop being part of `S.pop` (levied, not consumed). popCost
-  dies at Iron (era-scoped or removed with unit overrides). `civilians()`/`reserved()`/
-  `reconcileWorkforce()` simplify accordingly; upkeep charges pop + units explicitly.
-- **Levy cap**: max total units = holdfasts × levy rate (era-fact). Training refuses beyond it,
-  with the tooltip carrying the reason.
-- **Housing retired at Iron**: iron delta removes `hut`; a narrated migration handles existing
-  longhouses; `housing()` becomes era-aware (no cap under conquest mode). Validator must pass
-  with a founding building absent.
-- Migration/back-compat: existing iron saves get a narrated one-time adjustment.
+
+- Era-scoped **growth mode** in the manifest (`growth: "timer" | "conquest"`): `accrueGrowth` runs only under `timer`. Stone/Bronze unchanged; Iron and later are conquest-only.
+- **Deep consolidation + output multiplier.** Crank `IRON_DELTA.consolidate.keep` hard (it is 0.7 today) and add an era-fact `outputMult` applied in `rates()`/`mults()`, targeting `keep × output ≈ 1` so every existing cost stays valid and no re-tuning cascade fires. Both are single manifest values — **THE** tuning pair.
+- **Pop/units separation.** Units stop being part of `S.pop` (levied, not consumed). `popCost` dies at Iron, era-scoped or removed via unit overrides. `civilians()`/`reserved()`/`reconcileWorkforce()` simplify accordingly; upkeep charges pop + units explicitly.
+- **Levy cap.** Max total units = holdfasts × levy rate (an era fact). Training refuses beyond it, with the tooltip carrying the reason, enforced in `build()` like every other refusal.
+- **Housing retired at Iron.** The iron delta removes `hut`; a narrated migration handles existing longhouses; `housing()` becomes era-aware with no cap under conquest mode. **The validator must pass with a founding building absent** — this is the removal the manifest architecture was built for, and the first time a base-manifest building leaves.
+- Back-compat: existing iron saves get a narrated one-time adjustment.
 
 **G2 — the minor tier & capture.**
-- Adversary slates gain minor entries (freeholds/petty lords): weak stat-stacks, each worth one
-  sworn holdfast + modest stock. Campaign resolution gains the capture outcome (+1 pop, small
-  windfall, Chronicle line that names the place for the last time).
+
+- Adversary slates gain minor entries (freeholds, petty lords): weak stat-stacks, each worth one sworn holdfast plus a modest stock. The era's capturable units become a **designed population budget** — growth is finite, authored, and paced per age.
+- Campaign resolution gains the **capture** outcome: +1 pop, a small windfall, and a Chronicle line that names the place for the last time (absorbed is generic; the Chronicle keeps the name).
 - Wholesale annexation of majors: scoped here or deferred — decide at build time.
 
 **G3 — priests & the envoy.**
-- Religious building + priest unit (barracks pattern); **envoy** as a third adversary action:
-  slow expedition, costs gifts + the caravan-or-own slot (decide), no casualties, standing +,
-  intact holdfast on success. Per-target affinity: disposition modulates envoy odds (as walls
-  modulate assaults). Failure cost real (martyrdom-lite; standing consequences).
-- The **annexation/conversion ceremony modal** — the first ceremony built *under* progressive
-  enhancement: modal live with (optionally) a defaulted choice, full Chronicle resolution AFK.
-- Event **state hooks**: event weights/conditions may read standing (and later morale);
-  observational-narration events keyed to low/high standing enter the slates.
 
-### Phase C — the Iron Age (designed; C1 shipped, C2 next)
+- Religious building + priest unit, on the Barracks pattern. **Envoy** as a third adversary action: slow expedition, costs gifts plus the caravan-or-own slot (decide), no casualties, standing +, target delivered intact.
+- **Per-target affinity**: disposition modulates envoy odds the way walls modulate assaults, hinted through flavor so reading the target is choosing the tool. Failure costs something real.
+- The **annexation/conversion ceremony modal** — the first ceremony built *under* progressive enhancement: modal live with a defaulted choice, full Chronicle resolution otherwise. This is where phase 7's decision queue and phase 6 meet; sequence accordingly.
+- Event **state hooks**: event weights and conditions may read standing (and later morale). Observational-narration events keyed to low or high standing enter the slates.
 
-Content decisions and rationale in `design.md` (Iron Age / Adversaries & Expeditions). The technical contract:
+*Open tunables, all implementation-time, tune-toward-hard as always: the keep/output pair; levy rate; minor-tier count and stats per era; envoy timer, cost and odds; capture windfall sizing; what wholesale annexation of a major is worth.*
 
-**C1 — the economy flip.** ✅ **Shipped** exactly as specified below, plus: `CAPSTONES` (id → era map) replaced the hardcoded capstone check in `onComplete()`; armor tiers got the same lowest-wins structure weapons already had; iron-era hints (`rotIron`, `firstSteel`, `firstGold`) and the `ironAvailable` bronze hint landed with it. Verified live: the full bronze→iron transition with a running economy — all three narrated migrations, ore-job workers released, every retired card/row/tile purged, gold seeded from the heirloom sale, the Forge smelting steel on the far side. Harness at 318 checks, 20/20 runs.
-- Bronze manifest gains the `ironAge` capstone (reveal `pop >= 16 && (archer || horseman) >= 1`; cost 400 food / 400 wood / 400 stone / 50 bronze; 180s) and an `ironAvailable` hint. `onComplete` maps it to `advanceEra("iron")`. `ERA_ORDER` gains `"iron"`; `ERA_TRANSITIONS.iron` gets its lead sentence.
-- `IRON_DELTA`, the first delta with a real `remove` list: copper, tin, bronze; copperMiner, tinMiner; oreYard; bronzeTools, bronzeWeapons, scouting, flintSpears (first two and scouting are priced in a dead resource — the validator forces this removal, which is it working as designed; flintSpears is superseded). Overrides: hut → **Longhouse** (housing 7), Forge `converts` → `{in: {iron: 3, wood: 2}, out: {steel: 1}, rate: 0.05}` with a new desc; panel title → **Town**; archer/horseman costs re-priced out of bronze into iron.
-- Adds: resources iron (job-mined, full rate), steel (converted; cap 200, no storage building), gold (**no job produces it** — enters only via migration, plunder, trade); job ironMiner; buildings **Iron Yard** (+100 iron) and **Treasury** (+100 gold); upgrades **Iron Tools** (+0.22 additive), **Iron Weapons** (weapon tier 3.0), **Steel Armor** (armor tier 0.3). New `scoutFindIron` event in `EVENT_LIB` (the bronze `scoutFind` pays copper, which would be inert writes in iron); iron's slates redeclared wholesale as always.
-- Migrations, the runner's first real load: `copper` vanish, `tin` vanish, `bronze` **convertTo gold at ratio 0.25**, each narrated. Ore-job workers released by the built-in default. Owned bronze-era upgrades stay owned and functional (multiplier reads state); `weaponMultiplier()` gains the ironWeapons tier and `armorFactor()` the steelArmor tier — the only two engine functions C1 touches.
-- No capstone out of iron (next era undesigned). When it exists, **it costs gold** (canonical rule 3 in `design.md`) — the exit from Iron is denominated in the expedition economy.
+## The Map
 
-**C2.1 — expedition legibility pass** (first playtest feedback). ✅ **Shipped**: one campaign AND one caravan may be out concurrently (per-type guards via `expeditionOut(type)`; never two of a kind); expeditions render as cancel-less progress cards at the top of the queue panel, typed by tiny `QUEUE_ICONS` (hammer/sword/coins — playtest revision: subtle icons beat a dashed border) (retitled **Underway** in iron via the existing `panelTitles` machinery; expedition uids prefixed `x` in the card DOM to share the panel with build uids); campaigns launch through a muster **modal** (description + live estimate + steppers; muster is modal-scoped UI state); caravans stay one-click on safe roads but open an **escort modal** when a warlike neighbor is Hostile — escorts don't reduce ambush chance, they contest the ambush (`escortStr/(escortStr+raiders.strength)` to fight through and complete the trade; casualties via `removeDeployedUnit` either way; `riskAdversary()` = strongest Hostile warlike neighbor). Trading at Wary standing gets a cold narrated line — the rep system hinted, never printed. Harness at 389 checks, 20/20.
+**Status: pending — phase 8. Full technical treatment in `map.md`** — the place-graph model, pointy-top hex geometry, the seeded generator, the hand-authored adversary pool with generated slates, SVG-plus-DOM-overlay rendering, and the geometry/paint layer separation.
 
-**C2 — Adversaries & Expeditions.** ✅ **Shipped** as specified below, plus: pacing telemetry (`[pacing]` console lines stamping the playtime clock when capstone research starts, finishes, or is cancelled — a playtest aid, per user request); adversaries listed as a "Neighbors" group in the Info panel's era tabs; the muster allocator is module-level UI state like `paused` (what the *next* campaign would take; resets on launch). Live-verified end-to-end through the real UI, during which the living world helpfully demonstrated itself: while a test caravan was on the road, the now-Hostile Hill Clans raided the thinned settlement and killed two of the units meant for the next muster. Harness at 365 checks, 20/20 runs.
-- New manifest category `adversaries`, declared **wholesale per era like the slates, never inherited** (stone/bronze: `[]`). Shape: `{id, name, disposition: "peaceful"|"warlike", strength, fightsAs: raidTypeId, stock: {resId: n}, buys?: {res, amount, pays}, campaignTime, caravanTime?, desc}`. Validator additions: `fightsAs` ∈ era raid types; `stock` keys and `buys.res` ∈ era resources; `buys` only on peaceful adversaries.
-- State (additive, defensively merged): `S.adversaries = {[id]: {stock, standing}}` — initialized from the manifest for any adversary not yet in state, at load and on era entry (an adversary's *manifest* entry is the template; the *state* entry is the living remnant that depletes). `S.expeditions = []` (at most one entry): `{uid, type: "campaign"|"caravan", adversary, units?, cargo?, total, remaining}`.
-- **Deployment thins home defense**: `deployedCount(unitId)` sums over active expeditions; `unitStrength()` counts `S.units[id] - deployed(id)`, and home-side `removeRandomUnit()` draws only from undeployed units. Campaign casualties draw from the deployed set (same exposure weights) and decrement `S.units` + `S.pop` on resolution.
-- `resolveExpeditions(dt)` runs in `step()` (after events, before the wipe-out check): tick `remaining`; at 0, resolve — **campaign**: `attack = Σ deployed × strength × weaponMultiplier() × counterBonus-vs-fightsAs`, `winChance = attack/(attack + adv.strength)`; win → plunder 40% (floored) of each stock resource + possible 1 casualty (armor/coverage-softened); lose → no loot, `1 + floor(adv.strength/8)` casualties capped at deployed; standing −1 either way. **Caravan**: gold = `min(pays, their remaining gold)` (× 1.25 if Friendly), their gold stock −= paid, the sold goods **join their stock**, standing +1; if any warlike adversary is Hostile, 25% the caravan is raided en route (cargo lost, nothing paid). Resolution lines log unconditionally (rare, story-critical — same rule as migration narrates); offline catch-up resolves expeditions for free since this lives in `step()`.
-- Standing words: ≤−2 Hostile, −1 Wary, 0–1 Neutral, ≥2 Friendly. Consequences (all V1 has): each Hostile **warlike** adversary multiplies the home conflict trigger ×1.5; a Hostile **peaceful** one refuses caravans; Friendly pays ×1.25.
-- **Muster Ground** (building, cap 1) gates the panel; one expedition at a time, enforced in the action layer like every other refusal. Campaigns cost a flat food provision at launch (paid like a build cost; no refund mid-flight — there is no mid-flight, per no-catch-windows).
-- **Layout**: new `#panel-expeditions` block in `index.html`, grid row 2 / column 4. The Chronicle's `grid-row: 1 / 3` becomes conditional: `updateSpans()` drops it to row 1 once the Muster Ground is revealed (same sticky-span machinery the roster panels use, pointed the other way). Each adversary renders as a create-once card: name, disposition, standing word, known stock line, campaign allocator (job-style steppers per unit type) and caravan button with the posted exchange.
-
-The capstone-into-iron plus a delta, three narrated migrations, two tier bumps, one new panel, and one new content category — everything else is the machinery Phases A/B already built. That's the bet the refactor made, and C is where it pays out or doesn't.
+Two dependencies point back here and are the reason the map is phase 8 rather than earlier: the generator needs the seeded `rng()` (phase 2) to be reproducible without serializing the whole map, and the slate constraints are authored on the era manifest, which means the map is another consumer of the same content architecture rather than a parallel one. Phase 9 — whether the map becomes the centre of the interface — is open and deliberately not designed here.
 
 ## Known Limitations
 
-- Conflict's numbers (`conflictBaseChance`, `conflictPopScale`, raid-size weights, the `repelChance` ratio, casualty/theft fractions) are first-guess, same as the rest of `CONFIG` — expect these to move once the system is actually played against.
-- Holdings tiles show a flat count with no compaction (`1234` renders as literally `1234`) — fine at current scale, flagged in `design.md` as a concern for later, much-larger numbers.
-- Upgrades don't appear anywhere once owned except the buy-card itself (relabeled "owned", permanently disabled) and the Chronicle completion line — there's no dedicated "traits you have" surface the way Settlement is for buildings.
-- The migration runner and DOM purge are fully built but lightly exercised: stone→bronze removes only the capstone and declares zero migrations, so their first real workout is the Iron Age. The harness covers them synthetically (every primitive, snapshot-order immunity, removed-job release), but synthetic coverage is not a real era transition.
-- `Math.random()` is used directly and unseeded — fine for a prototype, would need revisiting for reproducible testing of rare-event balance.
+**Status: current.**
+
+- **`Math.random()` is unseeded** at 16 call sites, so rare-event balance is only answerable statistically. Phase 2.
+- **Conflict's numbers** (`conflictBaseChance`, `conflictPopScale`, raid-size weights, the `repelChance` ratio, casualty/theft fractions) are first-guess like the rest of `CONFIG`, already once retuned after playtest. Expect them to move again once Conquest Growth changes what an army is.
+- **Siege tuning is untested at length**: `siegeWallBonus` (6), `wallRetreatLoss` (0.35) and each adversary's `walls` are one playtest old.
+- **Holdings tiles show a flat count with no compaction** — `1234` renders as literally `1234`. Fine at current scale; a real problem when re-denomination stops holding numbers down.
+- **Upgrades have no home once owned** except the relabeled buy-card and the Chronicle completion line — there is no "traits you have" surface the way Settlement is for buildings.
+- **An existing save already inside Iron never sees consolidation**, because it only fires at the border. It keeps family-scale counts under holdfast names. G1's back-compat migration is the fix.

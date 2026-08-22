@@ -1,324 +1,683 @@
 # Idle Civ — Design Document
 
+> **Working title.** "Idle Civ" no longer describes the game (see *Time, Presence & Pause*).
+> Renaming is deferred until the pivot below is implemented and playable — it is a live open
+> question, not an oversight. See *Open Questions*.
+
+**How to read this file.** Everything outside a *Historical note* is current canon. Historical
+notes exist only where the reasoning behind a reversal is still load-bearing; they are not a
+record of every decision ever taken. `tech.md` covers implementation, `map.md` covers the map
+arc, `interface.md` covers the interface system, `todo.md` carries the phase plan and is the
+authority on what is actually built.
+
+---
+
 ## Premise
 
-Take a civilization-building game — the Age of Empires / city-builder shape, an economy of workers, resources, and buildings — and strip out everything that requires graphical fidelity. No map. No rendered units. No pathing, no animation, no art budget. What's left is the part of that genre that was always actually a numbers game: assign people to jobs, manage what they produce, spend it on growth. Idle mechanics fill the gap where the graphics used to be — the game plays itself while you're not looking, the way *A Dark Room* or *Melvor Idle* do, but the content it's simulating is a settlement, not a text-adventure or a RuneScape skill grind.
+Take a civilization game — the Civ shape: an economy of resources, choices with real opportunity
+cost, an outside world of rivals you fight, trade with, or absorb — and strip out everything that
+requires graphical fidelity of *units*. No rendered armies. No pathing, no animation, no unit
+micro. What's left is the part of the genre that was always a numbers game: allocate, invest,
+decide whom to act against, live with the result.
 
-The pitch in one line: **you start by feeding a fire (or foraging for food), and by the end you're managing something like intergalactic trade — and the interface never stops looking like a page of ruled boxes in pencil.**
+A simulation runs continuously underneath, so the world moves and resolves on its own schedule
+rather than waiting turn-by-turn for permission. You can pause it, speed it up, and walk away from
+it. What you cannot do is miss anything.
+
+The pitch in one line: **you start by foraging for food, and by the end you're deciding the fate of
+star systems — and the interface never stops looking like paperwork.**
 
 ## Touchstones
 
-- **A Dark Room** — start with almost nothing. One button. Complexity is *earned*, never dumped on the player up front. Note what we take and what we don't: A Dark Room grows the interface itself, panel by panel; Idle Civ shows the board whole and grows what's *in* it (see *Unravel the contents, not the board*). The earned-complexity principle is the borrowed part; the vanishing-panels mechanism is not.
-- **Age of Empires / RTS economy** — the actual systems being modeled: villagers assigned to gather, food as the gate on population, buildings that convert resources into more capability. Idle Civ borrows the economic shape, not the real-time unit control.
-- **Melvor Idle** — proof that a beloved graphical game (RuneScape) can be rebuilt as numbers-and-menus and still be genuinely engaging. Same bet, different source material.
+- **Civilization** — the real target: choices, resource allocation, opportunity cost, an outside
+  world of counterparties. Borrowed wholesale as the *decision* model.
+- **Crusader Kings** — the time model: a real-time clock you pause and accelerate, an engine
+  simulating other actors, and decisions that arrive as events and wait for you. Also the
+  acquire/subdue/ally loop, which is where this game's growth now lives.
+- **A Dark Room** — start with almost nothing. Complexity is *earned*, never dumped up front. Note
+  what we take and what we don't: A Dark Room grows the interface itself; we show the board whole
+  and grow what's *in* it.
+- **Age of Empires** — the *economic* shape only (assign workers, gather, feed, build up), and only
+  in the early ages. Explicitly not the unit control.
+- **Melvor Idle** — proof that a beloved graphical game can be rebuilt as numbers-and-menus and
+  still be genuinely engaging. Cited for austerity, not for idling.
+
+**Historical note.** This project began as "idle Age of Empires" and drifted, through play, to
+something much closer to lo-fi Civilization. Two diagnostics moved it, both worth keeping: *the fun
+concentrates where the verbs are* (expeditions were by far the most engaging thing in the Iron Age,
+because they were the only outward-facing action), and *flavor friction is a gameplay smell* ("my
+longhouse holds 3 holdfasts" was the fiction correctly reporting that the mechanics beneath it
+hadn't re-denominated). Both pushed the same direction: toward decisions, away from accumulation.
+
+---
+
+## Time, Presence & Pause
+
+*(Settled 2026-08-22. This section replaces the game's former identity as an idle game and is the
+premise every other system now rests on.)*
+
+**The contract, in one line: the game never punishes you for leaving.**
+
+Not *the game never needs you* — that was the old contract, and it banned every interesting
+decision, because a decision the player might not be present for is a decision the game "needs"
+them for. The new contract bans only **loss**: nothing expires, nothing decays, nothing is missed,
+no reward is forfeited by being away. Within that, the game is meant to be watched.
+
+**The rules that implement it:**
+
+1. **The clock runs while you're looking at it.** The simulation advances only while the page is
+   visible; hiding the tab pauses it. There is no offline progress, no catch-up, and no background
+   running. Come back and the world is exactly where you left it.
+2. **Pause and fast-forward are player controls**, not developer affordances. Pause is how you
+   think; speed is how you get on with it. They sit in the header as first-class chrome.
+3. **Modals that ask something pause the game. Modals that tell you something don't.** Campaign
+   muster, caravan escort, decision events, destructive confirms — all pause. Reference material
+   does not. The default is to pause, because that failure mode is harmless.
+4. **Decisions may wait; nothing expires.** A choice presented by the world sits patiently until
+   you get to it. No countdowns, no claim buttons, no "act now." *Resolution never creates a window
+   the player must catch* remains canonical — that rule was always about expiry, never about
+   waiting.
+5. **Save is load-bearing.** Because the world stops when you do, stopping and resuming *exactly*
+   is a correctness requirement rather than a convenience. Any state a player can be part-way
+   through — a queued build, a column in the field, an undecided event — survives a close and
+   reopen.
+6. **Everything is paced to a sitting.** No single action outlasts a session. The longest builds are
+   measured in minutes at 1×, with fast-forward as the escape valve.
+
+**Idle is demoted to what it was always actually good for: delegation.** The engine runs what you
+have chosen not to run by hand. Early on you do almost everything yourself, because the settlement
+is small and the tactility is the point. Later you set doctrine and the simulation executes it.
+That is the *good* reading of an idle layer, and it scales — a ruler of twelve holdfasts assigns
+foragers; a ruler of a galaxy does not.
+
+**The engagement curve, corrected: the altitude of decisions rises; the density never falls.** The
+late game asks bigger questions, not fewer ones. Delegation is what makes room for that.
+
+**Historical note, worth keeping because the error was subtle.** The old pillar read *"Active early,
+idle late"* and promised that late-game actions would take hours — a Stone Age soldier in ten
+seconds, a starship in six hours. It confused *how long one action takes* with *how often you get to
+decide something*. Those are separable, and the good version of the curve raises the second while
+leaving the first alone. The old pillar forced a second, larger mistake: because every system had to
+self-resolve for an absent player, the entire class of "weigh something interesting" was out of
+scope. That was the Civ-shaped hole.
+
+The evidence that killed it was our own telemetry. After a 34-hour run, every resource sat pegged at
+its cap except gold — and gold was the only one still moving, because it is fed by expeditions, the
+active verb. Offline progress delivered exactly one thing: filling caps that ten minutes of watching
+would have filled anyway.
+
+**What survives from the idle era, unchanged in force:**
+
+- **A living world.** The settlement is surrounded by other actors, and simulating them is what makes
+  this a world rather than a spreadsheet. Their actions carry real consequences either way.
+- **Decisions happen on the player's schedule; consequences happen on the world's.** You act on the
+  world whenever you choose. Once you act, resolution is the world's business — it self-applies and
+  lands in the Chronicle.
+- **Progressive enhancement**, in its useful half: a moment worth ceremony gets a modal, and any
+  choice presented must ship with a designed default so it rolls off gracefully if the player
+  fast-forwards past it or simply doesn't care. The old "modal live, Chronicle when absent" branch
+  is gone along with the absent player.
+- **Observational narration is always legal.** Text reporting a true game state ("violence breaks out
+  in a bread line" when standing is genuinely low) is the Chronicle doing its job, whether or not
+  that state has yet grown a mechanical tooth. The ban is narrower than once stated: it forbids text
+  implying *consequences that don't exist*, never flavor that reads honestly from state.
+- **The size of the consequence sets the size of the story.** A fever taking a holdfast and a plague
+  taking a planet are both −1 economic unit to the engine; the Chronicle and the modal are where the
+  difference lives.
+
+---
 
 ## Design Philosophy
 
-**Unravel the contents, not the board.** *(Revised 2026-08-20 — this pillar previously read "Unravel, don't dump" and hid whole panels until they were earned.)* The board is **whole from the first frame**: every panel the current era can fill is on screen, named by its header, empty and waiting. What unravels is what goes *inside* them — resource rows, building options, upgrades, trainable units all still appear only once they're actually relevant. Your People and the Chronicle start with content; the rest start as blank forms.
+**Unravel the contents, not the board.** The board is **whole from the first frame**: every panel the
+current era can fill is on screen, named by its header, empty and waiting. What unravels is what goes
+*inside* them — resource rows, building options, upgrades, trainable units appear only once they're
+relevant, and once shown they stay. Era transitions are the one sanctioned moment for panels
+themselves to arrive or retire.
 
-The original rule was tied to the game looking like pen on paper. When every panel was the same hairline box on the same white ground, an empty one was indistinguishable from a full one, so showing them all at once read as undifferentiated clutter — and the reveal made the interface expand like a doodle being drawn. Two things killed it. It never fully worked even then: the Chronicle had to be pinned to the right from frame one regardless, so the board was never really growing from nothing. And the Bureau redesign removed the premise — panels now have ink header plates that name them and their own paper stock, so an empty panel reads as a *blank form*, which is exactly right for a game about administration. Against defined content areas, a slow reveal stops looking like discovery and starts looking broken, as though the interface failed to load.
+*Historical note:* this previously hid whole panels until earned. That rule was calibrated for a
+pen-on-paper wireframe in which an empty panel and a full one were the same hairline box, so showing
+them all read as clutter. Bureau's ink header plates and per-column paper stock removed the premise —
+an empty panel now reads as a *blank form*, which suits a game about administration — and against
+defined content areas a slow reveal reads as broken rather than as discovery.
 
-What survives is the part that was actually carrying the feeling: **the interface is still a readout of what the settlement has discovered how to do**, and finding a panel you'd read as permanently empty suddenly holding something is still an event. It's just that the surprise now happens *inside* a box you already knew was there, which is a promise rather than an absence. Era transitions remain free to change the board's shape wholesale — that's the one sanctioned moment for panels themselves to arrive or retire.
+**Friction is the game.** A game with escalating production and no counter-pressure gets solved in
+minutes. Food upkeep that can starve you, storage caps that make surplus rot, construction costs that
+escalate per building, a queue that serializes progress — none of these exist to punish. They exist so
+growth has to be *managed* rather than merely accumulated.
 
-**Friction is the game.** Early testing surfaced a real risk: an idle game with escalating production and no counter-pressure gets "solved" and beaten in minutes. Every friction mechanic added since has been in direct service of that problem — food upkeep that can starve you, storage caps that make surplus rot instead of stockpile forever, construction costs that escalate per building (even ones sitting unbuilt in the queue), a build queue that serializes progress instead of letting resources alone dictate pace. None of these exist to be punishing for their own sake; they exist so growth has to be *managed*, not just accumulated.
+**Opportunity cost is the point.** Civ's soul is that you cannot have everything. Most purchases in
+this game are still "buy it eventually," and that is the single largest remaining gap between what it
+is and what it wants to be. Mutually exclusive choices — laws, doctrines, paths — are the mechanism,
+and they are cheap in the engine and expensive in design, which is the right trade.
 
-**The Chronicle tells the story for free.** The single best thing to come out of early builds wasn't a system — it was flavor text. Lines like *"With shelter secured, your people turn to better tools"* cost nothing mechanically; they just narrate a state change that was already happening. This became a deliberate principle: every meaningful event in the simulation — a birth, a building completed, a hazard survived or not — should produce a line in the Chronicle. The log isn't a debug console, it's the settlement's memory. No extra rules overhead, just flavor riding on top of state that already exists. And since nothing in this game ever waits for the player (see *A living world, never a waiting one*, under Events), the Chronicle is also load-bearing: it's the surface that makes an AFK stretch legible after the fact, which is why completeness there is a rule and not a nicety.
+**The Chronicle tells the story for free.** Every meaningful event produces a line. The log isn't a
+debug console, it's the settlement's memory. It is no longer the *only* surface that reports the
+world — a map will do that better — but it remains the record of what *happened*, as distinct from
+what *is*.
 
-**Restraint and legibility — the pen test as metaphor, not mandate.** The founding identity test is that the whole game *could* be drawn in black pen on ruled paper: boxes, rules, text, small glyphs. What survives of that as law: restraint (nothing decorative that carries no information), legibility, and **color reserved entirely for meaning** — green is genuinely new good information, red is danger, amber is rare milestone; color is never ambience. Buildings you own aren't just a number in a buy menu — they get a small icon and sit in a panel you can actually look at, the compromise between "no map" and "nothing to see." Everything more specific than that — the monochrome palette, hairline borders, the current line-art doodles — is **the wireframe, not the identity** (decision revised 2026-08-15: the visual treatment, and even interface structure, is deliberately handed to the design pass — see `interface-brief.md`, which is the authoritative statement of what's fixed and what's Design's to choose).
+**Restraint and legibility.** The founding identity test is that the whole game *could* be drawn in
+black pen on ruled paper: boxes, rules, text, small glyphs. What survives of that as law: restraint
+(nothing decorative that carries no information), legibility, and **color reserved entirely for
+meaning** — green is genuinely new good information, red is danger, amber is a rare milestone. Color
+is never ambience. Everything more specific — the palette, the paper textures, the line-art doodles —
+is presentation, and presentation is open (see `interface.md`).
 
-**Small numbers, slow start, on purpose.** The opening minutes are deliberately unhurried — gather rates, build times, and the pace of new arrivals all err slow. This is being tuned by feel as we go, not locked to a formula, but the standing rule is: if a mechanic makes the game solvable in minutes, that's a bug, not a feature.
+**Small numbers, slow start.** Displayed counts stay in roughly the 3–50 range forever; scale is
+carried by re-denominating what a unit *means*. The opening minutes are deliberately unhurried.
+Standing rule: **when unsure, tune toward too-hard and walk it back**, never the reverse.
 
-**Panels filling up is part of the fun.** *(Revised 2026-08-20 alongside the pillar above.)* The board doesn't hold still — it keeps *filling* as the settlement grows. Discovering that a Barracks has put the first card into the Training panel you've been looking at empty for twenty minutes should feel like an event, not just a new button in a list. An empty panel you can read the name of is a standing question the game has posed; answering it is the payoff, and it's a better one than a panel materialising out of nowhere, because the player has been wondering about it. The screen filling out *is* the sense of progress through the eras, which matters a lot given nothing is ever rendered on a map to show that progress any other way. Panels themselves still arrive and retire at era boundaries, where the transition modal gives that its own ceremony.
+**Panels filling up is part of the fun.** An empty panel you can read the name of is a standing
+question the game has posed; answering it is the payoff. The screen filling out *is* the sense of
+progress. *(Under review: if the map is promoted to the centre of the interface, this pillar's
+mechanism changes even if its intent doesn't. See `map.md` and Open Questions.)*
 
-**Active early, idle late.** The engagement curve is supposed to invert as the settlement grows, not stay flat. Stone Age should grab you the way the first twenty minutes of Cookie Clicker do — every choice close, every resource worth watching, hard to look away. (This is confirmed, not just hoped for: an actual bystander playtest — someone handed the game with zero context — couldn't tear himself away during Stone Age. That's the era doing exactly its job.) By the time you're eras removed from that, the same panels, the same queue, the same buttons should be running something that takes real hours to finish, and that's not a failure state — it's the design working as intended. Training a Stone Age Soldier costs roughly 10 seconds of real time; building a Starship, many eras later, should cost something like 6 hours. Same interface, wildly different pace, entirely on purpose.
+**Every mechanic gets a designed retirement age — or an explicit reason it is permanent.**
+*(Canonical 2026-08-22.)* The manifest architecture retires *things* — a building, a resource, a job
+— effortlessly. Making it doctrine that it also retires *verbs* is what keeps twelve ages from
+becoming a palimpsest. Housing retires at Iron. Storage caps are scheduled to retire somewhere around
+the second-to-fourth age. Worker assignment retires when the population unit grows too large to
+assign. Anything that cannot answer "when does this stop, and why" is a candidate for never having
+been an age-spanning mechanic in the first place.
 
-This is the literal mechanical proof of the founding pitch (see Premise): the game is supposed to explode in scope while the interface never changes shape. If it doesn't actually get all the way to space, it's just a worse Age of Empires with the graphics removed. Reaching that endgame isn't a stretch goal tacked on later — it's the bet the entire premise is riding on.
+---
 
 ## The Core Loop
 
-Forage → grow → hit the housing cap → build a hut → grow again. That's the entire loop at minute one, and it stays recognizable even as more resources, buildings, and hazards layer on top. Food is the survival resource (upkeep scales with every mouth, and running dry is death); **housing is what gates population** — people arrive on their own while there's room; wood and stone are investment resources (they gate buildings); population is both the goal and the constraint (more settlers means more production *and* more mouths to feed).
+**Stone and Bronze:** forage → grow → hit the housing cap → build → grow again. Food is the survival
+resource (upkeep scales with every mouth; running dry is death); housing gates population; wood and
+stone gate buildings.
+
+**Iron onward:** the loop turns outward. Housing and free growth retire. Population grows only by
+**conquest or conversion** — you take a neighbour, or you win one over — and each unit gained is an
+event rather than a tick. Economy and army support the outward verbs rather than being the game in
+themselves. See *Conquest Growth & the Peace Path*.
+
+---
 
 ## Systems
 
 ### Settlers & Jobs
-Settlers are assigned to gather jobs (forage / chop / mine) with a simple stepper — no pathing, no individual identity, just a headcount per job. Every settler eats, whether working or idle, which is what makes population growth a real trade-off rather than a pure win.
 
-Population isn't one undifferentiated number — it's a small roster of **person-types**, each shown as its own icon-and-count tile (visually similar to how Settlement shows owned buildings, but living in the Your People panel instead, since "who your people are" and "what you've built" are different questions). The roster today: **Settler** (the default, freely assignable to any gather job) plus the trained military types — **Soldier**, **Archer**, **Horseman** (see Military, below). The tile format is deliberately built to scale to more person-types later without a redesign.
+Settlers are assigned to gather jobs with a stepper — no pathing, no individual identity, just a
+headcount per job. Everyone eats, working or idle, which makes population a trade-off rather than a
+pure win.
+
+Population is a roster of **person-types**, each an icon-and-count tile: **Settler** (freely
+assignable) plus the trained military types. The format is built to scale to more types without a
+redesign.
+
+*Retirement age:* worker assignment is a Stone/Bronze/Iron mechanic. When the population unit becomes
+a city or larger, assigning individuals stops making sense and the verb re-denominates into something
+like doctrine or specialization. Not yet designed; flagged so the ages before it can taper rather than
+cliff.
 
 ### Resources & Storage
-Resources accumulate passively based on job assignment. Every resource has a storage cap before its storage building is built — go over it and the surplus is lost, not just stalled. For Food and Wood this is literal rot; Stone doesn't rot, and the design conversation that added its storage cap said so explicitly — the justification is purely "unorganized stone piles are hard to make use of," gameplay symmetry over strict realism. It's the soft, thematic version of a hard cap either way: it doesn't block you, but it punishes ignoring the problem, and it's what makes the storage buildings (Granary, Woodshed, Stone Yard, Ore Yard) feel necessary rather than optional.
+
+Resources accumulate from job assignment. Every resource has a storage cap; surplus past it is lost,
+not stalled. That's literal rot for food and wood; for stone the justification is gameplay symmetry
+over realism, stated openly. Caps are what make storage buildings necessary rather than optional.
+
+*Retirement age:* storage caps are a friction mechanic for the early ages, scheduled to retire around
+the Enlightenment, when "how much can you physically hold" stops being an interesting question. When
+they go, the friction they were carrying has to be replaced, not merely dropped.
 
 ### Construction
-Buildings are bought with an immediate resource cost (payment happens at the moment you click) and then sit in a **queue**. Only the item at the front of the queue actively progresses — the rest wait their turn, which is the game's stand-in for the "one thing gets built at a time" pacing of a real settlement, without asking the player to manage workers on a construction site. (An earlier version required manually assigning idle settlers as builders, AoE-style; it was cut as too much micromanagement for an idle game — the queue itself now *is* the scarcity.) Costs escalate per building type the more of that type you own *or have queued*, so stacking up five huts at once doesn't undercut the intended cost curve.
+
+Buildings are bought with an immediate cost, then sit in a **queue**; only the front item progresses.
+Costs escalate per building type against owned *and queued* count, so stacking clicks doesn't
+undercut the curve. An earlier version required assigning idle settlers as builders, AoE-style; it was
+cut as too much micromanagement — the queue itself is the scarcity.
 
 ### Buildings
-Three families so far: **storage** (Granary, Woodshed, Stone Yard — raise how much you can hold before loss), **production boosts** (Drying Racks, Lumber Camp, Stone Pit — a flat percentage bonus to one job's output), and **hazard defense** (Infirmary, Barracks — reduce or unlock mitigation for a specific Event). More families are the obvious way this game grows — the intent is that later eras introduce entirely new building categories, not just bigger numbers on the old ones.
 
-Most buildings scale freely (own as many Huts as you can afford). A few are **capped** — Barracks is the first: you only ever need one, since it's a permission to train Soldiers, not a stacking bonus. A capped building's buy-card greys out at "Maxed" once you've hit the limit, same visual treatment as an Upgrade you already own. This is a real third category — not quite the uncapped stacking model, not quite a one-time Upgrade either — and it's expected more buildings will fall into it as the game grows (some future facility that unlocks a capability without itself needing five copies).
+Families so far: **storage**, **production boosts**, **hazard defense**, and **capability gates**
+(capped buildings like the Barracks and Muster Ground, which grant a permission rather than a stacking
+bonus). More families are the obvious way this grows — later ages should introduce new building
+*categories*, not just bigger numbers on the old ones.
 
-**Stone Tools** is meant to be the first of a recurring pattern, not a one-off: one broad, cheap, early, flat-percent Upgrade to *all* gathering per era (a Bronze Age equivalent should exist once that era is real). Deliberately available almost immediately — it competes directly with your very first Hut for early wood, which is intentional tension, not an oversight — and deliberately small (8%), on the standing principle that new numbers should start conservative and get walked back up rather than the reverse. That principle applies everywhere in this game, not just here: when unsure, tune toward too-hard and loosen later, not the other way around.
+One broad, cheap, early flat-percent gathering upgrade per era is a recurring pattern (Stone Tools →
+Bronze Tools → Iron Tools), deliberately available almost immediately so it competes with your first
+real building.
 
-### Events
-The mechanism for anything that *happens to* the settlement rather than something the player *does*. Every event has the same four-part anatomy:
+### Events & Decisions
 
-1. **Trigger** — either a steady random chance per second (a hazard, a windfall), or a condition that fires deterministically whenever it's true. (Population growth originally lived here as the deterministic example; it has since been settled *out* of the events system entirely — see below.)
-2. **Effect** — what actually changes in the settlement.
-3. **Negate potential** — an optional counter: a specific building that, the more you've built, reduces the odds the event's downside actually lands. Enough Infirmaries and sickness stops being a threat at all.
-4. **Flavor** — Chronicle text, varied across a few options, split between "it happened" and "it was averted."
+The mechanism for anything that *happens to* the settlement. Every event has the same anatomy:
 
-**A living world, never a waiting one.** The settlement is surrounded by other actors — raiders today, enemy armies later, invading aliens eventually — and simulating them is what makes this feel like a real world with other agents in it rather than a spreadsheet of numbers. Their actions carry genuine success-and-failure consequences either way. The contract is strictly about *presence*: no outside actor ever stops the game to demand a decision, so everything resolves whether you're watching or AFK — and the Chronicle is the after-action record that lets you come back and skim out what the heck happened while you were gone. (This is the positive half of the "interactive events are out of scope" cut — see Explicitly Out of Scope.)
+1. **Trigger** — a chance per unit time, or a deterministic condition.
+2. **Effect** — what changes.
+3. **Negate potential** — an optional counter building that reduces the odds the downside lands.
+4. **Flavor** — Chronicle text, varied, split between "it happened" and "it was averted."
 
-**Progressive enhancement (canonical, locked 2026-08-21).** The no-waiting contract has a second half: **presence is rewarded, never required.** Nothing ever *requires* the player to be present — but being present may be *richer*, and activity is enhanced freely, never punished in either direction. Major events — an age turning, a kingdom won, one day a planet lost — earn modal-class ceremony when someone is at the desk, and gracefully degrade to full Chronicle resolution when no one is: same outcome, same record, more pageantry live. The era-transition modal has been the proof of this pattern since Bronze (modal when watching, summary line after offline catch-up). The corollary that keeps it safe: **a choice offered in such a moment must be designed from the outset with a default**, so it rolls off and resolves on its own if unattended — subdue-or-destroy is fine; subdue-or-destroy-*while-the-game-waits* is not. Two clarifying rulings ride with the law: a system that simply *doesn't progress* without player intent (growth stalling under conquest-growth, a drained build queue) is a **choice, not a punishment** — the AFK player loses nothing they had; and **observational narration is always legal** — text that reports a true game state ("violence breaks out in a bread line" when standing is genuinely low) is the Chronicle doing its job whether or not that state has yet grown a mechanical tooth. The lie-of-implication ban is narrower than once stated: it forbids text hinting at *consequences that don't exist*, never flavor that reads honestly from state — denying ourselves flavor denies the thing that makes the game fun. Finally, the size of the consequence sets the size of the story: a fever taking a holdfast and a plague taking a planet are both −1 economic unit to the engine, and the Chronicle (or the modal) is where the difference lives.
+**Events may now present a decision.** *(New with the time pivot; the headline feature it unlocks.)*
+An event may enqueue a choice rather than self-applying. The choice waits — no timer, no expiry — and
+the game pauses when it is opened. Every choice ships with a designed default so it can be dismissed
+or fast-forwarded past without breaking. This reverses the old "interactive events are out of scope"
+rule; the ban was always really about events that *wait with a clock running*, and there is no clock
+running now.
 
-The inverse is equally canonical: **decisions happen on the player's schedule; consequences happen on the world's schedule.** The world never interrupts you with a decision — but you may act *on* the world whenever you choose (see Adversaries & Expeditions, under Eras). Once you act, resolution is the world's business: it self-applies and lands in the Chronicle like everything else. And set in stone as a guideline: **resolution never creates a window the player must catch.** No "your army has returned — claim your reward" buttons, no expiring results. A claim button is just an interactive event wearing armor.
+Currently live: **Sickness** (countered by the Infirmary; floored at one survivor by design),
+**Conflict** (countered by a standing military; the one hazard allowed to end a run), **Great Hunt**
+and **Trader** (ungated positive windfalls, proof the shape was never hazard-specific), and
+**Scouting** discoveries.
 
-"A wanderer joins your settlement" — population growth — *was* the first and most common event under this system, until the decision below moved it out. **Sickness**, mitigated by the **Infirmary**, is the first real hazard built on it: unmitigated it's rare but real, an ever-present low hum of risk once your population passes a threshold, and it's the proof that the system generalizes to bad news, not just good news. **Conflict**, mitigated by a standing **Military**, is the second — see below.
+An Infirmary's mitigation strength is itself upgradeable via **Herbal Medicine** — a genuinely
+different lever than "own more of the building," and a pattern worth reusing.
 
-For a while, every *probabilistic* event was bad news — Sickness and Conflict were both downside rolls, and the only good news (population growth) was deterministic, never a surprise. **Great Hunt** and **Trader** fixed that: small, ungated resource windfalls (Great Hunt gives food; Trader gives wood and stone) using the exact same trigger/effect/flavor shape as the hazards, just without a downside. There's no fairness reason to gate good news behind a population threshold the way the hazards are, so they aren't. The Chronicle now builds suspense in both directions, not just one.
-
-An Infirmary's mitigation strength itself turned out to be upgradeable, not just its count — **Herbal Medicine** raises how much *each* Infirmary reduces Sickness's odds, rather than adding a new counter-building. That's a genuinely different lever than "own more of the building," and worth remembering as a pattern for other counters later (Barracks/Soldier-style scaling isn't the only option).
+**Event weights and conditions may read state.** Standing today, morale later. The windfall dice are
+allowed a worldview.
 
 #### Settled: population growth is not an event
 
-**Settlers cost nothing and arrive on a timer.** While housing has room, a new person shows up every N seconds — full stop. No food price, no saving up, no stalling ten under the cap waiting to afford someone.
+Growth is a **background process**, not a surprise. Every other entry in the events system is
+something that happens *to* you, where randomness is the point. Folding growth into a random table
+would make population lumpy and force it to compete with hazards for the same probability budget —
+making settlers common would necessarily make raids rarer. Keeping it out lets "how fast do we grow"
+and "how dangerous is the world" stay independent dials.
 
-This replaces the original model, where a settler was *bought* with a lump of food at a price escalating 30% per person. That failed on three counts: the implication was strange (you pay a wanderer to join?), it stalled growth for long stretches, and — because the purchase fired automatically the instant it was affordable — food could never accumulate past the settler price at all. Your practical food ceiling was the price of the next person, not your storage cap, which meant the Bronze Age capstone's 300 food was unreachable before roughly pop 17 unless you deliberately stopped building housing. None of that was intended.
-
-The important structural point: **growth is a background process, not an event.** Every other entry in the events system is a *surprise* — something that happens to you, where randomness is the point. Growth is a steady tick. Folding it into a random table would make population lumpy and luck-driven, and would force it to compete with hazards for the same probability budget: making settlers common would necessarily make raids rarer. Keeping it out of the table lets "how fast do we grow" and "how dangerous is the world" stay independent dials.
-
-Food keeps its pressure through **upkeep**, which scales with population, so the tension moves from a stock problem (can I save a lump sum?) to a flow problem (can I sustain these people?). That's the better question, and it makes housing the sole lever on population: if you don't want more mouths, don't build more housing.
-
-*(Era-scoped, 2026-08-21: everything above describes the Stone and Bronze ages, where it remains exactly right — person- and family-scale arrivals on a timer, gated by housing. From the Iron Age onward, growth changes mode entirely: see Conquest Growth & the Peace Path. Growth MODE is era data — timer → conquest → conquest + attraction — the first core verb to re-denominate rather than merely reflavor.)*
+*In Stone and Bronze*, settlers arrive free on a timer while housing has room. Food keeps its pressure
+through upkeep, so the tension is a flow problem (can I sustain these people?) rather than a stock
+problem. *From Iron*, growth is conquest or conversion only, and the principle survives in a different
+form: gaining a unit is the result of an action you took, never a die roll you watched.
 
 #### Settled: each era declares its own slate of events
 
-Events are **owned by eras**, not tagged with them. Each era declares the complete list of what can happen during it. An event that spans two eras appears in both slates; an era that wants a clean break just declares a different list.
-
-This replaces per-event `eras: [...]` tags, which were error-prone in a specific and nasty way: forgetting to add a new era to an existing event's tag list would silently stop that event from ever firing again, with no error — a settlement that quietly stops having births or raids. Declaring the slate per era makes omission visible, and makes "scrap everything and start fresh" a one-line change, which later eras will want.
-
-This decision turned out to be the seed of something much bigger. The same logic — era-owned declarations beat globally-tagged content — generalizes to *every* content type, not just events. That generalization is now the settled architecture for the whole game: see **The Era Manifest Model** under Eras, below.
+Events are **owned by eras**, not tagged with them. An event that spans two eras appears in both
+slates; an era that wants a clean break declares a different list. Per-event `eras: [...]` tags were
+error-prone in a nasty way — forgetting to add a new era silently stopped an event firing forever,
+with no error. This was the seed of the whole manifest architecture.
 
 ### Military & Defense
-The answer to "what is a soldier": a **permanent conscription**, not a reassignable job. Training a Soldier goes through the same build queue as everything else (pay resources, wait a build time, get the unit) with one addition — it also permanently consumes one idle civilian, reserved the moment you queue the order (not when it completes), and that person never returns to the gatherable labor pool by player choice. The only way a Soldier count goes down is combat losses. This is deliberate: a freely reassignable defense stat is a costless toggle you'd flip up before trouble and down right after, which defeats the point. *(Era-scoped, 2026-08-21: consumption-conscription is the Stone/Bronze model, where a person becoming a soldier is the honest fiction. From Iron onward units are **levied, not consumed** — see Conquest Growth & the Peace Path — because losing an entire holdfast to gain one soldier is thematically wrong; army capacity derives from population instead of subtracting from it. The no-costless-toggle principle survives both models.)* Soldiers still eat (ordinary population upkeep already covers this — no new formula needed) and still occupy housing; they just don't produce anything but the safety they provide. That's the commitment.
 
-Equipment tiers are one-time **Upgrades** (reusing that system exactly as built for Fire Mastery): a weapon tier (Spear → Sword → …) raises the odds a raid gets repelled at all, an armor tier (hide → leather → …) raises the odds your Soldiers survive an engagement even when it doesn't go cleanly. Two different jobs — weapons help you *win*, armor helps you *not die even when you do* — deliberately kept separate so both matter.
+A soldier is a **commitment**, never a reassignable stat — a freely-toggled defense number is a
+costless switch you'd flip up before trouble and down after, which defeats the point.
 
-**Conflict** (the Event) resolves in stages, so it's never fully predictable and never fully safe no matter how invested you are:
-1. **Raid size** rolls first — usually a small scouting party, rarely something much larger. Not knowing which is coming is the point.
-2. **Success check**: your defense (Soldier count × weapon tier) is weighed against the raid's size as a ratio, not a hard threshold — more investment always shifts the odds in your favor, but there is no number that makes you mathematically safe, and no number that makes you mathematically doomed.
-3. **Consequences**, banded by how the check went: a clean repel costs nothing; a costly repel still costs some Soldiers (armor tier softens this); a raid that succeeds costs Soldiers, steals or destroys stockpiled resources, and — if your defense was especially thin — can cost civilian lives too.
+*Stone/Bronze:* training permanently consumes one idle civilian, reserved the moment the order is
+queued. *Iron onward:* units are **levied, not consumed** — army capacity derives from population
+(holdfasts × levy rate) rather than subtracting from it, because losing an entire holdfast to gain one
+soldier is thematically wrong. The no-costless-toggle principle survives both models.
 
-Raid frequency scales with settlement size (a bigger settlement is a bigger target), the same way Sickness's *possibility* is gated by a population threshold — except Conflict's frequency is a continuous dial, not a one-time gate.
+Equipment tiers are one-time **Upgrades**: a weapon tier raises the odds a fight is won, an armor tier
+raises the odds your people survive one that goes badly. Two different jobs, deliberately separate.
 
-**Population itself becomes a buffer.** A settlement with people to spare can absorb a bad roll from Sickness or a raid; a settlement running lean with neither an Infirmary nor a Barracks is one unlucky event from real trouble. Growing your population is protective in that sense — but it's not a free win either, since more people also means more upkeep *and* a juicier raid target. Nothing in this system is supposed to feel purely additive.
+**Conflict resolves in stages**, so it is never fully predictable and never fully safe: raid size rolls
+first, then a success check weighing your defense against the raid as a *ratio* (never a threshold —
+more investment always shifts the odds, no number is ever safe or doomed), then consequences banded by
+outcome. Raid frequency scales continuously with settlement size.
 
-**This is designed to scale by flavor, not by new mechanics.** Barracks/Soldier/Spear-Sword/Armor and, many eras later, Starport/Fleet/photon-weapons/shields are meant to be *the same underlying system* — population converted into a standing defense, gated by one-time equipment tiers, costing ongoing upkeep for passive protection — with only names, numbers, and Chronicle flavor changing per era. If that stops being true for some future era's version of this, that's a sign the era needs its own mechanic, not a forced fit.
+**Units are never penalized for being the wrong type.** Every unit always contributes its full base
+strength; the matching type simply receives a bonus on top. An all-archer army is never worse than not
+having those bodies. A second, softer dial carries the rest of the tension: a poorly-matched army
+raises the odds of a *costly* win without gutting the chance of winning at all.
+
+**Who dies is a quieter axis of role.** Casualties are drawn weighted by exposure — foot soldiers take
+the brunt, horsemen can withdraw, archers are hit least. It only ever bends the odds: no unit is
+immune, and an all-archer army has no front line to hide behind, so mixing is what buys your
+specialists their safety.
+
+**This scales by flavor, not by new mechanics.** Barracks/Soldier/Spear/Armor and, many ages later,
+Starport/Fleet/photon-weapons/shields are the same underlying system. If that stops being true for
+some future age, that's a sign the age needs its own mechanic, not a forced fit.
 
 ### Failure
-Two ways to lose now, not one. Starvation remains a hard stop (game ends, save clears, you start over). **Conflict is allowed to be lethal in the worst case** — unlike Sickness, which is deliberately floored at 1 survivor, an unmitigated or especially large raid can end a settlement outright. This is a deliberate asymmetry: Sickness is attrition, Conflict is a real threat, and the difference is what gives a Barracks and a healthy population genuine stakes rather than just being another number to grow.
 
-## Eras (forward-looking)
+Two ways to lose. **Starvation** is a hard stop. **Conflict** is allowed to be lethal in the worst
+case — unlike Sickness, which floors at one survivor by design. That asymmetry is what gives a
+Barracks and a healthy population genuine stakes rather than another number to grow.
 
-Two eras exist today: Stone Age and Bronze Age. The long-term shape of the game is that era progression is what carries you from "feed the fire" to "manage intergalactic trade" — new resources, new buildings, new events, even new *vocabulary* (a wanderer doesn't "join your settlement" once you're off-world). Critically, **the simulation never changes register** as eras advance — no map ever gets rendered, no unit ever gets drawn, no matter how far the tech tree goes; it is numbers, labels, and prose to the end. Whether the interface's *structure* evolves to hold that content — the current flat panel grid versus menus, tabs, or other navigation as twelve eras of systems accumulate — is deliberately **not** settled: it belongs to the design pass (see `interface-brief.md`; "there's a reason most civ games have menus"). How the *content* changes shape across eras is settled architecture: see The Era Manifest Model, below.
+---
 
-**The transition mechanism is settled**, even though no era past Stone exists yet: advancing is a hidden, one-time capstone Upgrade (e.g. "Bronze Age") that reveals once its prerequisites are quietly met, and otherwise behaves exactly like every other Upgrade — it sits in the same build queue, costs real resources, takes real time, and completing it flips `S.era`. Nothing new needed there. Critically, **Sickness and Conflict keep rolling the entire time it's under construction** — that's deliberately where "and some luck" comes from (see below), not a separate mechanic bolted on for the purpose.
+## Eras
 
-**Three rules that apply to every future age, canonical:**
+Era progression is what carries the game from "feed the fire" to "decide the fate of star systems":
+new resources, new buildings, new events, new *vocabulary*. **The simulation never changes register** —
+no unit is ever drawn, no matter how far the tech tree goes; it is numbers, labels, prose, and (in
+time) a map of places.
 
-1. **Every age must add a few new things, at a bare minimum.** The moment a capstone build completes, the interface changing should be a "whoa, look at this" moment, not a quiet reskin. If an age doesn't make the player want to poke around and see what's new, there's no reason for it to be an age.
-2. **Ages come in two flavors, and knowing which is which shapes what "a few new things" means.** **Deepening** ages introduce a genuinely new mechanic or system (Bronze's weapon/armor tiers, presumably Silicon's automation). **Widening** ages mostly consolidate and reflavor what already exists onto a bigger stage (Enlightenment, Global, Kardashev in the list below) — but per rule 1, even a widening age still needs a *few* real new things, just fewer/smaller ones than a deepening age gets. Neither flavor is a "total restart" — that's the entire point of the distinction: most of what you've built carries forward, just reframed or folded together, so progress is never erased, only recontextualized. **A widening age with no concrete reason to exist by the time it's actually being scoped gets cut, not forced.** Several ages below are placeholders exactly because of this — they stay in the flavor guide as intent, but nothing obligates them to survive contact with actual design work.
-3. **A capstone is priced in the signature currency of the age it ends.** The exit cost is how the game guarantees you at least minimally engaged with the age's defining mechanic before leaving it behind: the Bronze capstone's 300-of-each silently forced broad storage build-out, the Iron capstone costs bronze so the Forge had to actually run, and the capstone out of Iron will cost **gold** — which cannot be mined, only traded for or taken, so no amount of passive economy can substitute for having run expeditions. The cost sits meaningfully above anything the era hands you for free (the bronze heirloom sell-off seeds some gold; the capstone must want visibly more than that). Every future age applies the same test: whatever the age was *about*, its exit door is denominated in it.
+**The transition mechanism is settled:** advancing is a hidden, one-time capstone Upgrade that reveals
+once its prerequisites are quietly met and otherwise behaves like any other Upgrade — same queue, real
+cost, real time. Hazards keep rolling the entire time it's under construction; that's where "and some
+luck" comes from.
 
-**This game is meant to actually end.** Not a Cookie Clicker-style endless ascension with no finish line — Heat Death of the Universe (see the list below) is meant to be a real conclusion, one way or another. Very few civ-style games let you play until the universe itself runs out, which is exactly why it's the target.
+**Three canonical rules for every future age:**
 
-**The conversion-chain mechanic lands in Bronze.** A raw-material-to-refined-good chain (nothing currently built *transforms* one resource into another — everything only produces or boosts) was long flagged as wanted-eventually. Bronze wins it because bronze is literally an alloy: copper + tin → bronze is the mechanic and the fiction in one. See the Bronze Age section below.
+1. **Every age must add a few new things, at a bare minimum.** A capstone completing should be a
+   "whoa, look at this" moment, not a quiet reskin.
+2. **Ages come in two flavors.** **Deepening** ages introduce a genuinely new mechanic (Bronze's
+   composition tiers, Iron's expeditions). **Widening** ages consolidate and reflavor onto a bigger
+   stage — but still owe a few real new things. Neither is a restart; most of what you've built
+   carries forward, reframed. **A widening age with no concrete reason to exist by the time it's
+   scoped gets cut, not forced.**
+3. **A capstone is priced in the signature currency of the age it ends.** The exit cost guarantees you
+   engaged with the age's defining mechanic. Bronze's 300-of-each silently forced storage build-out;
+   Iron's capstone costs bronze so the Forge had to run; the exit from Iron will cost **gold**, which
+   cannot be mined — only traded for or taken — so no passive economy can substitute for having run
+   expeditions.
 
-### The Era Manifest Model (implemented)
+**This game is meant to actually end.** Heat Death of the Universe is a real conclusion, one way or
+another. Very few civ-style games let you play until the universe runs out, which is exactly why it's
+the target.
 
-The forcing question: Iron Age intends to *remove* content for the first time — the copper/tin/bronze economy retires wholesale — and eleven more eras of adding, removing, repurposing, and rescaling follow. Sprinkling era-conditions onto globally-defined content (which is how the first two eras were built) accumulates a palimpsest: every building carrying a branch of behavior for every era it lives through. So the architecture inverts.
+### The Era Manifest Model
 
-**Each era owns a manifest: the complete declaration of everything that can exist while it's active** — resources, jobs, buildings with *that era's* stats and recipes, units, upgrades, events, panel titles, all of it. An era is authored as a *delta* against the previous one — remove this, add that, override the other — which doubles as the era's design document: Iron Age's delta literally reads "remove the bronze economy; add iron and gold; the Forge now smelts steel." Deltas compile into full manifests, and the running game only ever consults the active era's manifest. Nothing outside it exists: not on screen, not in the economy, not for sale.
+**Each era owns a manifest: the complete declaration of everything that can exist while it's active** —
+resources, jobs, buildings with *that era's* stats and recipes, units, upgrades, events, adversaries,
+panel titles. An era is authored as a *delta* against the previous one, which doubles as the era's
+design document: Iron's delta literally reads "remove the bronze economy; add iron and gold; the Forge
+now smelts steel."
 
-The rules that make it safe, in plain terms:
+The rules that make it safe:
 
-- **Identity is permanent; flavor and function are per-era.** The same `hut` has been Hut and Stone House and will someday be an Apartment Block; the same `forge` smelts bronze today and steel in Iron; the same `archer` can end up displaying as a Fighter Pilot. One identity per thing, forever — that's what lets a save file survive twelve eras untouched.
-- **Absence is removal.** Nothing needs to be explicitly killed; if an era's manifest doesn't declare it, it isn't there. You can't *forget* to remove something — you'd have to forget to keep it, and that mistake is immediately visible on screen.
-- **Carrying is the default.** Anything declared in consecutive eras carries its counts, stockpiles, and progress silently. The most violent transition in the game should still be a short delta, where every line is a design decision rather than plumbing.
-- **Transitions can transform, with narration.** A transition may carry explicit migration instructions — melt bronze stores down to a fraction of their weight in iron, reissue Dollars as Credits at 100:1, take billions of citizens and land a few hundred thousand of them on colonies. Every such instruction carries its own Chronicle/announcement line, because state silently rearranging itself is exactly the "invisible food sink" mistake this project already made once.
-- **The era announcement can't lie.** The "Now available" / "No longer needed" / "What changed" lists in the transition modal derive mechanically from the difference between the two manifests — the same data the engine runs on — so they can never go stale or drift from reality. Only the flavor lead stays hand-written.
-- **A validator makes broken eras loud.** Because a manifest claims to be complete, the game can check it: an upgrade priced in a resource that era doesn't have, a job mining something that doesn't exist, a unit countering a raid type that isn't declared — all become immediate, named errors at load instead of features that silently do nothing. Given that this project's three worst bugs were all silent-wrongness bugs, this is arguably the single biggest payoff of the whole model.
+- **Identity is permanent; flavor and function are per-era.** The same `hut` has been Hut and Stone
+  House and Longhouse. One identity per thing, forever — that's what lets a save survive twelve ages.
+- **Absence is removal.** If an era's manifest doesn't declare it, it isn't there. You can't *forget*
+  to remove something; you'd have to forget to keep it, and that mistake is immediately visible.
+- **Carrying is the default.** Anything declared in consecutive eras carries its counts silently. The
+  most violent transition in the game should still be a short delta where every line is a design
+  decision rather than plumbing.
+- **Transitions can transform, with narration.** Migration instructions may melt bronze into gold or
+  consolidate families into holdfasts — and every such instruction carries its own Chronicle line,
+  because state silently rearranging itself is exactly the invisible-sink mistake this project already
+  made once.
+- **The era announcement can't lie.** The transition modal's "Now available" / "No longer needed" /
+  "What changed" lists derive mechanically from the diff between manifests. Only the flavor lead is
+  hand-written.
+- **A validator makes broken eras loud.** An upgrade priced in a resource the era doesn't have, a job
+  mining something that doesn't exist, a unit countering a raid type that isn't declared — all become
+  named errors at load rather than features that silently do nothing. Given that this project's worst
+  bugs have all been silent-wrongness bugs, this is the model's biggest payoff.
 
-This model *supersedes* the "reflavor-with-a-bump" pattern from Bronze only in mechanism, not in spirit — reflavor, bump, retarget, and retire all become ordinary manifest differences. The sequencing was deliberate and is now complete: the **parity refactor** and the **transition/migration machinery** both shipped (see `tech.md`), so Iron Age arrives as the first real consumer with engine risk and content risk never having traveled together.
+### Population & Scale: Unit Re-denomination
 
-### Population & Scale: Unit Re-denomination (settled)
+The game reaches interstellar scale by scaling **what one population unit means**, never the number on
+screen. Displayed counts stay roughly 3–50 forever. The implied real population compounds through
+conversion ratios that live entirely in fiction and narration.
 
-The game reaches interstellar scale by scaling **what one population unit means**, never the number on screen. Displayed counts stay in the roughly 3–50 range forever — the small-numbers pillar, the steppers, worker assignment, exposure-weighted casualties, and the whole legibility of the interface survive to the end of the universe. The implied real population compounds through the *conversion ratios between units*, which live entirely in fiction and narration: the original "10× per age" goal is met without any number ever needing a comma.
+| Age | Unit | | Age | Unit |
+|---|---|---|---|---|
+| Stone | Person | | Mechanized | Nation |
+| Bronze | Family | | Global | Bloc |
+| Iron | Holdfast | | Silicon | Bloc *(unchanged)* |
+| Enlightenment | City | | Space | Settlement |
+| Gunpowder | Colony | | Galactic | World |
+| Industrial | Territory | | Kardashev | System |
 
-This also resolves the absurdity flag permanently: the housing→growth verb never retires, it **re-denominates**. "A wanderer joins your settlement" → "a family seeks shelter" → "a holdfast swears fealty" → "a city petitions to join." A ruler never counted individuals past the Bronze Age, so the juxtaposition never becomes a joke.
+**Border policy.** Stone→Bronze is a **1:1 relabel** — pure text, zero re-balance, protecting the
+proven early pacing. **Consolidation begins at Bronze→Iron** and cuts **deep**: you should enter an era
+with a *handful* of units, each weighty enough that gaining or losing one is an event. The trick that
+makes depth free: consolidation pairs with an **era output multiplier** so that `keep × output ≈ 1` —
+total throughput unchanged, every existing cost stays valid, no re-tuning cascade. Narrated as a
+standard migration, and a soft tithe on min-maxed stockpiling.
 
-**The ladder (settled names):**
+**Notes:**
 
-| Age | Unit |
-|---|---|
-| Stone | Person |
-| Bronze | Family |
-| Iron | Holdfast |
-| Enlightenment | City |
-| Gunpowder | Colony |
-| Industrial | Territory |
-| Mechanized | Nation |
-| Global | Bloc |
-| Silicon | Bloc *(deliberately unchanged — see note)* |
-| Space | Settlement |
-| Galactic | World |
-| Kardashev | System |
+- **The noun changes when the scope genuinely changes, not on a schedule.** Silicon keeps Bloc: across
+  Global + Silicon the story is blocs consolidating until you implicitly hold the whole planet.
+- **The Space border is deliberately non-monotonic.** A Bloc implies billions; a Settlement implies the
+  few who leave. The lens narrows to the frontier.
+- **Naming guardrail:** unit names avoid pointing at any specific real Earth entity. *Compact* is the
+  parked fallback if *Bloc*'s Cold-War ring grates in play.
+- **"Holdfast" is reserved for the population unit.** Fortification flavor must use other words.
 
-**Border policy** *(revised 2026-08-21 with Conquest Growth)*. Stone→Bronze is a **1:1 relabel** ("your settlers have started families") — pure text, zero re-balance, protecting the proven early pacing. **Consolidation begins at Bronze→Iron** and applies at every later border — and it cuts **deep**, not gently: each unit of the new era is a genuinely larger thing (a holdfast is a couple dozen people under a lord), so you should enter an era with a *handful* of units, each weighty enough that gaining or losing one is an event. The balance trick that makes depth free: consolidation pairs with an **era output multiplier** so that `keep × output ≈ 1` — total economic throughput is unchanged, every existing cost and cap stays valid, and no re-tuning cascades. Narrated as a standard migration, and still a **soft tithe on min-maxed stockpiling** — banking population before a transition pays deliberately diminished returns.
+### Conquest Growth & the Peace Path
 
-**Notes and corollaries:**
+*(Settled 2026-08-21 — the Iron rework, and the spine of every era after.)*
 
-- **The noun changes when the scope genuinely changes, not on a schedule.** Silicon keeps Bloc: it's a deepening age whose identity is its mechanic, and across Global + Silicon the story is blocs consolidating until you implicitly hold the whole planet. (The housing ladder ends where housing does: hut → stone house → longhouse, and then the concept retires at Iron — see Conquest Growth & the Peace Path. Megacity remains available as later-era *flavor* for whatever civic construction exists then, but nothing counts dwellings again.)
-- **The Space border is deliberately non-monotonic.** A Bloc implies billions; a Settlement implies the few who leave. The game's lens narrows to the frontier — exactly the "billions become a few hundred thousand colonists" migration the primitives were designed for. Space-age seed, logged for that design pass: settlements as *economic units* — different planets hold different resources in different quantities, discoverable only by sending an expedition.
-- **Naming guardrail:** unit names avoid pointing at any specific real Earth entity. Bloc is accepted as a mild tradeoff on this rule; **Compact** is the parked fallback if its Cold-War ring grates in play.
-- **"Holdfast" is reserved for the population unit.** The siege system's fortification flavor ladder must use other words (palisade / keep / castle — settled in the siege design pass).
-- **Implementation shape:** the pop noun and its arrival/loss/growth lines become era-facts in the manifests; consolidation is an ordinary narrated migration; the retrofit cost for shipped eras is text plus one border migration, with balance untouched at the 1:1 rung and gently re-checked where ratios apply.
+1. **Deep consolidation, offset by output.** Enter Iron with single-digit holdfasts. Each is a couple
+   dozen people under a lord; each one matters.
+2. **Units are levied, not consumed.** `popCost` dies at Iron. Army capacity = holdfasts × levy rate:
+   population stops *containing* the army and starts *supporting* it. Conquest therefore also grows
+   your muster.
+3. **Housing retires at Iron.** The first founding building retired — exactly the removal the manifest
+   architecture was built for.
+4. **Growth is conquest or conversion, only.** No automatic arrivals. Growth becomes an *active* verb,
+   and stopping growth becomes a player choice (the housing cap's one good job, replaced by intent).
+   Passive attraction is shelved for the Enlightenment — cities petitioning to join because morale runs
+   high.
+5. **Two adversary tiers.** Named majors remain strategic entities. Each era's slate adds a **minor
+   tier** — freeholds and petty lords, numerous, individually weak, each worth one sworn holdfast plus
+   a modest stock. The era's capturable units are therefore a **designed population budget**: growth is
+   finite, authored, and paced per age. This scales forever — you conquer a holdfast before its lord
+   swears fealty for the same reason you'll one day conquer a planet before it joins your empire.
+6. **The peace path — religion's mechanism.** Priests (a trained unit) enable the **envoy**: a third
+   action on an adversary that is slow, costs gifts and the expedition slot, risks no one, *raises*
+   standing, and delivers the target intact. War is fast and pays plunder immediately, at the price of
+   casualties, siege investment, and standing. **No dominant path:** the two pay in different
+   currencies and pay out in different currencies — **plunder is one-shot; goodwill compounds** — with
+   **per-target affinity** (disposition modulates envoy odds the way walls modulate assaults, hinted
+   through flavor, so *reading the target is choosing the tool*) and **shared standing as the
+   self-balancing tax** (heavy war poisons your envoys' welcome).
+7. **Absorbed is generic.** Flavor spends its budget while an entity is *outside and hostile* — that's
+   where distinguishing character lives. A sworn holdfast is +1 to the generic pool; the Chronicle
+   keeps the name it had. Empire as machine; the Chronicle as memory.
+8. **Stakes scale with narration.** Big losses stay possible but rare, and the size of the loss sets
+   the size of the story.
+9. **Standing starts now, grows teeth forever.** Standing is minimal this age by design; when trade
+   becomes an explicit verb it turns fully load-bearing. Home morale later joins the same family.
+10. **Military nouns re-denominate** like everything else.
 
-### Conquest Growth & the Peace Path (settled 2026-08-21 — the Iron rework, and the spine of every era after)
+*Open tunables (implementation-time, tune-toward-hard as always): the keep/output pair; levy rate;
+minor-tier count and stats per era; envoy timer, cost, and odds; capture windfall sizing; what
+wholesale annexation of a major is worth.*
 
-Born from the first full playthrough, and from a diagnostic now canonical in its own right: **flavor friction is a gameplay smell.** "My longhouse holds 3 holdfasts" feeling absurd wasn't a wording problem — it was the fiction correctly reporting that the mechanics beneath it hadn't re-denominated. The companion identity line, confirmed by play: **the fun concentrates where the verbs are.** Expeditions are by far the most fun part of the Iron Age *because* they're the active verb — "active play, passive resolution" is the niche this game is carving (you act whenever you choose; the world resolves alone), and this rework moves population onto the fun side of the game.
+### Adversaries & Expeditions
 
-**The settled shape:**
+The game's first **outward-facing verbs**, and what makes Iron a genuinely deepening age. Born from a
+real worry: with every existing verb pointing inward (allocate, build, upgrade, train), the player was
+the *object* of the simulation's sentences and never the subject.
 
-1. **Deep consolidation, offset by output.** The Bronze→Iron cut goes hard (enter Iron with single-digit holdfasts), paired with an era **output multiplier** so `keep × output ≈ 1` — see Border policy above. Each holdfast is a couple dozen people under a lord; each one matters.
-2. **Units are levied, not consumed.** popCost dies at Iron. **Army capacity = holdfasts × levy rate**: population stops *containing* the army and starts *supporting* it. Your holdfasts owe you troops at your lordly command; conquest therefore also grows your muster.
-3. **Housing retires at Iron.** The iron manifest removes the hut line — the first founding building retired, exactly the removal the manifest architecture was built for. No more population cap; control passes to the next point.
-4. **Growth is conquest or conversion, only.** No automatic arrivals from Iron onward. This is deliberate: growth becomes an *active* verb (forcing engagement with the era's mechanics), stopping growth becomes a player **choice** (the housing cap's one good job, replaced by intent), and per progressive enhancement, growth stalling while AFK is a choice, not a punishment — exactly as idle-legal as the build queue draining. *Passive attraction is shelved for the Enlightenment*: cities petitioning to join because morale runs high — one of morale's both-edged consequences, and that era's flavor of growth.
-5. **Two adversary tiers.** The named majors remain strategic entities — siege, plunder, trade, perhaps wholesale annexation as an era-defining act. Each era's slate adds a **minor tier**: freeholds and petty lords, numerous, individually weak stat-stacks, each worth one sworn holdfast plus a modest stock. The era's capturable holdfasts are therefore a **designed population budget** — growth is finite, authored, and paced per age. This scales forever: you conquer a holdfast before its lord swears fealty for the same reason you'll one day conquer a planet before it joins your galactic empire.
-6. **The peace path — religion's mechanism, found.** Priests (a trained unit) enable the **envoy**, a third action on an adversary: slow, costs gifts and the expedition slot, risks no one, *raises* standing, and delivers the holdfast intact. War is fast and pays plunder immediately, at the price of casualties, siege investment, and standing. **The no-dominant-path architecture** keeps sword and envoy as playstyles rather than a solved choice: the paths pay in different currencies and pay out in different currencies — **plunder is one-shot; goodwill compounds** — with **per-target affinity** (disposition modulates envoy odds the way walls modulate assaults, hinted through flavor per the law, so *reading the target is choosing the tool*) and **shared standing as the self-balancing tax** (heavy war poisons your envoys' welcome). Neither path is strictly better; which is right depends on the target, your build, and the world you want to live next to.
-7. **Absorbed is generic.** Flavor spends its budget while an entity is *outside and hostile* — that's where distinguishing character lives. A sworn holdfast is +1 to the generic pool, ready for assignment; the Chronicle keeps the name it had ("The freehold at Coldwater swears fealty" is the last time Coldwater has a name). Empire as machine; the Chronicle as memory.
-8. **Stakes scale with narration.** Hazards keep taking troops and goods; big losses (a holdfast — one day a planet) stay possible but rare, and **the size of the loss sets the size of the story**. Bigger consequence, bigger Chronicle — the largest earning modal-class ceremony under progressive enhancement.
-9. **Standing starts now, grows teeth forever.** The architecture above requires standing early, even while its effects are minimal this age. When **trade becomes an explicit verb** (a future age), the system turns fully load-bearing. State stats (adversary standing now; home morale later — same family) may speak through the events engine as observational narration, and event weights and conditions gain **state hooks** — the windfall dice finally acquire a worldview.
-10. **Military nouns re-denominate** like everything else — unit names are era-facts, and a Horseman's successors get cavalry-scale names as the ages turn.
+**Adversaries** are counterparties, and they exist only to the extent that they can be interacted with
+— that's the whole specification. Each era declares its own **wholesale, never inherited**. Each holds
+a **static resource stock** (a stock, not an economy — nothing grows, nothing moves on its own), a
+**strength**, a **disposition** (peaceful or warlike), a **fighting style** naming the raid type it
+fights as, and optional **walls**. Explicitly *not* simulated civilizations: no growth, no tech, no
+evolving diplomacy.
 
-*Open tunables, implementation-time (tune-toward-hard as always): the keep/output pair; levy rate; minor-tier count and stats per era; envoy timer, cost, and odds; capture windfall sizing; what wholesale annexation of a major is worth.*
+**Flavor is load-bearing (canonical).** Adversary strength is *hinted through description*, never
+through printed odds — "a fortified state, rich beyond counting" is how a player learns that raiding
+the Kingdom early is a mistake, and playtest confirmed the read works. Raw numbers may appear (this is
+a numbers game); the *judgment* — is this a fight I take? — belongs to prose and dice. The corollary
+cuts harder: **descriptions are mechanics-bearing text.** An adversary whose flavor undersells or
+oversells its strength is a bug of the same class as a wrong cost label, and no validator can catch it.
+See `map.md` for how the adversary pool keeps this honest as the roster grows.
 
-### The Age List (flavor guide — not canon, expect it to move)
+**Campaigns:** pick a target, allocate units with the same steppers jobs use (send some, keep some —
+the split is the decision), pay a provision, and the column marches. Resolution is the raid math
+pointed outward, as a ratio. Win and you carry home a large fraction of their remaining stock; they are
+permanently poorer, because a stock is not an economy. **An army on campaign isn't home** — deployed
+units don't defend and can't be hit, so the settlement is genuinely thinner until they return. Standing
+falls whether you win or lose; plunder is not diplomacy.
 
-A loose north star, not an implementation backlog. Ages get built and played one at a time, each proven fun before the next is even scoped — this list exists so later decisions stay consistent with where the game is ultimately headed, not as a commitment to build all of it.
+**Caravans (directed trade):** each peaceful adversary buys something specific at a posted rate, in
+fixed lots. The gold they pay comes **out of their stock**, so a partner can be traded dry — and the
+goods you sell them **join their stock**, where a later campaign could take them back. Nothing enforces
+or even mentions that grim little arbitrage; it's simply true, because stocks are real. Trade builds
+standing; good standing improves prices; a partner raided too often stops trading with you entirely.
 
-1. **Stone Age** (neolithic) — current, only implemented era
-2. **Bronze Age**
-3. **Iron Age** — the first age to *remove* content (this intended removal is what forced the Era Manifest Model above). Fully designed — see the Iron Age section below. Its **deepening mechanic is Adversaries & Expeditions**: campaigns and directed trade, the game's first outward-facing verbs.
-4. **Enlightenment Age** — *widening*; cathedrals, monks, science
+**Escorts.** A caravan carries guards only when the roads are actually dangerous. Escorts don't lower
+the odds of an ambush — they decide how one *ends*. Escorted guards deploy like campaigners, thinning
+home defense, so guarding your trade is a real allocation and not a checkbox.
+
+**Standing** is one small number per adversary, moved by exactly two things (campaigns lower it,
+caravans raise it), read out only as a word — Hostile, Wary, Neutral, Friendly. Consequences are few
+and legible: a Hostile warlike neighbour raids you more often; a Hostile peaceful one refuses your
+caravans; a Friendly partner pays a premium. That's the entire diplomacy system, on purpose.
+
+**The Muster Ground** gates the system. One campaign *and* one caravan may be out at once — soldiers
+and merchants are different people — but never two of a kind.
+
+### Siege & Fortifications
+
+Adversaries may carry **walls**. Combat sequences strictly: **the walls come down before a single
+defender falls.**
+
+- **The breach check** weighs the column's siege power against the wall strength remaining. Every unit
+  contributes something; **Siege Engines** do outsized damage to walls and are otherwise ordinary
+  units, in the field and at home.
+- **A failed breach is a retreat with light losses** — no field battle, no loot, at most one fighter.
+  Walls repel; they don't massacre. Standing falls anyway; you attacked them.
+- **Wall damage persists.** Stock-not-economy extends to fortifications: scars stay carved for the era.
+  A failed assault is still an *investment* — sieges against hard targets become sagas rather than
+  rerolls, and the flavor distinguishes the wall that fell in one furious assault from the battered one
+  that finally gave way.
+
+**The adversary tier vocabulary (authoring rule).** Every era's slate is authored on a legible
+three-step strength ladder — a weak thing, a middling thing, an oh-god-be-careful thing — with stock
+and trade depth scaled to tier, so the flavor read is always trustworthy. Fortification nouns join the
+signal per era (Iron: a wagon laager / a timber palisade / a stone-walled castle). The ladder is a
+**floor, not a template**: disposition and trade interest must cross-cut the strength axis, so eras
+never read as a stamped menu.
+
+### The Age List *(flavor guide — not canon, expect it to move)*
+
+A north star, not a backlog. Ages get built and played one at a time, each proven fun before the next
+is scoped.
+
+1. **Stone Age** — shipped
+2. **Bronze Age** — shipped
+3. **Iron Age** — shipped; *deepening*, mechanic = Adversaries & Expeditions; currently being reworked
+   for Conquest Growth
+4. **Enlightenment Age** — *widening*; cathedrals, science, and a **law system** (see below)
 5. **Gunpowder Age** — revolutionary war to old west
-6. **Industrial Age** — the real Industrial Revolution: Victorian, steam, rail, factories — this is properly where the steampunk flavor belongs
-7. **Mechanized Age** — tanks, bombers, mid-1900s mechanized total war; carved out from what used to be a vaguer "early-mid 1900s" Industrial Age once the steampunk/date mismatch got noticed
-8. **Global Age** — *widening*; expands Industrial/Mechanized to a whole-world flavor
-9. **Silicon Age** — 2000 AD+, computers and robotics
-10. **Space Age** — *The Expanse*-ish, same solar system
-11. **Galactic Age** — starships, alien races
-12. **Kardashev Age** — *widening*; solar-system/galaxy scale, Dyson spheres
-13. **Heat Death of the Universe** — the game ends, one way or another
+6. **Industrial Age** — Victorian, steam, rail, factories; the proper home of steampunk flavor
+7. **Mechanized Age** — tanks, bombers, mid-1900s total war
+8. **Global Age** — *widening*; whole-world flavor
+9. **Silicon Age** — computers and robotics
+10. **Space Age** — same solar system
+11. **Galactic Age** — starships, alien peoples
+12. **Kardashev Age** — *widening*; Dyson spheres
+13. **Heat Death of the Universe** — the game ends
 
-### Bronze Age (designed and shipped)
+### Bronze Age *(shipped)*
 
-The first age transition, and therefore the one that has to prove the whole concept works. A **deepening** age: it adds a genuinely new mechanic (resource conversion) plus real military depth, and it deliberately **consolidates nothing**. That's a rule for this age specifically — the first transition's emotional job is to be pure reward. "Your stuff got better" is a far better first impression than "your stuff got taken away and replaced," and consolidation is a tool for solving interface clutter that doesn't exist yet.
+The first transition, and therefore the one that had to prove the concept. A **deepening** age that
+deliberately **consolidates nothing** — the first transition's emotional job is to be pure reward.
+"Your stuff got better" is a far better first impression than "your stuff got replaced."
 
-**How you advance.** A hidden `Bronze Age` capstone Upgrade reveals once you have a population of ~10 *and* have trained at least one Soldier — the pop gate stops it triggering absurdly early, and the Soldier requirement ensures you haven't left an entire system (Barracks/military) unexplored. It costs 300 each of food, wood, and stone. That number was chosen partly for its knock-on effect: storage caps are 50 base +100 per storage building, so merely *holding* 300 of something requires three of its storage building — the resource cost silently forces broad economic build-out without a separate "must own X" check. It reveals well before it's affordable on purpose: seeing the requirement as a distant mountain is the point.
+**Reflavor-with-a-bump, never obsolete-and-rebuild.** When Hut becomes **Stone House**, it isn't a new
+building next to an obsolete one — it's the same building, renamed, now worth more housing. Every hut
+you own upgrades at once, so advancing produces an immediate visible jump. Your existing investment got
+*elevated*, which is exactly the feeling an age transition should produce.
 
-**Reflavor-with-a-bump, never obsolete-and-rebuild.** This is the age that establishes the pattern for every future one. When Hut becomes **Stone House**, it isn't a new building sitting next to an obsolete one — it's the same building, renamed, now worth 5 housing instead of 3. Every hut you already own upgrades at once, so advancing produces an immediate, visible housing jump. Your existing investment got *elevated*, which is exactly the feeling an age transition should produce. (The Settlement panel becomes **Village** on the same principle — the fiction grows, the mechanics don't churn. Village → Town → City gives later ages clean rungs to climb.) One retroactive change rides along: Infirmary is renamed **Medicine Tent** in the Stone Age so that "Infirmary" is available as the Bronze-era upgrade of the same building.
+**The alloy.** Copper and tin mining; the **Forge** as a new building archetype that *transforms*
+resources rather than producing them, with no workers assigned (the opportunity cost is already paid by
+the miners feeding it, and there is no interesting decision in "would you like to stop converting?").
+**Tin yields half what copper does** — a real balance lever and historically why bronze was precious
+enough to build trade routes over. The numbers were chosen so a **clean equilibrium exists to be
+discovered**: two copper miners and one tin miner produce ore in exactly the 4:1 ratio the recipe
+consumes, and two Forges consume exactly that. Nothing enforces or hints at it; the tidy answer is
+simply there for anyone who works it out, which is the kind of thing that makes an economy feel
+designed rather than arbitrary.
 
-**The alloy.** Two new gather jobs (copper, tin) bring the total to five — still restrained next to a real RTS, which hands you four resources immediately. **Tin deliberately yields half what copper does**, which is both a real balance lever and historically why bronze was precious enough to build trade routes over. The **Forge** is a new building *archetype*: it consumes copper and tin from your stockpiles and produces bronze automatically, with no workers assigned. It needs none — the opportunity cost is already paid by the miners feeding it, and there's no interesting decision in "would you like to stop converting?" when the inputs have no other use. It idles if either input runs dry, and also if bronze is at its ceiling, so it can never quietly eat ore for nothing. Bronze is then the currency for this age's upgrades: Bronze Tools and Bronze Weapons both cost it, so the Forge is genuinely load-bearing rather than decorative.
+**Military composition.** Raids gain a *type* — warband, massed charge (Archers excel), riders (Horsemen
+excel) — so a specialist army swings hard between matchups while a mixed army has no spikes and no
+holes.
 
-The numbers were chosen so a **clean equilibrium exists to be discovered**: because tin yields half of copper, two copper miners and one tin miner produce ore in exactly the 4:1 ratio the recipe consumes, and two Forges consume exactly that. Nothing enforces this or hints at it — a player can staff it however they like and will simply see one ore pile up while the other starves. But the tidy answer is there for anyone who works it out, which is the kind of thing that makes an economy feel designed rather than arbitrary.
+### Iron Age *(shipped; being reworked)*
 
-**Military composition.** Raids gain a *type* alongside their size: a generic warband, a massed charge (Archers excel), or a band of riders (Horsemen excel). The critical design rule is that **units are never penalized for being the wrong type** — every unit always contributes its full base strength, and the matching type simply receives a bonus on top. An all-archer army is never worse than not having those bodies at all; it just misses the upside sometimes. This keeps a naive "build only one thing" playstyle viable rather than punishing, which matters for a game where you can't see the next raid coming. A second, softer dial carries the rest of the tension: a poorly-matched army raises the odds of a *costly* repel (you win, but you bury someone) without gutting your chance of winning at all.
+The first transition with **teeth**, and the fiction hands us the right ones. Historically bronze didn't
+lose to iron because iron was better — the long-range copper-and-tin trade networks *collapsed*, and
+iron won because it was **local**: duller, stubborner metal, but under every hillside. So the era's
+story is: the world your bronze depended on breaks, and in its place a bigger, rougher, *named* world
+appears. That's why the era that removes an economy is also the era that introduces Adversaries — the
+outside world takes something from you and simultaneously becomes something you can act against.
 
-The result is a real, legible trade-off rather than a right answer: a specialist army swings hard between matchups (5 Archers are worth double against a massed charge and unchanged against everything else), while a mixed army has no spikes but no holes either. Soldiers stay the cheap generalist and — notably — the only unit costing no bronze, so they remain buildable when the Forge is starved. Horsemen are the strongest per head and the most expensive.
+**What's removed:** copper, tin, bronze; both ore jobs; the Ore Yard; and the upgrades stranded by the
+collapse. Anything already *owned* keeps working — a bought upgrade is a permanent trait, and its
+multiplier reads your state, not the shop shelf. What you lose is the ability to buy what you didn't.
 
-**Who dies is a second, quieter axis of role.** When a raid takes lives, casualties are drawn weighted by exposure rather than evenly: foot soldiers hold the line and take the brunt, horsemen can withdraw, and archers — shooting from behind the line — are hit least. This is what makes an Archer *feel* like an archer rather than a differently-priced soldier. Crucially it only ever bends the odds: no unit is immune, an archer can always be the one who falls, and an all-archer army has no front line to hide behind so it gets no protection at all. Mixing your army is what buys your specialists their safety, which is a nice second reason to do it beyond matchup coverage. **Scouting** rides on the Stables as a second reason to build them, unlocking a category of purely-positive discoveries; it's gated on the upgrade rather than the building, so it's an investment rather than a freebie.
+**The migration narrates the collapse.** Copper and tin vanish. Bronze — suddenly antique — converts to
+gold at 1:4: your stockpile sells off to collectors and temple-makers, which is historically resonant
+(bronze retreated into ritual and prestige), seeds your first gold, and teaches the new resource in one
+Chronicle line.
 
-### Iron Age (designed — the first removal age)
+**The new economy.** Iron is plentiful — full rate, no tin-style scarcity; that was bronze's story, not
+iron's. The **Forge persists, retargeted**: iron + wood → steel, which finally gives wood a real
+late-game sink. **Gold is the era's genuinely new idea: it cannot be mined.** No job produces it. Gold
+enters only from *outside* — the sell-off, plunder, and trade — so the era's new wealth is structurally
+tied to its new verbs.
 
-The Bronze Age was pure reward: everything you had got better. The Iron Age is the first transition with **teeth** — and the fiction hands us exactly the right teeth. Historically, bronze didn't lose to iron because iron was better; the long-range copper-and-tin trade networks *collapsed*, and iron won because it was **local** — duller, stubborner metal, but under every hillside. So the era's story is: the world your bronze depended on breaks, and in its place a *bigger, rougher, named* world appears. That's why the era that removes an economy is also the era that introduces Adversaries: the outside world takes something from you and simultaneously becomes something you can act against. A **deepening** age, and the deepening is **Adversaries & Expeditions** (below).
+**Pacing intent.** Measured play: ~15 minutes to reach Bronze, ~40 to clear it. Iron should run
+noticeably longer — its content is a *world*, not a tech list.
 
-**How you advance.** An `Iron Age` capstone in the Bronze manifest: reveals at pop ≥ 16 with at least one Archer *or* Horseman fielded (the pop gate scales up from Bronze's 10; the unit gate ensures the composition system — Bronze's whole lesson — was actually explored). Costs 400 food, 400 wood, 400 stone, and **50 bronze**, 180s build. The 400s force a fourth storage building of each type by the same silent mechanism the Bronze capstone used; the bronze cost makes the Forge genuinely load-bearing one last time before it changes jobs. First-guess numbers, tuned toward too-hard as always.
+### Enlightenment Age *(undesigned — scoping notes only)*
 
-**What's removed** (the delta's `remove` list *is* this paragraph): copper, tin, and bronze; both ore-mining jobs; the Ore Yard; and the four upgrades stranded by the collapse — Bronze Tools, Bronze Weapons, and Scouting (all priced in a resource that no longer exists) plus Flint-Tipped Spears (superseded twice over). Anything already *owned* keeps working — a bought upgrade is a permanent trait, and its multiplier reads your state, not the shop shelf. What you lose is the ability to buy what you didn't.
+Not scoped until the Iron rework has shipped and played. What's on the table:
 
-**The migration narrates the collapse.** Copper and tin stocks vanish ("the trade withers"). Bronze — suddenly antique — **converts to gold at 1:4**: your stockpile sells off to collectors and temple-makers, which is historically resonant (bronze retreated into ritual and prestige), seeds your first gold, and teaches the new resource in one Chronicle line. Workers on dead mining jobs walk home on their own (the default policy). Every one of these is a narrated line; nothing silently rearranges.
+- **Science.** No mechanic yet. The bar: something that says we are taking this seriously now. Worth
+  deciding what it is *not* — probably not a research-tree clone of Upgrades, or it's just Upgrades II.
+- **A law system.** You *train laws* through the build queue, deciding how to rule a much larger scope
+  of people. This is where **mutually exclusive upgrades** enter the game: train either, but choosing
+  one permanently forgoes the other. Still set-and-forget, but it simulates the active decision-making
+  of Civ. Engine-cheap (an `excludes` field, a `build()` check, a validator rule), design-expensive
+  (every pair is a real fork) — the right trade, and the most Civ-ward change available to this game.
+  The "benevolent leader vs iron fist" sketch belongs here as the first mutually exclusive pair; it was
+  diagnosed as *laws, not morale* (input vs output).
+- **Morale**, if it exists, has hard requirements: **derived, never tended** (computed from durable
+  choices, no bar to feed); **narrated, never metered**; **threshold-shaped** (a few discrete
+  consequences, each an event the Chronicle can narrate, never continuous multipliers); **both-edged**
+  (every state offers something; no death spirals). Laws and morale probably want to be one system
+  viewed from two sides, or they'll compete.
+- **Passive attraction growth** is shelved here — cities petitioning to join because morale runs high,
+  as one of morale's both-edged consequences.
+- **Religion diminishes here**, having arrived at full power in Iron, and eventually leaves the game
+  entirely — the first content designed from birth with its whole lifespan in view.
+- **Panel real estate.** Laws likely need a surface, and this may be the age that first invokes
+  widening-age consolidation.
 
-**The new economy.** Iron arrives as a fourth gather job — deliberately *plentiful* (full rate, no tin-style scarcity; that was bronze's story, not iron's). The **Forge persists, retargeted**: 3 iron + 2 wood → 1 steel, which quietly gives wood a real late-game sink for the first time since the Stone Age. Steel is this era's upgrade currency (generous cap, no storage building — spent, not stockpiled), backing **Iron Tools** (+22%, stacking additively with the tool tiers before it), **Iron Weapons** (the third weapon tier, 3.0, superseding bronze's 2.2), and **Steel Armor** (the second armor tier — halves again what Hide Armor left). **Gold is the era's genuinely new idea: it cannot be mined.** No job produces it. Gold enters only from *outside* — the bronze sell-off, plunder, and trade — so the era's new wealth is structurally tied to its new verbs. Storage: an **Iron Yard** for iron, a **Treasury** for gold. The Stone House becomes the **Longhouse** (housing 5 → 7, retroactive as always), and the Village becomes a **Town**.
+---
 
-**Siege & Fortifications (settled).** Adversaries may carry a second static number beside strength: **`walls`**. Combat sequences strictly — *the walls must come down before a single defender falls*:
+## The Map
 
-- **The breach phase** compares your column's *wall-power* against the walls still standing. Every unit can storm a wall badly; **Siege Engines** hit walls with a large multiplier, and are otherwise an ordinary unit — normal strength in the field battle *and* in home defense. They train behind a cap-1 **Siege Workshop**, priced heavily in wood and stone.
-- **A failed breach is a retreat with light losses** — nothing plundered, at most one fighter lost (armor-softened). Walls repel; they don't massacre.
-- **Wall damage persists.** The stock-not-economy philosophy extends to fortifications: the scars your engines carve stay carved, and a breached wall stays breached for the era. A failed assault is still an *investment* — sieges against hard targets become sagas, not rerolls, and the flavor distinguishes the wall that came down in a single furious assault from the battered one that finally gave way.
-- **Fort tiers are a per-era flavor vocabulary**, per the flavor-is-load-bearing law: each age's slate draws on a small ladder of fortification nouns — weak / strong / *oh-god-be-careful* (at Iron: a wagon laager, a timber palisade, a stone-walled castle) — and stock/trade riches scale loosely with overall menace, so reading a neighbor's description *is* reading the risk and the reward. Two authoring rules ride along: **disposition and fort-tier cross-cut** (the warlike neighbor may be weakly walled, the rich pacifist heavily — so era slates never template), and **"holdfast" stays reserved for the player's population unit** (rival holdfasts may appear as flavor, never as the tier vocabulary).
+Promoted from out-of-scope to a designed arc. Full treatment in **`map.md`**: the place-graph model,
+pointy-top hex grids, procedural generation, the hand-authored adversary pool, art strategy, and the
+eventual retirement of hexes for a node network at the Space border.
 
-**No capstone out yet.** Like the Stone Age before Bronze existed, Iron ships without its exit — the Enlightenment gets designed when Iron has proven fun, per the one-age-at-a-time rule. One thing about that future exit is already settled (canonical rule 3, above): **it will cost gold**, well above the heirloom sell-off's seed, so leaving the Iron Age requires having actually run expeditions — gold can't be mined, so the exit door is denominated in the era's own verbs.
+The one-line summary: the world becomes a grid of places you can hold, take, or win over, and your
+dominion becomes something you can *see* spreading rather than something the Chronicle reports after
+the fact.
 
-**Pacing intent.** Measured play: ~15 minutes to reach Bronze, ~40 to clear it — the early ages moving at a clip is working as intended and should stay that way. Iron should run noticeably longer (its content is a *world*, not a tech list), targeting very roughly 30–45 additional minutes to exhaust the adversaries' stocks and the upgrade list, but that's a playtest number, not a promise.
+The design that made this obvious was already written before the map was: Conquest Growth's minor tier
+— numerous weak freeholds, each worth one sworn holdfast, as a designed population budget — *is* a
+description of capturable tiles.
 
-**The three adversaries of the Iron Age** (each declared wholesale in the iron manifest — see the next section for the system itself):
-
-- **The Hill Clans** — warlike, weak (strength 9), fighting as a *massed charge* so Archers earn their keep against them. Modest stock. They are the tutorial target: the first campaign you can actually win, and the neighbor whose hostility you can afford.
-- **The River Kingdom** — peaceful, *strong* (strength 32 — a fortified state; raiding it early is a mistake the dice will explain), fighting as *riders* (chariots) if you insist. The whale: a deep gold stock and the best trade partner — they buy food, the one thing an idle economy always has too much of.
-- **The Salt Nomads** — peaceful, middling (strength 13), also riders. They buy **iron** (they have no mines of their own), making your new mine a trade good and not just Forge feed. A softer stock: the morally grayer target, since you *could* take by force what they'd happily pay for.
-
-Three counterparties, three different correct answers — fight, trade, choose — which is the minimum for "whom?" to be a real decision.
-
-### Adversaries & Expeditions (designed — lands with Iron)
-
-Born from a real worry: with every existing verb pointing inward (allocate, build, upgrade, train), the game risked feeling passive despite its friction — the player is the *object* of the simulation's sentences, never the subject. Expeditions are the game's first **outward-facing verbs**, and they're what makes Iron a genuinely deepening age rather than bronze spearmen in plate: without them, knights and siege engines would just be new flavor on the same defense stat.
-
-**Adversaries** are the counterparties, and they exist only to the extent that they can be interacted with — that's the whole specification. Each era's manifest declares its own **wholesale, like the event slate — never inherited** (neighboring tribe → kingdom → rival continent → alien planet), and each holds the bare minimum: a **static resource stock** (numbers you can trade against or plunder — a *stock*, not an economy; nothing grows, nothing moves on its own), a **strength** number, a **disposition** — peaceful or warlike — and a **fighting style**: each adversary names the raid type it fights as (the Hill Clans come down the slopes as a massed charge), so the composition system Bronze built points outward for free. Archers aren't just anti-raid insurance anymore; they're the right troops to *bring* against the right neighbor. Explicitly *not* simulated civilizations: no growth, no tech, no map, no evolving diplomacy. And because adversaries are manifest content, each new era's counterparties arrive with fresh stocks by construction — no replenishment logic ever needs to exist.
-
-**The Muster Ground and the one-of-each rule.** A single capped building gates the whole system, the way the Barracks gated Training. It stages **one campaign and one caravan at a time** — soldiers and merchants are different people, so the two tracks run in parallel, but never two of a kind: the split is still the decision on each track. (Playtest revision: the original one-expedition-total rule made trade and war mutually exclusive, which read as arbitrary rather than weighty.)
-
-**Flavor is load-bearing (canonical).** Adversary strength is *hinted through description*, never through printed odds — "a fortified state, rich beyond counting" is how a player is supposed to learn that raiding the Kingdom early is a mistake, and the playtest confirmed the read works. Raw strength numbers may appear (this is a numbers game), but the *judgment* — is this a fight I take? — belongs to prose and dice, not a win-percentage. The corollary cuts the other way and matters more: **descriptions are mechanics-bearing text.** An adversary whose flavor undersells or oversells its strength is a bug, the same class as a wrong cost label, and no validator can catch it — it's an authoring discipline. The same principle extends to the reputation system: standing shifts are *narrated* ("counted out in silence under armed watch — they have not forgotten") rather than printed as deltas, so the world reads as remembering, not as a meter filling.
-
-**Escorts.** A caravan may carry guards when — and only when — the roads are actually dangerous (a warlike neighbor gone Hostile); on safe roads a caravan is a one-click send and the question never arises. Escorts don't lower the odds of an ambush — they decide how one *ends*: fight through and the trade completes, casualties possible either way. Escorted guards are deployed like campaigners, thinning home defense, so guarding your trade is a real allocation and not a checkbox.
-
-**Campaigns**: pick a target, allocate units with the same steppers jobs use (send some, keep some — the split is the decision), pay a food provision, and the column marches. Resolution is the raid math pointed outward: your force's strength (weapon tiers and counter bonuses included) against their static strength, as a ratio — never a threshold. Win, and you carry home a large fraction of their remaining stock; they are permanently poorer, because a stock is not an economy. Lose, and people don't come home. Either way the dice may take someone (exposure-weighted, same as home casualties), and either way they remember: standing falls whether you won or lost — plunder is not diplomacy. **An army on campaign isn't home**: deployed units don't count toward defense and can't be hit by home raids, so the settlement is genuinely thinner until they return. Outcomes self-apply and land in the Chronicle, per the no-catch-windows rule.
-
-**Caravans (directed trade)**: each peaceful adversary *buys* something specific at a posted rate — the River Kingdom buys food, the Salt Nomads buy iron — in fixed lots (pay the goods up front, the caravan departs, the gold comes back on the timer). The gold they pay comes **out of their stock**, so a partner can be genuinely traded dry — and the goods you sell them **join their stock**, where a later campaign could take them back. Nothing enforces or even mentions that grim little arbitrage; it's simply true, because stocks are real. Trade builds standing; good standing improves prices. A partner raided too often stops trading with you entirely — they remember.
-
-**Standing** is one small number per adversary, moved by exactly two things (campaigns lower it, caravans raise it) and read out only as a word — Hostile, Wary, Neutral, Friendly. Its consequences are few and legible: a **Hostile warlike** neighbor raids your settlement more often; a **Hostile peaceful** one refuses your caravans; a **Friendly** partner pays a premium. That's the entire diplomacy system, on purpose.
-
-**Where it lives on screen.** One panel — **Expeditions** — not two: campaigns and caravans share an anatomy (pick counterparty, allocate, timer, Chronicle resolution), so each adversary renders as one card carrying its name, disposition, standing word, known stock, and its available actions. The grid slot comes free: the Chronicle currently spans both rows of its column as a luxury, and when the Muster Ground completes, it shrinks to the top row and Expeditions unravels in beneath it — the world crowding in on your story, using span machinery the layout already has. In the current wireframe, no existing panel is cut and nothing hides behind a toggle — this era didn't need it. *(Revised 2026-08-15: "the flat grid forever, consolidation as the only pressure valve" is no longer set in stone. Widening-age consolidation remains a real game-design lever — merging or retiring systems is an ordinary era difference under the manifest model — but whether the interface eventually adopts menus, tabs, or other navigation as content accumulates is deliberately left to the design pass; see `interface-brief.md`.)*
-
-Two legibility rulings from the first playtest: **in-progress expeditions render as progress cards in the queue panel** — the established at-a-glance surface for things underway — in the builds' own visual language, differentiated by a tiny line-art type icon (hammer = build, sword = campaign, coins = caravan) and by having no cancel button (no catch windows), with the panel retitled **Underway** in the Iron Age since it now tracks more than construction. And **launching a campaign is a modal moment**: clicking March opens the game's one modal with the target's description (the strength hint — see flavor-is-load-bearing, above), the muster steppers, and a live force estimate, which both declutters the panel and gives the era's biggest decision the ceremony it deserves.
-
-An optional flavor join, cheap and cohesive, deferred to the polish pass: inbound raids can *attribute* to warlike adversaries ("the Hill Clans test your defenses" rather than an anonymous warband), so the world's proper nouns appear in both directions.
-
-### Siege & Fortifications (settled — lands as an Iron content pack)
-
-Adversaries gain one static number: **`castleDefense`** (0 = unfortified). Campaign resolution becomes **sequenced: the walls first, then the field.** Nothing about the field battle changes — the walls are a stage bolted in front of it.
-
-- **The breach check.** The column's siege power works against the remaining wall strength. Every unit contributes *something* to the assault, but **Siege Engines do outsized damage to walls** — they're the difference between scaling a palisade and reducing a castle.
-- **Failed breach = retreat with light losses.** No field battle, no loot, a small casualty roll (deliberately lighter than a lost field battle), standing falls anyway — you attacked them, they remember.
-- **Wall damage persists.** The manifest's `castleDefense` is the template; the *current* wall strength lives in the adversary's living remnant, right beside the depleting stock — stock-not-economy now covers fortifications. Even a failed assault buys the next one a head start; sieges against hard targets become sagas, and defeat becomes investment. Walls broken stay broken for the era. The Chronicle flavors the two roads differently: *"the walls come down in one furious assault"* vs. *"scarred by seasons of assault, the walls finally give."*
-- **The Siege Engine** is a fourth trainable unit, gated behind a new capped building (the **Siege Workshop**). It costs heavy wood *and stone* — the first unit priced in stone, fittingly, since siege is applied masonry — consumes population like every unit, contributes ordinary strength in the field and at home, and its wall bonus applies only to walls.
-
-**The adversary tier vocabulary (canonical authoring rule).** Every era's adversary slate is authored on a legible three-step strength ladder — a weak thing, a somewhat strong thing, an oh-my-god-be-careful thing — with **stock and trade depth scaled to tier**, so the flavor read is always trustworthy (this generalizes what the Iron slate already did instinctively). Fortification nouns join the signal, per era: at Iron, *a timber palisade / a sturdy keep / a stone-walled castle*. The ladder is a **floor, not a template**: disposition and trade interest must cross-cut the strength axis (strong-but-peaceful-and-rich; weak-but-warlike) so eras never read as a stamped menu. Flavor namespaces aren't exclusive — a *rival holdfast* as a weak Iron adversary reinforces the population fiction rather than colliding with it.
+---
 
 ## Explicitly Out of Scope
 
-- Any rendered map, grid, or spatial representation of the settlement.
-- Individual unit rendering, animation, or pathing.
-- Real-time reflex or twitch mechanics — this is a numbers game, not an RTS.
-- **Interactive events** — events that stop and demand a decision in the moment (a rival king demands tribute: pay or roll for consequences). This was previously a captured idea explicitly worth compromising idle-ness for; that stance is reversed. Requiring the player's presence pushes the game toward an *active* Civilization, which creates both design problems (what happens to a pending demand while you're away — wait forever? auto-resolve? block progress?) and technical ones, for a payoff that fights the identity. The settled identity is **idle Age of Empires**: you allocate, build, upgrade, and train as you have time, and the engine chugs along either way. Every event resolves itself with nobody in the room — that's a feature, not a limitation. *(Refined 2026-08-21: the ban is specifically on events that **wait**. Celebration and disaster modals — including ones offering a choice — are in scope under the progressive-enhancement law (see *A living world*, under Events), provided every choice carries a designed default and the whole moment self-resolves for an absent player.)*
-- Multiplayer.
-- **Mobile and tablet.** Widescreen desktop is the format, full stop. (Briefly softened 2026-08-15 — "it's a browser game, phone and tablet deserve real thought" — and **reversed 2026-08-20**: the softening was regretted almost as soon as it was sent, and the design pass had already scoped mobile to a concept sketch rather than build it. The existing stacked-column `@media` fallback stays as a courtesy so the game doesn't actively break on a phone; it is not designed for and is not going to be.)
+- **Rendered units, animation, or pathing.** Never, in any age.
+- **Real-time reflex or twitch mechanics.** This is a numbers game.
+- **Unit micromanagement.** Assigning a headcount to a job is the floor and the ceiling. Not because we
+  couldn't, but because it isn't the game.
+- **Multiplayer.**
+- **Mobile and tablet.** Widescreen desktop is the format, full stop. The stacked-column `@media`
+  fallback stays as a courtesy so the page doesn't break on a phone; it is not a design surface.
 
-## Open Design Questions
+*No longer out of scope:* a map (see `map.md`), and interactive events (see *Time, Presence & Pause*).
+Both were excluded for reasons that no longer hold.
 
-Nothing is currently pending — every question flagged so far has been resolved. The log, for the record:
+---
 
-- **Should population growth be automatic, and should it cost food?** Resolved in stages, each driven by playtesting. First the cost was un-ratcheted (priced off *current* population rather than lifetime settlers grown, so losses no longer permanently poisoned recovery). Then the invisible spend was made legible (the Chronicle line now states the price). Finally the food cost was **abolished entirely** — settlers arrive free on a timer while housing has room (see *Settled: population growth is not an event*). That last decision also mooted the companion question about whether the ×1.30 cost curve was too steep: there is no settler cost left to tune. **Final stage (2026-08-21):** the timer model itself is now era-scoped to Stone/Bronze — from Iron onward growth is conquest or conversion (see *Conquest Growth & the Peace Path*), the answer the first full playthrough demanded.
-- **Can events reward presence without requiring it?** Yes — locked as the **progressive-enhancement** law (see *A living world*, under Events): modal ceremony live, full Chronicle resolution AFK, any modal choice carries a designed default, and observational narration of true state is always legal.
-- **Can hazards zero out population?** Yes, for Conflict specifically — see Military & Defense / Failure. Sickness deliberately floors at 1 survivor.
-- **What is a "soldier"?** A permanent conscription via the build queue, not a reassignable job — see Military & Defense.
-- **How do eras transition?** A hidden capstone Upgrade in the normal build queue — see Eras. How era *content* changes is the Era Manifest Model, also under Eras.
+## Open Questions
+
+1. **The name.** "Idle Civ" is wrong now. "Paper Civ" was floated and is complicated by (3) below.
+   Deferred deliberately until the pivoted game is playable — deciding a name against an imagined game
+   is how you get a name you have to change twice.
+2. **Does the map become the centre of the interface?** Likely eventually, with everything else moved to
+   the periphery. Explicitly gated on having a map good enough to deserve it. Until then, Bureau's 4×2
+   grid stands and is not in question.
+3. **Does Bureau survive the map?** Bureau is pure CSS with zero assets, which is part of why it shipped
+   fast and reads cohesively. If commissioned art arrives, paper is either a placeholder aesthetic to be
+   replaced or the identity the art should be commissioned *in the style of*. Those are very different
+   briefs. Not answerable until (2) is.
+4. **What replaces storage caps' friction when they retire?**
+5. **What is the Enlightenment's science mechanic?** The emptiest slot in the age list.
+6. **When does worker assignment retire, and into what?**
+7. **Does the map regenerate at an era border, or persist and extend?** Owned by `map.md` (§10.3),
+   flagged here because it is not only a map question — it collides directly with consolidation.
+   Persisting and extending is the emotionally obvious answer, but consolidation means twelve
+   holdfasts become three cities, so the owned region would have to *shrink* at the exact moment the
+   world grows, and there is no graceful version of that. Regenerating wholesale is cheapest and
+   matches the wholesale-adversary law, but evaporates a whole age's conquest at the border — the
+   invisible-sink mistake this project already made once and wrote a rule against. The likely answer
+   is regenerate-with-a-carried-summary, narrated as an ordinary migration. Not decided.

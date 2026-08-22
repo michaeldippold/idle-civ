@@ -1,8 +1,44 @@
-// Headless harness v6: stub DOM, boot game.js, drive the full simulation --
-// resources/growth/construction/queue (regression) + the new Military system
-// (cap, popCost/reserved civilians, units, Conflict event resolution).
-const fs = require("fs");
-const vm = require("vm");
+// Headless harness v7: real ES-module imports (phase 1, commit B; previously
+// a vm.createContext sandbox evaluating game.js as text). Module EVALUATION
+// touches neither DOM nor localStorage -- the only load-time side effect is
+// compile.js building and validating the manifests -- so static imports are
+// safe, and the stubs below only need to exist before the first api call.
+// main.js is deliberately NOT imported: its body is boot(), which wires the
+// real page and starts the interval loop.
+// compile.js MUST be every entry module's first import (main.js obeys the
+// same rule): its body builds MANIFESTS from EVENT_LIB and the era consts,
+// and it always runs last within its own subtree -- but if lib.js is ENTERED
+// first, the lib->combat->compile cycle makes compile's body run while lib is
+// still mid-evaluation, and EVENT_LIB is a TDZ ReferenceError.
+import * as mCompile from "./src/content/compile.js";
+import * as mConfig from "./src/core/config.js";
+import * as mLib from "./src/content/lib.js";
+import * as mStone from "./src/content/stone.js";
+import * as mBronze from "./src/content/bronze.js";
+import * as mIron from "./src/content/iron.js";
+import * as mIcons from "./src/ui/icons.js";
+import * as mState from "./src/core/state.js";
+import * as mDerived from "./src/core/derived.js";
+import * as mCombat from "./src/sim/combat.js";
+import * as mEvents from "./src/sim/events.js";
+import * as mExped from "./src/sim/expeditions.js";
+import * as mStep from "./src/core/step.js";
+import * as mActions from "./src/core/actions.js";
+import * as mEra from "./src/sim/era.js";
+import * as mLog from "./src/ui/log.js";
+import * as mDom from "./src/ui/dom.js";
+import * as mPLedger from "./src/ui/panels-ledger.js";
+import * as mPPeople from "./src/ui/panels-people.js";
+import * as mPHold from "./src/ui/panels-holdings.js";
+import * as mPBuy from "./src/ui/panels-buy.js";
+import * as mExpedUi from "./src/ui/expeditions.js";
+import * as mModal from "./src/ui/modal.js";
+import * as mChrome from "./src/ui/chrome.js";
+import * as mPersist from "./src/core/persist.js";
+
+const MODS = [mConfig, mLib, mStone, mBronze, mIron, mCompile, mIcons, mState,
+  mDerived, mCombat, mEvents, mExped, mStep, mActions, mEra, mLog, mDom,
+  mPLedger, mPPeople, mPHold, mPBuy, mExpedUi, mModal, mChrome, mPersist];
 
 function fakeEl() {
   const el = {
@@ -22,66 +58,30 @@ function fakeEl() {
   return el;
 }
 const store = {};
-const sandbox = {
-  console, Date, Math, JSON,
-  localStorage: {
-    getItem: (k) => (k in store ? store[k] : null),
-    setItem: (k, v) => { store[k] = String(v); },
-    removeItem: (k) => { delete store[k]; },
-  },
-  document: { getElementById: () => fakeEl(), createElement: () => fakeEl(), querySelector: () => fakeEl() },
-  window: { addEventListener() {} },
-  confirm: () => true, location: { reload() {} },
-  setInterval: () => 0, clearInterval: () => {},
+globalThis.document = { getElementById: () => fakeEl(), createElement: () => fakeEl(), querySelector: () => fakeEl() };
+globalThis.localStorage = {
+  getItem: (k) => (k in store ? store[k] : null),
+  setItem: (k, v) => { store[k] = String(v); },
+  removeItem: (k) => { delete store[k]; },
 };
-sandbox.globalThis = sandbox;
+globalThis.window = { addEventListener() {} };
+globalThis.confirm = () => true;
+globalThis.location = { reload() {} };
 
-const exportHook = `
-globalThis.__api = {
-  step, build, assign, rates, accrueGrowth, buildCost, housing, idle, jobsUsed,
-  caps, mults, freshState, checkReveals, pendingCount, resolveEvents,
-  negateChance, removeSettler, cancelBuild, defById, isRevealed,
-  isCapped, civilians, reserved, totalUnits, militaryStrength, weaponMultiplier,
-  armorFactor, rollRaidSize, stealResources, RAID_SIZES, log,
-  housingPerHut, advanceEra, renderHoldings, renderTile, fmtTime, renderAll,
-  infoPanelHTML, ERA_ORDER, releaseOrder, runConverters,
-  rollRaidType, unitStrength, counterCoverage, removeRandomUnit,
-  MANIFESTS, DEF_INDEX, active, compileBase, extendEra, EVENT_LIB, HINT_LIB,
-  validateManifests, manifestDiff, runEraMigrations, purgeDom,
-  launchCampaign, launchCaravan, resolveExpeditions, deployedCount, availableUnits,
-  initAdversaries, standingWord, hostilityMultiplier, campaignStrength, findAdversary,
-  converterFlows, ledgerRates, wallPower, applyConsolidation,
-  CONFIG,
-  get S(){ return S; }, set S(v){ S = v; },
-};`;
-// Interim bootstrap for the module split (phase 1, commit A): rebuild the old
-// single-scope program by concatenating the modules in canonical order with
-// import/export syntax stripped. Proves the SPLIT changed nothing before the
-// harness itself moves to real ESM imports (commit B). Order matters only for
-// the top-level const evaluations (content before compile); functions hoist.
-const path = require("path");
-const MODULES = [
-  "src/core/config.js", "src/content/lib.js", "src/content/stone.js",
-  "src/content/bronze.js", "src/content/iron.js", "src/content/compile.js",
-  "src/ui/icons.js", "src/core/state.js", "src/core/derived.js",
-  "src/sim/combat.js", "src/sim/events.js", "src/sim/expeditions.js",
-  "src/core/step.js", "src/core/actions.js", "src/sim/era.js",
-  "src/ui/log.js", "src/ui/dom.js", "src/ui/panels-ledger.js",
-  "src/ui/panels-people.js", "src/ui/panels-holdings.js", "src/ui/panels-buy.js",
-  "src/ui/expeditions.js", "src/ui/modal.js", "src/ui/chrome.js",
-  "src/core/persist.js", "src/main.js",
-];
-const code = MODULES.map((f) => fs.readFileSync(path.join(__dirname, f), "utf8"))
-  .join("\n")
-  .split("\n")
-  .filter((l) => !/^import /.test(l))
-  .map((l) => l.replace(/^export /, ""))
-  .join("\n") + exportHook;
-vm.createContext(sandbox);
-try { vm.runInContext(code, sandbox, { filename: "game.js" }); console.log("BOOT OK"); }
+// One object over all 25 namespaces, replacing the old vm __api hook. Module
+// namespaces are live views, so api.S always reads the current state; the one
+// legal write is api.S, routed through the state module's setter.
+const api = new Proxy({}, {
+  get: (_, k) => { for (const m of MODS) if (k in m) return m[k]; return undefined; },
+  set: (_, k, v) => {
+    if (k === "S") { mState.setS(v); return true; }
+    throw new Error(`harness tried to set api.${String(k)} -- add a setter in core/state.js`);
+  },
+});
+
+// What boot() did for the harness's purposes, without the page wiring.
+try { api.setS(api.freshState()); api.initAdversaries(); console.log("BOOT OK"); }
 catch (e) { console.log("BOOT ERROR:", e.stack); process.exit(1); }
-
-const api = sandbox.__api;
 const S = () => api.S;
 const run = (secs) => { for (let i = 0; i < secs * 5; i++) api.step(0.2); };
 // Era-aware def lookup: the active manifest first, DEF_INDEX for ids that are
@@ -358,8 +358,8 @@ reset();
   const PANELS = ["panel-village", "panel-holdings", "panel-queue", "panel-log",
                   "panel-training", "panel-build", "panel-upgrades"];
   const hidden = [];
-  const realGetById = sandbox.document.getElementById;
-  sandbox.document.getElementById = (id) => {
+  const realGetById = globalThis.document.getElementById;
+  globalThis.document.getElementById = (id) => {
     const el = fakeEl();
     if (PANELS.indexOf(id) >= 0) {
       el.classList = {
@@ -371,7 +371,7 @@ reset();
     return el;
   };
   api.renderAll();
-  sandbox.document.getElementById = realGetById;
+  globalThis.document.getElementById = realGetById;
   check("no panel hides itself on a fresh game", hidden.length === 0);
 }
 check("queueUsed is gone -- it was write-only state in every save", !("queueUsed" in S().seen));
@@ -492,9 +492,9 @@ console.log("\n--- Bronze P1: tiles re-render their name, not just their count -
 // must stay true is that a re-render re-points the tile at the CURRENT name
 // rather than keeping whatever it was built with.
 {
-  const realGetById = sandbox.document.getElementById;
+  const realGetById = globalThis.document.getElementById;
   let created = null;              // first call creates it, second must still rename it
-  sandbox.document.getElementById = (id) => {
+  globalThis.document.getElementById = (id) => {
     if (id === "hold-infirmary") return created;
     return fakeEl();
   };
@@ -503,7 +503,7 @@ console.log("\n--- Bronze P1: tiles re-render their name, not just their count -
   created = container.children[0];
   const firstName = created.__tip().title;
   api.renderTile(container, "hold-", "infirmary", "", "Infirmary", 1, "care", "d");
-  sandbox.document.getElementById = realGetById;
+  globalThis.document.getElementById = realGetById;
   check("tile renames in place on re-render, not just on creation",
     firstName === "Medicine Tent" && created.__tip().title === "Infirmary" &&
     container.children.length === 1);   // and it did NOT create a second tile
@@ -522,7 +522,7 @@ console.log("\n--- Bronze P1: old stone-age saves still load ---");
     era: "stone", seen: { wood: true }, dead: false, lastSeed: Date.now(),
   });
   store[api.CONFIG.saveKey] = legacy;
-  const loaded = sandbox.__api.S && true;
+  const loaded = api.S && true;
   api.S = api.freshState();
   // re-run the module's own load() by invoking it through a fresh eval is
   // overkill; instead assert the merge shape the loader relies on.

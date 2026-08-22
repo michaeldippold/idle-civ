@@ -1,0 +1,6 @@
+{
+  "name": "idle-civ",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node harness.js" }
+}

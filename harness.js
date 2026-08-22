@@ -36,13 +36,18 @@ import * as mExpedUi from "./src/ui/expeditions.js";
 import * as mModal from "./src/ui/modal.js";
 import * as mChrome from "./src/ui/chrome.js";
 import * as mPersist from "./src/core/persist.js";
+import * as mMapModel from "./src/map/model.js";
+import * as mMapGen from "./src/map/generate.js";
+import * as mMapCore from "./src/map/map.js";
+import * as mMapUi from "./src/ui/map.js";
 import fs from "node:fs";
 import nodePath from "node:path";
 import { fileURLToPath } from "node:url";
 
 const MODS = [mConfig, mRng, mLib, mStone, mBronze, mIron, mCompile, mIcons, mState,
   mDerived, mCombat, mEvents, mExped, mStep, mActions, mEra, mLog, mDom,
-  mPLedger, mPPeople, mPHold, mPBuy, mExpedUi, mModal, mChrome, mPersist];
+  mPLedger, mPPeople, mPHold, mPBuy, mExpedUi, mModal, mChrome, mPersist,
+  mMapModel, mMapGen, mMapCore, mMapUi];
 
 function fakeEl() {
   const el = {
@@ -1929,6 +1934,50 @@ console.log("\n--- Phase 3: offline is gone; the save is load-bearing ---");
   run(2);
   check("the revived campaign resolves on schedule", S().expeditions.length === 0);
   check("resolution had consequences (standing moved)", S().adversaries.hillClans.standing < 0);
+}
+
+console.log("\n--- Phase 6a: the map exists ---");
+{
+  reset();
+  api.ensureMap();
+  check("stone has no map", api.world === null && S().map === null);
+
+  S().era = "bronze";
+  api.ensureMap();
+  check("bronze charts a clearing-scale world", api.world !== null && api.world.tileNoun === "clearing");
+  check("a radius-3 disk is 37 tiles", Object.keys(api.world.places).length === 37);
+  check("your seat is owned, and on workable ground",
+    api.isOwned("0,0") && api.world.places["0,0"].terrain === "plains");
+  check("bronze seats no adversaries", Object.values(api.world.places).every((p) => !p.adversary));
+
+  const g1 = JSON.stringify(api.world);
+  api.ensureMap();
+  check("same era, same world: regeneration is stable", JSON.stringify(api.world) === g1);
+  const dice = S().rngState;
+  api.ensureMap();
+  check("map generation never touches the game's dice", S().rngState === dice);
+
+  S().era = "iron"; api.initAdversaries();
+  api.ensureMap();
+  check("the tile noun changed, so the world recut", api.world.tileNoun === "holdfast");
+  check("a radius-4 disk is 61 tiles", Object.keys(api.world.places).length === 61);
+  const seats = Object.values(api.world.places).filter((p) => p.adversary);
+  check("all three majors hold seats", seats.length === 3 &&
+    ["hillClans", "riverKingdom", "saltNomads"].every((id) => seats.some((p) => p.adversary === id)));
+  check("seats sit on land", seats.every((p) => p.terrain !== "water"));
+  check("seats keep their distance from your seat",
+    seats.every((p) => api.distance(api.world, "0,0", p.id) >= 2));
+  // Structural guarantee, not luck: terrain is the 6c economy, so every land
+  // terrain must show up in quantity on EVERY seed. (The noise+smoothing
+  // first cut failed this -- a live map rolled 2 hills and 0 river.)
+  const mix = {};
+  for (const id in api.world.places) { const t = api.world.places[id].terrain; mix[t] = (mix[t] || 0) + 1; }
+  check("every terrain claims its share (no starved economy)",
+    ["plains", "forest", "hills", "river", "water"].every((t) => (mix[t] || 0) >= 3));
+
+  const before = JSON.stringify(api.world);
+  api.save(); api.load(); api.ensureMap();
+  check("a world rebuilt from the save is bit-identical", JSON.stringify(api.world) === before);
 }
 
 console.log("\n--- Phase 5: asking modals hold the world ---");

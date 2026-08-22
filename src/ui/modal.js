@@ -8,8 +8,7 @@ import { fmtTime } from "./chrome.js";
 
 // ---------- Modal ---------------------------------------------
 // One modal at a time, centered over a dimmed page. No dragging, resizing, or
-// minimizing by design -- opening one never pauses the game (game over is the
-// exception only because death already stops the loop on its own).
+// minimizing by design.
 // `opts` is deliberately an open bag rather than more positional flags: the
 // decision queue (phase 7) will grow it -- designed defaults, dismiss-to-tray,
 // whatever future asks need -- without another signature change. Today it
@@ -22,6 +21,9 @@ import { fmtTime } from "./chrome.js";
 //   (design.md, Time, Presence & Pause, rule 3.)
 export function openModal(title, bodyHTML, actions, onMount, opts = {}) {
   setModalHold(opts.pause !== false);
+  // opts.wide: a broader panel for surfaces that are genuinely spatial (the
+  // map). Toggled per open, so the next ordinary modal gets the normal width.
+  document.getElementById("modalPanel").classList.toggle("wide", !!opts.wide);
   document.getElementById("modalTitle").textContent = title;
   const body = document.getElementById("modalBody");
   body.innerHTML = bodyHTML;

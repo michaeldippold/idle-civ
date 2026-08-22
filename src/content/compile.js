@@ -50,6 +50,16 @@ export function resolveSlates(m, raw) {
   });
 }
 
+// The map spec is an era-fact with structure, so it gets a real copy.
+function copyMapSpec(m) {
+  return {
+    radius: m.radius,
+    tileNoun: Object.assign({}, m.tileNoun),
+    terrains: m.terrains.slice(),
+    seats: (m.seats || []).slice(),
+  };
+}
+
 export function compileBase(raw) {
   const m = {
     name: raw.name,
@@ -63,6 +73,11 @@ export function compileBase(raw) {
     // Wholesale like the slates, never inherited: each age's world arrives
     // fresh, with fresh stocks, by construction.
     adversaries: (raw.adversaries || []).map((a) => Object.assign({}, a)),
+    // The map spec INHERITS, like popNoun -- deliberately, because the map
+    // regenerates only when the tile noun changes (design.md, Scale: The
+    // Tile Ladder). An era that keeps the noun keeps the world; an era that
+    // redeclares the spec recuts it. No spec (Stone) means no map.
+    map: raw.map ? copyMapSpec(raw.map) : null,
   };
   for (const cat of DEF_CATEGORIES) m[cat] = raw[cat].map((d) => Object.assign({}, d));
   resolveSlates(m, raw);
@@ -86,6 +101,7 @@ export function extendEra(parent, delta) {
     // Consolidation is per-border, never inherited (see applyConsolidation).
     consolidate: delta.consolidate ? Object.assign({}, delta.consolidate) : null,
     adversaries: (delta.adversaries || []).map((a) => Object.assign({}, a)),
+    map: delta.map ? copyMapSpec(delta.map) : parent.map,
   };
   const removes = new Set(delta.remove || []);
   const overrides = delta.override || {};
@@ -155,6 +171,16 @@ export function validateManifests(manifests) {
     const buildIds = new Set(m.buildings.map((b) => b.id));
     const raidIds = new Set(m.raidTypes.map((r) => r.id));
     const bad = (msg) => problems.push(`[${era}] ${msg}`);
+
+    if (m.map) {
+      if (!(m.map.radius >= 2)) bad(`map radius ${m.map.radius} is too small to mean anything`);
+      if (!m.map.tileNoun || !m.map.tileNoun.singular || !m.map.tileNoun.plural) bad("map tileNoun needs singular and plural");
+      if (!Array.isArray(m.map.terrains) || !m.map.terrains.length) bad("map declares no terrains");
+      const advIds = new Set(m.adversaries.map((a) => a.id));
+      for (const seat of m.map.seats) {
+        if (!advIds.has(seat)) bad(`map seats unknown adversary "${seat}"`);
+      }
+    }
 
     for (const cat of ["buildings", "upgrades", "units"]) {
       for (const d of m[cat]) {

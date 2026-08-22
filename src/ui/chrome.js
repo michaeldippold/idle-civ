@@ -107,6 +107,11 @@ export function renderEraChrome() {
     const h2 = document.querySelector(`#${panelId} h2`);
     if (h2) h2.textContent = titles[panelId];
   }
+  // The Map button exists only in eras whose manifest declares a map --
+  // Stone has no chart, so the button arriving at Bronze is the capability
+  // announcing itself, the same grammar as a panel filling for the first time.
+  const mb = document.getElementById("mapBtn");
+  if (mb) mb.classList.toggle("hidden", !active().map);
 }
 
 export function renderAll() {

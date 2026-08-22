@@ -37,6 +37,10 @@ export function freshState() {
     // The manifest entry is the template; this is what actually depletes.
     adversaries: {},
     expeditions: [],  // at most one: { uid, type, adversary, units?, cargo?, total, remaining }
+    // The persisted half of the map (phase 6a): sub-seed, generator version,
+    // the tile noun it was cut for, and which tiles are yours. Geometry is
+    // REGENERATED from the seed at load -- a world is a number (map.md §2).
+    map: null,
     tick: 0,          // the master clock: fixed TICK_SECONDS slices actually simulated -- see step()
     seen: {},
     dead: false,

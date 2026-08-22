@@ -4,6 +4,8 @@ import { initAdversaries, load, save } from "./core/persist.js";
 import { S, setLoops } from "./core/state.js";
 import { step } from "./core/step.js";
 import { cycleSpeed, modalHold, paused, renderAll, renderSpeed, setPaused, setSpeed, speed } from "./ui/chrome.js";
+import { ensureMap } from "./map/map.js";
+import { openMapModal } from "./ui/map.js";
 import { checkReveals, log } from "./ui/log.js";
 import { closeModal, modalIsOpen, openInfoPanel, openResetModal } from "./ui/modal.js";
 import { setUpgradeTab } from "./ui/panels-buy.js";
@@ -13,6 +15,7 @@ import { setUpgradeTab } from "./ui/panels-buy.js";
 export function boot() {
   const had = load();
   initAdversaries();
+  ensureMap();
   // Same channel as the [pacing] telemetry: the seed is how a mid-run bug
   // report becomes reproducible, so it should be readable without dying.
   console.log(`[seed] ${S.seed}`);
@@ -40,6 +43,7 @@ export function boot() {
   document.getElementById("tabAvailable").addEventListener("click", () => setUpgradeTab("available"));
   document.getElementById("tabOwned").addEventListener("click", () => setUpgradeTab("owned"));
   document.getElementById("infoBtn").addEventListener("click", openInfoPanel);
+  document.getElementById("mapBtn").addEventListener("click", openMapModal);
   document.getElementById("modalClose").addEventListener("click", closeModal);
   // Clicking the dimmed backdrop closes; clicks inside the panel bubble up to
   // the overlay too, so check the target is the overlay itself.

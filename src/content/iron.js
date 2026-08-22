@@ -25,6 +25,15 @@ export const IRON_DELTA = {
     keep: 0.7,
     narrate: "Families band together behind shared walls — your people now count themselves in holdfasts.",
   },
+  // The tile noun changes, so the world recuts at holdfast scale (design.md,
+  // Scale: The Tile Ladder) -- bigger country, and the three majors take
+  // seats on it. Still a readout in 6a; the rest of phase 6 makes it real.
+  map: {
+    radius: 4,
+    tileNoun: { singular: "holdfast", plural: "holdfasts" },
+    terrains: ["plains", "forest", "hills", "river", "water"],
+    seats: ["hillClans", "riverKingdom", "saltNomads"],
+  },
 
   remove: [
     "copper", "tin", "bronze",            // the alloy economy, wholesale

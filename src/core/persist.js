@@ -37,6 +37,7 @@ export function load() {
   S.adversaries = data.adversaries || {};
   S.expeditions = Array.isArray(data.expeditions) ? data.expeditions : [];
   S.buildQueue = Array.isArray(data.buildQueue) ? data.buildQueue : [];
+  S.map = data.map || null;
   // Saves from before the tick clock counted seconds in S.playtime. One-time
   // conversion; the old field rides along inert, per the state invariant.
   if (data.tick === undefined && typeof data.playtime === "number") {

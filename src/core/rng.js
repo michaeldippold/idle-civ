@@ -28,6 +28,20 @@ export function newSeed() {
   return crypto.getRandomValues(new Uint32Array(1))[0];
 }
 
+// A standalone stream for systems that must not touch the game's dice.
+// Map generation regenerates geometry at every load and era entry; if it
+// drew from S.rngState, loading a save would change the next raid.
+export function makeRng(seed) {
+  let a = seed | 0;
+  return function () {
+    a = (a + 0x6D2B79F5) | 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 // Test seam, harness only: force the coming draws; null restores the PRNG.
 // This replaced forty-odd global monkey-patches when the game stopped
 // listening to the global generator.

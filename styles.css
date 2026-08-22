@@ -230,6 +230,39 @@ button { font-family: inherit; cursor: pointer; }
 #transport .chrome-btn.transport + .chrome-btn.transport { margin-left: -2px; }
 #resetBtn { margin-left: 14px; }
 
+/* ---------- The map (phase 6a: readout) ----------
+   SVG geometry in a wide modal. Terrain is paint, not state, so the fills
+   live outside the semantic channel; ownership and selection are carried by
+   STROKE WEIGHT, per the no-opacity law. */
+#modalPanel.wide { width: min(1000px, 96vw); }
+:root {
+  --map-plains: #ece6d2;
+  --map-forest: #d0dcc0;
+  --map-hills:  #e0d3bc;
+  --map-river:  #d2e0e5;
+  --map-water:  #c2d2d9;
+}
+#mapWrap { background: var(--card); border: 1px solid var(--hair); padding: 10px; }
+#mapSvg { display: block; width: 100%; height: auto; max-height: 60vh; }
+.tile { stroke: var(--hair); stroke-width: 1; cursor: pointer; }
+.t-plains { fill: var(--map-plains); }
+.t-forest { fill: var(--map-forest); }
+.t-hills  { fill: var(--map-hills); }
+.t-river  { fill: var(--map-river); }
+.t-water  { fill: var(--map-water); cursor: default; }
+.tile-owned { stroke: var(--ink); stroke-width: 2.5; }
+.tile.selected { stroke: var(--queued); stroke-width: 3; }
+.tile-mark { font: 700 15px var(--mono); fill: var(--ink); pointer-events: none; }
+.tile-label {
+  font-size: 8.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  fill: var(--text-2); pointer-events: none;
+}
+.map-detail {
+  margin-top: 10px; padding: 9px 11px; min-height: 44px;
+  background: var(--card); border: 1px solid var(--hair);
+  font-size: 13px; line-height: 1.5;
+}
+
 /* ---------- Resource ledger ---------- */
 /* Population leads this strip. It has a value, a cap and a rate, so it is a
    resource; and the red at-cap value says "housing is full" more directly

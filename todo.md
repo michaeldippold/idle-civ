@@ -69,16 +69,21 @@ boundary through phase 5** — that rail is what makes this a refactor rather th
       failure could only mean one thing.
 - [x] 420 checks green; browser-verified live (boot from existing save, steppers, modals, pause).
 
-### Phase 2 — Seeded RNG
-- [ ] One `rng()` backed by a small seedable PRNG (mulberry32 or equivalent); state in `S`.
-- [ ] Route all 16 `Math.random()` call sites in `game.js` through it. Sweep `harness.js` too — it
-      has 62, most of which are test scaffolding and should keep using real randomness, but the
-      forced-RNG paths should move to seeding instead of monkey-patching.
-- [ ] `Math.random()` becomes forbidden in `src/`. A grep in the harness is enough enforcement.
-- [ ] Surface the seed somewhere a player can read it (game-over screen at minimum). It is how a
-      bug report becomes reproducible.
-- [ ] Note: the *full* determinism payoff needs phase 4 as well. With variable `dt`, a seed alone
-      does not give bit-identical replay.
+### Phase 2 — Seeded RNG ✅ *(shipped 2026-08-22)*
+- [x] `src/core/rng.js`: mulberry32 behind one `rng()`. `S.seed` is the run's permanent identity
+      (crypto-minted at freshState); `S.rngState` is the stream position, advanced per draw and
+      carried in the save so a reload resumes the dice mid-sequence. Old saves inherit a fresh seed
+      through the defensive merge — no migration.
+- [x] All 16 draw sites routed through `rng()`; `Math.random` appears nowhere in `src/`, and the
+      harness *enforces* that with a source-scan check.
+- [x] The harness's 44 `Math.random = …` monkey-patches became `setRngSource()` calls — a designed
+      test seam in rng.js rather than global mutation. (The todo had said "move to seeding"; hunting
+      seeds that force 44 specific outcomes would have been madness, and the seam is honest test
+      infrastructure with the same no-global-patching property.)
+- [x] Seed surfaced: `[seed]` console line at boot, World Seed stat on the game-over screen.
+- [x] Five new checks (425 total): bit-identical state from same seed + same actions (already true
+      at harness scale — the harness steps constant dt), stream determinism, range, save round-trip,
+      and the src/ ban. Browser gets bit-identical replay when phase 4 lands.
 
 **Live evidence for this phase, observed 2026-08-22.** During the docs pass the harness failed
 **one check in 38 consecutive runs** and could not be reproduced in the 37 runs that followed — the

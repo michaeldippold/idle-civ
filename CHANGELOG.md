@@ -11,6 +11,26 @@
 
 ---
 
+## 2026-08-22 — Phase 2: the seeded RNG
+
+**Every die now comes from the seed.** `src/core/rng.js` puts mulberry32 behind one `rng()`
+function; `S.seed` is the run's permanent identity (crypto-minted at world creation, surfaced on
+the console at boot and as a World Seed stat on the game-over screen), and `S.rngState` is the
+stream's position — advanced by every draw, carried in the save, so a reload resumes the dice
+mid-sequence. All 16 draw sites route through it: Conflict's three rolls, the raid and casualty
+draws, event triggers and negation, and the seven expedition rolls. Old saves inherit a fresh seed
+through the existing defensive merge; no migration, no schema bump.
+
+`Math.random` now appears nowhere in `src/`, and the harness *enforces* that with a source scan —
+a stray global draw would be invisible wrongness: it works, it just silently breaks replay. The
+harness's forty-four `Math.random = …` monkey-patches (which stopped working the moment the game
+stopped listening to the global generator) became `setRngSource()` calls against a designed test
+seam. Five new checks bring the suite to 425, headlined by the phase's acceptance test: **same
+seed + same actions = bit-identical state** — already true at harness scale, since the harness
+steps a constant dt; the browser gets the same guarantee when phase 4's tick clock lands.
+
+---
+
 ## 2026-08-22 — Phase 1: the module split
 
 **`game.js` is gone; 26 ES modules stand where it stood.** The 3,409-line single file — the last

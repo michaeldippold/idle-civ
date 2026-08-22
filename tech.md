@@ -20,7 +20,7 @@ How the game is actually built. **Docs map:** `design.md` is why any of this exi
 |---|---|---|---|
 | 0 | Docs | in progress | — |
 | 1 | Module structure (file split) | **shipped 2026-08-22** | *Module Structure*, below |
-| 2 | Seeded RNG | pending | *Determinism & the Seeded RNG* |
+| 2 | Seeded RNG | **shipped 2026-08-22** | *Determinism & the Seeded RNG* |
 | 3 | Kill offline | pending | *Time, Presence & Pause (implementation)* |
 | 4 | Fixed ticks | pending | *Simulation Model* |
 | 5 | Player controls (pause/speed, modal pause flag) | pending | *Time, Presence & Pause (implementation)* |
@@ -147,7 +147,7 @@ A `setInterval` at `CONFIG.tickMs` (200ms) computes real elapsed seconds since t
 
 ## Determinism & the Seeded RNG
 
-**Status: pending — phase 2.**
+**Status: shipped (phase 2, 2026-08-22) — full replay still needs phase 4.**
 
 **One `rng()`, module-level, seeded, state in the save. `Math.random()` becomes forbidden.**
 

@@ -1931,6 +1931,28 @@ console.log("\n--- Phase 3: offline is gone; the save is load-bearing ---");
   check("resolution had consequences (standing moved)", S().adversaries.hillClans.standing < 0);
 }
 
+console.log("\n--- Phase 5: asking modals hold the world ---");
+{
+  reset();
+  api.closeModal();  // earlier sections open era/muster modals and never close them
+  check("no hold with no modal", api.modalHold === false);
+  api.openModal("A Question", "<p>choose</p>");
+  check("a modal holds the simulation by default", api.modalHold === true);
+  api.closeModal();
+  check("closing releases the hold", api.modalHold === false);
+  api.openInfoPanel();
+  check("Info (a telling modal) opts out", api.modalHold === false);
+  api.closeModal();
+  api.openResetModal();
+  check("the reset confirm (an asking modal) holds", api.modalHold === true);
+  api.closeModal();
+  api.setSpeed(8);
+  check("setSpeed lands on a real notch", api.speed === 8);
+  api.setSpeed(7);
+  check("setSpeed refuses a notch that doesn't exist", api.speed === 8);
+  api.setSpeed(1);
+}
+
 console.log("\n--- Phase 4: the tick clock ---");
 {
   reset();

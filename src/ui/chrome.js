@@ -49,6 +49,23 @@ export function renderClock() {
 // tick rather than one oversized one, so every rate, probability roll, build
 // tick and upkeep charge behaves identically to real time -- there is just
 // more of it per second. Nothing needs to know it's happening.
+// The simulation-hold a modal can place (phase 5). A third independent flag
+// beside `paused` (the player's intent) and the hidden-tab stop, for the same
+// reason those two are separate: composing independent flags lets each one
+// release without clobbering the others. The loop steps only when none hold.
+// This is the seam the decision queue (phase 7) builds on: any modal content
+// -- steppers, choices, prose, future decision cards -- holds the world
+// simply by opening without `pause: false`.
+export let modalHold = false;
+export function setModalHold(v) { modalHold = v; }
+
+// Set a specific notch (the 1-5 keys); cycleSpeed remains the click path.
+export function setSpeed(n) {
+  if (!CONFIG.speeds.includes(n)) return;
+  speed = n;
+  renderSpeed();
+}
+
 export function renderSpeed() {
   const btn = document.getElementById("speedBtn");
   if (!btn) return;

@@ -1,6 +1,7 @@
 import { ERA_ORDER, MANIFESTS, active, manifestDiff } from "../content/compile.js";
 import { CONFIG } from "../core/config.js";
 import { housing, playtime } from "../core/derived.js";
+import { setModalHold } from "./chrome.js";
 import { suppressSaves } from "../core/persist.js";
 import { S } from "../core/state.js";
 import { fmtTime } from "./chrome.js";
@@ -9,7 +10,18 @@ import { fmtTime } from "./chrome.js";
 // One modal at a time, centered over a dimmed page. No dragging, resizing, or
 // minimizing by design -- opening one never pauses the game (game over is the
 // exception only because death already stops the loop on its own).
-export function openModal(title, bodyHTML, actions, onMount) {
+// `opts` is deliberately an open bag rather than more positional flags: the
+// decision queue (phase 7) will grow it -- designed defaults, dismiss-to-tray,
+// whatever future asks need -- without another signature change. Today it
+// carries one key:
+//   pause (default true) -- an ASKING modal holds the simulation while open;
+//   a TELLING modal opts out with { pause: false }. The ceremony register
+//   (era transition, game over) holds too: stillness is part of the weight,
+//   and reading the age's obituary should not cost world-time. Only the Info
+//   reference -- material you browse DURING play -- opts out today.
+//   (design.md, Time, Presence & Pause, rule 3.)
+export function openModal(title, bodyHTML, actions, onMount, opts = {}) {
+  setModalHold(opts.pause !== false);
   document.getElementById("modalTitle").textContent = title;
   const body = document.getElementById("modalBody");
   body.innerHTML = bodyHTML;
@@ -35,6 +47,7 @@ export function openModal(title, bodyHTML, actions, onMount) {
 }
 
 export function closeModal() {
+  setModalHold(false);
   document.getElementById("modalOverlay").classList.add("hidden");
 }
 export function modalIsOpen() {
@@ -99,7 +112,7 @@ export function openInfoPanel() {
         body.scrollTop = 0;
       });
     });
-  });
+  }, { pause: false });  // reference material, browsed DURING play: the one telling modal
 }
 
 // Hand-authored per era: ONLY the flavor lead. Every list underneath -- what

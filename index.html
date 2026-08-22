@@ -24,10 +24,16 @@
     </div>
     <div id="titleRight">
       <span id="playClock" title="World time actually simulated, and the raw tick count — frozen while paused or hidden. The tick is the coordinate a bug report wants.">0m 00s</span>
+      <!-- Transport controls: pause is how you think, speed is how you get on
+           with it. Grouped as one instrument, borders one weight up from the
+           utility verbs (weight, never opacity), Reset pushed off to the far
+           edge. See interface.md, The header. -->
+      <span id="transport">
+        <button id="pauseBtn" class="chrome-btn transport" title="Freeze the world and think (Space)">Pause</button>
+        <button id="speedBtn" class="chrome-btn transport" title="How fast the world runs — click to cycle, keys 1–5 to set. Everything resolves normally, just sooner.">1×</button>
+      </span>
       <button id="infoBtn" class="chrome-btn" title="Reference: everything in the game, by era">Info</button>
-      <button id="speedBtn" class="chrome-btn" title="Run the simulation faster — click to cycle. Everything resolves normally, just sooner.">1×</button>
-      <button id="pauseBtn" class="chrome-btn" title="Freeze the simulation (spacebar)">Pause</button>
-      <button id="saveBtn" class="chrome-btn" title="Progress also saves automatically">Save</button>
+      <button id="saveBtn" class="chrome-btn" title="Progress also saves automatically, and on every action">Save</button>
       <button id="resetBtn" class="chrome-btn danger" title="Wipe all progress">Reset</button>
     </div>
   </div>

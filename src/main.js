@@ -3,7 +3,7 @@ import { CONFIG } from "./core/config.js";
 import { initAdversaries, load, save } from "./core/persist.js";
 import { S, setLoops } from "./core/state.js";
 import { step } from "./core/step.js";
-import { cycleSpeed, paused, renderAll, renderSpeed, setPaused, speed } from "./ui/chrome.js";
+import { cycleSpeed, modalHold, paused, renderAll, renderSpeed, setPaused, setSpeed, speed } from "./ui/chrome.js";
 import { checkReveals, log } from "./ui/log.js";
 import { closeModal, modalIsOpen, openInfoPanel, openResetModal } from "./ui/modal.js";
 import { setUpgradeTab } from "./ui/panels-buy.js";
@@ -51,6 +51,13 @@ export function boot() {
     if (e.key === "Escape" && modalIsOpen()) { closeModal(); return; }
     // Space toggles pause. preventDefault stops it from re-activating whichever
     // stepper/build button happens to still hold focus from the last click.
+    // The number row sets speed directly: 1..5 land on CONFIG.speeds.
+    // Transport controls deserve keys now that watching the game IS playing.
+    if (e.key >= "1" && e.key <= "5") {
+      const notch = CONFIG.speeds[Number(e.key) - 1];
+      if (notch) setSpeed(notch);
+      return;
+    }
     if (e.code !== "Space" && e.key !== " ") return;
     e.preventDefault();
     setPaused(!paused);
@@ -63,7 +70,7 @@ export function boot() {
   // frame means the world briefly runs slightly slower than 1x, never that
   // a bigger slice of time gets simulated in one gulp.
   const newLoopId = setInterval(() => {
-    if (S.dead || paused || hidden) return;
+    if (S.dead || paused || hidden || modalHold) return;
     for (let i = 0; i < speed; i++) step();
     checkReveals();
     renderAll();

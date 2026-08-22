@@ -220,6 +220,16 @@ button { font-family: inherit; cursor: pointer; }
 .chrome-btn.fast { background: var(--queued); border-color: var(--queued); color: #fff8ec; }
 .chrome-btn.fast:hover { background: #a3801f; color: #ffffff; }
 
+/* Transport controls (phase 5): pause and speed are the game's most-used
+   verbs now that watching IS playing. Grouped as one instrument (shared
+   edge, like the segmented stepper), borders one weight up from the utility
+   verbs -- weight carries the hierarchy, never opacity -- and Reset is
+   pushed off to the far edge so the dangerous verb stands alone. */
+#transport { display: inline-flex; margin-right: 6px; }
+#transport .chrome-btn.transport { border-width: 2px; font-size: 11px; padding: 4px 13px 3px; }
+#transport .chrome-btn.transport + .chrome-btn.transport { margin-left: -2px; }
+#resetBtn { margin-left: 14px; }
+
 /* ---------- Resource ledger ---------- */
 /* Population leads this strip. It has a value, a cap and a rate, so it is a
    resource; and the red at-cap value says "housing is full" more directly

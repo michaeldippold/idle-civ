@@ -139,17 +139,33 @@ harness failure that doesn't reproduce should be recorded verbatim rather than r
 - [x] Seven new checks (447); live-verified ticks frozen under an ask, running under Info.
 - [x] Confirmed still right: `paused`/`speed`/`upgradeTab` stay excluded from the save.
 
-### Phase 6 — Conquest Growth (G1–G3)
-Already specced in `tech.md` → *Conquest Growth & the Peace Path — implementation contract*, and in
-`design.md` under the same name. Unchanged by the pivot, and strengthened by it — this design was
-already moving population onto the active side of the game.
-- [ ] **G1 — engine rework.** Era-scoped growth mode (`timer` | `conquest`); deep consolidation +
-      output multiplier (`keep × output ≈ 1`); pop/units separation (`popCost` dies at Iron); levy
-      cap; housing retired at Iron.
-- [ ] **G2 — minor tier & capture.** Freeholds and petty lords in the adversary slates; capture
-      outcome on campaign resolution.
-- [ ] **G3 — priests & the envoy.** Religious building + priest unit; envoy as a third adversary
-      action; per-target affinity; the annexation ceremony modal.
+### Phase 6 — Conquest Growth + the map's arrival
+Specced in `tech.md` (*Conquest Growth — implementation contract*) and `design.md`; the map's M1
+slice rides inside this phase by the standing sequencing decision (per-hex allocation needs hexes).
+Sub-phased so each slice is playable and pausable:
+
+- [x] **6a — the map exists** *(shipped 2026-08-22)*. Place-graph model, seeded blob-growth
+      generator on its own rng stream (never the game's dice — harness-asserted), `S.map` persisted
+      tiny with geometry rebuilt from the seed, regeneration keyed on the tile noun changing. Bronze
+      gets an inert clearing-scale chart with no seats (early-and-inert); Iron recuts at holdfast
+      scale with the three majors seated. Map chrome button (era-gated), wide telling modal, SVG
+      hexes, click-to-read detail pane. Terrain share is structurally guaranteed per seed — the
+      noise+smoothing first cut starved hills/river on a live map and was replaced same-day.
+      14 new checks (461 total), five-seed sweep green.
+- [ ] **6b — G1 engine rework.** Era-scoped growth mode (`timer` | `conquest`); deep consolidation
+      + output multiplier (`keep × output ≈ 1`); pop/units separation (units levied, `popCost` dies
+      at Iron); levy cap with tooltip reason; housing retired at Iron; narrated migrations for
+      existing saves. Jobs stay stepper-based for exactly one sub-phase.
+- [ ] **6c — terrain yield + per-hex allocation.** The Iron economy moves onto the map: production
+      derives from held tiles, terrain constrains each tile's menu, click-a-hex replaces the job
+      steppers (design.md, *Allocation — the permanent verb*). The pulse question — steppers touch
+      every 30s, hex allocation every few minutes — is THE thing to playtest here.
+- [ ] **6d — G2 minor tier & capture.** Freeholds/petty lords seated on real tiles; campaign capture
+      outcome (+1 holdfast, windfall, the Chronicle names the place for the last time); dominion
+      visibly spreads on the map.
+- [ ] **6e — G3 priests & the envoy.** Religious building + priest unit; envoy as the third
+      adversary action; per-target affinity; the annexation ceremony modal (the first ceremony built
+      under the pause-modal seam); standing hooks into event weights.
 
 ### Phase 7 — Decision queue
 The payoff of the whole pivot.

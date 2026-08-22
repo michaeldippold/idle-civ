@@ -1,6 +1,10 @@
 # Idle Civ — The Map
 
-> **Status: designed, not built. Phase 8.** Nothing in this document exists in `game.js`. The arc
+> **Status: M1 shipped 2026-08-22 (inside phase 6, per the sequencing decision); the rest designed,
+> not built.** What exists: the place-graph model, the seeded blob-growth hex generator (own rng
+> stream), `S.map` persistence with seed-rebuilt geometry, tile-noun-keyed regeneration, the Bronze
+> inert chart, Iron's seated majors, and the wide map modal with its click-to-read detail pane.
+> Distance, yield, dominion, capture, generation polish and art are still ahead. Nothing in this document exists in `game.js`. The arc
 > is gated behind the engine work in `todo.md`'s phase plan — hard-gated on **phase 2 (seeded
 > RNG)**, which is what makes a generated world reproducible from a number, and practically gated
 > on **phase 1 (the file split)**, because this arc wants three new modules and adding them to a

@@ -11,6 +11,26 @@
 
 ---
 
+## 2026-08-22 — Phase 6a: the map exists
+
+**The game has a map.** A place-graph of pointy-top hexes — model in `src/map/model.js`, consulted
+only through `neighbors()` and `distance()` so the Space border's node network is someday a new
+generator, not a new game. Geometry regenerates from a sub-seed at every load (*a world is a
+number*); the generator draws from its own rng stream so rebuilding the map can never advance the
+game's dice — the harness asserts it. Regeneration is keyed on **the tile noun changing**: Bronze
+inherits Stone's clearing and gets its chart inert and early (a Map button appears in the chrome —
+the capability announcing itself), while Bronze→Iron recuts the world at holdfast scale and seats
+the three majors on it, on land, spread apart. Clicking a seat reads the adversary; clicking ground
+reads the terrain. A telling surface — it does not hold the world.
+
+One generator lesson paid for immediately: the first cut used noise + majority smoothing, and its
+first live map came out 44 plains / 2 hills / 0 river — a starved economy, since terrain becomes
+the yield system in 6c. Seeded **blob growth** replaced it the same day: every terrain's share is
+structurally guaranteed on every seed, and the harness now checks the guarantee rather than the
+luck. Fourteen new checks, 461 total, green across a five-seed sweep.
+
+---
+
 ## 2026-08-22 — Phase 5: asking modals hold the world
 
 **The modal-hold seam, built for what's coming.** `openModal()` grew an `opts` bag — deliberately

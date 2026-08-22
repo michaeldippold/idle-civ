@@ -112,14 +112,19 @@ harness failure that doesn't reproduce should be recorded verbatim rather than r
 - [x] Old saves: inert `lastSeed` fields ride along per the state-is-never-implicitly-destroyed
       invariant; fresh runs never mint one.
 
-### Phase 4 — Ticks
-- [ ] `S.tick` becomes the master clock. `S.playtime` derives from it rather than accumulating
-      separately.
-- [ ] Authoring stays per-second in `CONFIG` and the manifests; convert to per-tick at manifest
-      compile time. Do not make the content author think in ticks.
-- [ ] Speed = N ticks per frame (already how the speed control works); pause = zero ticks.
-- [ ] Harness: same seed + same tick count + same actions = bit-identical `S`. This is the
-      acceptance test for the whole phase, and the thing that makes balance regressions catchable.
+### Phase 4 — Ticks ✅ *(shipped 2026-08-22)*
+- [x] `S.tick` is the master clock; `step()` takes no argument and advances exactly `TICK_SECONDS`.
+      `playtime()` derives from the count; legacy saves convert their seconds once at `load()`.
+- [x] Authoring stays per-second. *Deviation from the spec's mechanism:* rather than converting
+      rates per-tick in the manifest compiler, the engine passes a constant `dt = TICK_SECONDS` to
+      the unchanged subsystems — identical property (authors think in seconds), far less churn.
+- [x] The loop is a metronome: `speed` ticks per fire, wall time never measured. `Date.now()`,
+      `last`, and the visibility re-anchor all deleted. Throttling bends pace, never math —
+      verified live in the throttled embedded pane (1Hz fires produced exactly one tick each).
+- [x] Header clock shows elapsed time *and* tick count (`4h 26m · t79,831`) — debugging readout by
+      request; `[pacing]` lines carry the tick too.
+- [x] Harness: 440 checks. The phase-2 determinism check now describes the browser too — seed +
+      tick count + actions = bit-identical state everywhere.
 
 ### Phase 5 — Controls
 - [ ] Promote pause and speed out of dev-only status. `tech.md` previously recorded speed as a

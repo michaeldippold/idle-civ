@@ -11,6 +11,24 @@
 
 ---
 
+## 2026-08-22 — Phase 4: the clock is a count
+
+**`S.tick` is the master clock.** `step()` takes no argument: one call, one tick, exactly
+`TICK_SECONDS` of world time. The subsystems keep their per-second authoring — the `dt` they
+receive is simply the same constant every call. The main loop became a metronome (each fire runs
+`speed` ticks; wall time is never measured), which deleted `Date.now()`, the `last` bookkeeping,
+and the visibility re-anchor dance in one stroke: interval jitter and background throttling now
+bend the game's *pace* a hair rather than its math, because a skipped fire is a tick that never
+happened. `S.playtime` died; `playtime()` derives from the count, and legacy saves convert their
+seconds to ticks once at load — a 4h26m save arrived live as t79,831.
+
+The header clock now reads both — `4h 26m · t79,831` — the raw tick count added by explicit
+request as a debugging readout: with a seeded, tick-counted sim, *what tick did it happen on* is
+the coordinate a bug report wants. With this, the phase 2 promise completes in the browser: **seed
++ tick count + actions = bit-identical state**, everywhere, not just in the harness. 440 checks.
+
+---
+
 ## 2026-08-22 — Phase 3: offline dies
 
 **The clock runs while you're looking at it.** `simulateOffline()` is gone whole — the catch-up

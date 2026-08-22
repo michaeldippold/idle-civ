@@ -4,7 +4,7 @@ How the game is actually built. **Docs map:** `design.md` is why any of this exi
 
 ## How to read this file
 
-**Every section carries a status line directly under its heading.** This is not decoration. The 2026-08-22 pivot (`design.md`, *Time, Presence & Pause*) redefined the target game, and the code has been catching up phase by phase since — phases 1–3 (modules, the seed, the death of offline) are in; ticks, controls, and everything after are not. A session that can't tell the target from the code will do something bad; the status line tells you which world a paragraph is describing.
+**Every section carries a status line directly under its heading.** This is not decoration. The 2026-08-22 pivot (`design.md`, *Time, Presence & Pause*) redefined the target game, and the code has been catching up phase by phase since — phases 1–4 (modules, the seed, the death of offline, the tick clock) are in; controls and everything after are not. A session that can't tell the target from the code will do something bad; the status line tells you which world a paragraph is describing.
 
 - **Status: shipped.** — running in `game.js` today. Claims here are verified against the file.
 - **Status: pending — phase N.** — settled design, no code. Nothing in the section is true yet.
@@ -22,7 +22,7 @@ How the game is actually built. **Docs map:** `design.md` is why any of this exi
 | 1 | Module structure (file split) | **shipped 2026-08-22** | *Module Structure*, below |
 | 2 | Seeded RNG | **shipped 2026-08-22** | *Determinism & the Seeded RNG* |
 | 3 | Kill offline | **shipped 2026-08-22** | *Time, Presence & Pause (implementation)* |
-| 4 | Fixed ticks | pending | *Simulation Model* |
+| 4 | Fixed ticks | **shipped 2026-08-22** | *Simulation Model* |
 | 5 | Player controls (pause/speed, modal pause flag) | pending | *Time, Presence & Pause (implementation)* |
 | 6 | Conquest Growth G1–G3 | pending | *Conquest Growth — implementation contract* |
 | 7 | Decision queue (interactive events) | pending | *The Decision Queue* |
@@ -126,24 +126,49 @@ harness.js                  imports all of the above except main.js
 
 ## Simulation Model
 
-**Status: shipped is continuous delta-time; fixed ticks pending — phase 4.**
+**Status: shipped — fixed ticks (phase 4, 2026-08-22).**
 
-### What runs today (delta-time)
+**`S.tick` is the master clock.** An integer, part of the save. `step()` takes no argument:
+each call advances the world by exactly `TICK_SECONDS` (0.2s, exported from `config.js` as
+`CONFIG.tickMs / 1000`) and increments the count. The subsystems beneath it — `rates()`,
+`runConverters`, `resolveEvents`, `accrueGrowth`, `resolveExpeditions` — keep their per-second
+authoring and their `dt` signatures; the `dt` they receive is simply the same constant on every
+call. `chancePerSecond` still converts via `1 - (1 - p) ** dt`, now against a constant.
 
-A `setInterval` at `CONFIG.tickMs` (200ms) computes real elapsed seconds since the last frame (`dt`) and calls `step(dt)`. All production, upkeep, and event probability is authored as **rates per second**: `S.res.food += rate * dt`, and `chancePerSecond` becomes a per-`dt` roll via `1 - (1 - chancePerSecond) ** dt`. `dt` is clamped at 2s before use. Speed multiplies by running `speed` ordinary `step(dt)` calls per tick rather than one oversized one.
+*(The phase spec had sketched converting rates to per-tick inside the manifest compiler. A
+constant `dt` at the call sites has the identical property the spec was after — authors think in
+seconds, nothing in the content files changes — with a fraction of the churn. Deviation recorded
+in `todo.md`.)*
 
-### What replaces it (fixed ticks — phase 4)
+**The loop is a metronome, not a stopwatch.** Each `setInterval` fire advances `speed` fixed
+ticks; wall time is never measured — `Date.now()`, `last`, the `dt` clamp, and the
+visibility-re-anchor dance are all gone. Interval jitter and background throttling therefore bend
+the game's *pace* a hair rather than its math: a slow or skipped fire is simply a tick that never
+happened, never a bigger slice of time simulated in one gulp. Pause and hidden are a skipped
+fire; death guards inside `step()`.
 
-**`S.tick` becomes the master clock.** An integer, incremented once per simulation step, part of the save. `S.playtime` stops being accumulated separately and *derives* from it (`S.tick * secondsPerTick`) — one clock, not two that can disagree.
+**`playtime()` derives from the count** (`S.tick * TICK_SECONDS`, in `derived.js`) — one clock,
+not two that can disagree. `S.playtime` no longer exists in fresh state; `load()` converts a
+legacy save's seconds to ticks once (floor), and the stale field rides along inert per the state
+invariant. The header clock renders both readings — `4h 26m · t79,831` — the tick count by
+explicit request, because with a seeded, tick-counted sim, *what tick did it happen on* is the
+coordinate a bug report wants. The `[pacing]` telemetry lines carry the tick too.
 
-- **Authoring stays per-second.** `CONFIG` and the manifests keep reading `0.20/s`, `45 seconds`, `chancePerSecond: 0.0018`, because those are the numbers a designer reasons about. **The manifest compiler converts them to per-tick at compile time**, alongside everything else it already normalizes. Nothing in the content files changes; `compileBase`/`extendEra` grow one pass.
-- **Speed is N ticks per frame.** The loop already does exactly this (`for (let i = 0; i < speed; i++) step(dt)`), so phase 4 mostly deletes the `dt` plumbing rather than restructuring the loop.
-- **Pause is zero ticks per frame.** Not a skipped `step()` guarded by a flag — literally a loop that runs zero times. The pause bookkeeping that currently keeps `last = now` advancing so `dt` doesn't bank up disappears entirely, because there is no `dt` to bank.
-- **The frame rate stops being observable.** Today a browser that fires the interval late produces a bigger `dt` and slightly different rounding; after phase 4 a slow frame produces exactly the same number of ticks, just later on the wall clock.
+**The payoff is determinism, and it is now live in the browser**: *same seed + same tick count +
+same player actions = bit-identical state*. This was unreachable under variable `dt` no matter
+how good the RNG was — a seeded `rng()` under floating-point `dt` gives the same *rolls* against
+different *thresholds*. Ticks and the seed are one feature delivered in two phases; this is the
+phase that finished both. See *Testing Approach* for what it turns the harness into.
 
-**The payoff is determinism**, and it is why this phase exists at all: *same seed + same tick count + same player actions = bit-identical state*. That property is worth more than anything delta-time bought, and it is unreachable with a variable `dt` no matter how good the RNG is — a seeded `rng()` under floating-point `dt` gives you the same *rolls* against different *thresholds*. Ticks and the seed are one feature delivered in two phases; neither is finished without the other. See *Testing Approach* for what this turns the harness into.
-
-**Historical note, kept because the reasoning was correct and is instructive about how requirements move.** Delta-time was chosen deliberately, over an explicit alternative (the discrete `state.tick` model used in the sibling project `dispatch`), on the grounds that Idle Civ's genre was long unattended stretches and offline catch-up — and continuous simulation degrades gracefully to "however much time passed" instead of replaying tens of thousands of discrete ticks. That argument was sound. It is also entirely contingent on offline catch-up existing. Once the pivot deleted offline progress (`design.md`, *Time, Presence & Pause*), the sole justification evaporated and the cost — non-determinism — became the only remaining term. Nothing about the original analysis was wrong; the requirement it served was.
+**Historical note, kept because the reasoning was correct and is instructive about how
+requirements move.** Delta-time was chosen deliberately, over an explicit alternative (the
+discrete `state.tick` model used in the sibling project `dispatch`), on the grounds that Idle
+Civ's genre was long unattended stretches and offline catch-up — and continuous simulation
+degrades gracefully to "however much time passed" instead of replaying tens of thousands of
+discrete ticks. That argument was sound. It was also entirely contingent on offline catch-up
+existing; once the pivot deleted offline progress, the sole justification evaporated and the
+cost — non-determinism — became the only remaining term. Nothing about the original analysis was
+wrong; the requirement it served was.
 
 ## Determinism & the Seeded RNG
 
@@ -301,7 +326,7 @@ Any field present in `freshState()` but absent from an old save (a new resource,
 
 Population is **not** `jobs` summed plus idle. A person is in one of three states: assigned to a civilian job, idle, or converted to a unit (permanently outside the assignable pool). See *Units & Military* for the derived-value math.
 
-## `step(dt)` — Order of Operations
+## `step()` — Order of Operations
 
 **Status: shipped.** Phase 4 renames the parameter and changes its unit; the order does not change.
 

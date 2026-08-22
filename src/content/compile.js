@@ -67,6 +67,11 @@ export function compileBase(raw) {
     panelTitles: Object.assign({}, raw.panelTitles),
     popNoun: Object.assign({}, raw.popNoun),
     arrivalLine: raw.arrivalLine,
+    // Growth-model era-facts (phase 6b). All three inherit, like popNoun:
+    // an era that says nothing keeps its parent's model.
+    growth: raw.growth || "timer",
+    levy: raw.levy || null,
+    outputMult: raw.outputMult || 1,
     raidTypes: raw.raidTypes.slice(),
     migrations: [],   // a base era is never entered FROM anywhere
     consolidate: null,
@@ -93,6 +98,9 @@ export function extendEra(parent, delta) {
     // re-denominates simply declares a new one.
     popNoun: delta.popNoun ? Object.assign({}, delta.popNoun) : parent.popNoun,
     arrivalLine: delta.arrivalLine || parent.arrivalLine,
+    growth: delta.growth || parent.growth,
+    levy: delta.levy != null ? delta.levy : parent.levy,
+    outputMult: delta.outputMult != null ? delta.outputMult : parent.outputMult,
     raidTypes: delta.raidTypes ? delta.raidTypes.slice() : parent.raidTypes,
     // Explicit state-migration instructions, run once when this era is
     // ENTERED (see runEraMigrations). Never inherited: a migration describes
@@ -171,6 +179,11 @@ export function validateManifests(manifests) {
     const buildIds = new Set(m.buildings.map((b) => b.id));
     const raidIds = new Set(m.raidTypes.map((r) => r.id));
     const bad = (msg) => problems.push(`[${era}] ${msg}`);
+
+    if (m.growth !== "timer" && m.growth !== "conquest") bad(`unknown growth mode "${m.growth}"`);
+    if (m.levy != null && !(m.levy > 0)) bad(`levy must be positive, got ${m.levy}`);
+    if (!(m.outputMult > 0)) bad(`outputMult must be positive, got ${m.outputMult}`);
+    if (m.growth === "conquest" && m.levy == null) bad("a conquest era needs a levy rate -- without one, training has no cap at all");
 
     if (m.map) {
       if (!(m.map.radius >= 2)) bad(`map radius ${m.map.radius} is too small to mean anything`);

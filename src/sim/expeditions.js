@@ -138,7 +138,8 @@ export function removeDeployedUnit(ex) {
     if (roll < w) {
       ex.units[uid] -= 1;
       S.units[uid] -= 1;
-      S.pop -= 1;
+      // Same levy rule as removeRandomUnit: the holdfast survives its band.
+      if (!active().levy) S.pop -= 1;
       const def = active().units.find((u) => u.id === uid);
       return def ? def.name : uid;
     }

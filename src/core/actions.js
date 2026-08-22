@@ -1,4 +1,5 @@
-import { buildCost, canAfford, defById, housing, idle, isCapped, pendingCount, playtime } from "./derived.js";
+import { buildCost, canAfford, defById, housing, idle, isCapped, levyCap, levyUsed, pendingCount, playtime } from "./derived.js";
+import { active } from "../content/compile.js";
 import { S } from "./state.js";
 import { save } from "./persist.js";
 import { advanceEra } from "../sim/era.js";
@@ -23,7 +24,10 @@ export function build(def) {
   if (isCapped(def)) return;
   const cost = buildCost(def);
   if (!canAfford(cost)) return;
-  if (def.popCost && idle() < def.popCost) return;
+  if (def.kind === "unit" && active().levy) {
+    // Levied, not consumed: capacity is the constraint, not spare people.
+    if (levyUsed() + 1 > levyCap()) return;
+  } else if (def.popCost && idle() < def.popCost) return;
   for (const k in cost) S.res[k] -= cost[k];
   const wasEmpty = S.buildQueue.length === 0;
   S.buildQueue.push({ id: def.id, kind: def.kind, uid: ++S.buildSeq, total: def.buildTime, remaining: def.buildTime, cost });

@@ -145,7 +145,12 @@ export function openEraModal(era, before) {
   if (prevM && prevM.popNoun.plural !== m.popNoun.plural) {
     changes.push(`You count your people in ${m.popNoun.plural} now.`);
   }
-  if (before.housing !== housing()) changes.push(`Housing rises from ${before.housing} to ${housing()}.`);
+  if (Number.isFinite(housing()) && before.housing !== housing()) {
+    changes.push(`Housing rises from ${before.housing} to ${housing()}.`);
+  }
+  if (prevM && prevM.growth === "timer" && m.growth === "conquest") {
+    changes.push("No one will arrive unbidden again — your people grow by conquest and fealty now.");
+  }
   if (prevM) {
     for (const panelId in m.panelTitles) {
       if (prevM.panelTitles[panelId] && prevM.panelTitles[panelId] !== m.panelTitles[panelId]) {

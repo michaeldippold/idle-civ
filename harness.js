@@ -1176,7 +1176,8 @@ console.log("\n--- Phase A: compiled manifests have the right shape ---");
   check("DEF_INDEX resolves a retired id (the capstone) after its era ends",
     api.DEF_INDEX.bronzeAge && api.DEF_INDEX.bronzeAge.id === "bronzeAge");
   check("DEF_INDEX carries the LATEST identity for a surviving id",
-    api.DEF_INDEX.hut.name === "Longhouse");
+    api.DEF_INDEX.forge.converts.out.steel === 1 &&   // iron's recipe, not bronze's
+    api.DEF_INDEX.hut.name === "Stone House");        // hut's LAST era is bronze -- housing retired at iron
   reset();
   check("defById prefers the active era over DEF_INDEX", api.defById("hut").name === "Hut");
 }
@@ -1345,8 +1346,12 @@ console.log("\n--- C1: the iron manifest ---");
   check("no job produces gold or steel", !m.jobs.some(j => j.res === "gold" || j.res === "steel"));
   check("new buildings and upgrades arrived", has("buildings", "ironYard") && has("buildings", "treasury") &&
     has("upgrades", "ironTools") && has("upgrades", "ironWeapons") && has("upgrades", "steelArmor"));
-  check("hut is now the Longhouse, housing 7",
-    m.buildings.find(b => b.id === "hut").name === "Longhouse" && m.housingPerHut === 7);
+  check("housing retired at Iron: the hut line is gone entirely (6b)",
+    !m.buildings.some(b => b.id === "hut"));
+  check("iron is a conquest era: growth mode, levy, outputMult declared",
+    m.growth === "conquest" && m.levy === 2 && m.outputMult === 4);
+  check("deep consolidation: keep 0.25, offset by the outputMult (keep x output = 1)",
+    m.consolidate.keep === 0.25 && Math.abs(m.consolidate.keep * m.outputMult - 1) < 1e-9);
   check("the Village is now a Town", m.panelTitles["panel-holdings"] === "Town");
   const forge = m.buildings.find(b => b.id === "forge");
   check("the Forge persists, retargeted to steel",
@@ -1360,9 +1365,9 @@ console.log("\n--- C1: the iron manifest ---");
   check("bronze manifest gained the ironAge capstone",
     api.MANIFESTS.bronze.upgrades.some(u => u.id === "ironAge"));
   const d = api.manifestDiff(api.MANIFESTS.bronze, m);
-  check("diff: 8 added (incl. siege pair), 6 removed, 1 renamed",
-    d.added.length === 8 && d.removed.length === 6 && d.renamed.length === 1 &&
-    d.renamed[0].to.name === "Longhouse");
+  check("diff: 8 added (incl. siege pair), 7 removed (incl. the hut line), 0 renamed",
+    d.added.length === 8 && d.removed.length === 7 && d.renamed.length === 0 &&
+    d.removed.some((r) => r.id === "hut"));
 }
 
 console.log("\n--- C1: capstone gating and the real transition ---");
@@ -1395,21 +1400,21 @@ console.log("\n--- C1: capstone gating and the real transition ---");
   check("bronze became gold at 1:4, floored", S().res.gold === Math.floor(70 * 0.25));
   check("bronze stock zeroed by the conversion", S().res.bronze === 0);
   check("ore-job workers walked home", S().jobs.copperMiner === 0 && S().jobs.tinMiner === 0);
-  // Consolidation (keep 0.7). Families kept arriving during the 180s build,
-  // so derive the expectation from the archived pre-flip snapshot: units at
-  // flip were 2/1/1 -> floor to 1/0/0, and civilians floor at 0.7.
+  // Deep consolidation (keep 0.25, 6b) at a LEVY border: civilians floor
+  // hard, the fighting bands carry whole -- they are no longer population.
   const snapPop = S().eraHistory.bronze.pop;
   check("families kept arriving during the long build", snapPop >= 20);
-  check("families banded into holdfasts (floored from the snapshot)",
-    S().pop === Math.floor((snapPop - 4) * 0.7) + 1);
-  check("units consolidated with the same floor",
-    S().units.soldier === 1 && S().units.archer === 0 && S().units.horseman === 0);
-  check("jobs floored alongside (forager 4 -> 2)", S().jobs.forager === 2);
+  check("families banded into a handful of holdfasts (floored from the snapshot)",
+    S().pop === Math.max(1, Math.floor((snapPop - 4) * 0.25)));
+  check("the fighting bands carry whole across a levy border",
+    S().units.soldier === 2 && S().units.archer === 1 && S().units.horseman === 1);
+  check("jobs floored alongside (forager 4 -> 1)", S().jobs.forager === 1);
+  check("the levy back-compat flag is set by the border itself", S().seen.levyMigrated === true);
   check("the noun is holdfast now", api.active().popNoun.singular === "holdfast");
   check("the books balance after all of it", api.idle() >= 0 && api.jobsUsed() <= api.civilians());
   check("bronze-era snapshot archived pre-consolidation", !!S().eraHistory.bronze &&
     S().eraHistory.bronze.res.bronze === 70 && S().eraHistory.bronze.jobs.copperMiner === 2);
-  check("housing jumped retroactively (4 huts: 3 + 4x7 = 31)", api.housing() === 31);
+  check("housing is uncapped at iron -- the concept retired with the hut", api.housing() === Infinity);
   api.setRngSource(null);
 }
 
@@ -1515,8 +1520,8 @@ console.log("\n--- C2: deployment thins home defense ---");
     units: { soldier: 3, archer: 1 }, total: 90, remaining: 90 });
   check("deployed units are counted", api.deployedCount("soldier") === 3 && api.availableUnits("soldier") === 1);
   check("home strength drops while the column is out", api.militaryStrength() < homeBefore);
-  check("civilians/pop unchanged -- they're alive, just not home",
-    api.civilians() === 6 && S().pop === 12);
+  check("civilians/pop unchanged -- they're alive, just not home (and under a levy, civilians = pop)",
+    api.civilians() === 12 && S().pop === 12);
   // Home casualties can only take who's home: deploy EVERYONE, then ask.
   S().expeditions[0].units = { soldier: 4, archer: 2 };
   check("with everyone deployed, home casualties find no one", api.removeRandomUnit() === null);
@@ -1602,8 +1607,8 @@ console.log("\n--- C2.1: escorts decide how an ambush ends ---");
   api.setRngSource((() => { let n = 0; return () => seq[n++] ?? 0.5; })());
   api.resolveExpeditions(0.2);
   api.setRngSource(null);
-  check("a lost ambush costs the cargo and a guard",
-    S().res.gold === 15 && S().units.soldier === 5 && S().pop === 14);
+  check("a lost ambush costs the cargo and a guard -- but not the holdfast that raised them (levy)",
+    S().res.gold === 15 && S().units.soldier === 5 && S().pop === 15);
   check("no payment on a lost ambush", S().adversaries.riverKingdom.stock.gold === 225);
 }
 
@@ -1685,9 +1690,9 @@ console.log("\n--- Re-denomination: nouns, inheritance, consolidation ---");
     M.bronze.popNoun.singular === "family" && M.iron.popNoun.singular === "holdfast");
   check("arrival lines are era-facts", M.stone.arrivalLine.includes("wanderer") &&
     M.bronze.arrivalLine.includes("family") && M.iron.arrivalLine.includes("fealty"));
-  check("stone and bronze do not consolidate; iron does, generously",
+  check("stone and bronze do not consolidate; iron cuts deep (0.25, offset by output 4)",
     !M.stone.consolidate && !M.bronze.consolidate &&
-    M.iron.consolidate && M.iron.consolidate.keep === 0.7);
+    M.iron.consolidate && M.iron.consolidate.keep === 0.25 && M.iron.outputMult === 4);
   // An era that says nothing inherits the noun (the Silicon-keeps-Bloc rule).
   const quiet = api.extendEra(M.iron, { events: [], hints: [] });
   check("popNoun inherits when a delta is silent", quiet.popNoun.singular === "holdfast" &&
@@ -1707,9 +1712,9 @@ console.log("\n--- Re-denomination: nouns, inheritance, consolidation ---");
   S().pop = 20; S().units = { soldier: 4, archer: 2, horseman: 0, siegeEngine: 0 };
   S().jobs.forager = 5; S().jobs.ironMiner = 3;
   api.applyConsolidation({ keep: 0.7 });
-  check("units floor independently (4->2, 2->1)", S().units.soldier === 2 && S().units.archer === 1);
-  check("pop is rebuilt as civ+units (floor(14x0.7)=9, +3)", S().pop === 12);
-  check("civilians can never go negative by construction", api.civilians() === 9);
+  check("at a levy border units carry whole (4, 2)", S().units.soldier === 4 && S().units.archer === 2);
+  check("the border separates units out, then floors (floor((20-6)x0.7))", S().pop === 9);
+  check("under a levy, civilians IS pop", api.civilians() === 9);
   check("jobs floor alongside (5->3, 3->2)", S().jobs.forager === 3 && S().jobs.ironMiner === 2);
 
   // A column abroad cannot be consolidated out from under its expedition.
@@ -1720,8 +1725,8 @@ console.log("\n--- Re-denomination: nouns, inheritance, consolidation ---");
   S().expeditions.push({ uid: 1, type: "campaign", adversary: "hillClans",
     units: { soldier: 4 }, total: 90, remaining: 50 });
   api.applyConsolidation({ keep: 0.5 });
-  check("deployed units are protected from the floor", S().units.soldier === 4);
-  check("the books still balance around them", S().pop === 4 + Math.max(1, Math.floor(6 * 0.5)));
+  check("deployed or home, units carry whole at a levy border", S().units.soldier === 4);
+  check("the books still balance around them (10 - 4 deployed-band members, halved)", S().pop === Math.max(1, Math.floor(6 * 0.5)));
   S().expeditions.length = 0;
 }
 
@@ -1883,7 +1888,7 @@ console.log("\n--- Ledger rates: converter flows shown honestly ---");
   S().res.iron = 100; S().res.wood = 100;
   r = api.ledgerRates();
   check("steel flows at 2 forges' rate", Math.abs(r.steel - 0.1) < 1e-9);
-  check("wood reads mining minus the forge's burn (0.4 - 0.2)", Math.abs(r.wood - 0.2) < 1e-9);
+  check("wood reads mining minus the forge's burn (1.6 gross under outputMult, - 0.2)", Math.abs(r.wood - 1.4) < 1e-9);
   check("iron reads as pure drain with no miners", Math.abs(r.iron - (-0.3)) < 1e-9);
 }
 
@@ -1934,6 +1939,62 @@ console.log("\n--- Phase 3: offline is gone; the save is load-bearing ---");
   run(2);
   check("the revived campaign resolves on schedule", S().expeditions.length === 0);
   check("resolution had consequences (standing moved)", S().adversaries.hillClans.standing < 0);
+}
+
+console.log("\n--- Phase 6b: Conquest Growth G1 -- levy, output, no housing ---");
+{
+  // Growth is a verb at iron: the timer does nothing.
+  reset();
+  S().era = "iron"; api.initAdversaries(); S().seen.levyMigrated = true;
+  S().pop = 5; S().res.food = 500; S().jobs.forager = 2;
+  const popBefore = S().pop;
+  api.setRngSource(() => 0.999999);   // hazards hold their breath; growth is what's on trial
+  run(120);
+  api.setRngSource(null);
+  check("no one arrives unbidden under conquest growth", S().pop === popBefore);
+  check("housing is uncapped under conquest growth", api.housing() === Infinity);
+
+  // Output multiplier: a holdfast works -- and eats -- like the families it holds.
+  S().pop = 5; S().jobs.forager = 1; S().units = { soldier: 2, archer: 0, horseman: 0, siegeEngine: 0 };
+  S().upgrades = {};
+  const r = api.rates();
+  check("per-worker production carries the outputMult (0.2 x 4)", Math.abs(r.food - 0.8) < 1e-9);
+  check("upkeep charges holdfasts AND levied bands, at holdfast appetite ((5+2) x 0.04 x 4)",
+    Math.abs(r.upkeep - 7 * 0.04 * 4) < 1e-9);
+
+  // The levy cap: capacity, not spare people.
+  S().pop = 3; S().units = { soldier: 5, archer: 0, horseman: 0, siegeEngine: 0 };
+  S().builds.barracks = 1; S().res.wood = 500; S().res.iron = 500; S().res.food = 500;
+  const soldierDef = api.defById("soldier");
+  api.build(soldierDef);
+  check("training refuses past the levy cap (5 of 6 used +1 queued would be 7)",
+    S().buildQueue.length === 1 && api.levyUsed() === 6);
+  api.build(soldierDef);
+  check("the queue counts against the levy the instant it is queued", S().buildQueue.length === 1);
+  S().pop = 4;   // dominion grows -> cap 8 -> room again
+  api.build(soldierDef);
+  check("a grown dominion raises the muster", S().buildQueue.length === 2);
+  S().buildQueue.length = 0;
+
+  // Unit deaths do not erase holdfasts under a levy; they do erase people before it.
+  S().pop = 6; S().units = { soldier: 3, archer: 0, horseman: 0, siegeEngine: 0 };
+  api.removeRandomUnit();
+  check("a levied band's death leaves the holdfast standing", S().pop === 6 && api.totalUnits() === 2);
+  reset();
+  S().pop = 6; S().units = { soldier: 3, archer: 0, horseman: 0, siegeEngine: 0 };
+  api.removeRandomUnit();
+  check("before the levy, a soldier's death is a person's death", S().pop === 5);
+
+  // Load-time back-compat: an old iron save carried units inside pop.
+  reset();
+  S().era = "iron"; api.initAdversaries();
+  S().pop = 12; S().units = { soldier: 3, archer: 1, horseman: 0, siegeEngine: 0 };
+  delete S().seen.levyMigrated;
+  api.save(); api.load();
+  check("a pre-levy iron save separates its units out once, at load",
+    S().pop === 8 && S().seen.levyMigrated === true);
+  api.save(); api.load();
+  check("the separation never re-fires", S().pop === 8);
 }
 
 console.log("\n--- Phase 6a: the map exists ---");

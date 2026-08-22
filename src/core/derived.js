@@ -11,9 +11,27 @@ import { log } from "../ui/log.js";
 // a display. Old saves that carried seconds are converted once at load().
 export function playtime() { return S.tick * TICK_SECONDS; }
 export function housingPerHut() { return active().housingPerHut; }
-export function housing() { return CONFIG.baseHousing + S.builds.hut * housingPerHut(); }
+// Housing is a timer-growth concept; under conquest growth there is no cap
+// on holdings, only on what you have taken. Infinity keeps every comparison
+// honest without a special case.
+export function housing() {
+  if (active().growth !== "timer") return Infinity;
+  return CONFIG.baseHousing + S.builds.hut * housingPerHut();
+}
 export function totalUnits() { return Object.values(S.units).reduce((a, b) => a + b, 0); }
-export function civilians() { return S.pop - totalUnits(); }
+// Under a levy (Iron onward) population SUPPORTS the army instead of
+// containing it: every holdfast stays in the assignable pool, and the war
+// bands stand apart. Stone/Bronze keep the old fiction -- a person who
+// becomes a soldier leaves the fields for good.
+export function civilians() { return active().levy ? S.pop : S.pop - totalUnits(); }
+
+// Army capacity under a levy: holdfasts x rate. Queued training counts
+// against it the moment it's queued, same instant-reservation rule popCost
+// always had.
+export function levyCap() { return active().levy ? S.pop * active().levy : Infinity; }
+export function levyUsed() {
+  return totalUnits() + S.buildQueue.filter((q) => q.kind === "unit").length;
+}
 export function jobsUsed() { return active().jobs.reduce((sum, j) => sum + (S.jobs[j.id] || 0), 0); }
 
 // Order jobs are emptied in when the population shrinks (see removeSettler).
@@ -26,6 +44,7 @@ export function releaseOrder() {
 // Anyone currently reserved by an in-progress (or still-waiting) unit order --
 // consumed the instant it's queued, not when it completes.
 export function reserved() {
+  if (active().levy) return 0;   // levied units never consume a civilian
   return S.buildQueue.reduce((sum, q) => {
     const def = defById(q.id);
     return sum + (def && def.popCost ? def.popCost : 0);
@@ -77,7 +96,16 @@ export function rates() {
   for (const j of active().jobs) {
     prod[j.res] += (S.jobs[j.id] || 0) * CONFIG.baseRate * (j.rateMult || 1) * (m[j.res] || 1);
   }
-  const upkeep = S.pop * CONFIG.upkeep * (S.upgrades.fireMastery ? 0.85 : 1);
+  // outputMult is consolidation's other half (keep x output ~= 1): a
+  // holdfast works like the families it holds -- and eats like them, which
+  // is what keeps the food equation balanced across the border. Converters
+  // are untouched: a Forge is a building, not a population.
+  const om = active().outputMult || 1;
+  for (const k in prod) prod[k] *= om;
+  // Under a levy the war bands are extra mouths -- they no longer live
+  // inside S.pop, so they're charged explicitly.
+  const mouths = S.pop + (active().levy ? totalUnits() : 0);
+  const upkeep = mouths * CONFIG.upkeep * om * (S.upgrades.fireMastery ? 0.85 : 1);
   return Object.assign(prod, { upkeep, foodNet: prod.food - upkeep });
 }
 
@@ -125,6 +153,7 @@ export function ledgerRates() {
 // building a hut lets a partially-waited arrival land soon after. Housing is
 // the sole lever on population; food's pressure is entirely upkeep.
 export function accrueGrowth(dt) {
+  if (active().growth !== "timer") return;   // conquest eras: growth is a verb, not a tick
   if (S.pop >= housing()) return;
   S.growth += dt;
   while (S.growth >= CONFIG.settlerIntervalSeconds && S.pop < housing()) {

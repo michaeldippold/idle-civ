@@ -23,10 +23,16 @@ export function renderPeople() {
   // inline-block with its own padding, background and min-height, so a blank
   // one painted a small stray patch on the panel. It has to actually go.
   const gl = document.getElementById("growthLine");
-  gl.classList.toggle("hidden", S.pop >= housing());
-  if (S.pop >= housing()) {
+  if (active().growth !== "timer") {
+    // Conquest growth: a standing sentence, not a countdown. Status lines
+    // over widgets, per the interface grammar.
+    gl.classList.remove("hidden");
+    gl.textContent = "No one arrives unbidden. Your people grow by conquest and fealty.";
+  } else if (S.pop >= housing()) {
+    gl.classList.add("hidden");
     gl.innerHTML = "";
   } else {
+    gl.classList.remove("hidden");
     const remaining = Math.max(0, CONFIG.settlerIntervalSeconds - S.growth);
     gl.innerHTML = `Next ${noun.singular} joins in <span class="cost">${Math.ceil(remaining)}s</span>.`;
   }

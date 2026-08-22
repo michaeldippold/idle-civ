@@ -190,7 +190,8 @@ export function removeRandomUnit() {
     const w = weightOf(def);
     if (roll < w) {
       S.units[def.id] -= 1;
-      S.pop -= 1;
+      // A levied band's death does not erase the holdfast that raised it.
+      if (!active().levy) S.pop -= 1;
       return def.name;
     }
     roll -= w;
@@ -200,7 +201,7 @@ export function removeRandomUnit() {
   for (let i = units.length - 1; i >= 0; i--) {
     if (availableUnits(units[i].id) > 0) {
       S.units[units[i].id] -= 1;
-      S.pop -= 1;
+      if (!active().levy) S.pop -= 1;
       return units[i].name;
     }
   }

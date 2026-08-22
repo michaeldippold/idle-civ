@@ -1,6 +1,7 @@
 import { active } from "../content/compile.js";
 import { CONFIG, TICK_SECONDS } from "./config.js";
 import { S, freshState, setS } from "./state.js";
+import { log } from "../ui/log.js";
 
 // ---------- Save / load -------------------------------------
 // Save is load-bearing (design.md, Time, Presence & Pause): the world stops
@@ -38,6 +39,17 @@ export function load() {
   S.expeditions = Array.isArray(data.expeditions) ? data.expeditions : [];
   S.buildQueue = Array.isArray(data.buildQueue) ? data.buildQueue : [];
   S.map = data.map || null;
+  // One-time back-compat (phase 6b): saves from before the levy carried
+  // their units INSIDE S.pop. Subtract them out once, narrated. The flag is
+  // also set by applyConsolidation, so fresh runs never hit this.
+  if (active().levy && !S.seen.levyMigrated) {
+    S.seen.levyMigrated = true;
+    const units = Object.values(S.units).reduce((a, b) => a + b, 0);
+    if (units > 0) {
+      S.pop = Math.max(1, S.pop - units);
+      log("The muster rolls are redrawn — the fighting bands stand apart from the holdfasts that raise them.");
+    }
+  }
   // Saves from before the tick clock counted seconds in S.playtime. One-time
   // conversion; the old field rides along inert, per the state invariant.
   if (data.tick === undefined && typeof data.playtime === "number") {

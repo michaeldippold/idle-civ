@@ -19,25 +19,31 @@ export function renderPopRow(bar) {
     bar.insertBefore(row, bar.firstChild);
   }
 
+  // Under conquest growth the row is a COUNT, not a promise: no cap (there
+  // is none), no rate (nothing ticks). The number is load-bearing -- it is
+  // the levy base and the workforce -- but its growth is a verb now.
+  const conquest = active().growth !== "timer";
   const cap = housing();
-  const full = S.pop >= cap;
+  const full = !conquest && S.pop >= cap;
   const idleNow = idle();
   const noun = active().popNoun;
 
   const valEl = document.getElementById("val-pop");
-  valEl.innerHTML = `${fmt(S.pop)}<span class="cap"> / ${fmt(cap)}</span>`;
+  valEl.innerHTML = conquest ? fmt(S.pop) : `${fmt(S.pop)}<span class="cap"> / ${fmt(cap)}</span>`;
   valEl.classList.toggle("full", full);
 
   const rateEl = document.getElementById("rate-pop");
-  rateEl.textContent = full ? "" : fmtRate(1 / CONFIG.settlerIntervalSeconds);
-  rateEl.classList.toggle("pos", !full);
+  rateEl.textContent = (conquest || full) ? "" : fmtRate(1 / CONFIG.settlerIntervalSeconds);
+  rateEl.classList.toggle("pos", !conquest && !full);
 
   const noteEl = document.getElementById("note-pop");
   noteEl.textContent = idleNow > 0 ? `${idleNow} idle` : "";
 
   attachTip(row, () => ({
     title: capWord(noun.plural),
-    body: full
+    body: conquest
+      ? `No one arrives unbidden now. Your ${noun.plural} grow by conquest and fealty — and each raises the levy that guards them all.`
+      : full
       ? `Every roof is taken. Raise more housing and the next ${noun.singular} will have somewhere to sleep.`
       : `New ${noun.plural} arrive on their own while there is housing to spare. Everyone eats, whether working or not.`,
     why: idleNow === 1

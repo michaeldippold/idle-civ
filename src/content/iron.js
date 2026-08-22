@@ -12,18 +12,32 @@ import { S } from "../core/state.js";
 // tied to its outward verbs. See design.md, Iron Age.
 export const IRON_DELTA = {
   name: "Iron Age",
-  housingPerHut: 7,
   // "Underway": once the world opens, the queue panel tracks more than
   // builds -- marching columns and caravans render there too (see renderQueue).
   panelTitles: { "panel-holdings": "Town", "panel-queue": "Underway" },
   popNoun: { singular: "holdfast", plural: "holdfasts" },
+  // Conquest Growth (design.md, settled): no one arrives unbidden from here
+  // on. Growth is an ACTIVE verb -- campaigns and, in time, envoys.
+  growth: "conquest",
+  // Units are levied, not consumed: army capacity = holdfasts x levy. The
+  // holdfasts that raise the war bands stay in the fields.
+  levy: 2,
+  // The other half of deep consolidation: keep x outputMult ~= 1, so total
+  // throughput -- and therefore every existing cost -- survives the border.
+  // A holdfast works (and eats) like the four families it holds.
+  outputMult: 4,
   arrivalLine: "A holdfast swears fealty to your banner.",
   // The first real consolidation (see design.md): generous, floored, and THE
   // flex dial for playtest pacing. keep 0.7 reads as "for every 5, you get 3
   // or 4." Never inherited -- each border decides its own ratio.
+  // Deep, per design.md: enter Iron with a HANDFUL of holdfasts, each one
+  // weighty enough that gaining or losing it is an event. Paired with
+  // outputMult above so the cut is re-denomination, not loss. Units are NOT
+  // consolidated at a levy border -- the fighting bands carry whole; the levy
+  // cap simply refuses new training until the dominion grows into them.
   consolidate: {
-    keep: 0.7,
-    narrate: "Families band together behind shared walls — your people now count themselves in holdfasts.",
+    keep: 0.25,
+    narrate: "Families band together behind shared walls — your people now count themselves in holdfasts, and each one answers for many.",
   },
   // The tile noun changes, so the world recuts at holdfast scale (design.md,
   // Scale: The Tile Ladder) -- bigger country, and the three majors take
@@ -42,10 +56,12 @@ export const IRON_DELTA = {
     "bronzeTools", "bronzeWeapons", "scouting",  // stranded: priced in a dead resource
     "flintSpears",                        // superseded twice over
     "ironAge",                            // a capstone exists only in the era it ends
+    "hut",                                // housing retires at Iron: the first founding building
+                                          // to leave the game (design.md, Conquest Growth) --
+                                          // holdfasts are not counted in roofs
   ],
 
   override: {
-    hut: { name: "Longhouse", desc: "Shelter for 7 more settlers." },
     forge: {
       desc: "Burns wood to work iron into steel — 3 iron + 2 wood into 1 steel, continuously.",
       converts: { in: { iron: 3, wood: 2 }, out: { steel: 1 }, rate: 0.05 },
@@ -142,6 +158,8 @@ export const IRON_DELTA = {
       narrate: "No tin has come up the river in a season. None will again." },
     { bucket: "res", id: "bronze", convertTo: "gold", ratio: 0.25,
       narrate: "Bronze is suddenly antique — collectors and temple-makers pay gold for your stock of it." },
+    { bucket: "builds", id: "hut", vanish: true,
+      narrate: "The stone houses empty as your people gather behind holdfast walls. No one will count roofs again." },
   ],
 
   // The era's counterparties. Adversaries are declared WHOLESALE per era,

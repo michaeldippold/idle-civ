@@ -1,5 +1,5 @@
 import { DEF_CATEGORIES, active } from "../content/compile.js";
-import { civilians, deployedCount, housing, playtime } from "../core/derived.js";
+import { civilians, deployedCount, housing, playtime, totalUnits } from "../core/derived.js";
 import { ensureMap } from "../map/map.js";
 import { initAdversaries } from "../core/persist.js";
 import { S } from "../core/state.js";
@@ -76,12 +76,28 @@ export function runEraMigrations(fromM, toM, snapshot) {
 // with them; advanceEra's reconcileWorkforce() sweeps up any remainder.
 export function applyConsolidation(spec) {
   const civBefore = civilians();
-  let unitTotal = 0;
-  for (const id in S.units) {
-    S.units[id] = Math.max(deployedCount(id), Math.floor((S.units[id] || 0) * spec.keep));
-    unitTotal += S.units[id];
+  if (active().levy) {
+    // A levy border: the fighting bands carry WHOLE -- they are no longer
+    // part of the population, so the keep ratio has nothing to say about
+    // them. If they overflow the new, smaller levy cap, training simply
+    // refuses until the dominion grows into them; existing state is never
+    // destroyed by a cap (the standing invariant).
+    //
+    // Crossing FROM a timer era, the incoming pop still counts its units
+    // (the old containment model) -- the border itself does the separation,
+    // exactly once. levyMigrated marks it done, so a future levy->levy
+    // border consolidates an already-separated population untouched.
+    const civ = S.seen.levyMigrated ? S.pop : Math.max(1, S.pop - totalUnits());
+    S.pop = Math.max(1, Math.floor(civ * spec.keep));
+    S.seen.levyMigrated = true;   // also gates the load-time back-compat
+  } else {
+    let unitTotal = 0;
+    for (const id in S.units) {
+      S.units[id] = Math.max(deployedCount(id), Math.floor((S.units[id] || 0) * spec.keep));
+      unitTotal += S.units[id];
+    }
+    S.pop = Math.max(1, Math.floor(civBefore * spec.keep)) + unitTotal;
   }
-  S.pop = Math.max(1, Math.floor(civBefore * spec.keep)) + unitTotal;
   for (const j in S.jobs) S.jobs[j] = Math.floor((S.jobs[j] || 0) * spec.keep);
   if (spec.narrate) log(spec.narrate);
 }

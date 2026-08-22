@@ -29,6 +29,10 @@ export const STONE = {
   // Re-denomination): the number on screen stays small forever; this noun is
   // what scales. Inherited unless an era re-denominates.
   popNoun: { singular: "settler", plural: "settlers" },
+  // How population grows (phase 6b): "timer" = free arrivals while housing
+  // has room; "conquest" = only by taking or winning places (Iron onward).
+  // The first core verb to re-denominate rather than merely reflavor.
+  growth: "timer",
   arrivalLine: "A wanderer joins your settlement.",
 
   resources: [

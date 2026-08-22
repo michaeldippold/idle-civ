@@ -348,7 +348,12 @@ button { font-family: inherit; cursor: pointer; }
    People is narrowest (it is mostly steppers); Chronicle widest (it is prose). */
 #mainArea {
   /* The flip: the map is the canvas; panels float over it. The desk color
-     (era-tinted via body[data-era]) shows through as the stage ground. */
+     (era-tinted via body[data-era]) shows through as the stage ground.
+     flex/min-height carried over from the grid era: the body is a flex
+     column, and without them this collapses to zero height -- absolutely
+     positioned children contribute none (found the hard way, first load). */
+  flex: 1 1 auto;
+  min-height: 0;
   position: relative;
   overflow: hidden;
 }

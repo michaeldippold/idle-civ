@@ -376,9 +376,15 @@ button { font-family: inherit; cursor: pointer; }
 #floatLeft  { left: 10px;  width: 262px; }
 #floatRight { right: 10px; width: 306px; }
 #floatLeft .block, #floatRight .block { min-height: 0; }
-#panel-village { flex: 0 1 auto; max-height: 42%; }
-#panel-actions { flex: 1 1 auto; }
-#panel-tile    { flex: 0 0 auto; max-height: 46%; }
+/* Left column: Build takes half, Train and Upgrade a quarter each (user
+   ruling: all three visible at once, fixed shares -- no tab jumping). */
+#panel-training { flex: 0 0 23%; }
+#panel-build    { flex: 1 1 auto; }
+#panel-upgrades { flex: 0 0 24%; }
+/* Right column: the tile detail (when open), People at roughly a third,
+   the Chronicle with the rest. */
+#panel-tile    { flex: 0 0 auto; max-height: 40%; }
+#panel-village { flex: 0 0 31%; }
 #panel-log     { flex: 1 1 auto; }
 
 #panel-queue {
@@ -388,14 +394,6 @@ button { font-family: inherit; cursor: pointer; }
 #panel-queue .queue-list { display: flex; flex-direction: row; gap: 8px; overflow-x: auto; }
 #panel-queue .queue-list > * { flex: 0 0 210px; }
 
-/* The action-panel tabs live in the ink header plate itself. */
-#actionsHead { display: flex; gap: 0; padding: 0; }
-.ptab {
-  flex: 1; border: none; background: transparent; color: inherit;
-  font: inherit; text-transform: inherit; letter-spacing: inherit;
-  padding: 6px 0 5px; cursor: pointer; border-bottom: 3px solid transparent;
-}
-.ptab.active { border-bottom-color: currentColor; }
 .pane-sub {
   font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
   color: var(--text-2); margin: 0 0 6px;

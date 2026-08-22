@@ -62,36 +62,31 @@
     <div id="mapStage"><!-- SVG injected by renderMapStage() --></div>
 
     <div id="floatLeft">
-      <section class="block float-panel" id="panel-village">
-        <h2>Your People</h2>
+      <!-- All three build surfaces visible at once (user ruling after first
+           play on the flip: tabs hid too much and jumped heights). Build
+           takes half the column; Train and Upgrade a quarter each. -->
+      <section class="block float-panel" id="panel-training">
+        <h2>Training</h2>
         <div class="block-body ruled-cork">
-          <div id="personTiles" class="holdings-grid"></div>
-          <div class="growthline" id="growthLine"></div>
-          <div id="jobList" class="job-list"></div>
-        </div>
-      </section>
-
-      <!-- Train / Build / Upgrade as one tabbed panel (per the sketch): the
-           three buy surfaces share one home so the map keeps the room. The
-           renderers are untouched -- their target ids just moved house. -->
-      <section class="block float-panel" id="panel-actions">
-        <h2 id="actionsHead">
-          <button class="ptab active" data-pane="pane-train">Train</button>
-          <button class="ptab" data-pane="pane-build">Build</button>
-          <button class="ptab" data-pane="pane-upgrade">Upgrade</button>
-        </h2>
-        <div class="block-body ruled-cork" id="pane-train">
           <p class="holdings-empty hidden" id="trainingEmpty">Nothing to train yet.</p>
           <div id="trainingList" class="build-list"></div>
         </div>
-        <div class="block-body ruled-graph hidden" id="pane-build">
+      </section>
+
+      <section class="block float-panel" id="panel-build">
+        <h2>Construction</h2>
+        <div class="block-body ruled-graph">
           <h3 class="pane-sub" id="holdingsTitle">Settlement</h3>
           <p class="holdings-empty" id="holdingsEmpty">Nothing built yet.</p>
           <div id="holdingsBody" class="holdings-grid hidden"></div>
           <p class="holdings-empty hidden" id="buildEmpty">Nothing to build yet.</p>
           <div id="buildingList" class="build-list"></div>
         </div>
-        <div class="block-body ruled-dot hidden" id="pane-upgrade">
+      </section>
+
+      <section class="block float-panel" id="panel-upgrades">
+        <h2>Upgrades</h2>
+        <div class="block-body ruled-dot">
           <p class="holdings-empty hidden" id="upgradesUnknown">Nothing to learn yet.</p>
           <div class="tabs hidden" id="upgradeTabs">
             <button class="tab active" id="tabAvailable">Available</button>
@@ -110,6 +105,14 @@
       <section class="block float-panel hidden" id="panel-tile">
         <h2><span id="tileTitle">Selected</span><button id="tileClose" class="modal-x" title="Close">×</button></h2>
         <div class="block-body" id="tileBody"></div>
+      </section>
+      <section class="block float-panel" id="panel-village">
+        <h2>Your People</h2>
+        <div class="block-body ruled-cork">
+          <div id="personTiles" class="holdings-grid"></div>
+          <div class="growthline" id="growthLine"></div>
+          <div id="jobList" class="job-list"></div>
+        </div>
       </section>
       <section class="block float-panel" id="panel-log">
         <h2>Chronicle</h2>

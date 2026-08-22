@@ -266,6 +266,9 @@ game, including all future eras, which are authored as data against this same gr
    (storage full = waste). **Population leads the strip** — it has a value, a cap and a rate, so it is
    a resource; idle count rides in the same cell in red, because idle labor is a problem the player
    should fix. Two sentences died for this: "Housing is full" and the standalone idle readout.
+   **Era-scoped (shipped 6b):** under conquest growth the POP row is a bare count — no cap (there is
+   none) and no rate (nothing ticks). The number stays load-bearing — it is the levy base and the
+   workforce — but its growth is a verb now, and the row stops promising math it no longer has.
 3. **Stepper row** — one *segmented instrument*, `−│count│+`, uniform 24px cells with internal
    dividers, not two loose buttons flanking a floating number. Borders never change; only glyph color
    dims when an action is unavailable — the no-opacity law in miniature. Job rows are **two lines**

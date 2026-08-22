@@ -11,6 +11,30 @@
 
 ---
 
+## 2026-08-22 — Phase 1: the module split
+
+**`game.js` is gone; 26 ES modules stand where it stood.** The 3,409-line single file — the last
+artifact of the retired `file://` double-click promise — split along its own section banners into
+`src/{core,content,sim,ui}/` plus `main.js`, exactly per `tech.md`'s Module Structure, in two
+commits designed so a failure could only mean one thing: first the slice, proven green through an
+interim loader that rebuilt the old single-scope program by concatenation (all 420 checks, plus a
+live browser session — boot from an existing save, steppers, modals, pause, zero console errors);
+then the harness bootstrap itself, which dropped its `vm.createContext` sandbox and appended-text
+export hook for real imports of the same 25 modules the game runs, behind one Proxy whose single
+legal write is `api.S`.
+
+The only code deltas are the ones ES modules force: live bindings are read-only outside their home
+module, so five cross-module reassignments became setters in `core/state.js` (`setS`, `setSIM`,
+`setSimStop`, `setLoops`, `setUpgradeTab`). Two invariants came out of the work and are documented
+at the sites that enforce them: **`content/compile.js` must be every entry module's first import**
+(entered any other way, the `lib → combat → compile` cycle runs compile's manifest build while
+`EVENT_LIB` is still in its temporal dead zone — the harness found this the honest way), and **no
+core module may import `main.js`**, whose body is `boot()` and would start the game mid-link.
+`package.json` (`type: module`, zero dependencies) arrived for Node's benefit; the browser never
+needed it.
+
+---
+
 ## 2026-08-22 — The docs pivot *(DOCS ONLY — no code shipped)*
 
 **The game stopped being an idle game.** The old contract was *the game never needs you*, and it

@@ -19,7 +19,7 @@ How the game is actually built. **Docs map:** `design.md` is why any of this exi
 | # | Phase | State | Where it's specced |
 |---|---|---|---|
 | 0 | Docs | in progress | — |
-| 1 | Module structure (file split) | pending | *Module Structure*, below |
+| 1 | Module structure (file split) | **shipped 2026-08-22** | *Module Structure*, below |
 | 2 | Seeded RNG | pending | *Determinism & the Seeded RNG* |
 | 3 | Kill offline | pending | *Time, Presence & Pause (implementation)* |
 | 4 | Fixed ticks | pending | *Simulation Model* |
@@ -33,16 +33,21 @@ How the game is actually built. **Docs map:** `design.md` is why any of this exi
 
 ## Stack
 
-**Status: shipped; changes pending — phase 1.**
+**Status: shipped (phase 1 landed 2026-08-22).**
 
-Plain HTML/CSS/JS. No build step, no bundler, no dependencies, no framework. Four files today:
+Plain HTML/CSS/JS as ES modules. No build step, no bundler, no dependencies, no framework — the served file is the authored file. The layout:
 
-- `index.html` — structure/markup only (one `<script src="game.js">` at the end of `<body>`)
+- `index.html` — structure/markup only (one `<script type="module" src="src/main.js">` at the end of `<body>`)
 - `styles.css` — all styling
-- `game.js` — all logic and rendering, 3,409 lines
-- `harness.js` — the headless Node test harness, 420 checks
+- `src/` — 26 modules, ~3,570 lines; see *Module Structure*
+- `harness.js` — the headless Node test harness, 420 checks, importing the same modules
+- `package.json` — `{"type": "module"}` plus `npm test`; exists so Node parses `.js` as ESM (the browser never needed it), deliberately dependency-free
 
-**The `file://` double-click promise is formally retired** (phase 1). It was already broken in practice — development runs `npx http-server` via `.claude/launch.json` on port 8123 because the in-tool browser pane cannot execute JS off `file://`, and the game ships to GitHub Pages, which is http by definition. The promise's only remaining effect was forcing everything into one 3,409-line file. No build step and no dependencies are the parts of "plain" that were ever actually load-bearing; both survive ES modules untouched.
+**The `file://` double-click era is over** — ES modules only load over http. This was already true in practice (development runs `npx http-server` via `.claude/launch.json` on port 8123; the game ships to GitHub Pages), and the promise's only remaining effect had been forcing everything into one 3,409-line `game.js`. Run it locally with any static server:
+
+```bash
+npx http-server . -p 8123 -c-1
+```
 
 ### Why this stack, and why it is not negotiable
 
@@ -63,66 +68,57 @@ The consequences that follow, and that should survive any future redesign:
 
 ## Module Structure
 
-**Status: pending — phase 1.**
+**Status: shipped (phase 1, 2026-08-22).**
 
-`game.js` has clean seams already — the section-comment banners in the file are close to the module boundaries, which is what makes this mechanical. Verified line ranges as of today:
-
-| Range | Contents | Lines |
-|---|---|---|
-| 10–49 | `CONFIG` | 40 |
-| 73–226 | `EVENT_LIB` | 154 |
-| 227–264 | `HINT_LIB` | 38 |
-| 265–429 | `STONE` (base manifest) | 165 |
-| 430–555 | `BRONZE_DELTA` | 126 |
-| 556–728 | `IRON_DELTA` | 173 |
-| 729–837 | manifest compiler (`compileBase`, `extendEra`) | 109 |
-| 838–944 | validator (`validateManifests`, `manifestDiff`) | 107 |
-| 945–995 | icon maps | 51 |
-| 996–1047 | state (`S`, `freshState`, module-level flags) | 52 |
-| 1048–1225 | derived values (`rates`/`mults`/`caps`/`civilians`/…) | 178 |
-| 1226–1484 | events & combat helpers | 259 |
-| 1485–1732 | adversaries & expeditions | 248 |
-| 1733–1812 | core sim (`step`, `die`) | 80 |
-| 1813–1918 | actions (`assign`, `build`, `completeConstruction`) | 106 |
-| 1919–2022 | era transition (`advanceEra`, migrations, `purgeDom`) | 104 |
-| 2023–2062 | reveals & logging | 40 |
-| 2063–2729 | rendering | 667 |
-| 2739–2976 | expedition UI (muster/escort modals, `renderExpeditions`) | 238 |
-| 2977–3255 | modals (shell, Info, era, reset, game over) | 279 |
-| 3256–3409 | save / load / offline / boot | 154 |
-
-Target 100–300 lines per file. Most seams map one-to-one; **the rendering layer is the one that needs real subdivision** — 667 lines is three or four files (resource ledger + people, holdings + queue, the three buy-card renderers plus the shared card skeleton, tooltips + spans). Proposed tree:
+`game.js` split along its own section banners into 26 modules — pure slicing, no logic changed. The shipped tree (line counts as of the split):
 
 ```
 index.html
-main.js                  boot, wiring, the loop
-core/config.js           CONFIG
-core/state.js            S, freshState, module-level UI flags
-core/rng.js              phase 2 (see Determinism)
-core/derived.js          rates, mults, caps, housing, civilians/reserved/idle
-core/step.js             step(), die()
-core/actions.js          assign, build, cancelBuild, completeConstruction
-core/persist.js          save, load, migrations-on-load
-content/config-lib.js    EVENT_LIB, HINT_LIB
-content/stone.js         STONE
-content/bronze.js        BRONZE_DELTA
-content/iron.js          IRON_DELTA
-content/compile.js       compileBase, extendEra, MANIFESTS, DEF_INDEX, active()
-content/validate.js      validateManifests, manifestDiff
-sim/events.js            resolveEvents, negation, Conflict's resolve()
-sim/combat.js            strength, counters, casualty draw, removeSettler/removeRandomUnit
-sim/converters.js        runConverters, converterFlows, ledgerRates
-sim/expeditions.js       launch/resolve campaign + caravan, standing, walls
-sim/era.js               advanceEra, runEraMigrations, applyConsolidation, purgeDom
-ui/icons.js              BUILDING_ICONS, PERSON_ICONS, QUEUE_ICONS
-ui/dom.js                renderTile, cardSkeleton, setText/setCostParts, tooltips
-ui/panels-*.js           the split rendering layer
-ui/modal.js              openModal/closeModal + Info/era/reset/game-over
-ui/expeditions.js        muster + escort modals, renderExpeditions
-ui/log.js                log(), checkReveals()
+package.json                {"type": "module"} — Node-only; no dependencies
+src/
+  main.js            84     boot, page wiring, the interval loop; the ONLY module nothing imports
+  core/
+    config.js        49     CONFIG
+    state.js         53     S, SIM flags, loopId/saveId, freshState, and the cross-module setters
+    derived.js      183     rates/mults/caps, civilians/reserved/idle, defById, isRevealed
+    step.js          91     step(), die()
+    actions.js      112     assign, build, cancelBuild, completeConstruction, onComplete
+    persist.js       86     save, load, initAdversaries, simulateOffline (dies in phase 3)
+  content/
+    lib.js          199     EVENT_LIB + HINT_LIB
+    stone.js        168     STONE (base manifest)
+    bronze.js       128     BRONZE_DELTA
+    iron.js         175     IRON_DELTA
+    compile.js      240     ERA_ORDER, compiler, MANIFESTS, DEF_INDEX, active(), validator, manifestDiff
+  sim/
+    combat.js       207     raid rolls, strengths, casualty draw, removeSettler, reconcileWorkforce
+    events.js        65     resolveEvents, runConverters
+    expeditions.js  256     launch/resolve campaign + caravan, standing, walls
+    era.js          113     advanceEra, migrations, applyConsolidation, purgeDom
+  ui/
+    icons.js         56     BUILDING_ICONS, PERSON_ICONS, QUEUE_ICONS, BUILDING_CATS
+    log.js           43     log(), checkReveals()
+    dom.js           97     fmt/fmtRate, tooltip machinery, shortfallLine, renderTile
+    panels-ledger.js 105    renderPopRow, renderResources
+    panels-people.js  93    renderPeople
+    panels-holdings.js 120  renderQueue, renderHoldings
+    panels-buy.js   288     card skeleton + renderBuildings/renderUpgrades/renderTraining, upgradeTab
+    expeditions.js  245     muster/escort modals, renderExpeditions
+    modal.js        210     modal shell, Info, era transition, reset confirm, game over
+    chrome.js       105     clock/speed/pause controls, renderEraChrome, renderAll, updateSpans
+harness.js                  imports all of the above except main.js
 ```
 
-**All DOM access in `game.js` sits inside functions, never at module top level.** That is what makes the split clean — no import-order-dependent side effects, no "this module must load after the document is ready." The one top-level side effect is `validateManifests(MANIFESTS)` at line 918, which is deliberate and should stay: a broken manifest must throw before a frame renders.
+(The `content/validate.js` file the original proposal sketched was folded into `compile.js` — 240 lines is in range, and separating them would have manufactured a cycle around the validator's `BOOST_BUILDING` read for no gain.)
+
+**Two invariants the split created, both enforced by comment at the relevant sites:**
+
+1. **`content/compile.js` must be every entry module's first import.** Its body builds `MANIFESTS` from `EVENT_LIB` and the era consts, and a module's body always runs *last* within its own import subtree — so entered via compile, the `lib → combat → compile` function-level cycle is harmless. But an entry that touches `lib.js` first sends the cycle the other way: compile's body runs while lib is still mid-evaluation, and `EVENT_LIB` is a TDZ `ReferenceError` before a single frame renders. `main.js` opens with a side-effect import of compile; `harness.js` imports it first; any future entry (a worker, a tools page) must do the same.
+2. **Cross-module reassignment goes through setters in `core/state.js`.** ES-module live bindings are readable everywhere but writable only from their home module. The five mutables this bites — `S`, the SIM flags, the interval handles, `upgradeTab` — got `setS`/`setSIM`/`setSimStop`/`setLoops`/`setUpgradeTab`, and those are the only code deltas the split made. Corollary: `loopId`/`saveId` live in `state.js`, not `main.js`, because `die()` clears them and **no core module may import `main.js`** — main's body is `boot()`, and an import edge into it would start the game mid-link, before the manifests exist.
+
+`main.js` is the one module nothing imports, and that is load-bearing, not incidental.
+
+**All DOM access sits inside functions, never at module top level.** That is what makes the split clean — no import-order-dependent side effects, no "this module must load after the document is ready." The one top-level side effect is `validateManifests(MANIFESTS)` at line 918, which is deliberate and should stay: a broken manifest must throw before a frame renders.
 
 **Circular imports are the real risk**, not line counts. `derived.js` needs `active()`; `events.js` needs `derived`; `combat.js` needs both; `era.js` needs nearly everything. Keep the dependency graph pointing one way — content → core → sim → ui — and put anything genuinely shared (the `S` reference, `active()`) at the bottom of the stack where everyone may import it and it imports nothing.
 
@@ -630,7 +626,7 @@ Under Bureau the modal is the **ceremony register** and looks the part: legal-pa
 
 **Status: shipped at 420 checks, 0 failures; the replay superpower is pending — phases 2 and 4.**
 
-No test framework. Verification is `harness.js`, checked into the repo, run with `node harness.js` from the repo root. It stubs just enough `document`/`localStorage`/`window` for `game.js` to boot outside a browser, runs it through `vm.createContext` with an appended export hook, and exercises `step()`, `build()`, `assign()`, `resolveEvents()`, `advanceEra()`, `resolveExpeditions()` and friends directly through `__api`.
+No test framework. Verification is `harness.js`, checked into the repo, run with `node harness.js` (or `npm test`) from the repo root. Since phase 1 it **imports the same 25 modules the game runs** (everything except `main.js`, whose body is `boot()`), stubs `document`/`localStorage`/`window` on `globalThis` — module evaluation touches neither, so static imports are safe — and exposes every export through one Proxy (`api`), whose single legal write is `api.S`, routed through `setS()`. The vm sandbox and the appended-text export hook that preceded it are gone; what `boot()` did for the harness's purposes is now two lines: `setS(freshState()); initAdversaries()`.
 
 This has been the primary correctness check throughout: starvation timing, queue escalation math, storage-cap clamping, event negation odds, converter equilibrium, migration order-immunity, the workforce fuzz. Live browser checks stay reserved for visual/layout verification and DOM-level bugs the headless harness cannot see — the beforeunload/save race and both click bugs were all found in live play, not by the harness. That division is stable and worth keeping in mind when deciding where to look for a bug.
 

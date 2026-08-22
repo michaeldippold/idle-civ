@@ -29,11 +29,10 @@ gold — and gold was the only number still moving, because it is fed by expedit
 verb. Offline progress delivered exactly one thing: filling caps that ten minutes of watching would
 have filled anyway.
 
-**What the code currently is.** Everything through v18.1 is shipped, harness-green (422 checks,
-20/20 runs), and human-playtested end to end through all three eras. **None of the pivot is
-implemented.** The code today still has `simulateOffline()`, continuous delta-time, unseeded
-`Math.random()`, a dev-only speed control, and a single 3,409-line `game.js`. Phases 1–5 below are
-what close that gap.
+**What the code currently is.** Everything through v18.1 is shipped, harness-green (420 checks),
+and human-playtested end to end through all three eras. **Phase 1 (the module split) is done**;
+the code still has `simulateOffline()`, continuous delta-time, unseeded `Math.random()`, and a
+dev-only speed control. Phases 2–5 below are what close that gap.
 
 **Where the docs are ahead of the code.** `design.md`, `tech.md`, `map.md`, and `interface.md` were
 all rewritten today and describe the *target*. They mark shipped vs pending; trust those markers,
@@ -58,17 +57,17 @@ boundary through phase 5** — that rail is what makes this a refactor rather th
 - [x] `CHANGELOG.md` split out of this file.
 - [x] `deleteme.md` retired — its live questions promoted into `design.md`.
 
-### Phase 1 — File split
-Mechanical, zero behaviour change. First, because every later diff becomes readable.
-- [ ] Break `game.js` into ES modules per the tree in `tech.md` → *Module structure*. Target
-      100–300 lines per file; the ~1,175-line UI layer needs the most subdivision.
-- [ ] Retire the `file://` double-click promise in the docs and the README. It was already broken in
-      practice (`.claude/launch.json` runs http-server; the game ships to GitHub Pages) and it is the
-      only reason `game.js` is one file.
-- [ ] Rewrite the harness *bootstrap*: it currently boots via `vm.createContext` with stubbed
-      `document`/`localStorage`; under modules it imports directly. The ~420 assertions are
-      unaffected. **This is the only real work in this phase** — the split itself is moving text.
-- [ ] Harness green, game plays identically. Verify in a browser, not just headlessly.
+### Phase 1 — File split ✅ *(shipped 2026-08-22)*
+- [x] `game.js` → 26 ES modules under `src/{core,content,sim,ui}/` + `main.js`, per `tech.md` →
+      *Module Structure* (which now records the shipped tree and the two invariants the split
+      created: compile-first entry imports, and cross-module reassignment through `core/state.js`
+      setters).
+- [x] `file://` double-click retired; `index.html` loads `src/main.js` as a module; README updated.
+- [x] Harness bootstrap rewritten: real ESM imports behind one Proxy, vm sandbox and export-hook
+      deleted, `package.json` (`type: module`, zero dependencies) added. The split itself was
+      proven first through an interim concat loader before the bootstrap moved — two commits, so a
+      failure could only mean one thing.
+- [x] 420 checks green; browser-verified live (boot from existing save, steppers, modals, pause).
 
 ### Phase 2 — Seeded RNG
 - [ ] One `rng()` backed by a small seedable PRNG (mulberry32 or equivalent); state in `S`.

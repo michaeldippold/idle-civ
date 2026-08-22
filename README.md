@@ -16,13 +16,9 @@ star systems — and the interface never stops looking like paperwork.**
 
 ## Run it
 
-Nothing to build or install. Open the link above, or clone and double-click **`index.html`** — it
-runs straight from the filesystem with no server. Progress auto-saves to your browser's local
-storage.
-
-*(The no-server property is being retired: the codebase is moving to ES modules, which browsers
-only load over http. A one-line static server or the GitHub Pages link covers it. See `todo.md`
-phase 1.)*
+Nothing to build or install — but the code is ES modules now, which browsers only load over http,
+so play the link above or serve a clone with any static server (`npx http-server . -p 8123 -c-1`)
+and open <http://localhost:8123>. Progress auto-saves to your browser's local storage.
 
 ## The loop
 
@@ -77,9 +73,9 @@ Concretely, in progress:
 
 ## Tuning
 
-Balance lives in the `CONFIG` block and the era manifests at the top of **`game.js`** — gather rates,
-food upkeep, growth pacing, storage caps, cost curves, build times. Change a number, refresh the
-page.
+Balance lives in **`src/core/config.js`** (`CONFIG`: gather rates, food upkeep, growth pacing,
+storage caps, cost curves, build times) and the era manifests in **`src/content/`** (`stone.js`
+plus the `bronze.js`/`iron.js` deltas). Change a number, refresh the page.
 
 ## Tests
 
@@ -87,8 +83,8 @@ page.
 node harness.js
 ```
 
-A headless Node harness (422 checks) that boots `game.js` outside a browser and exercises the
-simulation directly. No framework, no dependencies.
+A headless Node harness (420 checks) that imports the game's modules directly — no browser, no
+framework, no dependencies — and exercises the simulation through its real exports.
 
 ## Docs
 

@@ -94,17 +94,23 @@ than "it happened once." The project's own status notes have been quoting "20/20
 for months, which is a statement about flake *rate*, not about correctness. Until phase 2 lands, any
 harness failure that doesn't reproduce should be recorded verbatim rather than re-run away.
 
-### Phase 3 — Kill offline
-- [ ] Delete `simulateOffline()`, `SIM`, `SIM_STOP`, `SIM_STOP_CAUSE`, `lastSeed`,
-      `CONFIG.offlineCapHours`, and every `if (SIM)` branch (they hide in `advanceEra()`, `log()`,
-      migration narration, and expedition resolution — grep, don't guess).
-- [ ] Delete the `dt > 2` clamp. Nothing can deschedule the simulation any more.
-- [ ] Auto-pause on `visibilitychange` when the document is hidden. Resume is explicit or automatic
-      — decide in play; automatic-on-return is the default guess.
-- [ ] Save hardening: `visibilitychange` instead of `beforeunload`, plus a save on every player
-      action. Save is now load-bearing (see `design.md`).
-- [ ] Harness: assert no state advances while hidden; assert a save/load round-trip through every
-      mid-action state (queued build, expedition in the field).
+### Phase 3 — Kill offline ✅ *(shipped 2026-08-22)*
+- [x] Deleted whole: `simulateOffline()`, the `SIM`/`SIM_STOP`/`SIM_STOP_CAUSE` flags and setters,
+      `lastSeed`, `CONFIG.offlineCapHours`, the `dt > 2` clamp, and all twelve `if (SIM)` branches.
+      The Chronicle always logs; `advanceEra` always opens its modal; `die()` always fires.
+- [x] `visibilitychange`: hidden stops the sim outright and saves; return resumes automatically,
+      with a manual pause surviving the round trip untouched (separate flags). `last` re-anchors on
+      return — throttled background intervals would otherwise hand back one oversized dt.
+- [x] Save hardening: `pagehide` replaces `beforeunload`; assign/build/cancel/launch each commit
+      immediately; `hardReset`'s listener juggling became `suppressSaves()` (the reload's own
+      pagehide would re-write the save being wiped — v3's bug, new event).
+- [x] Ten new checks (435 total): the deletions asserted, a build round-tripped mid-construction
+      through the real save/load path, a campaign round-tripped mid-flight and resolved with
+      consequences. *One deviation from the spec:* "no state advances while hidden" is not
+      machine-checked — the hidden gate lives in `main.js`, which the harness deliberately never
+      imports. Verified by a human watching the clock freeze instead.
+- [x] Old saves: inert `lastSeed` fields ride along per the state-is-never-implicitly-destroyed
+      invariant; fresh runs never mint one.
 
 ### Phase 4 — Ticks
 - [ ] `S.tick` becomes the master clock. `S.playtime` derives from it rather than accumulating

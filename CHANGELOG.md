@@ -11,6 +11,29 @@
 
 ---
 
+## 2026-08-22 — Phase 3: offline dies
+
+**The clock runs while you're looking at it.** `simulateOffline()` is gone whole — the catch-up
+loop, the while-you-were-away summary, the halt-on-death machinery — along with the
+`SIM`/`SIM_STOP` flags, `lastSeed`, `CONFIG.offlineCapHours`, the `dt > 2` clamp, and all twelve
+`if (SIM)` branches: every place the simulation had to ask *is anyone watching?* before speaking.
+The Chronicle now always logs, `advanceEra` always opens its modal, and `step()`'s death paths
+always call `die()` instead of halting a phantom catch-up. Deleting the offline layer was a net
+simplification, exactly as predicted when the pivot was specced.
+
+What replaced it: hiding the tab stops the simulation outright and commits a save; returning
+resumes automatically, with a manual pause kept as a separate flag that survives the round trip.
+`pagehide` replaces `beforeunload`; every player action (assign, build, cancel, launch) commits
+the moment it changes state — **save is load-bearing now**, because the world stops when the
+player does. `hardReset`'s listener juggling became `suppressSaves()`, closing the same
+rewrite-the-wiped-save bug v3 fixed once before, reborn on a new event.
+
+Ten new checks (435 total): the deletions asserted so the machinery can't creep back, a build
+round-tripped mid-construction through the real save/load path and finished by the revived save,
+a campaign round-tripped mid-flight and resolved on schedule with consequences.
+
+---
+
 ## 2026-08-22 — Phase 2: the seeded RNG
 
 **Every die now comes from the seed.** `src/core/rng.js` puts mulberry32 behind one `rng()`

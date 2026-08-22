@@ -4,7 +4,7 @@ How the game is actually built. **Docs map:** `design.md` is why any of this exi
 
 ## How to read this file
 
-**Every section carries a status line directly under its heading.** This is not decoration. As of 2026-08-22 the documents describe a game that does not fully exist: the time pivot (`design.md`, *Time, Presence & Pause*) retired offline progress and made the clock presence-bound, and none of that is in the code yet. A session that reads "the sim auto-pauses on a hidden tab", goes looking, finds `simulateOffline()`, and starts reconciling the two will do something bad. The status line tells you which world a paragraph is describing.
+**Every section carries a status line directly under its heading.** This is not decoration. The 2026-08-22 pivot (`design.md`, *Time, Presence & Pause*) redefined the target game, and the code has been catching up phase by phase since — phases 1–3 (modules, the seed, the death of offline) are in; ticks, controls, and everything after are not. A session that can't tell the target from the code will do something bad; the status line tells you which world a paragraph is describing.
 
 - **Status: shipped.** — running in `game.js` today. Claims here are verified against the file.
 - **Status: pending — phase N.** — settled design, no code. Nothing in the section is true yet.
@@ -21,7 +21,7 @@ How the game is actually built. **Docs map:** `design.md` is why any of this exi
 | 0 | Docs | in progress | — |
 | 1 | Module structure (file split) | **shipped 2026-08-22** | *Module Structure*, below |
 | 2 | Seeded RNG | **shipped 2026-08-22** | *Determinism & the Seeded RNG* |
-| 3 | Kill offline | pending | *Time, Presence & Pause (implementation)* |
+| 3 | Kill offline | **shipped 2026-08-22** | *Time, Presence & Pause (implementation)* |
 | 4 | Fixed ticks | pending | *Simulation Model* |
 | 5 | Player controls (pause/speed, modal pause flag) | pending | *Time, Presence & Pause (implementation)* |
 | 6 | Conquest Growth G1–G3 | pending | *Conquest Growth — implementation contract* |
@@ -78,12 +78,12 @@ package.json                {"type": "module"} — Node-only; no dependencies
 src/
   main.js            84     boot, page wiring, the interval loop; the ONLY module nothing imports
   core/
-    config.js        49     CONFIG
-    state.js         53     S, SIM flags, loopId/saveId, freshState, and the cross-module setters
+    config.js               CONFIG
+    state.js                S, loopId/saveId, freshState, and the cross-module setters
     derived.js      183     rates/mults/caps, civilians/reserved/idle, defById, isRevealed
     step.js          91     step(), die()
     actions.js      112     assign, build, cancelBuild, completeConstruction, onComplete
-    persist.js       86     save, load, initAdversaries, simulateOffline (dies in phase 3)
+    persist.js              save, load, suppressSaves, initAdversaries
   content/
     lib.js          199     EVENT_LIB + HINT_LIB
     stone.js        168     STONE (base manifest)
@@ -114,7 +114,7 @@ harness.js                  imports all of the above except main.js
 **Two invariants the split created, both enforced by comment at the relevant sites:**
 
 1. **`content/compile.js` must be every entry module's first import.** Its body builds `MANIFESTS` from `EVENT_LIB` and the era consts, and a module's body always runs *last* within its own import subtree — so entered via compile, the `lib → combat → compile` function-level cycle is harmless. But an entry that touches `lib.js` first sends the cycle the other way: compile's body runs while lib is still mid-evaluation, and `EVENT_LIB` is a TDZ `ReferenceError` before a single frame renders. `main.js` opens with a side-effect import of compile; `harness.js` imports it first; any future entry (a worker, a tools page) must do the same.
-2. **Cross-module reassignment goes through setters in `core/state.js`.** ES-module live bindings are readable everywhere but writable only from their home module. The five mutables this bites — `S`, the SIM flags, the interval handles, `upgradeTab` — got `setS`/`setSIM`/`setSimStop`/`setLoops`/`setUpgradeTab`, and those are the only code deltas the split made. Corollary: `loopId`/`saveId` live in `state.js`, not `main.js`, because `die()` clears them and **no core module may import `main.js`** — main's body is `boot()`, and an import edge into it would start the game mid-link, before the manifests exist.
+2. **Cross-module reassignment goes through setters in `core/state.js`.** ES-module live bindings are readable everywhere but writable only from their home module. The mutables this bites — `S`, the interval handles, `upgradeTab` — go through `setS`/`setLoops`/`setUpgradeTab`, and those setters were the only code deltas the split made. (The split also minted `setSIM`/`setSimStop` for the offline flags; phase 3 deleted flags and setters together.) Corollary: `loopId`/`saveId` live in `state.js`, not `main.js`, because `die()` clears them and **no core module may import `main.js`** — main's body is `boot()`, and an import edge into it would start the game mid-link, before the manifests exist.
 
 `main.js` is the one module nothing imports, and that is load-bearing, not incidental.
 
@@ -179,23 +179,39 @@ export function rngState_() { return rngState; }   // for save()
 
 ### Phase 3 — kill offline
 
-**What gets deleted, by name:**
+**Status: shipped (2026-08-22).**
 
-- `simulateOffline()` (lines 3297–3335) and its call site in `boot()`.
-- `SIM`, `SIM_STOP`, `SIM_STOP_CAUSE` (lines 998–1000) and every branch that reads them.
-- `S.lastSeed` (state field, and the write in `save()`).
-- `CONFIG.offlineCapHours`.
-- The `if (dt > 2) dt = 2` clamp in the loop. Its comment says it outright — "large gaps are handled by the offline sim" — and with the tab pausing itself there are no large gaps to handle. (Phase 4 removes `dt` entirely; phase 3 removes the clamp's *reason*, which is why it goes here.)
+**Deleted whole:** `simulateOffline()` and its call in `boot()`; the `SIM` / `SIM_STOP` /
+`SIM_STOP_CAUSE` flags, their setters, and all twelve branches that read them; `S.lastSeed`;
+`CONFIG.offlineCapHours`; and the `if (dt > 2)` clamp, whose own comment said its reason out loud
+("large gaps are handled by the offline sim" — there are no large gaps to handle when the tab
+pauses itself).
 
-**Removing the `SIM` branches is a genuine simplification, not just a subtraction.** Roughly a dozen places in the file currently ask *am I fast-forwarding?* and behave differently on the answer: `advanceEra()` returns early and skips the modal (1939); `step()` converts both death paths into a silent halt (1759, 1788); `resolveEvents()` suppresses three separate log lines (1441, 1450, 1453); `accrueGrowth()` suppresses the arrival line (1174); `reconcileWorkforce()` suppresses the abandoned-order line (1384); Conflict's `resolve()` wraps its entire narration in a `say()` helper that no-ops under SIM (148); `checkReveals()` suppresses hint text (2031); `purgeDom()` carries a comment explaining why it must run under SIM anyway. Every one of these is a *second* code path through logic that already had one, exercised only in a mode nobody watches, and they have been a genuine source of subtle wrongness — the era modal being suppressed and then re-announced from a different function is a two-place invariant that only holds by hand. After phase 3 there is one path: things happen, and they are narrated.
+**Removing the `SIM` branches was a genuine simplification, not just a subtraction.** A dozen
+places used to ask *am I fast-forwarding?* and behave differently on the answer — the era modal
+suppressed here and re-announced from a different function there, death paths converted into
+silent halts, narration wrapped in no-op helpers. Every one was a second code path through logic
+that already had one, exercised only in a mode nobody watched, and the two-place invariants only
+held by hand. Now there is one path: things happen, and they are narrated. `advanceEra()` always
+opens its modal, the Chronicle always logs, and `step()`'s starvation and conflict paths always
+call `die()`.
 
-**Auto-pause on hidden tab.** `document.addEventListener("visibilitychange", …)`: hidden ⇒ pause, visible ⇒ restore the player's *chosen* state. That distinction matters — the auto-pause must not clobber a manual pause, so keep the player's intent (`paused`) separate from the effective state (`paused || document.hidden`), and let the loop read the composite. The header's pause button reads and writes intent only, so returning to the tab does not silently un-pause a game the player deliberately froze.
+**Auto-pause on hidden tab, as specced.** The player's *intent* (`paused`) and the effective
+state (`paused || hidden`) are separate flags; the loop reads the composite, the header button
+reads and writes intent only. Hiding the tab commits a save and stops the simulation; returning
+resumes automatically without clobbering a manual pause. One subtlety the implementation added:
+`last` is re-anchored on the visible transition, because a hidden tab's intervals are throttled
+(eventually to once a minute) and the gap since the final throttled tick would otherwise arrive
+as one oversized `dt` now that the clamp is gone. Phase 4 retires this machinery along with `dt`
+itself.
 
-**Save hardening.** Save becomes a correctness requirement, so:
-
-- **`visibilitychange` replaces `beforeunload` as the primary save trigger.** `beforeunload` is unreliable — mobile and background-killed tabs frequently never fire it — and `visibilitychange` → hidden fires in every path that matters, including the one where the tab is about to be discarded. Keep `pagehide` as a belt-and-braces second registration if it's free; do not keep `beforeunload` as the only one.
-- **Save on every player action.** Assign, build, cancel, launch, decide. These are cheap (`JSON.stringify` of a few kilobytes) and they are exactly the moments where losing state is felt as a bug rather than as a rounding error. The 10s autosave interval stays as a floor for the passive case.
-- **`hardReset()` must still unregister whatever the save trigger is before clearing** — see *Persistence*, below. The failure mode survives the change of event: any handler that fires on teardown and calls `save()` will rewrite the save being deleted.
+**Save hardening, as specced.** `pagehide` replaced `beforeunload` (which mobile and
+background-killed tabs frequently never fire); `visibilitychange` → hidden is the primary
+save trigger; and every player action — assign, build, cancel, launch — commits the moment it
+changes state, with the 10s autosave as the floor for passive progress. `hardReset()`'s
+listener-unregistering became `suppressSaves()` in persist.js: the reload's own `pagehide` would
+otherwise rewrite the save being wiped — the same teardown-save race v3 fixed on `beforeunload`,
+reborn on a new event and closed with one flag instead of listener juggling.
 
 ### Phase 5 — controls
 
@@ -234,7 +250,12 @@ S.pending = [
 
 ## Persistence
 
-**Status: shipped; changes pending — phase 3.**
+**Status: shipped (phase 3 hardening included).**
+
+The save is **load-bearing** (`design.md`, *Time, Presence & Pause*): the world stops when the
+player does, so stopping and resuming exactly is a correctness requirement. Triggers: a 10s
+autosave, every player action (assign, build, cancel, launch), `visibilitychange` → hidden, and
+`pagehide`. `suppressSaves()` is the teardown guard — see the fixed-bugs note below.
 
 `localStorage`, under a single versioned key (`CONFIG.saveKey`, currently `"idleCiv.v6"`). Load uses a defensive merge so the schema grows additively without a migration step:
 
@@ -247,11 +268,9 @@ Any field present in `freshState()` but absent from an old save (a new resource,
 
 `initAdversaries()` runs at boot and on era entry: any adversary in the active manifest without a state entry gets one seeded from the manifest template. It **never re-initializes** — a half-plundered stock stays half-plundered, and a breached wall stays breached. The manifest entry is the template; the state entry is the living remnant.
 
-**Offline catch-up** is documented under *Time, Presence & Pause (implementation)* as a deletion list. Do not extend it.
-
 **Two fixed bugs whose lessons generalize** (the rest of the old catalogue is deleted):
 
-- **Reset was a no-op, because teardown saved.** `localStorage.removeItem(key)` then `location.reload()` — and `location.reload()` fires `beforeunload`, which was wired to `save()`, and since in-memory `S` was untouched that call rewrote the save being cleared. Fixed by unregistering the handler before clearing. **The lesson survives the specific event**: any teardown-triggered save races any teardown-triggered wipe, and phase 3 moves the save trigger without changing that.
+- **Reset was a no-op, because teardown saved.** `localStorage.removeItem(key)` then `location.reload()` — and `location.reload()` fires `beforeunload`, which was wired to `save()`, and since in-memory `S` was untouched that call rewrote the save being cleared. Fixed by unregistering the handler before clearing. **The lesson survives the specific event**: any teardown-triggered save races any teardown-triggered wipe. Phase 3 met it again on `pagehide` and closed it for good with `suppressSaves()` — a flag save() checks, instead of listener juggling.
 - **Reveals had no memory, so panels could un-reveal.** `reveal()` predicates keyed on a resource *threshold* (Woodshed, Granary) were re-evaluated fresh every render — spending wood on the very building that revealed the panel could make the panel vanish mid-game, queue item and all. Fixed with `isRevealed(def)`, which caches the first true result in `S.seen["rev:" + id]`. **Reveals are permanently sticky**, consistent with every other reveal in the game, and the only sanctioned un-reveal in the entire codebase is `purgeDom()` at an era boundary.
 
 ## State Shape
@@ -277,7 +296,6 @@ Any field present in `freshState()` but absent from an old save (a new resource,
 | `dead` | boolean | Game-over flag |
 | `adversaries` | `{[id]: {stock, standing, walls}}` | The living remnant per adversary (see Adversaries & Expeditions) |
 | `expeditions` | `[{uid, type, adversary, units?, cargo?, total, remaining}]` | At most one campaign and one caravan |
-| `lastSeed` | number | `Date.now()` at last save. **Deleted in phase 3** |
 
 **Pending additions:** `S.tick` (phase 4), `S.seed` / `S.rngState` (phase 2), `S.pending` (phase 7).
 

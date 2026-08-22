@@ -534,7 +534,11 @@ separate facts so they *can* diverge. See `map.md` §2 and §10.3.
 *(Settled 2026-08-21 — the Iron rework, and the spine of every era after.)*
 
 1. **Deep consolidation, offset by output.** Enter Iron with single-digit holdfasts. Each is a couple
-   dozen people under a lord; each one matters.
+   dozen people under a lord; each one matters. *(Built 2026-08-22: keep 0.25 × output 4. A ruling
+   made in-build and now canon: **the fighting bands are not consolidated at a levy border** — they
+   are no longer population, so the keep ratio has nothing to say about them. If they overflow the
+   smaller levy cap, training refuses until the dominion grows into them; existing state is never
+   destroyed by a cap.)*
 2. **Units are levied, not consumed.** `popCost` dies at Iron. Army capacity = holdfasts × levy rate:
    population stops *containing* the army and starts *supporting* it. Conquest therefore also grows
    your muster.

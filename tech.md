@@ -24,7 +24,7 @@ How the game is actually built. **Docs map:** `design.md` is why any of this exi
 | 3 | Kill offline | **shipped 2026-08-22** | *Time, Presence & Pause (implementation)* |
 | 4 | Fixed ticks | **shipped 2026-08-22** | *Simulation Model* |
 | 5 | Player controls (pause/speed, modal pause flag) | **shipped 2026-08-22** | *Time, Presence & Pause (implementation)* |
-| 6 | Conquest Growth G1–G3 | pending | *Conquest Growth — implementation contract* |
+| 6 | Conquest Growth G1–G3 + map M1 | **6a+6b shipped**; 6c–6e pending | *Conquest Growth — implementation contract*, `map.md` |
 | 7 | Decision queue (interactive events) | pending | *The Decision Queue* |
 | 8 | Map | pending | `map.md` |
 | 9 | Interface re-architecture around the map | open | `design.md`, Open Questions |
@@ -702,7 +702,15 @@ Two consequences to plan for: the replay format must record actions **by tick nu
 
 **Status: pending — phase 6.** Design settled in `design.md` (*Conquest Growth & the Peace Path*, the Border policy, progressive enhancement). **Implement from the documents, not from memory.** Each slice is playable, harness-verified, and committed on its own.
 
-**G1 — the engine rework (population & levy).**
+**G1 — the engine rework (population & levy).** ✅ **Shipped 2026-08-22** exactly as below, with
+three build-time rulings recorded: units are **not** consolidated at a levy border (they are no
+longer population; the fighting bands carry whole, and an overflowing levy refuses training until
+the dominion grows into it); the timer→levy border **separates units out of the incoming pop
+exactly once** (`S.seen.levyMigrated` marks it done, and also gates the load-time back-compat for
+old iron saves); and `outputMult` applies to per-worker production **and upkeep** (a holdfast works
+and eats like the families it holds — that is what keeps the food equation balanced) but never to
+converters (a Forge is a building, not a population). The POP ledger row demotes to a bare count
+under conquest growth, per user ruling. The spec, now description:
 
 - Era-scoped **growth mode** in the manifest (`growth: "timer" | "conquest"`): `accrueGrowth` runs only under `timer`. Stone/Bronze unchanged; Iron and later are conquest-only.
 - **Deep consolidation + output multiplier.** Crank `IRON_DELTA.consolidate.keep` hard (it is 0.7 today) and add an era-fact `outputMult` applied in `rates()`/`mults()`, targeting `keep × output ≈ 1` so every existing cost stays valid and no re-tuning cascade fires. Both are single manifest values — **THE** tuning pair.

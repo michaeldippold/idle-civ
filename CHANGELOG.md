@@ -11,6 +11,28 @@
 
 ---
 
+## 2026-08-22 — Phase 6b: Conquest Growth G1
+
+**Growth is a verb now.** Three inheriting era-facts — `growth`, `levy`, `outputMult` — with
+validator teeth (a conquest era without a levy rate is a load error). Iron is conquest-grown: no
+one arrives unbidden, the growth line becomes a standing sentence, and the POP ledger row demotes
+to a bare count — no cap, because there is none; no rate, because nothing ticks (user ruling,
+made mid-build). **Units are levied, not consumed**: civilians *is* pop, capacity is holdfasts × 2
+with the refusal reason in the tooltip and a live `levy 3/8` line on the card, unit deaths stop
+erasing population, and upkeep charges holdfasts and bands explicitly at holdfast appetite.
+
+**Deep consolidation, offset by output**: keep 0.25 × outputMult 4 ≈ 1, so throughput and every
+existing cost survive the border while the count drops to a handful of holdfasts that each
+matter. Two rulings the build produced: the timer→levy border **separates units out of the
+incoming pop exactly once** (the harness caught the double-count), and **the fighting bands are
+not consolidated at a levy border** — they are no longer population, so the keep ratio has
+nothing to say about them. **Housing retired at Iron**: the hut line — the first founding
+building — removed outright, stocks vanished by narrated migration ("No one will count roofs
+again"), `housing()` uncapped under conquest. The Longhouse never happens; the ladder ends at the
+Stone House. Old iron saves separate their units once at load, narrated. 475 checks.
+
+---
+
 ## 2026-08-22 — Phase 6a: the map exists
 
 **The game has a map.** A place-graph of pointy-top hexes — model in `src/map/model.js`, consulted

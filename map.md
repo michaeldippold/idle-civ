@@ -633,6 +633,14 @@ for a map until you know the map is fun.
 
 ## 9. Map style retirement
 
+**Refinement from play (2026-08-22, user):** the hex ladder carries a run all the way to max-Earth
+— the same set of hexes re-denominates from "that hex is a lake" through "that hex is a rival
+kingdom" to "that hex is a nation spanning much of a continent," each tile always one political and
+economic unit you can interact with. **At the Space border the hex map is scrapped outright for the
+node network, starting from a single node: Earth.** Conquer the solar system node by node, then
+zoom out to galactic — still nodes. Two mapping systems, covering literally the rest of the game.
+
+
 Per `design.md`'s rule that **every mechanic gets a designed retirement age, or an explicit reason
 it is permanent** — applied here to the map itself, because a map that silently becomes wrong for
 nine eras is exactly the palimpsest that rule exists to prevent.

@@ -152,10 +152,17 @@ Sub-phased so each slice is playable and pausable:
       hexes, click-to-read detail pane. Terrain share is structurally guaranteed per seed — the
       noise+smoothing first cut starved hills/river on a live map and was replaced same-day.
       14 new checks (461 total), five-seed sweep green.
-- [ ] **6b — G1 engine rework.** Era-scoped growth mode (`timer` | `conquest`); deep consolidation
-      + output multiplier (`keep × output ≈ 1`); pop/units separation (units levied, `popCost` dies
-      at Iron); levy cap with tooltip reason; housing retired at Iron; narrated migrations for
-      existing saves. Jobs stay stepper-based for exactly one sub-phase.
+- [x] **6b — G1 engine rework** *(shipped 2026-08-22)*. Three inheriting era-facts (`growth`,
+      `levy`, `outputMult`) with validator teeth; Iron is conquest-grown (accrueGrowth never runs),
+      levied (civilians = pop, cap = holdfasts × 2, tooltip reason, live `levy 3/8` cost line),
+      deep-consolidated (keep 0.25 × output 4 ≈ 1; the border separates units out of pop exactly
+      once — `levyMigrated` marks it), and housing-free (hut removed from the manifest, stocks
+      vanish narrated, `housing()` = Infinity under conquest). Unit deaths stop erasing population
+      under a levy. POP ledger row demotes to a bare count under conquest (user ruling). Old iron
+      saves separate units at load, narrated. **Design ruling made in-build: units are NOT
+      consolidated at a levy border — the fighting bands carry whole**, since they are no longer
+      population; an overflowing levy just refuses training until the dominion grows into it.
+      475 checks; live-verified.
 - [ ] **6c — terrain yield + per-hex allocation.** The Iron economy moves onto the map: production
       derives from held tiles, terrain constrains each tile's menu, click-a-hex replaces the job
       steppers (design.md, *Allocation — the permanent verb*). The pulse question — steppers touch

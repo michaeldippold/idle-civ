@@ -1415,6 +1415,8 @@ console.log("\n--- C1: capstone gating and the real transition ---");
     S().units.soldier === 2 && S().units.archer === 1 && S().units.horseman === 1);
   check("stepper workers walked home when their jobs left the manifest", S().jobs.forager === 0);
   check("the levy back-compat flag is set by the border itself", S().seen.levyMigrated === true);
+  check("the border ships the allocation default: every holding turns to food",
+    S().map.owned.length > 0 && S().map.owned.every((t) => S().map.work[t] === "food"));
   check("the noun is holdfast now", api.active().popNoun.singular === "holdfast");
   check("the books balance after all of it", api.idle() >= 0 && api.jobsUsed() <= api.civilians());
   check("bronze-era snapshot archived pre-consolidation", !!S().eraHistory.bronze &&

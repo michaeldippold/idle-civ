@@ -49,6 +49,12 @@ export function load() {
       S.pop = Math.max(1, S.pop - units);
       log("The muster rolls are redrawn — the fighting bands stand apart from the holdfasts that raise them.");
     }
+    // The allocation default rides the same one-time flag: an old save
+    // arriving in the tile era gets its holdings turned to food rather than
+    // a silently zeroed economy. (ensureMap runs after load in boot, so the
+    // dominion may not exist yet -- boot's ensureMap+sync fills owned, and
+    // the harness covers the ordering.)
+    S.seen.needsDefaultWork = true;
   }
   // Saves from before the tick clock counted seconds in S.playtime. One-time
   // conversion; the old field rides along inert, per the state invariant.

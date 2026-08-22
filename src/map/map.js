@@ -44,6 +44,10 @@ export function ensureMap() {
   world = generateMap(S.map.seed, spec);
   if (!S.map.work) S.map.work = {};   // 6a saves predate assignments
   syncDominion();
+  if (S.seen.needsDefaultWork) {
+    delete S.seen.needsDefaultWork;
+    defaultAssignments();
+  }
 }
 
 // Population IS tiles under tile allocation (design.md, Scale: The Tile
@@ -71,6 +75,21 @@ export function syncDominion() {
     delete S.map.work[dropped];
   }
   for (const tid in S.map.work) if (!owned.includes(tid)) delete S.map.work[tid];
+}
+
+// The designed default for the allocation choice (design.md: any choice
+// ships with a default). A fresh tile-era dominion arrives with every
+// holding turned to FOOD -- every land works it at some rate, and bread is
+// the one thing a settlement cannot wait on (the first border crossing at
+// 12x starved a live playtest before this existed). The player re-directs
+// at leisure; nothing is locked in.
+export function defaultAssignments() {
+  if (!S.map || !S.map.work) return;
+  let assigned = 0;
+  for (const tid of S.map.owned) {
+    if (!S.map.work[tid]) { S.map.work[tid] = "food"; assigned += 1; }
+  }
+  return assigned;
 }
 
 export function ownedTiles() { return S.map ? S.map.owned : []; }

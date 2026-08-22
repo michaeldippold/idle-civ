@@ -1,10 +1,10 @@
 import { DEF_CATEGORIES, active } from "../content/compile.js";
 import { civilians, deployedCount, housing, playtime, totalUnits } from "../core/derived.js";
-import { ensureMap, syncDominion } from "../map/map.js";
+import { defaultAssignments, ensureMap, syncDominion } from "../map/map.js";
 import { initAdversaries } from "../core/persist.js";
 import { S } from "../core/state.js";
 import { reconcileWorkforce } from "./combat.js";
-import { fmtTime } from "../ui/chrome.js";
+import { fmtTime, setSpeed } from "../ui/chrome.js";
 import { log } from "../ui/log.js";
 import { openEraModal } from "../ui/modal.js";
 
@@ -25,9 +25,18 @@ export function advanceEra(era) {
   runEraMigrations(fromM, toM, S.eraHistory[fromEra]);
   if (toM.consolidate) applyConsolidation(toM.consolidate);
   syncDominion();   // the carried dominion block: owned tiles match the consolidated count
+  if (fromM.allocation !== "tiles" && toM.allocation === "tiles") {
+    defaultAssignments();
+    log("Your holdfasts see to their own bread first — every holding turns to food. Direct them as you see fit.");
+  }
   purgeDom(fromM, toM);
   reconcileWorkforce();
 
+  // A new age begins at 1x (user ruling, after a 12x border starved a run
+  // before its modal was even closed): the ceremony modal already holds the
+  // world; this makes sure it resumes at a watchable pace. The player can
+  // spin it back up the moment they've found their feet.
+  setSpeed(1);
   log(`The ${toM.name} begins.`, "big");
   openEraModal(era, before);
 }

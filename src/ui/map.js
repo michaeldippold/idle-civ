@@ -91,7 +91,7 @@ function tipFor(p) {
       return {
         title: advName(adv),
         body: `${adv.disposition} · ${standingWord(st.standing)}. ${adv.desc}`,
-        why: `Known stock: ${stockLine(st)}. Click for actions.`,
+        why: `${stockLine(st)} Click for actions.`,
       };
     }
   }
@@ -122,7 +122,7 @@ function detailHTML(p) {
     const adv = active().adversaries.find((a) => a.id === p.adversary);
     const st = S.adversaries[p.adversary];
     if (adv && st) {
-      parts.push(`<b>${advName(adv)}</b> — ${adv.disposition} · ${standingWord(st.standing)}<br>${adv.desc}<br>Known stock: ${stockLine(st)}.`);
+      parts.push(`<b>${advName(adv)}</b> — ${adv.disposition} · ${standingWord(st.standing)}<br>${adv.desc}<br>${stockLine(st)}`);
       // The same refusals the Expeditions panel carried, or the buttons
       // silently no-op and read as broken (found in play).
       const noGround = (S.builds.musterGround || 0) < 1;

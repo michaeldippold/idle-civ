@@ -13,9 +13,16 @@ export const BRONZE_DELTA = {
   // families. Counts, thresholds and balance are untouched -- only the words.
   popNoun: { singular: "family", plural: "families" },
   arrivalLine: "A family seeks shelter here, and stays.",
-  // The map inherits from Stone wholesale -- same clearing noun, same world,
-  // nothing regenerates at this border. (It moved back to the base manifest
-  // 2026-08-22, user ruling: the chart exists from the first frame.)
+  // Same world as Stone (same noun, same seed, nothing regenerates) -- the
+  // view simply widens from your one hex to the six around it. Redeclared
+  // only because `view` differs; every other field matches the base.
+  map: {
+    radius: 3,
+    view: 1,
+    tileNoun: { singular: "clearing", plural: "clearings" },
+    terrains: ["plains", "forest", "hills", "river", "water"],
+    seats: [],
+  },
 
   remove: ["bronzeAge"],
 

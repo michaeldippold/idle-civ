@@ -39,8 +39,13 @@ export const STONE = {
   // surface" is continuity, not a reveal. A tile is a clearing here and
   // stays one through Bronze -- same noun, same world, no regeneration
   // until Iron recuts at holdfast scale.
+  // view: how much of the generated world this era SHOWS (radius stays 3, so
+  // Bronze widens onto ground that was always there -- continuity, not a
+  // recut). Stone is one hex: the ground you happen to be standing on. The
+  // world literally grows with the ages; that growth IS the scaling story.
   map: {
     radius: 3,
+    view: 0,
     tileNoun: { singular: "clearing", plural: "clearings" },
     terrains: ["plains", "forest", "hills", "river", "water"],
     seats: [],

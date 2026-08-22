@@ -3,7 +3,7 @@ import { S } from "../core/state.js";
 import { capWord } from "../core/derived.js";
 import { save } from "../core/persist.js";
 import { world, isOwned } from "../map/map.js";
-import { hexPoints, toPixel } from "../map/model.js";
+import { hexDistance, hexPoints, toPixel } from "../map/model.js";
 import { expeditionOut, standingWord } from "../sim/expeditions.js";
 import { attachTip } from "./dom.js";
 import { openCampaignModal, openCaravanModal, stockLine } from "./expeditions.js";
@@ -44,7 +44,10 @@ function specialties(terrain) {
 }
 
 function mapSVG() {
-  const pts = Object.values(world.places);
+  // The era's view: how much of the world is shown. The rest exists (same
+  // seed, same terrain) and simply is not yet part of the story.
+  const view = spec().view != null ? spec().view : Infinity;
+  const pts = Object.values(world.places).filter((p) => hexDistance(p.q, p.r, 0, 0) <= view);
   let minX = 0, minY = 0, maxX = 0, maxY = 0;
   const centers = pts.map((p) => {
     const c = toPixel(p.q, p.r, HEX);

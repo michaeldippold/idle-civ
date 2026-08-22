@@ -38,7 +38,7 @@ export function ensureMap() {
     };
     if (firstChart && !S.seen.mapCharted) {
       S.seen.mapCharted = true;
-      log("Your scouts chart the surrounding country. The known world has a shape now.", "good");
+      log("Your people mark the ground they stand on. The world is wider than this.", "good");
     }
   }
   world = generateMap(S.map.seed, spec);

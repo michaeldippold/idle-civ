@@ -33,6 +33,18 @@ export const STONE = {
   // has room; "conquest" = only by taking or winning places (Iron onward).
   // The first core verb to re-denominate rather than merely reflavor.
   growth: "timer",
+  // The chart exists from the first frame (user ruling, 2026-08-22): the map
+  // walks back to Stone as a purely visual surface, so there is ONE layout
+  // for the whole game and the transition from "neat map" to "main game
+  // surface" is continuity, not a reveal. A tile is a clearing here and
+  // stays one through Bronze -- same noun, same world, no regeneration
+  // until Iron recuts at holdfast scale.
+  map: {
+    radius: 3,
+    tileNoun: { singular: "clearing", plural: "clearings" },
+    terrains: ["plains", "forest", "hills", "river", "water"],
+    seats: [],
+  },
   arrivalLine: "A wanderer joins your settlement.",
 
   resources: [

@@ -51,14 +51,18 @@ export const IRON_DELTA = {
     tileNoun: { singular: "holdfast", plural: "holdfasts" },
     terrains: ["plains", "forest", "hills", "river", "water"],
     seats: ["hillClans", "riverKingdom", "saltNomads"],
-    // What a holdfast on each ground can be turned to. Hills are the one
-    // multi-choice -- stone or iron -- which makes them the tile worth
-    // fighting over. Water works nothing; conquest can't claim it either.
+    // What a holdfast on each ground yields, per resource (user ruling,
+    // 2026-08-22): every land works EVERYTHING, at rates the terrain sets.
+    // Specialties run at par or better; the rest are overpay routes -- the
+    // board-game trade-off of taking the suboptimal path on purpose. Hills
+    // keep their double specialty; river bottomland out-farms the plains
+    // (its flavor already said so). Water works nothing. First-guess
+    // numbers, tuned toward too-hard as always.
     works: {
-      plains: ["food"],
-      river:  ["food"],
-      forest: ["wood"],
-      hills:  ["stone", "iron"],
+      plains: { food: 1.0, wood: 0.4, stone: 0.3, iron: 0.2 },
+      river:  { food: 1.2, wood: 0.3, stone: 0.2, iron: 0.2 },
+      forest: { wood: 1.0, food: 0.5, stone: 0.2, iron: 0.2 },
+      hills:  { stone: 1.0, iron: 1.0, food: 0.3, wood: 0.3 },
     },
   },
 

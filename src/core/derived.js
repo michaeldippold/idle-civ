@@ -1,4 +1,5 @@
 import { BOOST_BUILDING, DEF_INDEX, active } from "../content/compile.js";
+import { world } from "../map/map.js";
 import { CONFIG, TICK_SECONDS } from "./config.js";
 import { S } from "./state.js";
 import { log } from "../ui/log.js";
@@ -108,10 +109,18 @@ export function rates() {
     // is what enforces terrain menus, and syncDominion() prunes lost tiles.
     const work = (S.map && S.map.work) || {};
     const owned = (S.map && S.map.owned) || [];
+    const works = (active().map && active().map.works) || {};
     for (const tid in work) {
       if (!owned.includes(tid)) continue;
       const resId = work[tid];
-      if (resId in prod) prod[resId] += CONFIG.baseRate * (m[resId] || 1);
+      if (!(resId in prod)) continue;
+      // Terrain sets the rate: par-or-better on a specialty, an overpay
+      // route everywhere else. A tile the rebuilt world doesn't know (a
+      // harness fixture, a mid-migration save) works at par rather than
+      // silently at zero.
+      const terrain = world && world.places[tid] ? world.places[tid].terrain : null;
+      const rate = terrain && works[terrain] && works[terrain][resId] != null ? works[terrain][resId] : 1;
+      prod[resId] += CONFIG.baseRate * rate * (m[resId] || 1);
     }
   } else {
     for (const j of active().jobs) {

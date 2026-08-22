@@ -4,7 +4,7 @@ import { capWord } from "../core/derived.js";
 import { save } from "../core/persist.js";
 import { world, isOwned } from "../map/map.js";
 import { hexPoints, toPixel } from "../map/model.js";
-import { standingWord } from "../sim/expeditions.js";
+import { expeditionOut, standingWord } from "../sim/expeditions.js";
 import { attachTip } from "./dom.js";
 import { openCampaignModal, openCaravanModal, stockLine } from "./expeditions.js";
 import { openModal } from "./modal.js";
@@ -36,7 +36,12 @@ const TERRAIN_FLAVOR = {
 function advName(adv) { return adv.name.charAt(0).toUpperCase() + adv.name.slice(1); }
 function spec() { return active().map; }
 function tilesEra() { return active().allocation === "tiles"; }
-function worksFor(terrain) { return (spec().works && spec().works[terrain]) || []; }
+function worksFor(terrain) { return (spec().works && spec().works[terrain]) || {}; }
+function fmtRate(x) { return "\u00d7" + (Math.round(x * 10) / 10); }
+function specialties(terrain) {
+  const w = worksFor(terrain);
+  return Object.keys(w).filter((r) => w[r] >= 1);
+}
 
 function mapSVG() {
   const pts = Object.values(world.places);
@@ -98,11 +103,11 @@ function tipFor(p) {
       why: tilesEra() ? "Click to direct it." : null,
     };
   }
-  const works = worksFor(p.terrain);
+  const best = specialties(p.terrain);
   return {
     title: `${capWord(p.terrain)}`,
     body: TERRAIN_FLAVOR[p.terrain] || "",
-    why: works.length && tilesEra() ? `Could be worked for ${works.join(" or ")} — if it were yours.` : null,
+    why: best.length && tilesEra() ? `Best worked for ${best.join(" or ")} — if it were yours.` : null,
   };
 }
 
@@ -114,9 +119,15 @@ function detailHTML(p) {
     const st = S.adversaries[p.adversary];
     if (adv && st) {
       parts.push(`<b>${advName(adv)}</b> — ${adv.disposition} · ${standingWord(st.standing)}<br>${adv.desc}<br>Known stock: ${stockLine(st)}.`);
-      const acts = [`<button class="map-act" data-act="march" data-adv="${adv.id}">March</button>`];
-      if (adv.buys) acts.push(`<button class="map-act" data-act="caravan" data-adv="${adv.id}">Caravan</button>`);
+      // The same refusals the Expeditions panel carries, or the map's buttons
+      // silently no-op and read as broken (found in play: no Muster Ground).
+      const noGround = (S.builds.musterGround || 0) < 1;
+      const marchOut = expeditionOut("campaign"), caravanOut = expeditionOut("caravan");
+      const acts = [`<button class="map-act" data-act="march" data-adv="${adv.id}"${noGround || marchOut ? " disabled" : ""}>March</button>`];
+      if (adv.buys) acts.push(`<button class="map-act" data-act="caravan" data-adv="${adv.id}"${noGround || caravanOut ? " disabled" : ""}>Caravan</button>`);
       parts.push(`<div class="map-actions">${acts.join("")}</div>`);
+      if (noGround) parts.push(`<span class="map-noworks">A Muster Ground must stand before columns or caravans can leave.</span>`);
+      else if (marchOut || caravanOut) parts.push(`<span class="map-noworks">${marchOut ? "A campaign is already in the field." : "A caravan is already on the road."}</span>`);
       return parts.join("");
     }
   }
@@ -128,18 +139,21 @@ function detailHTML(p) {
 
   if (mine && tilesEra()) {
     const works = worksFor(p.terrain);
+    const resIds = Object.keys(works);
     const current = (S.map.work || {})[p.id] || null;
-    if (works.length) {
-      const btns = works.map((r) =>
-        `<button class="map-act alloc${current === r ? " active" : ""}" data-act="work" data-tile="${p.id}" data-res="${r}">${capWord(r)}</button>`);
+    if (resIds.length) {
+      // Every ground works everything; the rate is the trade-off. Specialty
+      // buttons read x1+; the rest are priced overpay routes.
+      const btns = resIds.map((r) =>
+        `<button class="map-act alloc${current === r ? " active" : ""}" data-act="work" data-tile="${p.id}" data-res="${r}">${capWord(r)} ${fmtRate(works[r])}</button>`);
       btns.push(`<button class="map-act alloc${current ? "" : " active"}" data-act="rest" data-tile="${p.id}">Rest</button>`);
       parts.push(`<div class="map-actions">${btns.join("")}</div>`);
     } else {
       parts.push(`<span class="map-noworks">Nothing here can be worked.</span>`);
     }
   } else if (!mine && tilesEra() && p.terrain !== "water") {
-    const works = worksFor(p.terrain);
-    parts.push(`<span class="map-noworks">Not yours${works.length ? ` — could be worked for ${works.join(" or ")}` : ""}. Growth is conquest and fealty.</span>`);
+    const best = specialties(p.terrain);
+    parts.push(`<span class="map-noworks">Not yours${best.length ? ` — best worked for ${best.join(" or ")}` : ""}. Growth is conquest and fealty.</span>`);
   }
   return parts.join("");
 }

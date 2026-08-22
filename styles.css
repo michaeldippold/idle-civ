@@ -273,6 +273,7 @@ button { font-family: inherit; cursor: pointer; }
   padding: 4px 10px 3px; cursor: pointer;
 }
 .map-act:hover { background: var(--btn-hover-bg); color: var(--btn-hover-fg); }
+.map-act:disabled { border-color: var(--hair-soft); color: var(--text-3); cursor: default; background: var(--btn-bg); }
 .map-act.alloc.active { border-width: 2px; border-color: var(--ink); }
 .map-noworks { color: var(--text-3); font-size: 12px; }
 .tile-work { font: 700 13px var(--mono); fill: var(--ink); pointer-events: none; }

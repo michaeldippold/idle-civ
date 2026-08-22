@@ -1429,8 +1429,10 @@ console.log("\n--- C1: iron-era economy runs ---");
   S().era = "iron";
   // Tile allocation (6c): iron comes from hills you hold, not a job stepper.
   S().pop = 5;
-  S().map = { seed: 1, gen: 1, tileNoun: "holdfast", owned: ["0,0", "1,0", "2,0", "3,0", "4,0"],
-    work: { "0,0": "food", "1,0": "food", "2,0": "food", "3,0": "iron", "4,0": "iron" } };
+  // Fixture ids no generated world contains: unknown tiles work at par,
+  // which is exactly what this block is measuring.
+  S().map = { seed: 1, gen: 1, tileNoun: "holdfast", owned: ["f1", "f2", "f3", "f4", "f5"],
+    work: { "f1": "food", "f2": "food", "f3": "food", "f4": "iron", "f5": "iron" } };
   S().res.food = 200;
   run(30);
   check("iron flows from worked hills (2 tiles, 30s, ~48 under outputMult)", S().res.iron > 40);
@@ -1891,8 +1893,8 @@ console.log("\n--- Ledger rates: converter flows shown honestly ---");
   S().era = "iron";
   S().pop = 8;
   S().builds.forge = 2;
-  S().map = { seed: 1, gen: 1, tileNoun: "holdfast", owned: ["0,0", "1,0", "2,0"],
-    work: { "1,0": "wood", "2,0": "wood" } };
+  S().map = { seed: 1, gen: 1, tileNoun: "holdfast", owned: ["f1", "f2", "f3"],
+    work: { "f2": "wood", "f3": "wood" } };
   S().res.iron = 100; S().res.wood = 100;
   r = api.ledgerRates();
   check("steel flows at 2 forges' rate", Math.abs(r.steel - 0.1) < 1e-9);
@@ -1964,7 +1966,7 @@ console.log("\n--- Phase 6b: Conquest Growth G1 -- levy, output, no housing ---"
 
   // Output multiplier: a holdfast works -- and eats -- like the families it holds.
   S().pop = 5; S().units = { soldier: 2, archer: 0, horseman: 0, siegeEngine: 0 };
-  S().map = { seed: 1, gen: 1, tileNoun: "holdfast", owned: ["0,0"], work: { "0,0": "food" } };
+  S().map = { seed: 1, gen: 1, tileNoun: "holdfast", owned: ["f1"], work: { "f1": "food" } };
   S().upgrades = {};
   const r = api.rates();
   check("a worked holdfast produces at the old per-worker rate x outputMult (0.2 x 4)", Math.abs(r.food - 0.8) < 1e-9);
@@ -2010,12 +2012,15 @@ console.log("\n--- Phase 6a: the map exists ---");
 {
   reset();
   api.ensureMap();
-  check("stone has no map", api.world === null && S().map === null);
+  check("the chart exists from the first frame (stone has a map now)",
+    api.world !== null && api.world.tileNoun === "clearing");
+  check("a radius-3 disk is 37 tiles", Object.keys(api.world.places).length === 37);
+  const stoneWorld = JSON.stringify(api.world);
 
   S().era = "bronze";
   api.ensureMap();
-  check("bronze charts a clearing-scale world", api.world !== null && api.world.tileNoun === "clearing");
-  check("a radius-3 disk is 37 tiles", Object.keys(api.world.places).length === 37);
+  check("bronze inherits the SAME world -- same noun, no regeneration",
+    JSON.stringify(api.world) === stoneWorld);
   check("your seat is owned, and on workable ground",
     api.isOwned("0,0") && api.world.places["0,0"].terrain === "plains");
   check("bronze seats no adversaries", Object.values(api.world.places).every((p) => !p.adversary));
@@ -2048,6 +2053,18 @@ console.log("\n--- Phase 6a: the map exists ---");
   const before = JSON.stringify(api.world);
   api.save(); api.load(); api.ensureMap();
   check("a world rebuilt from the save is bit-identical", JSON.stringify(api.world) === before);
+
+  // Terrain sets the working rate (6c.1): assign a real tile and expect its
+  // terrain's declared rate, not par.
+  S().seen.levyMigrated = true; S().pop = 2; api.syncDominion();
+  const tid = S().map.owned.find((id) => id !== "0,0");
+  const terr = api.world.places[tid].terrain;
+  const wRate = api.active().map.works[terr].food;
+  S().map.work = {}; S().map.work[tid] = "food";
+  S().units = { soldier: 0, archer: 0, horseman: 0, siegeEngine: 0 };
+  S().upgrades = {}; S().builds.dryingRack = 0;
+  check("terrain sets the working rate (overpay routes included)",
+    Math.abs(api.rates().food - 0.2 * wRate * 4) < 1e-9);
 }
 
 console.log("\n--- Phase 5: asking modals hold the world ---");

@@ -203,7 +203,10 @@ export function validateManifests(manifests) {
       }
       for (const t in m.map.works || {}) {
         if (!m.map.terrains.includes(t)) bad(`map.works keys unknown terrain "${t}"`);
-        for (const r of m.map.works[t]) if (!resIds.has(r)) bad(`terrain "${t}" works "${r}", not a resource this era`);
+        for (const r in m.map.works[t]) {
+          if (!resIds.has(r)) bad(`terrain "${t}" works "${r}", not a resource this era`);
+          if (!(m.map.works[t][r] > 0)) bad(`terrain "${t}" works "${r}" at a non-positive rate`);
+        }
       }
     }
 

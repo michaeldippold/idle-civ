@@ -13,16 +13,9 @@ export const BRONZE_DELTA = {
   // families. Counts, thresholds and balance are untouched -- only the words.
   popNoun: { singular: "family", plural: "families" },
   arrivalLine: "A family seeks shelter here, and stays.",
-  // The map arrives one era before it means anything (map.md §2.5): a chart
-  // you can read and do nothing with, so it is familiar before it is
-  // load-bearing at Iron. A tile is a clearing -- the same scale as Stone;
-  // the world does not recut until the noun changes.
-  map: {
-    radius: 3,
-    tileNoun: { singular: "clearing", plural: "clearings" },
-    terrains: ["plains", "forest", "hills", "river", "water"],
-    seats: [],
-  },
+  // The map inherits from Stone wholesale -- same clearing noun, same world,
+  // nothing regenerates at this border. (It moved back to the base manifest
+  // 2026-08-22, user ruling: the chart exists from the first frame.)
 
   remove: ["bronzeAge"],
 

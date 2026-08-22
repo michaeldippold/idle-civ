@@ -226,7 +226,24 @@ Designed in `map.md`. Gated behind the engine work because phases 1–4 make it 
       Cheap, and worth doing early because it is the thing that makes scale *felt*.
 
 ### Phase 9 — Interface re-architecture around the map
-**Pulled forward (2026-08-22).** The user returned to the Claude Design thread and came back with a
+**Structural half SHIPPED 2026-08-22 ("the flip"), ahead of 6d by user ruling (option A: the growth
+verbs land straight into their real home).** The 4×2 grid is gone: full-bleed map stage, floating
+panels (People + tabbed Train/Build/Upgrade left; Selected Tile + Chronicle right; Underway docked
+bottom, cards horizontal), the Expeditions panel dissolved into the Selected Tile panel, the Map
+button gone — the map is not a place you go, it is where you are. Rode with it: **era-scoped view
+radii** (Stone shows one hex, Bronze the ring, Iron the country — the world literally grows with
+the ages) and the frame-one chart. Bureau remains as the **interim skin**: structure was adopted
+from the Claude Design sketch, palette explicitly was not.
+
+**What remains of phase 9:** the visual identity. **Bureau is now formally under review** (user,
+2026-08-22): it was built to make a wireframe legible and did that job — its lessons (no opacity
+for state, semantic color, legibility over texture) survive any reskin — but paper-as-identity may
+have outlived the panel game it dressed. Process: run a proper design pass in the Claude Design
+thread with the flipped structure as the brief, the way Bureau itself was commissioned. One
+candidate direction to weigh there, not decided: the **war table** — campaign maps historically ARE
+paper, so Bureau could evolve (parchment map, paper panels pinned around it) rather than die.
+Original text follows for the record:
+*(pulled forward 2026-08-22)* The user returned to the Claude Design thread and came back with a
 structural sketch: the map as the main canvas, everything else as floating panels over it — Orders
 left, Selected Tile right (stats + flavor + all actions, incl. March/Caravan/Scout with costs),
 Chronicle docked right, Underway docked bottom, ledger in the header. All current systems map 1:1

@@ -11,6 +11,27 @@
 
 ---
 
+## 2026-08-22 — The flip: the map is the game's main surface
+
+Phase 9's structural half, pulled forward by user ruling so the growth verbs land straight into
+their real home. The 4×2 grid — the shape the game has worn since the wireframe — is gone: the map
+is a full-bleed stage with the era-tinted desk as its ground, and everything else floats over it.
+Left: Your People, then Train/Build/Upgrade as one tabbed panel. Right: the Selected Tile panel
+(the map's click target, the one panel sanctioned to hide) above the Chronicle. Bottom: Underway,
+cards running horizontally. **The Expeditions panel is dissolved**, as canon always said it would
+be, and the Map button with it — the map is not a place you go, it is where you are.
+
+Rode with it: **era-scoped view radii** — Stone shows a single hex (the ground you happen to be
+standing on), Bronze widens to the ring around it on the same world, Iron recuts a country. The
+world literally growing with the ages is now the scaling story told visually, from minute one.
+Structure came from the Claude Design sketch; **Bureau stays as the interim skin and is formally
+under review** — the identity question goes back to the design thread with the flipped structure
+as its brief, with "the war table" (campaign maps are paper) logged as one candidate. 476 checks;
+live-verified at both ends: one large hex at Stone, a country of 61 with allocation and muster
+flowing through the floating panels at Iron.
+
+---
+
 ## 2026-08-22 — 6c.1: soft menus, honest buttons, the chart from frame one
 
 Three same-day rulings from live play. **Every ground works everything, at rates the terrain

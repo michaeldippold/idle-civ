@@ -170,10 +170,11 @@ is presentation, and presentation is open (see `interface.md`).
 carried by re-denominating what a unit *means*. The opening minutes are deliberately unhurried.
 Standing rule: **when unsure, tune toward too-hard and walk it back**, never the reverse.
 
-**Panels filling up is part of the fun.** An empty panel you can read the name of is a standing
-question the game has posed; answering it is the payoff. The screen filling out *is* the sense of
-progress. *(Under review: if the map is promoted to the centre of the interface, this pillar's
-mechanism changes even if its intent doesn't. See `map.md` and Open Questions.)*
+**The world filling in is part of the fun.** *(Mechanism re-based 2026-08-22 with the flip.)* The
+pillar's intent — visible, earned growth as the progression display — survives; its surface is now
+the map first and the panels second. One hex becomes a ring becomes a country becomes a dominion
+spreading tile by tile; panels still fill (cards, rows, tiles) inside their floating homes. An
+empty *selection* is the one sanctioned nothing.
 
 **Every mechanic gets a designed retirement age — or an explicit reason it is permanent.**
 *(Canonical 2026-08-22.)* The manifest architecture retires *things* — a building, a resource, a job
@@ -794,16 +795,21 @@ rule was aimed at the right danger and pointed at the wrong noun.
 1. **The name.** "Idle Civ" is wrong now. "Paper Civ" was floated and is complicated by (3) below.
    Deferred deliberately until the pivoted game is playable — deciding a name against an imagined game
    is how you get a name you have to change twice.
-2. **When does the map take the centre of the interface?** *(The "whether" is settled: it does.)* The
+2. ~~**When does the map take the centre of the interface?**~~ **DONE (2026-08-22, "the flip").**
+   Structure shipped ahead of 6d; the remaining half of phase 9 is the visual identity — see (3),
+   now the live question. Original text: The
    stated end-state is **map in the middle, controls on the edges of the screen**, with the Expeditions
    panel dissolving into the map rather than surviving beside it — a list of adversaries next to a map
    showing the same adversaries is the worse of the two. Only the *timing* is open, and it is gated on
    having a map good enough to deserve it. Until then Bureau's 4×2 grid stands and is not in question,
    and phase 8 must be buildable without answering this.
-3. **Does Bureau survive the map?** Bureau is pure CSS with zero assets, which is part of why it shipped
-   fast and reads cohesively. If commissioned art arrives, paper is either a placeholder aesthetic to be
-   replaced or the identity the art should be commissioned *in the style of*. Those are very different
-   briefs. Not answerable until (2) is.
+3. **Does Bureau survive the map? — NOW THE LIVE QUESTION (opened by the user with the flip).**
+   Bureau was built to make a wireframe legible and did that job; its *laws* (no opacity for state,
+   semantic color, legibility over texture) survive any answer, but paper-as-identity may have
+   outlived the panel game it dressed. Process: a design pass in the Claude Design thread with the
+   flipped structure as the brief — the same commissioning that produced Bureau. Candidate worth
+   weighing there, not decided: the **war table** — campaign maps historically ARE paper, so Bureau
+   could evolve (parchment world, paper panels pinned at its edges) rather than die.
 4. **What replaces storage caps' friction when they retire?**
 5. **What is the Enlightenment's science mechanic?** The emptiest slot in the age list.
 6. **What are the `soulsPerTile` multipliers per era?** Tuning, not design — but do it deliberately in

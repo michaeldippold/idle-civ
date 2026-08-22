@@ -4,6 +4,9 @@
 > not built.** What exists: the place-graph model, the seeded blob-growth hex generator (own rng
 > stream), `S.map` persistence with seed-rebuilt geometry, tile-noun-keyed regeneration, the Bronze
 > inert chart, Iron's seated majors, and the wide map modal with its click-to-read detail pane.
+> **The flip (same day):** the map left its modal and became the game's main surface — full-bleed
+> stage, floating panels, the Expeditions panel dissolved into the Selected Tile panel. Era-scoped
+> view radii ride with it: Stone shows one hex, Bronze the ring, Iron the country.
 > **6c.1 (same day):** works are rate tables — every land works every resource, terrain sets the
 > rate, specialties at par-plus and the rest overpay routes. And the chart exists from the first
 > frame: the map spec lives in the STONE manifest, Bronze inherits the identical world.

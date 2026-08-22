@@ -185,50 +185,52 @@ the screen each. Cell rules are drawn as box-shadows on trailing edges only, one
 
 ## 3. The layout
 
+**Shipped 2026-08-22 — "the flip."** The map is the game's main surface; everything else floats
+over it. One layout for the whole game (the chart exists from Stone, showing one hex; Bronze widens
+to the ring; Iron recuts a country), so no era-gated UI machinery exists or ever needs to.
+
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│ Idle Civ [Era Badge] [Paused]        clock [Info][1×][Pause][Save][Reset]
+│ IDLE CIV [Era] [Paused]      clock·tick  [Pause|1×] [Info][Save]  [Reset]
 ├──────────────────────────────────────────────────────────────────────┤
-│ POP 12/15 +.02/s  Food 218/450 +0.24/s  Wood …  Stone …  Iron …  Gold │ ← ledger
-├────────────────┬────────────────┬────────────────┬───────────────────┤
-│ YOUR PEOPLE    │ SETTLEMENT     │ BUILD QUEUE    │ CHRONICLE         │ row 1
-│ person tiles,  │ building tiles │ progress cards │ newest-first      │
-│ growth line,   │                │ (builds +      │ event log,        │
-│ job steppers   │                │  expeditions)  │ severity-colored  │
-├────────────────┼────────────────┼────────────────┤ (spans both rows  │
-│ TRAINING       │ CONSTRUCTION   │ UPGRADES       │  until Expeditions│
-│ unit buy cards │ building buy   │ one-time buy   │  arrives)         │
-│                │ cards          │ cards, tabbed  ├───────────────────┤
-│                │                │ Available/Owned│ EXPEDITIONS       │ row 2
-└────────────────┴────────────────┴────────────────┴───────────────────┘
+│ POP · FOOD · WOOD · STONE · …                                        │  ← ledger
+├──────────────────────────────────────────────────────────────────────┤
+│ ┌────────────┐                                        ┌────────────┐ │
+│ │ YOUR PEOPLE│         THE MAP (full-bleed stage,     │ SELECTED   │ │
+│ ├────────────┤          era-tinted desk beneath,      │ TILE*      │ │
+│ │ TRAIN│BUILD│          hexes auto-fitted)            ├────────────┤ │
+│ │ │UPGRADE   │                                        │ CHRONICLE  │ │
+│ │ (tabbed)   │        ┌──────────────────┐            │            │ │
+│ └────────────┘        │ UNDERWAY (cards →)│           └────────────┘ │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-**Column logic:** each column pairs a *state* panel (top: what you have) with its *action* panel
-(bottom: how you get more of it). People ↔ Training, Settlement ↔ Construction, Build Queue ↔
-Upgrades (loosely: progress ↔ investments), Chronicle ↔ Expeditions (the world's story ↔ the world's
-counterparties).
+*The Selected Tile panel is the one panel sanctioned to hide: an empty selection is not a blank
+form, it is no selection at all. Everything else is present from the first frame, per the unravel
+law.*
 
-**Spans.** Only one is live: the Chronicle runs double-height as a luxury in eras with no outside
-world and yields its lower half to Expeditions when one arrives — the world crowding in on your
-story. `updateSpans()` toggles exactly that one class. The `.span-both` rules in `styles.css` for
-roster panels are vestigial: they date from the era of hidden panels, and with the board whole from
-frame one no partner cell is ever empty. Treat them as dead code, not as a documented behavior.
+**Column logic survives the flip in spirit:** left is what you have and how you get more (People;
+Train/Build/Upgrade as one tabbed panel — the three buy surfaces share a home, per the sketch);
+right is the world's state and story (Selected Tile; Chronicle); bottom is what's underway. The
+holdings tiles live in the Build pane under the era's title, so the Settlement→Village→Town
+machinery is intact. **The Expeditions panel is dissolved** — the Selected Tile panel carries the
+adversary card and its actions; the muster and escort modals are its surviving machinery.
 
-**Panels rename per era.** `panelTitles` in the era manifest: Settlement → Village → Town, Build
-Queue → Underway once it tracks expeditions and not just builds. Era-varying titles are data, not
-exceptions. Assume any panel title is one to three words and changeable.
+**Render discipline on the stage:** the SVG rebuilds only when its *signature* changes (era, view,
+ownership, assignments, selection) — never on the 5Hz tick, per the click-eater rule; the tile
+detail re-renders only when its content string changes; all wiring is by delegation. Floating
+panels carry the modal's hard offset shadow — the on-the-board ceremony deliberately extended to
+the panel layer.
 
-**Panel census — currently 8 + header + ledger:** Your People, Settlement, Build Queue, Chronicle,
-Training, Construction, Upgrades, Expeditions. Expeditions is the one panel that legitimately arrives
-after frame one, and only at an era boundary — it exists in any era whose manifest declares
-adversaries.
+**Skin status: Bureau, interim, formally under review.** The flip adopted the Claude Design
+sketch's *structure* only — the user was explicit that the sketch is not a theming example. Whether
+paper survives as the identity is the open question, to be resolved by a proper design pass with
+the flipped structure as its brief (the same process that produced Bureau). Bureau's *laws* — no
+opacity for state, the three-value semantic channel, legibility over texture — survive any answer.
 
-**The grid is full, and roughly nine more eras of systems are coming** — laws, morale, science are
-already on the ideation board. Widening-age *consolidation* (retiring mechanics on a schedule; see
-`design.md`) is the primary relief valve and is now doctrine rather than hope. It is not assumed
-sufficient. Whether this interface eventually grows navigation — menus, tabs, drawers — is open, and
-is entangled with the map arc in §7. The behavior worth protecting through any structural change is
-that **new capability announces itself**: today, by a named empty panel filling for the first time.
+*Historical note:* the previous layout was a fixed 2×4 grid of eight panels with span machinery
+(the Chronicle double-height until Expeditions arrived). It, its `updateSpans`, and the Map button
+all died in the flip — the map is not a place you go, it is where you are.
 
 ### The header
 

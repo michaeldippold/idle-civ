@@ -11,6 +11,28 @@
 
 ---
 
+## 2026-08-22 — Phase 6c: the Iron economy moves onto the map
+
+**The allocation verb re-denominates.** Iron declares `allocation: "tiles"` and zero jobs: you stop
+assigning people with steppers and start assigning holdfasts on the map, each owned hex worked
+against its terrain's menu (plains/river → food, forest → wood, hills → stone *or* iron — the one
+multi-choice, and therefore the tile worth fighting over). Each worked tile produces at the old
+per-worker rate × outputMult, so pop == tiles carries every total and cost across unchanged.
+**Population is tiles now, enforced**: entering Iron grants a dominion block of nearest workable
+hexes matching the consolidated count, and losing a holdfast drops its newest hex — never the seat.
+
+**Storage caps retired at Iron** (user ruling, inside the scheduled window): every resource
+uncapped, the storage line gone from the manifest with stocks vanished by narrated migration ("The
+crown stops counting sacks"), rot hints out of the slate, the ledger demoted to bare values. The
+friction hands off to the conquest economy itself. **The map's interaction pattern locked**: hover
+previews through the game's one tooltip; click opens details, where all stats, flavor and actions
+live — allocation buttons on owned tiles with ink work-glyphs on the hexes, March/Caravan on seats.
+The pattern survives the node network unchanged. Two forward rulings recorded for 6d: wilderness is
+claimable (settling is queued, timed, priced work — the queue as anti-speedrun governor), and owned
+hexes will make campaign routes cheaper — supply lines as route math. 475 checks; live-verified.
+
+---
+
 ## 2026-08-22 — Phase 6b: Conquest Growth G1
 
 **Growth is a verb now.** Three inheriting era-facts — `growth`, `levy`, `outputMult` — with

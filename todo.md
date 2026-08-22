@@ -163,13 +163,31 @@ Sub-phased so each slice is playable and pausable:
       consolidated at a levy border — the fighting bands carry whole**, since they are no longer
       population; an overflowing levy just refuses training until the dominion grows into it.
       475 checks; live-verified.
-- [ ] **6c — terrain yield + per-hex allocation.** The Iron economy moves onto the map: production
-      derives from held tiles, terrain constrains each tile's menu, click-a-hex replaces the job
-      steppers (design.md, *Allocation — the permanent verb*). The pulse question — steppers touch
-      every 30s, hex allocation every few minutes — is THE thing to playtest here.
-- [ ] **6d — G2 minor tier & capture.** Freeholds/petty lords seated on real tiles; campaign capture
-      outcome (+1 holdfast, windfall, the Chronicle names the place for the last time); dominion
-      visibly spreads on the map.
+- [x] **6c — terrain yield + per-hex allocation** *(shipped 2026-08-22)*. Iron declares
+      `allocation: "tiles"` and zero jobs; owned hexes produce by assignment against terrain menus
+      (`map.works` — hills are the stone-or-iron multi-choice); pop **is** tiles, enforced by
+      `syncDominion()` (border grants a dominion block; a lost holdfast drops its newest hex).
+      **Caps retired at Iron** (user ruling, in the scheduled window): all resources uncapped, the
+      storage line leaves the manifest narrated, the ledger demotes to bare values; friction hands
+      off to the conquest economy. **The map interaction pattern locked** (user ruling): hover
+      previews; click opens details, where ALL stats/flavor/actions live — allocation buttons on
+      owned tiles, March/Caravan on seats (the Expeditions panel's dissolution begins). Survives
+      the node swap unchanged. 475 checks; live-verified end to end.
+      *Still open from this slice:* the pulse question — steppers touched every 30s, hex allocation
+      is minutes-scale — playtest verdict pending; and whether the boost buildings (drying racks
+      etc.) are also "granary-class" and retire in the 6d/6e pruning pass.
+- [ ] **6d — G2 growth verbs: subdue, settle, capture.** Scope grown by two user rulings
+      (2026-08-22): **every hex has a gameplay purpose** — wilderness is claimable, so the
+      designed population budget becomes the landmass, not just the seated minors; and **settling
+      is queued work** — "Establishing a minor lord in [hex]" goes through the Underway queue with
+      a real resource + time cost, the queue serving as the standing anti-speedrun governor.
+      Deliverables: minor-tier freeholds seated on tiles (subdue: campaign capture, +1 holdfast,
+      windfall, the Chronicle names the place for the last time); the settle verb on empty land
+      (expedition-shaped, distance-priced); dominion visibly spreading; **supply routes** —
+      campaign/caravan effective distance computed over a path where owned hexes travel cheap, so
+      conquering a line toward a rival is building a road (extends M2's distance-as-cost; no
+      canon conflict — the no-pathing ban is on rendered unit micro, not route math). Watch that
+      settle + levy + budget don't triple-charge growth pacing.
 - [ ] **6e — G3 priests & the envoy.** Religious building + priest unit; envoy as the third
       adversary action; per-target affinity; the annexation ceremony modal (the first ceremony built
       under the pause-modal seam); standing hooks into event weights.

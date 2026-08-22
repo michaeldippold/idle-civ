@@ -24,7 +24,7 @@ How the game is actually built. **Docs map:** `design.md` is why any of this exi
 | 3 | Kill offline | **shipped 2026-08-22** | *Time, Presence & Pause (implementation)* |
 | 4 | Fixed ticks | **shipped 2026-08-22** | *Simulation Model* |
 | 5 | Player controls (pause/speed, modal pause flag) | **shipped 2026-08-22** | *Time, Presence & Pause (implementation)* |
-| 6 | Conquest Growth G1–G3 + map M1 | **6a+6b shipped**; 6c–6e pending | *Conquest Growth — implementation contract*, `map.md` |
+| 6 | Conquest Growth + the map | **6a–6c shipped**; 6d–6e pending | *Conquest Growth — implementation contract*, `map.md`, `todo.md` |
 | 7 | Decision queue (interactive events) | pending | *The Decision Queue* |
 | 8 | Map | pending | `map.md` |
 | 9 | Interface re-architecture around the map | open | `design.md`, Open Questions |

@@ -4,8 +4,11 @@
 > not built.** What exists: the place-graph model, the seeded blob-growth hex generator (own rng
 > stream), `S.map` persistence with seed-rebuilt geometry, tile-noun-keyed regeneration, the Bronze
 > inert chart, Iron's seated majors, and the wide map modal with its click-to-read detail pane.
-> Distance, yield, dominion, capture, generation polish and art are still ahead — they land through
-> the rest of phase 6 (see `todo.md` 6b–6e) and the eventual phase 8/9 arcs.
+> **Yield and dominion shipped 2026-08-22 (6c):** owned hexes produce by assignment against terrain
+> menus, pop is tiles (`syncDominion()`), and the interaction pattern is locked — hover previews,
+> click opens details, and the details are where every stat and action lives (allocation on owned
+> tiles, March/Caravan on seats). The pattern survives the node network unchanged. Distance,
+> capture/settle, generation polish and art are still ahead (`todo.md` 6d–6e, phases 8/9).
 >
 > Read the unshipped parts as a scoping document. `design.md` is the canon it serves; `tech.md` is
 > the architecture it must fit into. Where this file says "proposed," it means proposed — the open
@@ -432,6 +435,11 @@ with a small art cost attached rather than a content decision gated on a large o
 ---
 
 ## 6. What the map makes possible
+
+**Supply routes (user ruling, 2026-08-22, lands with distance):** effective campaign/caravan
+distance is computed over a path where owned hexes travel cheap — conquering or settling a line of
+tiles toward a rival is building an abstracted road. Route math, not rendered movement; the
+no-pathing ban is untouched.
 
 **Most of this list is not new mechanics. It is new *readouts* of state the game already keeps** —
 which is the honest reason this arc is cheaper than it looks, and the honest reason nobody should

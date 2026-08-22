@@ -220,7 +220,10 @@ What a production unit *is*, and what you click to allocate it, both change. The
   reversible, every-few-minutes, with the ledger responding immediately, exactly as steppers behave
   today.
 
-**The stepper retires as a control at Iron; it does not retire as an idea.** Assigning a holding on a
+**The stepper retires as a control at Iron; it does not retire as an idea.** *(Shipped 2026-08-22:
+Iron declares `allocation: "tiles"`; owned hexes carry the allocation buttons in the map's detail
+pane, terrain constrains the menu, and hills — stone or iron — are the one multi-choice and
+therefore the tile worth fighting over.)* Assigning a holding on a
 hex is the same mechanic as assigning a settler in a form field — it is simply more legible, and it
 puts the decision where the information already is. Steppers survive elsewhere for quantity
 allocation that isn't spatial, principally mustering a column.
@@ -247,9 +250,11 @@ Resources accumulate from job assignment. Every resource has a storage cap; surp
 not stalled. That's literal rot for food and wood; for stone the justification is gameplay symmetry
 over realism, stated openly. Caps are what make storage buildings necessary rather than optional.
 
-*Retirement age:* storage caps are a friction mechanic for the early ages, scheduled to retire around
-the Enlightenment, when "how much can you physically hold" stops being an interesting question. When
-they go, the friction they were carrying has to be replaced, not merely dropped.
+*Retired at Iron (2026-08-22 — inside the scheduled window, moved up by user ruling: a king does
+not count sacks).* From Iron every resource runs uncapped and the storage line leaves the manifest,
+narrated. The friction handed off cleanly rather than being dropped: gold cannot be mined, growth is
+a designed budget, and the levy caps the army. Stone and Bronze keep their caps and their storage
+buildings — the early game's friction is untouched.
 
 ### Construction
 
@@ -544,10 +549,15 @@ separate facts so they *can* diverge. See `map.md` §2 and §10.3.
    your muster.
 3. **Housing retires at Iron.** The first founding building retired — exactly the removal the manifest
    architecture was built for.
-4. **Growth is conquest or conversion, only.** No automatic arrivals. Growth becomes an *active* verb,
-   and stopping growth becomes a player choice (the housing cap's one good job, replaced by intent).
-   Passive attraction is shelved for the Enlightenment — cities petitioning to join because morale runs
-   high.
+4. **Growth is conquest, settlement, or conversion — always an active verb, never a tick.** No
+   automatic arrivals. Stopping growth is a player choice (the housing cap's one good job, replaced
+   by intent). Passive attraction is shelved for the Enlightenment — cities petitioning to join
+   because morale runs high. *(Amended 2026-08-22, user ruling: **every hex has a gameplay purpose**
+   — wilderness is claimable, so the growth verbs are subdue a minor, settle empty land, and (with
+   priests) convert. Settling is queued, timed, resource-priced work — "Establishing a minor lord in
+   [hex]" through the Underway queue — which makes the queue the standing anti-speedrun governor.
+   The designed population budget becomes the landmass itself: bigger, still finite, still authored
+   by the map.)*
 5. **Two adversary tiers.** Named majors remain strategic entities. Each era's slate adds a **minor
    tier** — freeholds and petty lords, numerous, individually weak, each worth one sworn holdfast plus
    a modest stock. The era's capturable units are therefore a **designed population budget**: growth is

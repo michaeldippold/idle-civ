@@ -439,6 +439,16 @@ names all change as ages pass. **No string is safe to treat as permanent art.**
 | 4 | 7 | Decision card / tray — new component, no timer, designed default (§4.14) |
 | 5 | 8+ | The map arc, below |
 
+### The map's interaction pattern (shipped 6c, permanent)
+
+**Hover previews; click opens details; the details are where every stat, every line of flavor and
+every action for that place live.** Ruled by the user as the sustainable pattern all the way to the
+node network — click a node, open node details, same grammar. Today: owned tiles carry the
+allocation buttons (active assignment by border weight, never opacity) and an ink work-glyph on the
+hex; seats carry March and Caravan, handing off to the muster and escort modals. This is the
+beginning of the Expeditions panel dissolving into the map; the panel survives as a secondary
+surface until phase 9.
+
 ### The open arc: the map
 
 **`map.md` owns this; do not redesign the interface here.** The map is promoted from out-of-scope to

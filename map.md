@@ -4,6 +4,9 @@
 > not built.** What exists: the place-graph model, the seeded blob-growth hex generator (own rng
 > stream), `S.map` persistence with seed-rebuilt geometry, tile-noun-keyed regeneration, the Bronze
 > inert chart, Iron's seated majors, and the wide map modal with its click-to-read detail pane.
+> **6c.1 (same day):** works are rate tables — every land works every resource, terrain sets the
+> rate, specialties at par-plus and the rest overpay routes. And the chart exists from the first
+> frame: the map spec lives in the STONE manifest, Bronze inherits the identical world.
 > **Yield and dominion shipped 2026-08-22 (6c):** owned hexes produce by assignment against terrain
 > menus, pop is tiles (`syncDominion()`), and the interaction pattern is locked — hover previews,
 > click opens details, and the details are where every stat and action lives (allocation on owned

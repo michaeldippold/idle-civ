@@ -176,6 +176,11 @@ Sub-phased so each slice is playable and pausable:
       *Still open from this slice:* the pulse question — steppers touched every 30s, hex allocation
       is minutes-scale — playtest verdict pending; and whether the boost buildings (drying racks
       etc.) are also "granary-class" and retire in the 6d/6e pruning pass.
+      **6c.1 follow-ups (same day, from live play):** works became RATE TABLES — every ground works
+      everything, specialties at par-plus, the rest overpay routes (user ruling); the map's seat
+      actions now carry the panel's refusal reasons (found broken in play: silent no-op without a
+      Muster Ground); and **the chart walks back to frame one** — the map spec lives in STONE,
+      Bronze inherits the identical world, one layout forever, no era-gated UI machinery.
 - [ ] **6d — G2 growth verbs: subdue, settle, capture.** Scope grown by two user rulings
       (2026-08-22): **every hex has a gameplay purpose** — wilderness is claimable, so the
       designed population budget becomes the landmass, not just the seated minors; and **settling
@@ -221,9 +226,16 @@ Designed in `map.md`. Gated behind the engine work because phases 1–4 make it 
       Cheap, and worth doing early because it is the thing that makes scale *felt*.
 
 ### Phase 9 — Interface re-architecture around the map
-**Open and deferred.** Whether the map becomes the interface's centre with panels moved to the
-periphery is gated on having a map good enough to deserve it. Until then Bureau's 4×2 grid stands
-and is not in question. See `design.md` → Open Questions, and `map.md`.
+**Pulled forward (2026-08-22).** The user returned to the Claude Design thread and came back with a
+structural sketch: the map as the main canvas, everything else as floating panels over it — Orders
+left, Selected Tile right (stats + flavor + all actions, incl. March/Caravan/Scout with costs),
+Chronicle docked right, Underway docked bottom, ledger in the header. All current systems map 1:1
+onto it. Rulings so far: **the pattern is structure, not palette** (the sketch's dark slate is not
+decided; whether Bureau's paper survives is still the open identity question, to be resolved in the
+design thread); and **one layout for the whole game** — the chart now exists from Stone, so
+map-primary needs no era gating and the "neat map → main surface" shift is continuity.
+Sequencing decision pending at the next pause: flip the layout before 6d (less rework — the growth
+verbs land straight into their real home) or after (6d proves the content first).
 
 ---
 

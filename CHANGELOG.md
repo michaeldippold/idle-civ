@@ -11,6 +11,20 @@
 
 ---
 
+## 2026-08-22 — 6c.1: soft menus, honest buttons, the chart from frame one
+
+Three same-day rulings from live play. **Every ground works everything, at rates the terrain
+sets** — works became rate tables (river bottomland ×1.2 food, hills' stone-and-iron double at par,
+everything else an overpay route), restoring the board-gamer's right to take the suboptimal path on
+purpose. **The map's seat actions carry the panel's refusals** — found in play as a silent no-op
+without a Muster Ground; March and Caravan now disable with the reason printed beneath them. **The
+chart walks back to frame one** — the map spec moved into the STONE base manifest and Bronze
+inherits the identical world (same noun, same seed, bit-identical, harness-asserted), which means
+one layout for the whole game, no era-gated UI machinery ever, and map-primary becomes continuity
+rather than a reveal. 476 checks.
+
+---
+
 ## 2026-08-22 — Phase 6c: the Iron economy moves onto the map
 
 **The allocation verb re-denominates.** Iron declares `allocation: "tiles"` and zero jobs: you stop

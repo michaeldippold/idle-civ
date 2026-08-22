@@ -1,4 +1,5 @@
 import { active } from "../content/compile.js";
+import { syncDominion } from "../map/map.js";
 import { rng } from "../core/rng.js";
 import { dropQueueItem } from "../core/actions.js";
 import { CONFIG } from "../core/config.js";
@@ -131,6 +132,7 @@ export function removeSettler(allowZero) {
   if (civilians() <= 0) return;
   S.pop -= 1;
   reconcileWorkforce();
+  syncDominion();   // under tile allocation, losing a holdfast loses its hex
 }
 
 // After any loss of civilians, make sure nobody is still committed to work

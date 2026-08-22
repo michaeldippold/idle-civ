@@ -1344,8 +1344,11 @@ console.log("\n--- C1: the iron manifest ---");
   check("the capstone that led here is retired", !has("upgrades", "ironAge"));
   check("iron/steel/gold arrived", has("resources", "iron") && has("resources", "steel") && has("resources", "gold"));
   check("no job produces gold or steel", !m.jobs.some(j => j.res === "gold" || j.res === "steel"));
-  check("new buildings and upgrades arrived", has("buildings", "ironYard") && has("buildings", "treasury") &&
-    has("upgrades", "ironTools") && has("upgrades", "ironWeapons") && has("upgrades", "steelArmor"));
+  check("new upgrades arrived; the storage line did NOT (caps retired, 6c)",
+    has("upgrades", "ironTools") && has("upgrades", "ironWeapons") && has("upgrades", "steelArmor") &&
+    !has("buildings", "ironYard") && !has("buildings", "treasury") &&
+    !has("buildings", "granary") && !has("buildings", "woodshed") && !has("buildings", "stoneYard"));
+  check("the job steppers retired with the allocation flip", m.jobs.length === 0 && m.allocation === "tiles");
   check("housing retired at Iron: the hut line is gone entirely (6b)",
     !m.buildings.some(b => b.id === "hut"));
   check("iron is a conquest era: growth mode, levy, outputMult declared",
@@ -1365,9 +1368,10 @@ console.log("\n--- C1: the iron manifest ---");
   check("bronze manifest gained the ironAge capstone",
     api.MANIFESTS.bronze.upgrades.some(u => u.id === "ironAge"));
   const d = api.manifestDiff(api.MANIFESTS.bronze, m);
-  check("diff: 8 added (incl. siege pair), 7 removed (incl. the hut line), 0 renamed",
-    d.added.length === 8 && d.removed.length === 7 && d.renamed.length === 0 &&
-    d.removed.some((r) => r.id === "hut"));
+  check("diff: 6 added, 10 removed (hut and the whole storage line among them), 0 renamed",
+    d.added.length === 6 && d.removed.length === 10 && d.renamed.length === 0 &&
+    d.removed.some((r) => r.id === "hut") && d.removed.some((r) => r.id === "granary") &&
+    !d.added.some((r) => r.id === "ironYard"));
 }
 
 console.log("\n--- C1: capstone gating and the real transition ---");
@@ -1408,7 +1412,7 @@ console.log("\n--- C1: capstone gating and the real transition ---");
     S().pop === Math.max(1, Math.floor((snapPop - 4) * 0.25)));
   check("the fighting bands carry whole across a levy border",
     S().units.soldier === 2 && S().units.archer === 1 && S().units.horseman === 1);
-  check("jobs floored alongside (forager 4 -> 1)", S().jobs.forager === 1);
+  check("stepper workers walked home when their jobs left the manifest", S().jobs.forager === 0);
   check("the levy back-compat flag is set by the border itself", S().seen.levyMigrated === true);
   check("the noun is holdfast now", api.active().popNoun.singular === "holdfast");
   check("the books balance after all of it", api.idle() >= 0 && api.jobsUsed() <= api.civilians());
@@ -1423,20 +1427,23 @@ console.log("\n--- C1: iron-era economy runs ---");
   api.setRngSource(() => 0.999999);
   reset();
   S().era = "iron";
-  S().pop = 10; S().jobs.forager = 3; S().jobs.ironMiner = 2;
-  S().res.food = 200; S().builds.granary = 2;
+  // Tile allocation (6c): iron comes from hills you hold, not a job stepper.
+  S().pop = 5;
+  S().map = { seed: 1, gen: 1, tileNoun: "holdfast", owned: ["0,0", "1,0", "2,0", "3,0", "4,0"],
+    work: { "0,0": "food", "1,0": "food", "2,0": "food", "3,0": "iron", "4,0": "iron" } };
+  S().res.food = 200;
   run(30);
-  check("iron mines at full rate (2 miners, 30s, ~12 iron)", S().res.iron > 10);
+  check("iron flows from worked hills (2 tiles, 30s, ~48 under outputMult)", S().res.iron > 40);
   S().builds.forge = 2; S().res.iron = 60; S().res.wood = 40;
   const w0 = S().res.wood;
   api.runConverters(10);   // 2 forges x 0.05 x 10s = 1 steel
   check("the Forge makes steel from iron AND wood", Math.abs(S().res.steel - 1) < 1e-9 &&
     Math.abs((w0 - S().res.wood) - 2) < 1e-9);
   check("iron consumed at the recipe ratio", Math.abs(S().res.iron - 57) < 1e-9);
-  S().builds.ironYard = 1; S().builds.treasury = 1;
   const c = api.caps();
-  check("Iron Yard and Treasury raise their caps", c.iron === 150 && c.gold === 150);
-  check("steel is generous-capped with no building", c.steel === 200);
+  check("caps retired at Iron: every resource runs uncapped (6c)",
+    !Number.isFinite(c.food) && !Number.isFinite(c.wood) && !Number.isFinite(c.stone) &&
+    !Number.isFinite(c.iron) && !Number.isFinite(c.steel) && !Number.isFinite(c.gold));
   api.setRngSource(null);
 }
 
@@ -1884,11 +1891,12 @@ console.log("\n--- Ledger rates: converter flows shown honestly ---");
   S().era = "iron";
   S().pop = 8;
   S().builds.forge = 2;
-  S().jobs.woodcutter = 2;
+  S().map = { seed: 1, gen: 1, tileNoun: "holdfast", owned: ["0,0", "1,0", "2,0"],
+    work: { "1,0": "wood", "2,0": "wood" } };
   S().res.iron = 100; S().res.wood = 100;
   r = api.ledgerRates();
   check("steel flows at 2 forges' rate", Math.abs(r.steel - 0.1) < 1e-9);
-  check("wood reads mining minus the forge's burn (1.6 gross under outputMult, - 0.2)", Math.abs(r.wood - 1.4) < 1e-9);
+  check("wood reads worked forest minus the forge's burn (1.6 gross under outputMult, - 0.2)", Math.abs(r.wood - 1.4) < 1e-9);
   check("iron reads as pure drain with no miners", Math.abs(r.iron - (-0.3)) < 1e-9);
 }
 
@@ -1955,10 +1963,11 @@ console.log("\n--- Phase 6b: Conquest Growth G1 -- levy, output, no housing ---"
   check("housing is uncapped under conquest growth", api.housing() === Infinity);
 
   // Output multiplier: a holdfast works -- and eats -- like the families it holds.
-  S().pop = 5; S().jobs.forager = 1; S().units = { soldier: 2, archer: 0, horseman: 0, siegeEngine: 0 };
+  S().pop = 5; S().units = { soldier: 2, archer: 0, horseman: 0, siegeEngine: 0 };
+  S().map = { seed: 1, gen: 1, tileNoun: "holdfast", owned: ["0,0"], work: { "0,0": "food" } };
   S().upgrades = {};
   const r = api.rates();
-  check("per-worker production carries the outputMult (0.2 x 4)", Math.abs(r.food - 0.8) < 1e-9);
+  check("a worked holdfast produces at the old per-worker rate x outputMult (0.2 x 4)", Math.abs(r.food - 0.8) < 1e-9);
   check("upkeep charges holdfasts AND levied bands, at holdfast appetite ((5+2) x 0.04 x 4)",
     Math.abs(r.upkeep - 7 * 0.04 * 4) < 1e-9);
 

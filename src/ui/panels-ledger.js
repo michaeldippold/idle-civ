@@ -89,8 +89,12 @@ export function renderResources() {
 
     const cap = c[res.id];
     const valEl = document.getElementById("val-" + res.id);
-    valEl.innerHTML = `${fmt(S.res[res.id])}<span class="cap"> / ${fmt(cap)}</span>`;
-    valEl.classList.toggle("full", S.res[res.id] >= cap - 0.01);
+    // Uncapped (Iron onward): a bare value -- the row stops promising a
+    // ceiling that no longer exists. Same demotion the POP row got.
+    valEl.innerHTML = Number.isFinite(cap)
+      ? `${fmt(S.res[res.id])}<span class="cap"> / ${fmt(cap)}</span>`
+      : fmt(S.res[res.id]);
+    valEl.classList.toggle("full", Number.isFinite(cap) && S.res[res.id] >= cap - 0.01);
 
     const rateEl = document.getElementById("rate-" + res.id);
     const rate = (res.id === "food" ? r.foodNet : r[res.id]) || 0;

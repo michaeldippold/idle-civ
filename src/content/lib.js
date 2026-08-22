@@ -190,6 +190,8 @@ export const HINT_LIB = {
     msg: "The smiths grumble that tin grows dearer every season. There is a duller, stubborner metal in your own hills — if your people learn to work it." },
   rotIron: { when: () => S.res.iron >= caps().iron - 0.01,
     msg: "Raw iron blooms are heaped up rusting in the open — the excess is lost. Build an Iron Yard." },
+  directHoldfasts: { when: (S_) => Object.keys((S.map && S.map.work) || {}).length === 0,
+    msg: "Your holdfasts await direction — open the Map and set each to work its ground." },
   firstSteel: { when: () => S.res.steel > 0,
     msg: "The Forge runs hotter than it ever did for bronze. The first steel is yours." },
   firstGold: { when: () => S.res.gold > 0,

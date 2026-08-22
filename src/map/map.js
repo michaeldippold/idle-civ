@@ -2,6 +2,7 @@ import { active } from "../content/compile.js";
 import { S } from "../core/state.js";
 import { log } from "../ui/log.js";
 import { generateMap, GEN_VERSION } from "./generate.js";
+import { hexDistance } from "./model.js";
 import { hashStr } from "./model.js";
 
 // ---------- The world, wired to state (map.md §2) -----------
@@ -41,6 +42,35 @@ export function ensureMap() {
     }
   }
   world = generateMap(S.map.seed, spec);
+  if (!S.map.work) S.map.work = {};   // 6a saves predate assignments
+  syncDominion();
+}
+
+// Population IS tiles under tile allocation (design.md, Scale: The Tile
+// Ladder): one holdfast, one hex. This reconciler keeps S.map.owned in
+// lockstep with S.pop -- annexing the nearest workable land when the
+// dominion grows (the carried block at a border, captures later), dropping
+// the newest holding when one is lost, never the seat. Idempotent; called
+// from ensureMap and from every pop-changing site.
+export function syncDominion() {
+  if (!world || !S.map) return;
+  if (active().allocation !== "tiles") return;
+  const owned = S.map.owned;
+  if (!owned.includes(world.home)) owned.unshift(world.home);
+  if (owned.length < S.pop) {
+    const candidates = Object.values(world.places)
+      .filter((p) => p.terrain !== "water" && !p.adversary && !owned.includes(p.id))
+      .sort((a, b) => hexDistance(a.q, a.r, 0, 0) - hexDistance(b.q, b.r, 0, 0) || a.r - b.r || a.q - b.q);
+    for (const c of candidates) {
+      if (owned.length >= S.pop) break;
+      owned.push(c.id);
+    }
+  }
+  while (owned.length > Math.max(1, S.pop)) {
+    const dropped = owned.pop();
+    delete S.map.work[dropped];
+  }
+  for (const tid in S.map.work) if (!owned.includes(tid)) delete S.map.work[tid];
 }
 
 export function ownedTiles() { return S.map ? S.map.owned : []; }

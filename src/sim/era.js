@@ -1,6 +1,6 @@
 import { DEF_CATEGORIES, active } from "../content/compile.js";
 import { civilians, deployedCount, housing, playtime, totalUnits } from "../core/derived.js";
-import { ensureMap } from "../map/map.js";
+import { ensureMap, syncDominion } from "../map/map.js";
 import { initAdversaries } from "../core/persist.js";
 import { S } from "../core/state.js";
 import { reconcileWorkforce } from "./combat.js";
@@ -24,6 +24,7 @@ export function advanceEra(era) {
   ensureMap();
   runEraMigrations(fromM, toM, S.eraHistory[fromEra]);
   if (toM.consolidate) applyConsolidation(toM.consolidate);
+  syncDominion();   // the carried dominion block: owned tiles match the consolidated count
   purgeDom(fromM, toM);
   reconcileWorkforce();
 

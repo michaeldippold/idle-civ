@@ -32,7 +32,14 @@ export function levyCap() { return active().levy ? S.pop * active().levy : Infin
 export function levyUsed() {
   return totalUnits() + S.buildQueue.filter((q) => q.kind === "unit").length;
 }
-export function jobsUsed() { return active().jobs.reduce((sum, j) => sum + (S.jobs[j.id] || 0), 0); }
+export function jobsUsed() {
+  if (active().allocation === "tiles") {
+    // Same books, new noun: "used" is worked holdfasts.
+    const owned = (S.map && S.map.owned) || [];
+    return Object.keys((S.map && S.map.work) || {}).filter((t) => owned.includes(t)).length;
+  }
+  return active().jobs.reduce((sum, j) => sum + (S.jobs[j.id] || 0), 0);
+}
 
 // Order jobs are emptied in when the population shrinks (see removeSettler).
 // Derived from the active manifest (reversed, foraging last) so a shrinking
@@ -93,8 +100,23 @@ export function rates() {
   const m = mults();
   const prod = {};
   for (const r of active().resources) prod[r.id] = 0;
-  for (const j of active().jobs) {
-    prod[j.res] += (S.jobs[j.id] || 0) * CONFIG.baseRate * (j.rateMult || 1) * (m[j.res] || 1);
+  if (active().allocation === "tiles") {
+    // The allocation verb on the map (6c): each owned, assigned holdfast
+    // produces at the same per-worker rate the steppers used -- pop equals
+    // tiles, so totals and every existing cost carry across untouched. The
+    // engine trusts S.map.work the way it always trusted S.jobs; the map UI
+    // is what enforces terrain menus, and syncDominion() prunes lost tiles.
+    const work = (S.map && S.map.work) || {};
+    const owned = (S.map && S.map.owned) || [];
+    for (const tid in work) {
+      if (!owned.includes(tid)) continue;
+      const resId = work[tid];
+      if (resId in prod) prod[resId] += CONFIG.baseRate * (m[resId] || 1);
+    }
+  } else {
+    for (const j of active().jobs) {
+      prod[j.res] += (S.jobs[j.id] || 0) * CONFIG.baseRate * (j.rateMult || 1) * (m[j.res] || 1);
+    }
   }
   // outputMult is consolidation's other half (keep x output ~= 1): a
   // holdfast works like the families it holds -- and eats like them, which

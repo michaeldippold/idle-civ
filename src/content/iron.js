@@ -22,6 +22,10 @@ export const IRON_DELTA = {
   // Units are levied, not consumed: army capacity = holdfasts x levy. The
   // holdfasts that raise the war bands stay in the fields.
   levy: 2,
+  // The permanent allocation verb re-denominates here (design.md): you stop
+  // assigning PEOPLE with steppers and start assigning HOLDFASTS on the map.
+  // Terrain constrains each tile's menu -- see map.works below.
+  allocation: "tiles",
   // The other half of deep consolidation: keep x outputMult ~= 1, so total
   // throughput -- and therefore every existing cost -- survives the border.
   // A holdfast works (and eats) like the four families it holds.
@@ -47,6 +51,15 @@ export const IRON_DELTA = {
     tileNoun: { singular: "holdfast", plural: "holdfasts" },
     terrains: ["plains", "forest", "hills", "river", "water"],
     seats: ["hillClans", "riverKingdom", "saltNomads"],
+    // What a holdfast on each ground can be turned to. Hills are the one
+    // multi-choice -- stone or iron -- which makes them the tile worth
+    // fighting over. Water works nothing; conquest can't claim it either.
+    works: {
+      plains: ["food"],
+      river:  ["food"],
+      forest: ["wood"],
+      hills:  ["stone", "iron"],
+    },
   },
 
   remove: [
@@ -59,9 +72,20 @@ export const IRON_DELTA = {
     "hut",                                // housing retires at Iron: the first founding building
                                           // to leave the game (design.md, Conquest Growth) --
                                           // holdfasts are not counted in roofs
+    "forager", "woodcutter", "miner",     // the job steppers retire with the allocation flip:
+                                          // holdfasts work their own lands now (assigned on the map)
+    "granary", "woodshed", "stoneYard",   // storage caps retire at Iron (user ruling, in the
+                                          // scheduled window): a king does not count sacks --
+                                          // that is delegated. The friction hands off to the
+                                          // conquest economy itself
   ],
 
   override: {
+    // Caps retire at Iron: every resource runs uncapped from here on. The
+    // ledger demotes capped rows to bare values, same as the POP row did.
+    food:  { baseCap: Infinity, capBuilding: null },
+    wood:  { baseCap: Infinity, capBuilding: null },
+    stone: { baseCap: Infinity, capBuilding: null },
     forge: {
       desc: "Burns wood to work iron into steel — 3 iron + 2 wood into 1 steel, continuously.",
       converts: { in: { iron: 3, wood: 2 }, out: { steel: 1 }, rate: 0.05 },
@@ -75,30 +99,17 @@ export const IRON_DELTA = {
 
   add: {
     resources: [
-      { id: "iron",  name: "Iron",  baseCap: 50,  capBuilding: "ironYard", reveal: () => true },
+      { id: "iron",  name: "Iron",  baseCap: Infinity, capBuilding: null, reveal: () => true },
       // Steel, like bronze before it, is spent rather than stockpiled.
-      { id: "steel", name: "Steel", baseCap: 200, capBuilding: null,       reveal: () => true },
+      { id: "steel", name: "Steel", baseCap: Infinity, capBuilding: null,  reveal: () => true },
       // Gold cannot be mined. It enters only from outside.
-      { id: "gold",  name: "Gold",  baseCap: 50,  capBuilding: "treasury", reveal: () => true },
+      { id: "gold",  name: "Gold",  baseCap: Infinity, capBuilding: null,  reveal: () => true },
     ],
-    jobs: [
-      // Full rate, no tin-style scarcity -- scarcity was bronze's story.
-      { id: "ironMiner", name: "Mine iron", res: "iron" },
-    ],
+    // No jobs: the allocation verb lives on the map now. Iron ARRIVES as
+    // terrain instead of as a job -- hills can be turned to it.
+    jobs: [],
     buildings: [
-      {
-        id: "ironYard", name: "Iron Yard", kind: "building",
-        desc: "Store +100 iron (raw blooms rust and scatter otherwise).",
-        base: { wood: 35, stone: 25 }, scale: 1.55, buildTime: 18,
-        reveal: () => true,
-      },
-      {
-        id: "treasury", name: "Treasury", kind: "building",
-        desc: "Store +100 gold, under guard and under stone.",
-        base: { wood: 40, stone: 40, iron: 10 }, scale: 1.6, buildTime: 22,
-        reveal: () => true,
-      },
-      {
+{
         // Gates the Expeditions panel the way the Barracks gated Training.
         // One Muster Ground, one outbound column at a time -- the cap IS the
         // pacing of the era's outward verbs.
@@ -160,6 +171,10 @@ export const IRON_DELTA = {
       narrate: "Bronze is suddenly antique — collectors and temple-makers pay gold for your stock of it." },
     { bucket: "builds", id: "hut", vanish: true,
       narrate: "The stone houses empty as your people gather behind holdfast walls. No one will count roofs again." },
+    { bucket: "builds", id: "granary", vanish: true,
+      narrate: "The crown stops counting sacks — granaries, sheds and yards are the holdfasts' own business now." },
+    { bucket: "builds", id: "woodshed", vanish: true },
+    { bucket: "builds", id: "stoneYard", vanish: true },
   ],
 
   // The era's counterparties. Adversaries are declared WHOLESALE per era,
@@ -196,7 +211,9 @@ export const IRON_DELTA = {
   ],
 
   events: ["greatHunt", "trader", "sickness", "conflict", "scoutFindIron", "scoutWarning"],
-  hints:  ["wood", "stone", "build", "tools", "rotFood", "rotWood", "rotStone",
-           "sicknessWarn", "conflictWarn", "rotIron", "firstSteel", "firstGold", "neighbors"],
+  // No rot hints: caps retired with the storage line. directHoldfasts is the
+  // one-time pointer at the allocation flip.
+  hints:  ["wood", "stone", "build", "tools",
+           "sicknessWarn", "conflictWarn", "firstSteel", "firstGold", "neighbors", "directHoldfasts"],
 };
 

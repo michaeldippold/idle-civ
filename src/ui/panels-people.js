@@ -38,6 +38,17 @@ export function renderPeople() {
   }
 
   const list = document.getElementById("jobList");
+  // Under tile allocation the manifest has no jobs, so the stepper loop
+  // renders nothing; a standing sentence says where the verb went.
+  let tilesNote = document.getElementById("tilesNote");
+  if (!tilesNote && active().allocation === "tiles") {
+    tilesNote = document.createElement("p");
+    tilesNote.id = "tilesNote";
+    tilesNote.className = "holdings-empty";
+    tilesNote.textContent = "Your holdfasts work their own lands — open the Map to direct them.";
+    list.appendChild(tilesNote);
+  }
+  if (tilesNote) tilesNote.classList.toggle("hidden", active().allocation !== "tiles");
   const r = rates();
   for (const job of active().jobs) {
     // A job in the manifest is normally just shown; `reveal` can defer it.

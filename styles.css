@@ -263,6 +263,20 @@ button { font-family: inherit; cursor: pointer; }
   font-size: 13px; line-height: 1.5;
 }
 
+/* 6c: the detail pane is where actions live. Allocation buttons follow the
+   chrome-button grammar; the ACTIVE assignment carries border weight (never
+   opacity). Work glyphs are ink letters on the tile, mono like every number. */
+.map-actions { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+.map-act {
+  border: 1px solid var(--btn-line); background: var(--btn-bg); color: var(--btn-fg);
+  font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  padding: 4px 10px 3px; cursor: pointer;
+}
+.map-act:hover { background: var(--btn-hover-bg); color: var(--btn-hover-fg); }
+.map-act.alloc.active { border-width: 2px; border-color: var(--ink); }
+.map-noworks { color: var(--text-3); font-size: 12px; }
+.tile-work { font: 700 13px var(--mono); fill: var(--ink); pointer-events: none; }
+
 /* ---------- Resource ledger ---------- */
 /* Population leads this strip. It has a value, a cap and a rate, so it is a
    resource; and the red at-cap value says "housing is full" more directly

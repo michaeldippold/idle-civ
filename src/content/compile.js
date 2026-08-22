@@ -57,6 +57,7 @@ function copyMapSpec(m) {
     tileNoun: Object.assign({}, m.tileNoun),
     terrains: m.terrains.slice(),
     seats: (m.seats || []).slice(),
+    works: m.works ? JSON.parse(JSON.stringify(m.works)) : null,
   };
 }
 
@@ -70,6 +71,7 @@ export function compileBase(raw) {
     // Growth-model era-facts (phase 6b). All three inherit, like popNoun:
     // an era that says nothing keeps its parent's model.
     growth: raw.growth || "timer",
+    allocation: raw.allocation || "jobs",
     levy: raw.levy || null,
     outputMult: raw.outputMult || 1,
     raidTypes: raw.raidTypes.slice(),
@@ -99,6 +101,7 @@ export function extendEra(parent, delta) {
     popNoun: delta.popNoun ? Object.assign({}, delta.popNoun) : parent.popNoun,
     arrivalLine: delta.arrivalLine || parent.arrivalLine,
     growth: delta.growth || parent.growth,
+    allocation: delta.allocation || parent.allocation,
     levy: delta.levy != null ? delta.levy : parent.levy,
     outputMult: delta.outputMult != null ? delta.outputMult : parent.outputMult,
     raidTypes: delta.raidTypes ? delta.raidTypes.slice() : parent.raidTypes,
@@ -181,6 +184,11 @@ export function validateManifests(manifests) {
     const bad = (msg) => problems.push(`[${era}] ${msg}`);
 
     if (m.growth !== "timer" && m.growth !== "conquest") bad(`unknown growth mode "${m.growth}"`);
+    if (m.allocation !== "jobs" && m.allocation !== "tiles") bad(`unknown allocation mode "${m.allocation}"`);
+    if (m.allocation === "tiles") {
+      if (!m.map) bad("tile allocation needs a map");
+      else if (!m.map.works) bad("tile allocation needs map.works (what each terrain can be turned to)");
+    }
     if (m.levy != null && !(m.levy > 0)) bad(`levy must be positive, got ${m.levy}`);
     if (!(m.outputMult > 0)) bad(`outputMult must be positive, got ${m.outputMult}`);
     if (m.growth === "conquest" && m.levy == null) bad("a conquest era needs a levy rate -- without one, training has no cap at all");
@@ -192,6 +200,10 @@ export function validateManifests(manifests) {
       const advIds = new Set(m.adversaries.map((a) => a.id));
       for (const seat of m.map.seats) {
         if (!advIds.has(seat)) bad(`map seats unknown adversary "${seat}"`);
+      }
+      for (const t in m.map.works || {}) {
+        if (!m.map.terrains.includes(t)) bad(`map.works keys unknown terrain "${t}"`);
+        for (const r of m.map.works[t]) if (!resIds.has(r)) bad(`terrain "${t}" works "${r}", not a resource this era`);
       }
     }
 

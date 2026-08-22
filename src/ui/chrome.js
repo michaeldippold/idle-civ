@@ -1,5 +1,6 @@
 import { active } from "../content/compile.js";
 import { CONFIG } from "../core/config.js";
+import { playtime } from "../core/derived.js";
 import { S } from "../core/state.js";
 import { expeditionsUnlocked, renderExpeditions } from "./expeditions.js";
 import { log } from "./log.js";
@@ -38,7 +39,10 @@ export function fmtTime(totalSec) {
 // Not guarded on S.dead -- how long a run lasted is worth seeing afterward.
 export function renderClock() {
   const el = document.getElementById("playClock");
-  if (el) el.textContent = fmtTime(S.playtime || 0);
+  // Elapsed time plus the raw tick count -- the latter a debugging readout
+  // by explicit request: with a seeded, tick-counted sim, "what tick did it
+  // happen on" is the coordinate a bug report wants.
+  if (el) el.textContent = `${fmtTime(playtime())} · t${S.tick.toLocaleString()}`;
 }
 
 // Speed is a lens, never a cheat: the loop runs `speed` ordinary steps per

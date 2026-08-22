@@ -37,7 +37,7 @@ export function freshState() {
     // The manifest entry is the template; this is what actually depletes.
     adversaries: {},
     expeditions: [],  // at most one: { uid, type, adversary, units?, cargo?, total, remaining }
-    playtime: 0,      // seconds the simulation has actually advanced -- see step()
+    tick: 0,          // the master clock: fixed TICK_SECONDS slices actually simulated -- see step()
     seen: {},
     dead: false,
   };

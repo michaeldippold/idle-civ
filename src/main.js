@@ -56,18 +56,15 @@ export function boot() {
     setPaused(!paused);
   });
 
-  let last = Date.now();
   let hidden = document.hidden === true;
+  // The loop is a metronome, not a stopwatch (phase 4): each fire advances
+  // `speed` fixed ticks, and wall time is never measured. Interval jitter
+  // therefore bends the game's pace a hair rather than its math -- a slow
+  // frame means the world briefly runs slightly slower than 1x, never that
+  // a bigger slice of time gets simulated in one gulp.
   const newLoopId = setInterval(() => {
-    if (S.dead) return;
-    const now = Date.now();
-    const dt = (now - last) / 1000;
-    // `last` advances even while paused or hidden -- otherwise dt would keep
-    // accruing through the whole stop and hand the gap back as one giant step
-    // the instant the simulation resumes.
-    last = now;
-    if (paused || hidden) return;
-    for (let i = 0; i < speed; i++) step(dt);
+    if (S.dead || paused || hidden) return;
+    for (let i = 0; i < speed; i++) step();
     checkReveals();
     renderAll();
   }, CONFIG.tickMs);
@@ -75,15 +72,13 @@ export function boot() {
   // The clock runs while you're looking at it (design.md, Time, Presence &
   // Pause): hiding the tab stops the simulation outright -- no offline
   // catch-up, no background running -- and commits a save. Returning resumes
-  // automatically (a MANUAL pause is a separate flag and survives the round
-  // trip untouched). `last` is re-anchored on return because a hidden tab's
-  // intervals are throttled -- eventually to once a minute -- so the gap
-  // since the final throttled tick would otherwise arrive as one oversized
-  // dt now that the clamp is gone.
+  // automatically; a MANUAL pause is a separate flag and survives the round
+  // trip untouched. (The counted loop made the old re-anchor dance for
+  // throttled background intervals obsolete: a skipped fire is simply a tick
+  // that never happened.)
   document.addEventListener("visibilitychange", () => {
     hidden = document.hidden;
     if (hidden) save();
-    else last = Date.now();
   });
   // pagehide, not beforeunload: it fires reliably on tab close and on
   // mobile page freeze, and never blocks the unload.

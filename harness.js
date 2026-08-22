@@ -87,7 +87,7 @@ const api = new Proxy({}, {
 try { api.setS(api.freshState()); api.initAdversaries(); console.log("BOOT OK"); }
 catch (e) { console.log("BOOT ERROR:", e.stack); process.exit(1); }
 const S = () => api.S;
-const run = (secs) => { for (let i = 0; i < secs * 5; i++) api.step(0.2); };
+const run = (secs) => { for (let i = 0; i < secs * 5; i++) api.step(); };
 // Era-aware def lookup: the active manifest first, DEF_INDEX for ids that are
 // not in the current era (a bronze def fetched while still in stone, or the
 // retired capstone fetched in bronze). Mirrors what the game itself does.
@@ -537,45 +537,45 @@ console.log("\n--- Bronze P1: old stone-age saves still load ---");
 
 console.log("\n--- Playtime clock ---");
 reset();
-check("starts at zero", S().playtime === 0);
+check("starts at zero", api.playtime() === 0);
 api.assign("forager", 1);
 run(60);
-check("advances with simulated time", Math.abs(S().playtime - 60) < 0.5);
-console.log(`  after 60s of sim: playtime = ${S().playtime.toFixed(1)}s -> "${api.fmtTime(S().playtime)}"`);
+check("advances with simulated time", Math.abs(api.playtime() - 60) < 0.5);
+console.log(`  after 60s of sim: playtime = ${api.playtime().toFixed(1)}s -> "${api.fmtTime(api.playtime())}"`);
 {
   // Pausing is modelled here by simply not calling step() -- which is exactly
   // what the real tick loop does -- so the clock must not move.
-  const frozen = S().playtime;
+  const frozen = api.playtime();
   for (let i = 0; i < 25; i++) { /* paused ticks: no step() call */ }
-  check("frozen while paused (no step calls)", S().playtime === frozen);
+  check("frozen while paused (no step calls)", api.playtime() === frozen);
 }
 run(30);
-check("resumes cleanly after a pause", Math.abs(S().playtime - 90) < 0.5);
+check("resumes cleanly after a pause", Math.abs(api.playtime() - 90) < 0.5);
 {
   reset();
   S().dead = true;
-  const atDeath = S().playtime;
+  const atDeath = api.playtime();
   run(30);
-  check("stops counting once dead", S().playtime === atDeath);
+  check("stops counting once dead", api.playtime() === atDeath);
 }
 check("fmtTime under an hour", api.fmtTime(94) === "1m 34s");
 check("fmtTime pads seconds", api.fmtTime(65) === "1m 05s");
 check("fmtTime switches to hours", api.fmtTime(7500) === "2h 05m");
 check("fmtTime handles zero", api.fmtTime(0) === "0m 00s");
 
-console.log("\n--- Playtime survives a save/load round trip ---");
+console.log("\n--- The clock survives a save/load round trip ---");
 {
   reset();
   api.assign("forager", 1);
   run(120);
-  const before = S().playtime;
+  const before = S().tick;
   const roundTripped = Object.assign(api.freshState(), JSON.parse(JSON.stringify(S())));
-  check("playtime persists through serialization", Math.abs(roundTripped.playtime - before) < 0.001);
-  // A save written before the clock existed has no playtime key at all.
+  check("the tick count persists through serialization", roundTripped.tick === before);
+  // A save written before any clock existed has neither tick nor playtime.
   const legacy = JSON.parse(JSON.stringify(S()));
-  delete legacy.playtime;
+  delete legacy.tick;
   const merged = Object.assign(api.freshState(), legacy);
-  check("legacy save with no playtime defaults to 0 rather than undefined", merged.playtime === 0);
+  check("clockless legacy save defaults to tick 0 rather than undefined", merged.tick === 0);
 }
 
 console.log("\n--- Info reference panel ---");
@@ -1929,6 +1929,26 @@ console.log("\n--- Phase 3: offline is gone; the save is load-bearing ---");
   run(2);
   check("the revived campaign resolves on schedule", S().expeditions.length === 0);
   check("resolution had consequences (standing moved)", S().adversaries.hillClans.standing < 0);
+}
+
+console.log("\n--- Phase 4: the tick clock ---");
+{
+  reset();
+  check("a fresh world starts at tick zero", S().tick === 0 && api.playtime() === 0);
+  check("freshState carries no playtime field", api.freshState().playtime === undefined);
+  api.step(); api.step(); api.step();
+  check("each step advances exactly one tick", S().tick === 3);
+  check("playtime derives from the count", Math.abs(api.playtime() - 3 * api.TICK_SECONDS) < 1e-12);
+
+  // A pre-tick save carried seconds; load converts them once.
+  reset();
+  const legacy = JSON.parse(JSON.stringify(S()));
+  delete legacy.tick;
+  legacy.playtime = 123.4;
+  globalThis.localStorage.setItem(api.CONFIG.saveKey, JSON.stringify(legacy));
+  api.load();
+  check("legacy seconds convert to ticks at load", S().tick === Math.floor(123.4 / api.TICK_SECONDS));
+  globalThis.localStorage.removeItem(api.CONFIG.saveKey);
 }
 
 console.log("\n--- Seeded RNG: determinism and the source ban ---");

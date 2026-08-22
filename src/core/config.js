@@ -46,3 +46,9 @@ export const CONFIG = {
   saveKey: "idleCiv.v6",
 };
 
+// One tick of the simulation, in seconds of world time (phase 4). Authoring
+// stays per-second everywhere -- rates, chances, build times -- and the
+// engine advances in exactly this slice, every time. The clock is a COUNT
+// (S.tick); this constant is the exchange rate back into seconds.
+export const TICK_SECONDS = CONFIG.tickMs / 1000;
+

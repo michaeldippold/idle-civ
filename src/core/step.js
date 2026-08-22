@@ -1,6 +1,6 @@
 import { active } from "../content/compile.js";
 import { completeConstruction } from "./actions.js";
-import { CONFIG } from "./config.js";
+import { CONFIG, TICK_SECONDS } from "./config.js";
 import { accrueGrowth, caps, rates } from "./derived.js";
 import { S, loopId, saveId } from "./state.js";
 import { resolveEvents, runConverters } from "../sim/events.js";
@@ -10,13 +10,18 @@ import { log } from "../ui/log.js";
 import { openGameOverModal } from "../ui/modal.js";
 
 // ---------- Core simulation ---------------------------------
-export function step(dt) {
+// One fixed tick of the simulation: exactly TICK_SECONDS of world time,
+// every time. Nothing variable enters -- the clock is a count, which is what
+// makes (seed + tick count + actions) fully determine the state. The dt the
+// subsystems receive below is the same constant on every call; they keep
+// their per-second authoring and their signatures untouched.
+export function step() {
   if (S.dead) return;
-  // Playtime lives here rather than in the tick loop so it measures exactly one
-  // thing: how far the world actually moved. Pausing skips step() entirely, so
-  // the clock freezes; offline catch-up calls step() repeatedly, so the hours
-  // it simulates are counted. Death stops it via the guard above.
-  S.playtime += dt;
+  const dt = TICK_SECONDS;
+  // The tick lives here rather than in the loop so it counts exactly one
+  // thing: how far the world actually moved. Pausing and hiding skip step()
+  // entirely, so the clock freezes; death stops it via the guard above.
+  S.tick += 1;
   const r = rates();
 
   // Gather + eat. Food is a net line so upkeep can drive it negative -> death.

@@ -1,4 +1,4 @@
-import { buildCost, canAfford, defById, housing, idle, isCapped, pendingCount } from "./derived.js";
+import { buildCost, canAfford, defById, housing, idle, isCapped, pendingCount, playtime } from "./derived.js";
 import { S } from "./state.js";
 import { save } from "./persist.js";
 import { advanceEra } from "../sim/era.js";
@@ -29,7 +29,7 @@ export function build(def) {
   S.buildQueue.push({ id: def.id, kind: def.kind, uid: ++S.buildSeq, total: def.buildTime, remaining: def.buildTime, cost });
   // Pacing telemetry (console only): stamp the game clock when age research
   // starts, so playtest timing doesn't require watching the clock.
-  if (CAPSTONES[def.id]) console.log(`[pacing] ${def.name} research started at ${fmtTime(S.playtime)}`);
+  if (CAPSTONES[def.id]) console.log(`[pacing] ${def.name} research started at ${fmtTime(playtime())} (t${S.tick})`);
   if (def.kind === "upgrade") {
     log(wasEmpty ? `Work begins on ${def.name}.` : `${def.name} joins the queue (#${S.buildQueue.length}).`);
   } else if (def.kind === "unit") {
@@ -61,7 +61,7 @@ export function cancelBuild(uid) {
   const idx = S.buildQueue.findIndex((q) => q.uid === uid);
   if (idx === -1) return;
   const item = dropQueueItem(idx);
-  if (CAPSTONES[item.id]) console.log(`[pacing] ${defById(item.id).name} research cancelled at ${fmtTime(S.playtime)}`);
+  if (CAPSTONES[item.id]) console.log(`[pacing] ${defById(item.id).name} research cancelled at ${fmtTime(playtime())} (t${S.tick})`);
   log(`Construction of the ${defById(item.id).name} is called off; materials recovered.`);
   save();
   renderAll();

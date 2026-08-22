@@ -1,5 +1,5 @@
 import { active } from "../content/compile.js";
-import { CONFIG } from "./config.js";
+import { CONFIG, TICK_SECONDS } from "./config.js";
 import { S, freshState, setS } from "./state.js";
 
 // ---------- Save / load -------------------------------------
@@ -37,6 +37,11 @@ export function load() {
   S.adversaries = data.adversaries || {};
   S.expeditions = Array.isArray(data.expeditions) ? data.expeditions : [];
   S.buildQueue = Array.isArray(data.buildQueue) ? data.buildQueue : [];
+  // Saves from before the tick clock counted seconds in S.playtime. One-time
+  // conversion; the old field rides along inert, per the state invariant.
+  if (data.tick === undefined && typeof data.playtime === "number") {
+    S.tick = Math.floor(data.playtime / TICK_SECONDS);
+  }
   return true;
 }
 

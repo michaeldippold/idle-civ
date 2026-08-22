@@ -1,6 +1,6 @@
 import { ERA_ORDER, MANIFESTS, active, manifestDiff } from "../content/compile.js";
 import { CONFIG } from "../core/config.js";
-import { housing } from "../core/derived.js";
+import { housing, playtime } from "../core/derived.js";
 import { suppressSaves } from "../core/persist.js";
 import { S } from "../core/state.js";
 import { fmtTime } from "./chrome.js";
@@ -179,7 +179,7 @@ export function hardReset() {
 }
 
 export function openResetModal() {
-  const lived = S.playtime > 0 ? ` You are ${fmtTime(S.playtime)} into this one.` : "";
+  const lived = S.tick > 0 ? ` You are ${fmtTime(playtime())} into this one.` : "";
   openModal("Start Over?",
     `<p class="modal-lead">This wipes the settlement completely — every building, every settler, ` +
     `the whole Chronicle.${lived} There is no undo.</p>`,
@@ -199,7 +199,7 @@ export function openGameOverModal(cause) {
     `<div class="stat-box"><span class="s-lbl">${label}</span><span class="s-val">${val}</span></div>`;
   const stats =
     `<div class="modal-stats">` +
-      stat("Time survived", fmtTime(S.playtime || 0)) +
+      stat("Time survived", fmtTime(playtime())) +
       stat("Age reached", active().name) +
       stat("Buildings raised", built) +
       stat("Arrivals welcomed", S.bought) +

@@ -1,5 +1,5 @@
 import { DEF_CATEGORIES, active } from "../content/compile.js";
-import { civilians, deployedCount, housing } from "../core/derived.js";
+import { civilians, deployedCount, housing, playtime } from "../core/derived.js";
 import { initAdversaries } from "../core/persist.js";
 import { S } from "../core/state.js";
 import { reconcileWorkforce } from "./combat.js";
@@ -18,7 +18,7 @@ export function advanceEra(era) {
   S.era = era;
   const toM = active();
   // Pacing telemetry (console only), the bookend to the started line in build().
-  console.log(`[pacing] ${toM.name} began at ${fmtTime(S.playtime)}`);
+  console.log(`[pacing] ${toM.name} began at ${fmtTime(playtime())} (t${S.tick})`);
   initAdversaries();
   runEraMigrations(fromM, toM, S.eraHistory[fromEra]);
   if (toM.consolidate) applyConsolidation(toM.consolidate);

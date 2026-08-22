@@ -1,5 +1,5 @@
 import { BOOST_BUILDING, DEF_INDEX, active } from "../content/compile.js";
-import { CONFIG } from "./config.js";
+import { CONFIG, TICK_SECONDS } from "./config.js";
 import { S } from "./state.js";
 import { log } from "../ui/log.js";
 
@@ -7,6 +7,9 @@ import { log } from "../ui/log.js";
 // Housing per hut is era-keyed, so advancing retroactively upgrades every hut
 // you already own into a Stone House -- an immediate, visible jump rather than
 // a new building sitting next to an obsolete one. See design.md.
+// The play clock, derived: the tick count is the master record, seconds are
+// a display. Old saves that carried seconds are converted once at load().
+export function playtime() { return S.tick * TICK_SECONDS; }
 export function housingPerHut() { return active().housingPerHut; }
 export function housing() { return CONFIG.baseHousing + S.builds.hut * housingPerHut(); }
 export function totalUnits() { return Object.values(S.units).reduce((a, b) => a + b, 0); }

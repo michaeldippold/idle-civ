@@ -1996,7 +1996,9 @@ console.log("\n--- Phase 6d: the growth verbs -- minors, settle, routes ---");
   api.launchSettle(empty.id);
   check("settling joins the Underway queue", S().buildQueue.some((q) => q.kind === "settle"));
   check("no double parties to one hex", (api.launchSettle(empty.id), S().buildQueue.filter((q) => q.kind === "settle").length === 1));
-  run(Math.ceil(plan.time) + 60);
+  api.setRngSource(() => 0.99);         // hold the world's dice: this checks settle
+  run(Math.ceil(plan.time) + 60);       // completion, not event weather -- a sickness
+  api.setRngSource(null);               // or raid in ~90s would shift pop (the old flake)
   check("the party raises a hall: owned, +1 holdfast, turned to bread",
     S().map.owned.includes(empty.id) && S().pop === popBefore + 1 && S().map.work[empty.id] === "food");
 

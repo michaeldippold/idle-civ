@@ -3,6 +3,7 @@ import { rng } from "../core/rng.js";
 import { CONFIG } from "../core/config.js";
 import { availableUnits } from "../core/derived.js";
 import { save } from "../core/persist.js";
+import { captureTile, marchFactor, routeCost, seatOf, world } from "../map/map.js";
 import { S } from "../core/state.js";
 import { armorFactor, weaponMultiplier } from "./combat.js";
 import { renderAll } from "../ui/chrome.js";
@@ -85,17 +86,61 @@ export function validUnitCounts(unitCounts) {
   return true;
 }
 
+// A campaign target, unified (6d): a MAJOR is an adversary id; a MINOR is
+// "tile:q,r". Majors keep standing and diplomacy; minors exist to be taken
+// -- win one and the tile swears fealty, one more holdfast under your
+// banner. Old saves' expeditions carry `adversary`; the resolver accepts it.
+export function campaignTarget(ref) {
+  if (typeof ref === "string" && ref.startsWith("tile:")) {
+    const tid = ref.slice(5);
+    const p = world && world.places[tid];
+    const st = S.map && S.map.minors && S.map.minors[tid];
+    if (!p || !p.minor || !st) return null;
+    return {
+      ref, kind: "minor", tile: tid, name: p.minor.name,
+      strength: p.minor.strength, wallsMax: p.minor.wallsMax,
+      fightsAs: "warband", st,
+      baseTime: 60,
+    };
+  }
+  const adv = findAdversary(ref);
+  const st = S.adversaries[ref];
+  if (!adv || !st) return null;
+  return {
+    ref, kind: "major", id: ref, name: adv.name,
+    strength: adv.strength, wallsMax: adv.walls || 0,
+    fightsAs: adv.fightsAs, st, adv,
+    baseTime: adv.campaignTime,
+  };
+}
+
+// The muster sheet's numbers, distance included: provisions and march time
+// both scale with the route, and a route through your own country is cheap
+// -- the supply-line rule made arithmetic.
+export function campaignPlan(ref) {
+  const t = campaignTarget(ref);
+  if (!t) return null;
+  const targetTile = t.kind === "minor" ? t.tile : (seatOf(t.ref) ? seatOf(t.ref).id : null);
+  const factor = targetTile ? marchFactor(targetTile) : 1;
+  return {
+    target: t,
+    time: Math.round(t.baseTime * factor),
+    provisions: Math.round(CONFIG.campaignFoodCost * factor),
+    tilesOff: targetTile && Number.isFinite(routeCost(targetTile)) ? Math.round(routeCost(targetTile)) : null,
+  };
+}
+
 export function launchCampaign(advId, unitCounts) {
   if (S.dead || expeditionOut("campaign") || (S.builds.musterGround || 0) < 1) return;
-  const adv = findAdversary(advId);
-  if (!adv) return;
+  const plan = campaignPlan(advId);
+  if (!plan) return;
   const total = Object.values(unitCounts).reduce((a, b) => a + b, 0);
   if (total < 1 || !validUnitCounts(unitCounts)) return;
-  if (S.res.food < CONFIG.campaignFoodCost) return;
-  S.res.food -= CONFIG.campaignFoodCost;
-  S.expeditions.push({ uid: ++S.buildSeq, type: "campaign", adversary: advId,
-    units: Object.assign({}, unitCounts), total: adv.campaignTime, remaining: adv.campaignTime });
-  log(`A column of ${total} marches against ${adv.name}. The walls are thinner until they return.`);
+  if (S.res.food < plan.provisions) return;
+  S.res.food -= plan.provisions;
+  S.expeditions.push({ uid: ++S.buildSeq, type: "campaign", adversary: plan.target.ref,
+    units: Object.assign({}, unitCounts), total: plan.time, remaining: plan.time });
+  log(`A column of ${total} marches against ${plan.target.name}. The walls are thinner until they return.`);
   save();
   renderAll();
 }
@@ -147,10 +192,13 @@ export function removeDeployedUnit(ex) {
   }
   return null;
 }
-export function totalDeployed(ex) { return Object.values(ex.units || {}).reduce((a, b) => a + b, 0); }
+export function capMinor(name) { return name.charAt(0).toUpperCase() + name.slice(1); }
+function totalDeployed(ex) { return Object.values(ex.units || {}).reduce((a, b) => a + b, 0); }
 
-export function resolveCampaign(ex, adv, st) {
-  bumpStanding(st, -1);   // plunder is not diplomacy, win or lose -- or repelled at the walls
+export function resolveCampaign(ex, target) {
+  const adv = { name: target.name, strength: target.strength, walls: target.wallsMax, fightsAs: target.fightsAs };
+  const st = target.st;
+  if (target.kind === "major") bumpStanding(st, -1);   // plunder is not diplomacy; minors keep no ledger
 
   // THE BREACH PHASE: walls fall before any defender does. Damage persists in
   // the living remnant -- the scars your engines carve stay carved, and a
@@ -178,6 +226,21 @@ export function resolveCampaign(ex, adv, st) {
   const winChance = attack / (attack + adv.strength);
 
   if (rng() < winChance) {
+    if (target.kind === "minor") {
+      // CAPTURE: the whole stock comes home, the tile swears fealty, and the
+      // Chronicle records the name for the last time (design.md).
+      const takes = [];
+      for (const k in st.stock) {
+        if (st.stock[k] > 0) { S.res[k] = (S.res[k] || 0) + st.stock[k]; takes.push(`${st.stock[k]} ${k}`); }
+      }
+      captureTile(target.tile, false);
+      log(`${capMinor(target.name)} swears fealty to your banner — one more holdfast, and ${takes.length ? takes.join(", ") : "little else"} besides. The Chronicle records the name for the last time.`, "big");
+      if (rng() < (adv.strength / (attack + adv.strength)) * armorFactor()) {
+        const lost = removeDeployedUnit(ex);
+        if (lost) log(`The taking had a price — a ${lost} does not come home.`, "bad");
+      }
+      return;
+    }
     const takes = [];
     for (const k in st.stock) {
       const take = Math.floor(st.stock[k] * CONFIG.plunderFraction);
@@ -250,11 +313,14 @@ export function resolveExpeditions(dt) {
     ex.remaining -= dt;
     if (ex.remaining > 0) continue;
     S.expeditions.splice(i, 1);
+    if (ex.type === "campaign") {
+      const target = campaignTarget(ex.adversary);   // ref: major id or "tile:q,r"
+      if (target) resolveCampaign(ex, target);
+      continue;
+    }
     const adv = findAdversary(ex.adversary);
     const st = S.adversaries[ex.adversary];
-    if (!adv || !st) continue;
-    if (ex.type === "campaign") resolveCampaign(ex, adv, st);
-    else resolveCaravan(ex, adv, st);
+    if (adv && st) resolveCaravan(ex, adv, st);
   }
 }
 

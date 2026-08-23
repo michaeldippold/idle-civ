@@ -3,7 +3,7 @@ import { cancelBuild } from "../core/actions.js";
 import { CONFIG } from "../core/config.js";
 import { defById } from "../core/derived.js";
 import { S } from "../core/state.js";
-import { findAdversary } from "../sim/expeditions.js";
+import { campaignTarget, findAdversary } from "../sim/expeditions.js";
 import { renderTile } from "./dom.js";
 import { BUILDING_CATS, BUILDING_ICONS, QUEUE_ICONS } from "./icons.js";
 
@@ -31,7 +31,8 @@ export function renderQueue() {
   // cancel button, because there are no catch windows once a column marches.
   const expCards = [];
   for (const ex of S.expeditions) {
-    const adv = findAdversary(ex.adversary);
+    const target = ex.type === "campaign" ? campaignTarget(ex.adversary) : null;
+    const adv = target ? { name: target.name } : findAdversary(ex.adversary);
     let card = wrap.querySelector(`[data-uid="x${ex.uid}"]`);
     if (!card) {
       card = document.createElement("div");
@@ -62,6 +63,7 @@ export function renderQueue() {
   S.buildQueue.forEach((item, i) => {
     etaAccum += item.remaining;
     const def = defById(item.id);
+    const label = item.label || (def && def.name) || item.id;
     let card = wrap.querySelector(`[data-uid="${item.uid}"]`);
     if (!card) {
       card = document.createElement("div");
@@ -69,7 +71,7 @@ export function renderQueue() {
       card.dataset.uid = String(item.uid);
       card.innerHTML =
         `<div class="site-name">` +
-          `<span class="q-icon">${QUEUE_ICONS.build}</span>` +
+          `<span class="q-icon">${QUEUE_ICONS[item.kind] || QUEUE_ICONS.build}</span>` +
           `<span class="q-label"></span>` +
           `<span class="b-of q-pct"></span>` +
           `<button class="q-cancel" title="Cancel and refund">×</button>` +
@@ -83,7 +85,7 @@ export function renderQueue() {
     // No "Raising:" / "Queued:" prefix -- the filled bar and the "~24s left"
     // line already say which item is active, and the prefix was eating the
     // name's space in a narrow column.
-    card.querySelector(".q-label").textContent = def.name;
+    card.querySelector(".q-label").textContent = label;
     card.querySelector(".q-pct").textContent = `(${Math.floor(pct)}%)`;
     card.querySelector(".q-bar").style.width = pct + "%";
     card.querySelector(".q-eta").textContent =

@@ -97,5 +97,41 @@ export function generateMap(seed, spec) {
     placed.push(seat);
   }
 
+  // The minor tier: procedural seats, hand-authored names drawn without
+  // replacement from a shuffled pool, stats rolled in the spec's ranges.
+  // Everything here regenerates deterministically from the seed; the MUTABLE
+  // half (wall damage, depleting stock) lives in S.map.minors -- and a
+  // captured tile is simply owned, which trumps its minor def on every read.
+  if (spec.minors) {
+    const mn = spec.minors;
+    const pool = mn.names.slice();
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    const rollInt = ([lo, hi]) => lo + Math.floor(rng() * (hi - lo + 1));
+    let seated = 0;
+    for (let minPair = 2; minPair >= 1 && seated < mn.count; minPair--) {
+      const spots = order
+        .map(([q, r]) => world.places[pid(q, r)])
+        .filter((p) => p.terrain !== "water" && !p.adversary && !p.minor && p.id !== world.home)
+        .filter((p) => hexDistance(p.q, p.r, 0, 0) >= 2)
+        .filter((p) => Object.values(world.places).every((o) =>
+          !o.minor || hexDistance(p.q, p.r, o.q, o.r) >= minPair));
+      while (seated < mn.count && spots.length) {
+        const p = spots.splice(Math.floor(rng() * spots.length), 1)[0];
+        const stock = {};
+        for (const res in mn.stock) stock[res] = rollInt(mn.stock[res]);
+        p.minor = {
+          name: pool[seated] || `the steading at ${p.id}`,
+          strength: rollInt(mn.strength),
+          wallsMax: rollInt(mn.walls),
+          stock,
+        };
+        seated += 1;
+      }
+    }
+  }
+
   return world;
 }

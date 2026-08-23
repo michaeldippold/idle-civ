@@ -1954,6 +1954,76 @@ console.log("\n--- Phase 3: offline is gone; the save is load-bearing ---");
   check("resolution had consequences (standing moved)", S().adversaries.hillClans.standing < 0);
 }
 
+console.log("\n--- Phase 6d: the growth verbs -- minors, settle, routes ---");
+{
+  reset();
+  S().era = "iron"; S().seen.levyMigrated = true; S().pop = 4;
+  api.initAdversaries(); api.ensureMap();
+
+  const minors = Object.values(api.world.places).filter((p) => p.minor);
+  check("the minor tier is seated (5, on land, off your doorstep)",
+    minors.length === 5 && minors.every((p) => p.terrain !== "water" && !p.adversary) &&
+    minors.every((p) => api.distance(api.world, "0,0", p.id) >= 2));
+  check("every minor is named from the pool, uniquely",
+    new Set(minors.map((p) => p.minor.name)).size === 5);
+  check("minor remnants reconciled into S.map.minors",
+    minors.every((p) => S().map.minors[p.id] && S().map.minors[p.id].walls === p.minor.wallsMax));
+
+  // Routes: a line of owned tiles cheapens the march.
+  const far = minors.map((p) => p.id).sort((a, b) =>
+    api.distance(api.world, "0,0", b) - api.distance(api.world, "0,0", a))[0];
+  const before = api.routeCost(far);
+  // own a straight-ish line toward it (annex neighbours along the hex line)
+  const target = api.world.places[far];
+  const line = Object.values(api.world.places)
+    .filter((p) => p.terrain !== "water" && !p.minor && !p.adversary && !S().map.owned.includes(p.id))
+    .sort((a, b) =>
+      (api.hexDistance(a.q, a.r, target.q, target.r) + api.hexDistance(a.q, a.r, 0, 0)) -
+      (api.hexDistance(b.q, b.r, target.q, target.r) + api.hexDistance(b.q, b.r, 0, 0)))
+    .slice(0, 4).map((p) => p.id);
+  S().map.owned.push(...line);
+  check("a line of your own country cheapens the route (supply lines)",
+    api.routeCost(far) < before);
+  S().map.owned = S().map.owned.filter((id) => !line.includes(id));
+
+  // Settle: queued, priced, completes into a holdfast on default bread.
+  const empty = Object.values(api.world.places)
+    .find((p) => p.terrain !== "water" && !p.minor && !p.adversary && !S().map.owned.includes(p.id));
+  const plan = api.settlePlan(empty.id);
+  check("settling is priced work, scaled by the route", plan && plan.cost.food >= 24 && plan.time >= 27);
+  S().res.food = 500; S().res.wood = 500;
+  const popBefore = S().pop;
+  api.launchSettle(empty.id);
+  check("settling joins the Underway queue", S().buildQueue.some((q) => q.kind === "settle"));
+  check("no double parties to one hex", (api.launchSettle(empty.id), S().buildQueue.filter((q) => q.kind === "settle").length === 1));
+  run(Math.ceil(plan.time) + 60);
+  check("the party raises a hall: owned, +1 holdfast, turned to bread",
+    S().map.owned.includes(empty.id) && S().pop === popBefore + 1 && S().map.work[empty.id] === "food");
+
+  // Capture: a campaign against a minor, forced win, takes the place whole.
+  S().builds.musterGround = 1; S().units.soldier = 6; S().res.food = 500;
+  const mtile = minors[0].id;
+  S().map.minors[mtile].walls = 0;      // walls down; test the field, not the siege
+  const mstock = Object.assign({}, S().map.minors[mtile].stock);
+  const popBefore2 = S().pop;
+  api.launchCampaign("tile:" + mtile, { soldier: 4 });
+  check("a column can march on a minor", S().expeditions.length === 1);
+  S().expeditions[0].remaining = 0.1;
+  api.setRngSource(() => 0.0);          // win, no casualty roll fires bad
+  api.resolveExpeditions(0.2);
+  api.setRngSource(null);
+  check("capture: the tile swears fealty -- owned, +1 holdfast, bread by default",
+    S().map.owned.includes(mtile) && S().pop === popBefore2 + 1 && S().map.work[mtile] === "food");
+  check("the whole stock came home", Object.keys(mstock).every((k) => S().res[k] >= mstock[k]));
+  check("the minor's remnant is gone -- the Chronicle had the name last",
+    S().map.minors[mtile] === undefined);
+
+  // A captured tile survives the save: ownership is state, the minor is not.
+  api.save(); api.load(); api.ensureMap();
+  check("capture survives save/load -- ownership trumps the regenerated seat",
+    S().map.owned.includes(mtile) && !S().map.minors[mtile]);
+}
+
 console.log("\n--- Phase 6b: Conquest Growth G1 -- levy, output, no housing ---");
 {
   // Growth is a verb at iron: the timer does nothing.

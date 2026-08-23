@@ -42,7 +42,17 @@ export function ensureMap() {
     }
   }
   world = generateMap(S.map.seed, spec);
-  if (!S.map.work) S.map.work = {};   // 6a saves predate assignments
+  if (!S.map.work) S.map.work = {};     // 6a saves predate assignments
+  if (!S.map.minors) S.map.minors = {}; // the minors' living remnants
+  // Reconcile the minor remnants, initAdversaries-style: a seat without
+  // state gets one seeded from the world def; a CAPTURED seat (owned) needs
+  // none -- ownership trumps the minor def on every read.
+  for (const id in world.places) {
+    const p = world.places[id];
+    if (p.minor && !S.map.owned.includes(id) && !S.map.minors[id]) {
+      S.map.minors[id] = { walls: p.minor.wallsMax, stock: Object.assign({}, p.minor.stock) };
+    }
+  }
   syncDominion();
   if (S.seen.needsDefaultWork) {
     delete S.seen.needsDefaultWork;
@@ -95,8 +105,60 @@ export function defaultAssignments() {
 export function ownedTiles() { return S.map ? S.map.owned : []; }
 export function isOwned(id) { return !!S.map && S.map.owned.includes(id); }
 
-// The seat tile of an adversary, or null -- a query the campaign math will
-// want the moment distance becomes a cost (phase 6, M2).
+// Effective route cost from your dominion to a tile (the supply-route rule,
+// user ruling): multi-source Dijkstra from every owned tile, where marching
+// through your OWN country costs half a step, unowned land a full step, and
+// water three -- slow crossings, never impossible, so an island seat can't
+// deadlock a run. Conquering or settling a line toward a rival is literally
+// building a road. Returns Infinity only when there is no map.
+export function routeCost(targetId) {
+  if (!world || !S.map || !world.places[targetId]) return Infinity;
+  const stepInto = (id) => {
+    if (S.map.owned.includes(id)) return 0.5;
+    return world.places[id].terrain === "water" ? 3 : 1;
+  };
+  const dist = { };
+  const queue = [];
+  for (const id of S.map.owned) { dist[id] = 0; queue.push(id); }
+  while (queue.length) {
+    // Small worlds: a plain scan-for-min is simpler than a heap and fast
+    // enough at a few hundred places.
+    let bi = 0;
+    for (let i = 1; i < queue.length; i++) if (dist[queue[i]] < dist[queue[bi]]) bi = i;
+    const id = queue.splice(bi, 1)[0];
+    if (id === targetId) return dist[id];
+    for (const n of world.places[id].adj) {
+      const d = dist[id] + stepInto(n);
+      if (dist[n] === undefined || d < dist[n]) {
+        if (dist[n] === undefined) queue.push(n);
+        dist[n] = d;
+      }
+    }
+  }
+  return dist[targetId] !== undefined ? dist[targetId] : Infinity;
+}
+
+// How route cost bends a campaign: multiplies base march time and the food
+// provision. Near targets (or well-roaded ones) march cheap; far ones cost.
+// First-guess curve, tuned toward too-hard as always.
+export function marchFactor(targetId) {
+  const r = routeCost(targetId);
+  if (!Number.isFinite(r)) return 1;   // no map (harness fixtures): par
+  return Math.min(2, Math.max(0.6, 0.5 + r / 6));
+}
+
+// Capture: the tile becomes a holdfast of yours. One place, one rule --
+// campaigns (subdue) and the settle verb both end here.
+export function captureTile(id, viaSettle) {
+  if (!world || !S.map || S.map.owned.includes(id)) return false;
+  S.map.owned.push(id);
+  delete S.map.minors[id];
+  S.pop += 1;
+  S.map.work[id] = "food";   // the designed default: bread first
+  return true;
+}
+
+// The seat tile of an adversary, or null.
 export function seatOf(advId) {
   if (!world) return null;
   for (const id in world.places) if (world.places[id].adversary === advId) return world.places[id];

@@ -59,6 +59,7 @@ function copyMapSpec(m) {
     terrains: m.terrains.slice(),
     seats: (m.seats || []).slice(),
     works: m.works ? JSON.parse(JSON.stringify(m.works)) : null,
+    minors: m.minors ? JSON.parse(JSON.stringify(m.minors)) : null,
   };
 }
 
@@ -204,6 +205,14 @@ export function validateManifests(manifests) {
       const advIds = new Set(m.adversaries.map((a) => a.id));
       for (const seat of m.map.seats) {
         if (!advIds.has(seat)) bad(`map seats unknown adversary "${seat}"`);
+      }
+      if (m.map.minors) {
+        const mn = m.map.minors;
+        if (!(mn.count >= 1)) bad("map.minors.count must be at least 1");
+        if (!Array.isArray(mn.names) || mn.names.length < mn.count) {
+          bad("map.minors needs a name pool at least as large as its count");
+        }
+        for (const r in mn.stock || {}) if (!resIds.has(r)) bad(`minors stock "${r}", not a resource this era`);
       }
       for (const t in m.map.works || {}) {
         if (!m.map.terrains.includes(t)) bad(`map.works keys unknown terrain "${t}"`);

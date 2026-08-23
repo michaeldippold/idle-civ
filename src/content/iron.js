@@ -64,6 +64,23 @@ export const IRON_DELTA = {
       forest: { wood: 1.0, food: 0.5, stone: 0.2, iron: 0.2 },
       hills:  { stone: 1.0, iron: 1.0, food: 0.3, wood: 0.3 },
     },
+    // The minor tier (design.md, Conquest Growth): numerous, individually
+    // weak, each worth one sworn holdfast plus a modest stock. Hand-authored
+    // NAMES, procedural placement and stats-in-range -- the pool outnumbers
+    // the seats so runs differ ("you won't believe what spawned in mine").
+    // The Chronicle names the place for the last time when it swears.
+    minors: {
+      count: 5,
+      strength: [3, 9],
+      walls: [0, 4],
+      stock: { food: [20, 60], wood: [10, 40], iron: [5, 25], gold: [3, 12] },
+      names: [
+        "the freehold at Coldwater", "Askel's Steading", "the Ford Houses",
+        "Barrow Hill", "the Salt Licks", "Thornwick", "the Old Quarry",
+        "Greyfen", "the Mill Rise", "Redbank", "the Broken Tower",
+        "Larkmoor", "the Hollow Oak", "Stonebrook",
+      ],
+    },
   },
 
   remove: [

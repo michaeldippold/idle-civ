@@ -2,9 +2,10 @@ import { active } from "../content/compile.js";
 import { S } from "../core/state.js";
 import { capWord } from "../core/derived.js";
 import { save } from "../core/persist.js";
+import { launchSettle, pendingSettle, settlePlan } from "../core/actions.js";
 import { world, isOwned } from "../map/map.js";
 import { hexDistance, hexPoints, toPixel } from "../map/model.js";
-import { expeditionOut, standingWord } from "../sim/expeditions.js";
+import { campaignPlan, expeditionOut, standingWord } from "../sim/expeditions.js";
 import { attachTip } from "./dom.js";
 import { openCampaignModal, openCaravanModal, stockLine } from "./expeditions.js";
 
@@ -77,6 +78,10 @@ function mapSVG() {
     } else if (owned) {
       const w = (S.map.work || {})[p.id];
       marks += `<text class="tile-work" data-work-for="${p.id}" x="${c.x}" y="${c.y + 5}" text-anchor="middle">${w ? WORK_GLYPH[w] || "" : ""}</text>`;
+    } else if (p.minor) {
+      // A small mark, no label: minors are numerous, and their names live on
+      // hover -- the map stays a map, not a directory.
+      marks += `<text class="tile-mark minor" x="${c.x}" y="${c.y + 5}" text-anchor="middle">▪</text>`;
     }
   }
   return `<svg id="mapSvg" viewBox="${vb}" role="img" aria-label="Map of the known world">${cells}${marks}</svg>`;
@@ -98,6 +103,13 @@ function tipFor(p) {
   if (p.id === world.home) {
     return { title: "Your seat", body: `The ${spec().tileNoun.singular} everything else is measured from.`,
       why: tilesEra() ? "Click to set what it works." : null };
+  }
+  if (!isOwned(p.id) && p.minor && S.map.minors && S.map.minors[p.id]) {
+    return {
+      title: capWord(p.minor.name),
+      body: `${minorBand(p.minor.strength)} ${minorWalls(p)}`,
+      why: "Click for actions.",
+    };
   }
   if (isOwned(p.id)) {
     const w = (S.map.work || {})[p.id];
@@ -135,6 +147,18 @@ function detailHTML(p) {
       return parts.join("");
     }
   }
+  if (!isOwned(p.id) && p.minor && S.map.minors && S.map.minors[p.id]) {
+    const st = S.map.minors[p.id];
+    parts.push(`<b>${capWord(p.minor.name)}</b><br>${minorBand(p.minor.strength)} ${minorWalls(p)}`);
+    const plan = campaignPlan("tile:" + p.id);
+    const noGround = (S.builds.musterGround || 0) < 1;
+    const marchOut = expeditionOut("campaign");
+    parts.push(`<div class="map-actions"><button class="map-act" data-act="march" data-adv="tile:${p.id}"${noGround || marchOut ? " disabled" : ""}>March</button></div>`);
+    if (plan && plan.tilesOff != null) parts.push(`<span class="map-noworks">${plan.tilesOff} tiles off · ${plan.provisions} food · ${plan.time}s there and back. Win, and it swears fealty — one more holdfast.</span>`);
+    if (noGround) parts.push(`<span class="map-noworks">A Muster Ground must stand first.</span>`);
+    else if (marchOut) parts.push(`<span class="map-noworks">A campaign is already in the field.</span>`);
+    return parts.join("");
+  }
   const mine = isOwned(p.id);
   const noun = spec().tileNoun.singular;
   if (p.id === world.home) parts.push(`<b>Your seat.</b> The ${noun} everything else is measured from.`);
@@ -156,9 +180,31 @@ function detailHTML(p) {
     }
   } else if (!mine && tilesEra() && p.terrain !== "water") {
     const best = specialties(p.terrain);
-    parts.push(`<span class="map-noworks">Not yours${best.length ? ` — best worked for ${best.join(" or ")}` : ""}. Growth is conquest and fealty.</span>`);
+    const plan = settlePlan(p.id);
+    if (plan) {
+      // The settle verb: wilderness is claimable, as queued and priced work.
+      const queued = pendingSettle(p.id);
+      parts.push(`<div class="map-actions"><button class="map-act" data-act="settle" data-tile="${p.id}"${queued ? " disabled" : ""}>Settle</button></div>`);
+      parts.push(`<span class="map-noworks">${queued
+        ? "A party is already on its way."
+        : `${plan.cost.food} food, ${plan.cost.wood} wood · ${plan.time}s${plan.tilesOff != null ? ` · ${plan.tilesOff} tiles off` : ""}${best.length ? ` · best worked for ${best.join(" or ")}` : ""}. Raise a hall, install a lord — one more holdfast.`}</span>`);
+    } else {
+      parts.push(`<span class="map-noworks">Not yours${best.length ? ` — best worked for ${best.join(" or ")}` : ""}. Growth is conquest and fealty.</span>`);
+    }
   }
   return parts.join("");
+}
+
+function minorBand(str) {
+  if (str <= 4) return "A hedge lord and a handful of spears.";
+  if (str <= 7) return "A steady freehold that has turned back raiders before.";   // no "walled": walls have their own honest line
+  return "A hard old freehold, proud and well-armed.";
+}
+function minorWalls(p) {
+  const st = S.map.minors && S.map.minors[p.id];
+  if (!p.minor.wallsMax) return "No walls to speak of.";
+  if (st && st.walls < p.minor.wallsMax) return st.walls <= 0 ? "Its walls lie in ruin." : "Its walls are battered.";
+  return "A timber palisade rings it.";
 }
 
 function titleFor(p) {
@@ -168,6 +214,7 @@ function titleFor(p) {
   }
   if (p.id === world.home) return "Your Seat";
   if (isOwned(p.id)) return `Your ${capWord(spec().tileNoun.singular)}`;
+  if (p.minor && S.map.minors && S.map.minors[p.id]) return capWord(p.minor.name);
   return capWord(p.terrain);
 }
 
@@ -235,6 +282,7 @@ export function initMapStage() {
       if (!btn || btn.disabled) return;
       const act = btn.dataset.act;
       if (act === "march") { openCampaignModal(btn.dataset.adv); return; }
+      if (act === "settle") { launchSettle(btn.dataset.tile); lastDetail = ""; renderTileDetail(); return; }
       if (act === "caravan") { openCaravanModal(btn.dataset.adv); return; }
       if (act === "work" || act === "rest") {
         const tid = btn.dataset.tile;

@@ -2,7 +2,7 @@ import { active } from "../content/compile.js";
 import { CONFIG } from "../core/config.js";
 import { availableUnits, isRevealed, pluralize } from "../core/derived.js";
 import { S } from "../core/state.js";
-import { campaignStrength, expeditionOut, findAdversary, hostileRouteRisk, launchCampaign, launchCaravan, riskAdversary, standingWord, wallPower } from "../sim/expeditions.js";
+import { campaignPlan, campaignStrength, expeditionOut, findAdversary, hostileRouteRisk, launchCampaign, launchCaravan, riskAdversary, standingWord, wallPower } from "../sim/expeditions.js";
 import { closeModal, openModal } from "./modal.js";
 
 // The Expeditions panel is gone (the flip, 2026-08-22): the map's Selected
@@ -78,23 +78,30 @@ export function confirmButton() {
 // The campaign is a decision worth a ceremony: the modal carries the
 // target's description (which IS the strength hint -- see design.md, flavor
 // is load-bearing), the muster, and a live estimate.
-export function openCampaignModal(advId) {
-  const adv = findAdversary(advId);
-  const st = S.adversaries[advId];
-  if (!adv || !st) return;
+// Takes a unified target ref (6d): a major's adversary id, or "tile:q,r"
+// for a minor seat. One modal, one muster grammar, two prizes -- plunder
+// from a major, fealty from a minor.
+export function openCampaignModal(ref) {
+  const plan = campaignPlan(ref);
+  if (!plan) return;
+  const t = plan.target;
+  const lead = t.kind === "major" ? t.adv.desc
+    : `${t.name.charAt(0).toUpperCase() + t.name.slice(1)} — win, and it swears fealty: one more holdfast under your banner, its stores besides.`;
+  const statusBits = t.kind === "major"
+    ? `${t.adv.disposition} · ${standingWord(t.st.standing)} · strength ${t.strength}, fights as ${fightsAsLabel(t.adv)}. ${stockLine(t.st)}`
+    : `strength ${t.strength}.` + (plan.tilesOff != null ? ` ${plan.tilesOff} tiles off.` : "");
   muster = {};
   const body =
-    `<p class="modal-lead">${adv.desc}</p>` +
-    `<div class="exp-status">${adv.disposition} · ${standingWord(st.standing)} · strength ${adv.strength}, ` +
-      `fights as ${fightsAsLabel(adv)}. ${stockLine(st)}</div>` +
+    `<p class="modal-lead">${lead}</p>` +
+    `<div class="exp-status">${statusBits}</div>` +
     `<h3 class="info-h">Muster the column</h3>` +
     `<div class="muster">${musterRowsHTML("cm")}</div>` +
     `<div class="exp-status" id="cmEstimate"></div>` +
-    `<div class="exp-status">Provisions: ${CONFIG.campaignFoodCost} food · ${adv.campaignTime}s there and back.</div>`;
-  openModal(`Campaign: ${advDisplayName(adv)}`, body, [
+    `<div class="exp-status">Provisions: ${plan.provisions} food · ${plan.time}s there and back${plan.tilesOff != null ? ` · a route of ${plan.tilesOff}` : ""}.</div>`;
+  openModal(`Campaign: ${t.name.charAt(0).toUpperCase() + t.name.slice(1)}`, body, [
     { label: "Stay home", onClick: closeModal },
     { label: "March", danger: true, onClick: () => {
-        launchCampaign(advId, muster);
+        launchCampaign(ref, muster);
         if (expeditionOut("campaign")) closeModal();
       } },
   ], (bodyEl) => {
@@ -102,15 +109,16 @@ export function openCampaignModal(advId) {
       const total = refreshMusterRows("cm");
       const est = document.getElementById("cmEstimate");
       if (est) {
-        const wallsBit = st.walls > 0
-          ? ` Their walls stand at ${Math.ceil(st.walls)} — your column brings wall-power ${wallPower(muster).toFixed(1)}.`
+        const wallsNow = t.st.walls || 0;
+        const wallsBit = wallsNow > 0
+          ? ` Their walls stand at ${Math.ceil(wallsNow)} — your column brings wall-power ${wallPower(muster).toFixed(1)}.`
           : "";
         est.textContent = total < 1 ? "Muster at least one fighter."
-          : `Your ${total} march at strength ${campaignStrength(muster, adv).toFixed(1)}, against theirs of ${adv.strength}.${wallsBit}`;
+          : `Your ${total} march at strength ${campaignStrength(muster, { strength: t.strength, fightsAs: t.fightsAs }).toFixed(1)}, against theirs of ${t.strength}.${wallsBit}`;
       }
       const march = confirmButton();
       if (march) march.disabled = S.dead || total < 1 ||
-        S.res.food < CONFIG.campaignFoodCost || expeditionOut("campaign");
+        S.res.food < plan.provisions || expeditionOut("campaign");
     };
     wireMusterRows(bodyEl, refresh);
     refresh();

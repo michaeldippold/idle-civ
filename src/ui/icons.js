@@ -44,6 +44,7 @@ export const QUEUE_ICONS = {
   build:    `<svg ${ICON_ATTRS}><path d="M5 21 L12 14"/><path d="M9 7 L13 3 L21 11 L17 15 Z"/></svg>`,
   campaign: `<svg ${ICON_ATTRS}><path d="M5 19 L16 8"/><path d="M13 5 L19 11"/><path d="M3.5 20.5 L6.5 17.5"/></svg>`,
   caravan:  `<svg ${ICON_ATTRS}><circle cx="9" cy="15" r="5.5"/><circle cx="15" cy="9" r="5.5"/></svg>`,
+  settle:   `<svg ${ICON_ATTRS}><path d="M6 21 L6 4"/><path d="M6 4 L17 7 L6 10"/></svg>`,
 };
 
 export const PERSON_ICONS = {

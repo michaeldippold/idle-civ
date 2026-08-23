@@ -1,5 +1,6 @@
 import { buildCost, canAfford, defById, housing, idle, isCapped, levyCap, levyUsed, pendingCount, playtime } from "./derived.js";
 import { active } from "../content/compile.js";
+import { marchFactor, routeCost, world, captureTile } from "../map/map.js";
 import { S } from "./state.js";
 import { save } from "./persist.js";
 import { advanceEra } from "../sim/era.js";
@@ -71,7 +72,54 @@ export function cancelBuild(uid) {
   renderAll();
 }
 
+// The settle verb (6d, user ruling): claiming wilderness is QUEUED WORK --
+// "establishing a minor lord" goes through the Underway queue with a real
+// cost and a real timer, both scaled by the route. The queue's seriality is
+// the standing anti-speedrun governor: you cannot click a continent into
+// existence. Cancel refunds exactly what was paid, like any build.
+export function settlePlan(tileId) {
+  if (!world || !world.places[tileId]) return null;
+  const p = world.places[tileId];
+  if (p.terrain === "water" || p.adversary || p.minor) return null;
+  if (S.map.owned.includes(tileId)) return null;
+  const factor = marchFactor(tileId);
+  return {
+    tile: tileId,
+    cost: { food: Math.round(40 * factor), wood: Math.round(25 * factor) },
+    time: Math.round(45 * factor),
+    tilesOff: Number.isFinite(routeCost(tileId)) ? Math.round(routeCost(tileId)) : null,
+  };
+}
+
+export function pendingSettle(tileId) {
+  return S.buildQueue.some((q) => q.kind === "settle" && q.tile === tileId);
+}
+
+export function launchSettle(tileId) {
+  if (S.dead || active().allocation !== "tiles") return;
+  const plan = settlePlan(tileId);
+  if (!plan || pendingSettle(tileId)) return;
+  if (!canAfford(plan.cost)) return;
+  for (const k in plan.cost) S.res[k] -= plan.cost[k];
+  const terrain = world.places[tileId].terrain;
+  S.buildQueue.push({ id: "settle", kind: "settle", uid: ++S.buildSeq,
+    total: plan.time, remaining: plan.time, cost: plan.cost,
+    tile: tileId, label: `Settling the ${terrain}` });
+  log(`A party sets out to raise a holdfast on the ${terrain}. (#${S.buildQueue.length} in the queue.)`);
+  save();
+  renderAll();
+}
+
 export function completeConstruction(site) {
+  if (site.kind === "settle") {
+    // The land may have been lost or taken while the party was queued;
+    // captureTile refuses gracefully and the work is simply wasted -- the
+    // frontier is like that.
+    const ok = captureTile(site.tile, true);
+    if (ok) log(`A hall is raised and a lord installed — the ${world && world.places[site.tile] ? world.places[site.tile].terrain : "land"} is yours. One more holdfast under your banner.`, "big");
+    else log("The settling party finds the ground already spoken for, and turns back.", "bad");
+    return;
+  }
   const def = defById(site.id);
   if (def.kind === "upgrade") S.upgrades[def.id] = true;
   else if (def.kind === "unit") S.units[def.id] = (S.units[def.id] || 0) + 1;

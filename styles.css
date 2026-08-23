@@ -277,6 +277,7 @@ button { font-family: inherit; cursor: pointer; }
 .map-act.alloc.active { border-width: 2px; border-color: var(--ink); }
 .map-noworks { color: var(--text-3); font-size: 12px; }
 .tile-work { font: 700 13px var(--mono); fill: var(--ink); pointer-events: none; }
+.tile-mark.minor { font-size: 11px; }
 
 /* ---------- Resource ledger ---------- */
 /* Population leads this strip. It has a value, a cap and a rate, so it is a

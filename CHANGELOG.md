@@ -11,6 +11,19 @@
 
 ---
 
+## 2026-08-22 — Design pause point *(DOCS ONLY — the hold)*
+
+The day ends where it should: **feature development holds here, deliberately**, until the next UI
+conversation resolves how the flipped board juggles its panels (the user has taken that question to
+the Claude Design thread). `todo.md`'s STATUS block is the checkpoint: the day's full arc (identity
+pivot specced and built same-day — engine rail, the map, the flip, Conquest Growth through the
+growth verbs, 490 checks), the playtest brief the user verifies during the hold, the judgment flags
+awaiting verdicts (the pulse, border pressure, growth pacing, subdue-vs-settle, boost-building
+pruning, route feel, minor flavor), and the held queue in intended order (design verdict → balance
+pass → 6e priests & envoy → phase 7 decision queue).
+
+---
+
 ## 2026-08-22 — Phase 6d: the growth verbs
 
 **The dominion finally spreads.** Three verbs, one destination — owned, +1 holdfast, turned to

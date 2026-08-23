@@ -8,37 +8,87 @@
 
 ---
 
-## STATUS — the pivot (2026-08-22)
+## STATUS — design pause point (end of 2026-08-22)
 
-**The game stopped being an idle game today.** This is a deliberate, discussed, settled change of
-identity, not a drift. Read `design.md` → *Time, Presence & Pause* first; everything below assumes
-it.
+**HOLD HERE.** Feature development is deliberately paused until the next UI conversation — the
+user is taking the flipped, map-primary structure to the Claude Design thread ("how do we juggle
+these panels and info and make everything legible"), and game-design work resumes after that
+verdict. Nothing below this hold is blocked technically; it is waiting on purpose.
 
-**What changed, in one paragraph.** Idle Civ was built on the contract *the game never needs you*,
-which banned every interesting decision — because a decision the player might not be present for is
-a decision the game needs them for. That contract is replaced by *the game never punishes you for
-leaving*, which bans only loss. Offline progress is gone; the simulation runs only while the tab is
-visible; pause and fast-forward become player controls; events may present choices that wait
-patiently for you; and the save becomes a correctness requirement rather than a convenience. The
-game is now civ-adjacent real-time-with-pause: decisions, opportunity cost, and an outside world you
-fight, trade with, or absorb.
+**What today was.** The single largest day in the project's history: the identity pivot was
+specced in the morning and BUILT by evening. The game stopped being an idle game (contract: *the
+game never punishes you for leaving*, replacing *the game never needs you* — see `design.md`,
+*Time, Presence & Pause*) and became civ-adjacent real-time-with-pause. Shipped same-day, all
+harness-green throughout, currently **490 checks**:
 
-**The evidence that decided it** was the project's own telemetry. After the first full playthrough
-(34h37m simulated, three eras, Iron exhausted), every resource sat pegged at its storage cap except
-gold — and gold was the only number still moving, because it is fed by expeditions, the one active
-verb. Offline progress delivered exactly one thing: filling caps that ten minutes of watching would
-have filled anyway.
+- **Engine rail (phases 1–5):** 26 ES modules; seeded RNG (every die from `rng()`, seed on the
+  death screen); offline deleted whole (visibility-gated clock, save-on-action, `pagehide`);
+  fixed ticks (`S.tick` master clock, header shows `4h 26m · t79,831`); pause/speed as player
+  controls with the ask/tell modal-hold (ceremony holds too; Info doesn't).
+- **The map (6a, 6c.1, the flip):** place-graph + seeded blob-growth hex generator on its own
+  dice stream; the chart exists from frame one; era-scoped views (Stone one hex → Bronze the
+  ring → Iron a recut country of 61); **the map is the game's main surface** — full-bleed stage,
+  floating Bureau panels (People + Chronicle right, Train/Build/Upgrade left as fixed shares,
+  Underway bottom), the Expeditions panel dissolved into the Selected Tile panel. Hover previews;
+  click opens details where all stats/flavor/actions live — the permanent pattern, node-network
+  proof.
+- **Conquest Growth (6b–6d):** growth/levy/outputMult era-facts; Iron conquest-grown, levied
+  (civilians = pop, cap = holdfasts × 2), deep-consolidated (0.25 × 4), housing retired; caps
+  retired at Iron with the storage line; per-hex allocation against terrain rate-tables (soft
+  menus, overpay routes); **pop is tiles** (`syncDominion`); the minor tier seated and named;
+  capture-as-fealty; the settle verb through the queue; supply lines (`routeCost`/`marchFactor`).
+  Borders arrive on bread at 1× (designed defaults, after a live starvation found the cliff).
 
-**What the code currently is.** Everything through v18.1 is shipped, harness-green (420 checks),
-and human-playtested end to end through all three eras. **Phase 1 (the module split) is done**;
-the code still has `simulateOffline()`, continuous delta-time, unseeded `Math.random()`, and a
-dev-only speed control. Phases 2–5 below are what close that gap.
+**Docs are current** through all of it — this file, `design.md`, `tech.md`, `map.md`,
+`interface.md`, `CHANGELOG.md` all updated per-phase. `deleteme.md` and `interface-brief.md` are
+gone. Bureau is the interim skin, **formally under review** in the design thread.
 
-**Where the docs are ahead of the code.** `design.md`, `tech.md`, `map.md`, and `interface.md` were
-all rewritten today and describe the *target*. They mark shipped vs pending; trust those markers,
-and trust this file over all of them.
+### The playtest brief (what the user verifies during the hold)
 
----
+**Correctness — walk the whole arc on a fresh run:**
+1. *Stone:* one large hex; steppers work; growth countdown; hover/click the hex; all floating
+   panels present; pause (Space), speed keys 1–5, tab-hide freezes the clock (t-counter stops).
+2. *Stone→Bronze:* the world widens to the ring — same terrain, nothing regenerates; pure relabel
+   (families), era modal holds the world and hands it back at 1×.
+3. *Bronze→Iron (the big border):* consolidation to a handful of holdfasts, narrated; army
+   carried whole; dominion block granted **already turned to food**, narrated; steppers replaced
+   by the standing sentence; ledger rows demote (POP and resources bare); the world recuts to 61
+   with three labeled majors and five ▪ minors.
+4. *The Iron loop:* re-direct tiles from the Selected Tile panel (rates move live, glyphs
+   update); hills offer stone-or-iron; every ground offers everything at printed rates.
+5. *Settle:* price/time/route printed on empty land; joins Underway behind builds; completes into
+   an owned bread tile (+1 pop, levy cap rises); cancel refunds; try settling two parties to one
+   hex (refused).
+6. *Subdue:* march on a minor (Muster Ground gating with printed reason first); walls hold →
+   damage persists across a second attempt; win → fealty line names the place, whole stock
+   arrives, tile owned.
+7. *Majors:* march/caravan still work; provisions and march time differ by distance; the muster
+   sheet prints the route.
+8. *Persistence:* save/load mid-settle, mid-campaign, with captures held — everything resumes
+   exactly; seed identical across reloads; death screen shows the seed.
+
+**Judgment — the open design flags (bring verdicts to the next session):**
+- **The pulse.** Steppers touched every 30s; hex allocation is minutes-scale. Does Iron feel
+  alive between map visits, or dead? (*Density never falls* is the at-risk pillar.)
+- **Border pressure.** Carried-army upkeep at holdfast appetite (units × 0.04 × 4) against a
+  fresh handful-of-tiles economy — right kind of hard, or a trap?
+- **Growth pacing.** Settle cost + queue seriality + levy: is growth triple-charged?
+- **Subdue vs settle.** Fast-bloody-with-loot vs safe-slow-ground-only — a real per-tile
+  decision, or a solved one?
+- **Boost buildings.** With the king-doesn't-count-sacks hat on: do Drying Racks / Lumber Camp /
+  Stone Pit survive Iron, or retire with the granaries?
+- **Route numbers.** marchFactor 0.6–2.0, water at 3 — do distances *feel* like geography?
+- **Minor flavor.** Do the strength bands and wall words read honestly against the fights they
+  predict? (Descriptions are mechanics-bearing text.)
+
+### Held until the UI conversation (in intended order)
+1. **The design-thread verdict** — panel juggling/legibility now, the skin (Bureau vs successor)
+   whenever it ripens. Structure is settled; this decides its dress.
+2. **The balance pass** the judgment flags feed (upkeep, pacing, routes, pruning).
+3. **6e — priests & the envoy** (the peace path; the annexation ceremony under the modal-hold).
+4. **Phase 7 — the decision queue** (the pause-modal seam is built and waiting).
+5. Parked ideation, logged where it lives: directed scouting (`design.md`/6d notes), pan/zoom
+   (`map.md` §10), the odometer build, the name.
 
 ## The phase plan
 

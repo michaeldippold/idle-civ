@@ -363,6 +363,25 @@ per era-fact — the odometer comes from the ceiling rising, never from the rate
       against real people (bronzeAge ≥ 25, ironAge ≥ 50 — usually unreachable without claiming,
       which is the point). The Chronicle keeps its pulse: arrivals are narrated in the era's own
       words while the settlement is under 25 souls, then go quiet. 513 checks.
+**E3 playtest — first findings (owner, night of 2026-08-23, testing still in progress):**
+- **Settling is "smooth as butter"** mechanically; its interface needs a glow-up later (logged for
+  the Claude Design pass — the settle flow deserves better than a sentence in a detail panel).
+- **Terrain rates make the WHICH-hex choice interesting** — working as designed.
+- **The economy works.** Per-second numbers (4+/s) the old versions never reached; the per-capita
+  law scaling with real people. "I was initially worried you could not build an economy on this."
+- **Settling is too easy.** Dispositions agreed in conversation, in order:
+  1. **Escalating claim costs** (each claim dearer than the last — the game's native cost idiom):
+     the immediate fix, cheap, next code window.
+  2. **Remember the missing brakes:** E4 (frontier starves first) and E5 (raids strike exposed
+     hexes) ARE the systemic costs of sprawl — judge overall difficulty only after they land.
+  3. **Stone-age adversaries** (the minor tier extending DOWN: weak steadings, no kingdoms yet) —
+     the real long-term answer; contested land is the honest cost of expansion. After E5.
+  4. **Per-age hex caps: rejected for now** (housing back from the dead). If a governor is still
+     needed later, the tech tree sells "administrative capacity" — second seats as a reward, not
+     a wall.
+  5. **Do not flatten the 1.0-vs-0.3 terrain gap yet:** it powers the which-terrain decision, and
+     escalating claim costs make overpay routes relatively more attractive on their own.
+
 - [ ] **E4 — the frontier starves first.** `adminDistance()` (the `routeCost` Dijkstra seeded from
       `world.home` alone); when food runs dry the drain walks the frontier inward, narrated;
       death = the seat emptying. The global instant-death starvation check retires.

@@ -10,6 +10,24 @@
        for Chronicle prose and modal leads. See redesign/DESIGN-NOTES.md. -->
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
+  <!-- Vendored, pinned, and served from this repo: no CDN at runtime, which is
+       what `tech.md` requires before release. three@0.160.0,
+       postprocessing@6.35.3, n8ao@2.0.1.
+       The `three/examples/jsm/` entry is not redundant with `three/addons/`:
+       n8ao imports `three/examples/jsm/postprocessing/Pass.js` by that exact
+       specifier (and imports Pass from `postprocessing` as well -- it
+       duck-types against whichever composer it is handed). -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./vendor/three/three.module.js",
+      "three/addons/": "./vendor/three/addons/",
+      "three/examples/jsm/": "./vendor/three/addons/",
+      "postprocessing": "./vendor/postprocessing/index.js",
+      "n8ao": "./vendor/n8ao/N8AO.js"
+    }
+  }
+  </script>
 </head>
 <body data-era="stone">
 

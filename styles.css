@@ -935,3 +935,42 @@ body.dead #mainArea .block { filter: saturate(.25); }
   font-size: 11px; color: #6b6455;
   margin: 0;
 }
+
+/* ---------- 3D map stage (phase 10, slice 2) ----------
+   The canvas fills the stage; the label layer floats over it. #mapStage is
+   already `position: absolute; inset: 0`, so the layer's `inset: 0` lands on
+   the same box without further help. */
+#mapGl { display: block; width: 100%; height: 100%; }
+#mapLabels {
+  position: absolute; inset: 0;
+  pointer-events: none;   /* picking belongs to the canvas underneath */
+  z-index: 2;
+  overflow: hidden;
+}
+/* Tile marks stay DOM text rather than becoming meshes: legibility outranks
+   texture, and 3D text is unreadable at exactly the grazing angles this
+   camera lives at. The dark halo is what lets one glyph set work over both a
+   sunlit plain and dark water -- an outline carries contrast where a colour
+   alone would fail on one of them. */
+.map3d-glyph, .map3d-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  text-shadow:
+     0 0 3px rgba(8, 10, 14, .95), 0 1px 2px rgba(8, 10, 14, .9),
+     1px 0 2px rgba(8, 10, 14, .7), -1px 0 2px rgba(8, 10, 14, .7);
+}
+.map3d-glyph {
+  font-family: var(--mono);
+  font-size: 15px; font-weight: 700; letter-spacing: 0;
+  color: #fdf8ec;
+}
+.map3d-glyph.home  { font-size: 19px; color: #ffffff; }
+.map3d-glyph.seat  { color: #ffb4a2; }
+.map3d-glyph.minor { color: #e6dcc6; font-size: 13px; }
+.map3d-glyph.work  { color: #bff29a; }
+.map3d-label {
+  font-family: var(--ui);
+  font-size: 11.5px; font-weight: 600; letter-spacing: .04em;
+  color: #f4e6df;
+}

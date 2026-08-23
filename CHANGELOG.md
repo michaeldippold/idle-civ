@@ -24,6 +24,48 @@ pass → 6e priests & envoy → phase 7 decision queue).
 
 ---
 
+## 2026-08-22 — Phase 10, slice 2: the map becomes a lit board
+
+**The SVG stage is no longer the game's surface.** `src/render3d/` renders the world as a lit 3D
+diorama — merged vertex-coloured terrain with derived elevation, instanced props, ACES tonemapping,
+HDRI environment lighting, sun shadows, SMAA and ambient occlusion — with an orbit rig you can
+spin, pitch and zoom, clamped so the board is never seen edge-on. A board is a thing on a table,
+and a table is looked down at.
+
+**The port changed nothing downstream of selection, exactly as the seam survey predicted.** The
+Selected Tile panel, its stats, its flavor, and its March / Caravan / Settle buttons are plain DOM
+that never knew which renderer was upstream. About ninety lines moved: `mapSVG()` became scene
+building, the stage click's `dataset.id` became plane-picking plus cube-rounding, and `attachTip`
+became raycast hover driving the game's existing tooltip through a holder object — so the
+positioning and viewport-flip logic stayed identical rather than being reimplemented for a canvas.
+`signature()` survives untouched as the rebuild trigger.
+
+**Marks are projected DOM text, not meshes.** The home glyph, seat names and work letters are HTML
+positioned over the canvas each frame. Legibility outranks texture is a Bureau law that outlived
+Bureau, and 3D text is unreadable at exactly the grazing angles this camera lives at. It also keeps
+the map in the accessibility tree, which is most of what the old "why no canvas" argument was
+really defending. Both renderers now read one shared `markFor` ladder, pinned by seven new checks
+(501): the house glyph, a seat's diamond *and* name, a minor's dot and deliberate lack of a label,
+each work letter distinct, and no mark at all on empty or unassigned ground.
+
+**Three independent graceful degradations**, because a black board is a worse failure than a plain
+one: no WebGL keeps the SVG stage, no HDRI falls back to a hemisphere rig, no postprocessing
+renders straight through. `?map=2d` forces the 2D stage, which survives as the debug view and the
+assertable surface. Libraries are vendored and pinned — no CDN at runtime — including a
+non-obvious one: n8ao imports `Pass` from both three's addons and postprocessing, so that addon
+had to come along too.
+
+**`?glcheck=1`** sets `preserveDrawingBuffer` so an automated check can read the canvas after
+compositing. Off by default; it costs real performance. This is the flip's zero-height lesson
+carried into the renderer — DOM assertions pass happily against a page that draws nothing.
+
+Verified against a real Iron world: nineteen marks placed (five minors, all four work letters,
+three named seats), ten distinct tiles picked across a sweep of the canvas, and the River Kingdom's
+March opening its muster modal. Not verified: how it looks — this environment does not composite
+frames, so that is owner-eye QA by the revised `tech.md` contract.
+
+---
+
 ## 2026-08-22 — Phase 10, slice 1: the run waits for a person
 
 **The game no longer starts itself.** Boot now lands on a start screen — title, the one-line pitch,

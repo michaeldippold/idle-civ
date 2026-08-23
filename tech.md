@@ -101,6 +101,27 @@ later:
   (`S.rngState`) stay untouched by all of it, as today.
 - The Godot rejection and everything else in this section stands.
 
+**Shipped 2026-08-22 (phase 10, slice 2).** The port landed and the walk-back above is now
+load-bearing rather than theoretical. What exists:
+
+- **`src/render3d/`** — `hex3d.js` (axial math on the XZ plane, the 3D sibling of `map/model.js`),
+  `terrain3d.js` (merged vertex-coloured land/water soups, derived elevation, ownership rings),
+  `props3d.js` (instanced dev-art props), `stage.js` (scene, camera rig, lighting, post chain,
+  picking, projected labels). The module reaches game state only through hooks passed in by
+  `ui/map.js`, so the sim still cannot be reached from the renderer.
+- **`vendor/`** — three@0.160.0, postprocessing@6.35.3, n8ao@2.0.1, pinned and served from the
+  repo. No CDN at runtime. One non-obvious entry: n8ao imports
+  `three/examples/jsm/postprocessing/Pass.js` *and* `Pass` from `postprocessing` (it duck-types
+  against whichever composer it is handed), so that addon is vendored too and the import map keeps
+  both `three/addons/` and `three/examples/jsm/` pointing at the same directory.
+- **Three graceful degradations**, because a black board is a worse failure than a plain one: no
+  WebGL keeps the SVG stage, no HDRI falls back to a hemisphere rig, no postprocessing renders
+  straight. `?map=2d` forces the SVG stage outright.
+- **`?glcheck=1`** sets `preserveDrawingBuffer`, which is the only way a check can read the canvas
+  after compositing. Off by default because it costs real performance. This is the flip's
+  zero-height lesson carried into the renderer: DOM assertions pass happily against a page that
+  draws nothing.
+
 ## Module Structure
 
 **Status: shipped (phase 1, 2026-08-22).**

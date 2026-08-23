@@ -6,7 +6,7 @@ import { launchSettle, pendingSettle, settlePlan } from "../core/actions.js";
 import { world, isOwned } from "../map/map.js";
 import { hexDistance, hexPoints, toPixel } from "../map/model.js";
 import { campaignPlan, expeditionOut, standingWord } from "../sim/expeditions.js";
-import { attachTip } from "./dom.js";
+import { attachTip, tipHide, tipMove, tipShow } from "./dom.js";
 import { openCampaignModal, openCaravanModal, stockLine } from "./expeditions.js";
 
 // ---------- The map stage (the flip, 2026-08-22) ------------
@@ -17,11 +17,21 @@ import { openCampaignModal, openCaravanModal, stockLine } from "./expeditions.js
 // permanent one: HOVER previews a tile; CLICK opens the Selected Tile panel,
 // where every stat, every line of flavor and every action lives.
 //
-// Render discipline: the SVG rebuilds only when its SIGNATURE changes (era,
+// Render discipline: the stage rebuilds only when its SIGNATURE changes (era,
 // view, ownership, assignments, selection) -- never on the 5Hz tick, so a
 // click can never land on a node the renderer just destroyed (the
 // click-eater rule). The tile detail re-renders only when its content
 // string changes.
+//
+// TWO renderers sit behind that one discipline (phase 10, slice 2). The 3D
+// stage (`render3d/stage.js`) is the game's surface; the SVG stage below
+// survives as the 2D debug view, reachable with `?map=2d` and used as the
+// assertable surface when something needs to be checked without a GPU. The
+// seam is deliberately narrow: BOTH renderers do nothing but draw, and both
+// report a clicked tile id back through `selectTile`. Everything downstream of
+// selection -- the Selected Tile panel, its stats, its flavor, its March and
+// Caravan and Settle buttons -- is plain DOM that never knew which renderer
+// was upstream, which is why the port could not break it.
 
 const HEX = 30;
 const WORK_GLYPH = { food: "F", wood: "W", stone: "S", iron: "I" };
@@ -225,13 +235,44 @@ function signature() {
     JSON.stringify((S.map && S.map.work) || {}), selectedId].join("~");
 }
 
+// The mark a tile wears, in priority order -- home, then a named seat, then
+// the work letter on owned country, then a minor's dot. This is the SAME
+// ladder the SVG renderer draws, lifted out so both renderers read from one
+// definition rather than drifting apart.
+export function markFor(p) {
+  if (p.id === world.home) return { glyph: "\u2302", cls: "home" };
+  if (p.adversary) {
+    const adv = active().adversaries.find((a) => a.id === p.adversary);
+    return { glyph: "\u25c6", cls: "seat", label: adv ? advName(adv) : p.adversary };
+  }
+  if (isOwned(p.id)) {
+    const w = (S.map.work || {})[p.id];
+    return w ? { glyph: WORK_GLYPH[w] || "", cls: "work" } : null;
+  }
+  // Minors get a mark and no label: they are numerous, and their names live on
+  // hover. The map stays a map rather than becoming a directory.
+  if (p.minor) return { glyph: "\u25aa", cls: "minor" };
+  return null;
+}
+
 export function renderMapStage() {
   const stage = document.getElementById("mapStage");
   if (!stage) return;
-  if (!world) { stage.innerHTML = ""; lastSignature = "none"; return; }
+  if (!world) {
+    if (mode === "2d") stage.innerHTML = "";
+    lastSignature = "none";
+    return;
+  }
   const sig = signature();
   if (sig === lastSignature) return;
   lastSignature = sig;
+
+  if (mode === "3d") {
+    stage3d.setWorld(visiblePlaces(), { isOwned, homeId: world.home });
+    stage3d.setSelected(selectedId);
+    return;
+  }
+
   stage.innerHTML = mapSVG();
   const svg = stage.querySelector("#mapSvg");
   if (!svg || !svg.querySelectorAll) return;
@@ -258,9 +299,56 @@ export function renderTileDetail() {
 
 export function selectTile(id) {
   selectedId = id;
-  lastSignature = "";   // the selection ring lives in the svg
+  // The 3D stage moves a ring rather than rebuilding, so selection costs it
+  // nothing; the SVG stage bakes the ring into its markup and must redraw.
+  if (mode === "3d") stage3d.setSelected(id);
+  else lastSignature = "";
   renderMapStage();
   renderTileDetail();
+}
+
+// Which renderer is live. "2d" until the 3D stage reports itself up, so every
+// failure path -- no WebGL, a missing vendored library, `?map=2d` -- lands on a
+// working board rather than a black rectangle.
+let mode = "2d";
+let stage3d = null;
+
+function wants3d() {
+  try {
+    return new URLSearchParams(location.search).get("map") !== "2d";
+  } catch (e) { return true; }
+}
+
+// A holder object standing in for a DOM element, so 3D hover can reuse the
+// game's one tooltip implementation verbatim: `tipShow` only ever reads
+// `el.__tip`, and the positioning and flip-at-the-viewport-edge logic are
+// worth having identical everywhere rather than reimplemented for the canvas.
+const tipHolder = {};
+
+async function init3d(stage) {
+  if (!wants3d()) return false;
+  try {
+    stage3d = await import("../render3d/stage.js");
+    const ok = await stage3d.initStage(stage, {
+      markFor,
+      onPick: (id) => selectTile(id),
+      onHoverChange: (p, ev) => {
+        if (!p || !ev) { tipHide(); return; }
+        tipHolder.__tip = () => tipFor(p);
+        tipShow(tipHolder, ev);
+      },
+      onHoverMove: (ev) => tipMove(ev),
+    });
+    if (!ok) { stage3d = null; return false; }
+    mode = "3d";
+    return true;
+  } catch (e) {
+    // Anything at all going wrong here keeps the 2D board, which is a whole
+    // playable game. Loud in the console, silent on screen.
+    console.warn("[map] 3D stage unavailable; keeping the 2D board:", e);
+    stage3d = null;
+    return false;
+  }
 }
 
 // One-time wiring: stage clicks select; detail clicks act. Both by
@@ -268,9 +356,20 @@ export function selectTile(id) {
 export function initMapStage() {
   const stage = document.getElementById("mapStage");
   if (stage) {
+    // The SVG path's selector. Under 3D the canvas reports picks through
+    // `onPick` instead, and this never fires -- a canvas has no dataset.id.
     stage.addEventListener("click", (e) => {
       const id = e.target && e.target.dataset && e.target.dataset.id;
       if (id && world && world.places[id]) selectTile(id);
+    });
+    // Deliberately not awaited: boot must not block on a GPU. The 2D board
+    // draws immediately, and the 3D stage takes over a frame later when it is
+    // ready -- clearing the SVG first so the two never share the element.
+    init3d(stage).then((ok) => {
+      if (!ok) return;
+      stage.querySelectorAll("#mapSvg").forEach((el) => el.remove());
+      lastSignature = "";
+      renderMapStage();
     });
   }
   const close = document.getElementById("tileClose");

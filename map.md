@@ -757,7 +757,29 @@ plausible idea and each is a different game. See §10.6 for the one that's genui
 
 **SVG for geometry and interaction; a DOM overlay for labels, tokens and popups. No canvas.**
 
-### Why no canvas
+### Why no canvas *(SUPERSEDED 2026-08-22 — the map is a WebGL canvas now)*
+
+**Read this section as the reasoning trail, not the ruling.** The 3D adoption (§8, Route B) and
+its shipped port (phase 10 slice 2) overturned the conclusion, and `tech.md` carries the formal
+walk-back of its central claim. What actually happened to each argument below:
+
+- **"Hit-testable for free" — conceded, and answered.** The 3D stage does keep a second geometry
+  model, but it is *pure math with no state*: plane-picking plus cube-rounding, the exact inverse
+  of the projection that placed the tile. There is no second source of truth to drift, because
+  nothing is stored — the same axial id comes back out that went in. The predicted failure mode
+  (highlight and click target disagreeing by two pixels) cannot occur when both are derived from
+  one function.
+- **"CSS-animatable" — given up, and it cost nothing.** Nothing in the map was animated.
+- **"A canvas is a bag of pixels" — the real claim, and it was overstated.** A Three scene graph is
+  a queryable object tree, picking is testable math, and `?glcheck=1` makes the drawing buffer
+  readable so an automated check can prove the board is being DRAWN rather than merely existing.
+  What is genuinely lost is *semantic* pixel verification, and the mitigation is structural: the
+  marks that carry a tile's meaning — the home glyph, seat names, work letters — are **projected
+  DOM text, not meshes**, so they stay in the accessibility tree and stay assertable exactly as
+  this section wanted. The harness pins the mark ladder itself (7 checks), and the SVG stage
+  survives as `?map=2d`, a full second renderer that any check can fall back to.
+
+*Original argument follows.*
 
 The performance argument is the boring one and it's already settled: SVG handles thousands of
 elements comfortably, and this map peaks in the low hundreds — ~20 tiles in Stone, ~150 in Iron, a

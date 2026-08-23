@@ -2026,6 +2026,57 @@ console.log("\n--- Phase 6d: the growth verbs -- minors, settle, routes ---");
     S().map.owned.includes(mtile) && !S().map.minors[mtile]);
 }
 
+console.log("\n--- Phase 10: the renderer port keeps the marks ---");
+{
+  // The 3D stage draws pixels the harness cannot see, and that is fine -- the
+  // sim never touches the renderer, so every other check here is unaffected by
+  // the port. What IS checkable, and what a port silently breaks, is the
+  // INFORMATION each tile carries: home, a named seat, the work letter on
+  // owned country, a minor's dot. Both renderers read this one ladder, so
+  // pinning it here is what stops them drifting apart.
+  reset();
+  api.closeModal();
+  api.S.era = "iron";
+  api.S.seen.levyMigrated = true;
+  api.S.pop = 6;
+  api.initAdversaries();
+  api.ensureMap();
+  api.syncDominion();
+  api.defaultAssignments();
+
+  const P = (id) => api.world.places[id];
+  const home = P(api.world.home);
+  check("the home tile wears the house glyph", api.markFor(home).glyph === "\u2302");
+
+  const seat = Object.values(api.world.places).find((x) => x.adversary);
+  const sm = api.markFor(seat);
+  check("a seat wears a diamond AND its name -- the label is the map's only prose",
+    sm.glyph === "\u25c6" && typeof sm.label === "string" && sm.label.length > 0);
+
+  const minor = Object.values(api.world.places).find((x) => x.minor && !api.isOwned(x.id));
+  check("a minor wears a dot and no label (a map, not a directory)",
+    api.markFor(minor).glyph === "\u25aa" && !api.markFor(minor).label);
+
+  // Owned country reports what it is WORKING, and every resource letter is
+  // distinct -- a collision here would be invisible on screen and wrong.
+  const ownedId = api.S.map.owned.find((id) => id !== api.world.home);
+  api.S.map.work[ownedId] = "iron";
+  check("owned country wears its work letter", api.markFor(P(ownedId)).glyph === "I");
+  const letters = ["food", "wood", "stone", "iron"].map((res) => {
+    api.S.map.work[ownedId] = res;
+    return api.markFor(P(ownedId)).glyph;
+  });
+  check("every work letter is distinct", new Set(letters).size === 4);
+
+  delete api.S.map.work[ownedId];
+  check("owned country with nothing assigned wears no mark",
+    api.markFor(P(ownedId)) === null);
+
+  const wild = Object.values(api.world.places)
+    .find((x) => !api.isOwned(x.id) && !x.adversary && !x.minor && x.id !== api.world.home);
+  check("empty country carries no mark at all", api.markFor(wild) === null);
+}
+
 console.log("\n--- Phase 10: the run waits for a person ---");
 {
   // The pre-game hold is a fourth INDEPENDENT flag, not a mode. The property

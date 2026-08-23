@@ -131,9 +131,16 @@ verified stop and a test brief.
       no picker yet. Deliberately first: it is cheap, it is the "less sudden" opening the owner
       asked for, and it isolates a boot-flow state-machine change while the map is still stable.
       It also builds the room slice 5's picker moves into.
-- [ ] **2 — The renderer port.** 3D replaces SVG. Same world, same 61 hexes, same rules. Acceptance
-      test is the integration fear stated plainly: click the river kingdom, get its popup, press
-      March, watch it work. Nothing else changes, so anything that breaks is the renderer.
+- [x] **2 — The renderer port** *(shipped 2026-08-22)*. 3D replaces SVG; same world, same rules.
+      The acceptance test passed verbatim: a click on the canvas over the River Kingdom opened its
+      popup with standing, flavor and known stock, and March opened the muster modal. The seam
+      survey held — nothing downstream of `selectTile` changed at all. Marks are projected DOM text
+      rather than meshes (legibility outranks texture, and 3D text fails at this camera's grazing
+      angles), so the map stays readable and assertable; the shared mark ladder is pinned by 7 new
+      harness checks (501). `?map=2d` keeps the SVG stage, `?glcheck=1` makes the buffer readable.
+      *Not verified by me:* how it LOOKS. The browser pane in this environment does not composite,
+      so `requestAnimationFrame` never fires and screenshots time out — owner-eye QA, exactly as
+      the revised `tech.md` contract says.
       *(Seam survey done: [ui/map.js](src/ui/map.js) already splits cleanly — `detailHTML`,
       `titleFor`, `renderTileDetail` and the whole `tileBody` action handler are pure DOM with zero
       SVG knowledge, and `selectTile` is already the seam. About 90 lines move: `mapSVG()` becomes

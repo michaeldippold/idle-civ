@@ -319,6 +319,12 @@ its keep ratios; the levy and `levyMigrated`; the pop↔dominion lockstep in `sy
 That is most of the remaining complexity in the simulation, replaced by one rule that runs the whole
 game.
 
+*(Progress note, 2026-08-23: E2 shipped — steppers, jobs and `outputMult` are gone, and
+consolidation died ahead of its schedule when the harness caught its pop-cut colliding with
+dominion-never-shrinks. Era borders are pure re-denomination as of E2. Still standing until E3/E5:
+timer growth and the lockstep (as a deliberate bridge), the levy, and the event system's
+`removeSettler`.)*
+
 #### The four re-homings (the actual work)
 
 Population was load-bearing in four places. Each needs a new home on the hex:

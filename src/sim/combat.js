@@ -3,7 +3,7 @@ import { syncDominion } from "../map/map.js";
 import { rng } from "../core/rng.js";
 import { dropQueueItem } from "../core/actions.js";
 import { CONFIG } from "../core/config.js";
-import { availableUnits, civilians, defById, jobsUsed, releaseOrder, reserved } from "../core/derived.js";
+import { availableUnits, civilians, defById, reserved } from "../core/derived.js";
 import { S } from "../core/state.js";
 import { log } from "../ui/log.js";
 
@@ -131,7 +131,7 @@ export function removeSettler(allowZero) {
   // pushed below totalUnits(), making civilians() negative.
   if (civilians() <= 0) return;
   S.pop -= 1;
-  reconcileWorkforce();
+  reconcileReservations();
   syncDominion();   // under tile allocation, losing a holdfast loses its hex
 }
 
@@ -143,38 +143,25 @@ export function removeSettler(allowZero) {
 // a job, or reserved by a queued unit order. An earlier version only balanced
 // against jobsUsed(), so a death while a Soldier was queued left the books
 // short by exactly the reserved worker.
-export function reconcileWorkforce() {
-  let over = jobsUsed() + reserved() - civilians();
-
-  // 1. Pull people out of jobs, in releaseOrder() (reversed manifest order,
-  //    foraging last) so a shrinking settlement keeps feeding itself for as
-  //    long as possible.
-  for (const jid of releaseOrder()) {
-    while (over > 0 && (S.jobs[jid] || 0) > 0) { S.jobs[jid]--; over--; }
-  }
-
-  // 2. If emptying every job still isn't enough, the people those queued unit
-  //    orders were reserving are dead. Abandon the newest orders (refunding
-  //    materials, as a manual cancel would) until the books balance.
-  while (over > 0) {
-    let idx = -1;
-    for (let i = S.buildQueue.length - 1; i >= 0; i--) {
-      const def = defById(S.buildQueue[i].id);
-      if (def && def.popCost) { idx = i; break; }
-    }
-    if (idx === -1) break;                    // nothing left to give back
-    const def = defById(S.buildQueue[idx].id);
-    dropQueueItem(idx);
-    over -= def.popCost || 1;
-    log(`${def.name} training is abandoned — there is no one left to train.`, "bad");
+// reconcileWorkforce() died in E2 with the jobs ledger it reconciled -- but
+// one of its duties was never about jobs and survives it: when deaths outrun
+// the living, queued unit orders reserving people who no longer exist must be
+// abandoned (refunded), or the order completes anyway and drives civilians()
+// negative. Newest orders abandoned first; the dead are not re-trained.
+export function reconcileReservations() {
+  let over = reserved() - Math.max(0, civilians());
+  if (over <= 0) return;
+  for (let i = S.buildQueue.length - 1; i >= 0 && over > 0; i--) {
+    const q = S.buildQueue[i];
+    const def = defById(q.id);
+    if (!def || !def.popCost) continue;
+    for (const k in q.cost) S.res[k] += q.cost[k];
+    S.buildQueue.splice(i, 1);
+    over -= def.popCost;
+    log(`The order for a ${def.name} is abandoned — there is no one left to train.`);
   }
 }
 
-// A trained unit dies. Unlike removeSettler, the person was never in S.jobs,
-// so there's no reassignment -- just drop them from the unit count and from
-// total population together. Returns the display name of who was lost (for
-// flavor), or null if there was nobody left to lose. Casualties are drawn at
-// random, weighted by how many of each type are actually fielded.
 export function removeRandomUnit() {
   // Weighted by headcount AND exposure (`casualtyWeight`), so the front line
   // absorbs most losses. Because every weight is > 0, no type is ever immune:

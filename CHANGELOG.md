@@ -11,6 +11,47 @@
 
 ---
 
+## 2026-08-23 — Engine rework E2: production flips, steppers die
+
+**One economy, from the first minute to the last.** Production is now
+`output = hex population × per-capita rate × terrain` in every era, and upkeep charges the people
+who actually exist — the hex sum — plus the levied bands. Verified live to the second decimal: a
+fresh board reads food −0.28/s (seven people, all resting), and turning the seat to food flips it
+to +0.32/s (3 × 0.2 × 1.0 − 0.28).
+
+**Deleted whole:** the jobs system and both manifests' job arrays, `assign()`, `idle()`,
+`jobsUsed()`, `releaseOrder()`, `reconcileWorkforce()`, the Your People steppers, the "N idle"
+ledger note, and the `allocation` and `outputMult` era-facts (allocation is universal; outputMult
+existed to make tile-count impersonate population, and population is real now). The Your People
+panel is a roster; a standing sentence says where the verb went, in the era's own noun: *"Your
+people work the land they live on — click a clearing on the map to direct it."*
+
+**The seat opens RESTING, against the plan's own suggestion.** Auto-assigning it to food would have
+deleted the forage-or-die opening lesson — the first click of the game IS the lesson. The Chronicle
+line now teaches the new verb: *"Turn your clearing to food, or they will starve."*
+
+**The works table arrives at Stone** (the Iron table minus iron — the permanent shape, learned on
+day one), and **Bronze redeclares the map to put the ores on the ground**: hills carry copper and
+tin, tin at the scarce half-rate it always had, with a whisper of both on plains so a hills-poor
+start is slow rather than dead. The era-transition modal now announces new WORK as the works table
+widening, and a new validator refuses a works entry naming a resource that era lacks.
+
+**Two things came forward from E5 because the harness caught them, which is the whole reason it
+exists.** First: `consolidate` left every manifest — the bronze→iron fixture proved the pop-cut is
+instantly undone by the dominion lockstep under dominion-never-shrinks, and cutting a number that
+mirrors hexes changes nothing anyone can see. Borders are pure re-denomination, effective now, not
+E5. Second: deleting `reconcileWorkforce` briefly reintroduced a shipped bug — deaths no longer
+abandoned queued unit orders, so orders could complete for people who no longer existed and drive
+`civilians()` negative. `reconcileReservations()` now carries that one duty, which was never about
+jobs: newest orders abandoned first, refunded, narrated.
+
+**The E2 bridge, dying in E3:** the settler timer still grants `S.pop`, and the lockstep converts
+each arrival into a hex — the hut is temporarily the claim verb, which is at least funny. Roughly
+520 checks green after the deepest harness rewrite this project has had; the stepper fixtures are
+hex fixtures now, and a block of tombstone checks asserts the dead exports STAY dead.
+
+---
+
 ## 2026-08-23 — Engine rework E1: population exists
 
 **People live on hexes now.** Every owned hex carries a population that grows logistically toward a

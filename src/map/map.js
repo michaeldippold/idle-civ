@@ -73,7 +73,6 @@ export function ensureMap() {
 // from ensureMap and from every pop-changing site.
 export function syncDominion() {
   if (!world || !S.map) return;
-  if (active().allocation !== "tiles") return;
   const owned = S.map.owned;
   if (!owned.includes(world.home)) owned.unshift(world.home);
   if (owned.length < S.pop) {
@@ -95,6 +94,7 @@ export function syncDominion() {
   // So pop follows the land upward rather than the land following pop down.
   if (S.pop < owned.length) S.pop = owned.length;
   for (const tid in S.map.work) if (!owned.includes(tid)) delete S.map.work[tid];
+  ensurePop();   // annexed ground enters the books immediately (E2)
 }
 
 // What the player has SEEN. Sticky and additive, never removed -- the

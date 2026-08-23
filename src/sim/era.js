@@ -3,7 +3,7 @@ import { civilians, deployedCount, housing, playtime, totalUnits } from "../core
 import { defaultAssignments, ensureMap, syncDominion } from "../map/map.js";
 import { initAdversaries } from "../core/persist.js";
 import { S } from "../core/state.js";
-import { reconcileWorkforce } from "./combat.js";
+
 import { fmtTime, setSpeed } from "../ui/chrome.js";
 import { log } from "../ui/log.js";
 import { openEraModal } from "../ui/modal.js";
@@ -28,15 +28,21 @@ export function advanceEra(era) {
   // grant a block sized from the OLD population and then be unable to give it
   // back. Population is decided first; the ground is matched to it second.
   if (toM.consolidate) applyConsolidation(toM.consolidate);
+  // Crossing INTO the first levy era marks the books separated (units stand
+  // apart from population) -- this rode on consolidation until E2 removed
+  // consolidation from every manifest.
+  if (!fromM.levy && toM.levy) S.seen.levyMigrated = true;
   ensureMap();
   runEraMigrations(fromM, toM, S.eraHistory[fromEra]);
   syncDominion();   // the carried dominion block: owned tiles match the consolidated count
-  if (fromM.allocation !== "tiles" && toM.allocation === "tiles") {
+  // The one-time allocation default: the FIRST levy border turns the arriving
+  // dominion to bread (allocation itself is universal since E2, so the old
+  // jobs->tiles trigger is now "the first border where the levy begins").
+  if (!fromM.levy && toM.levy) {
     defaultAssignments();
     log("Your holdfasts see to their own bread first — every holding turns to food. Direct them as you see fit.");
   }
   purgeDom(fromM, toM);
-  reconcileWorkforce();
 
   // A new age begins at 1x (user ruling, after a 12x border starved a run
   // before its modal was even closed): the ceremony modal already holds the
@@ -59,13 +65,7 @@ export function advanceEra(era) {
 // Formulas read the frozen snapshot, never live state. Narrate lines always
 // log: an era transition is rare, and its story belongs in the Chronicle.
 export function runEraMigrations(fromM, toM, snapshot) {
-  for (const j of fromM.jobs) {
-    if (!toM.jobs.some((x) => x.id === j.id) && (S.jobs[j.id] || 0) > 0) {
-      const n = S.jobs[j.id];
-      S.jobs[j.id] = 0;
-      log(`${n} of your people set down tools the new age has no use for.`);
-    }
-  }
+  // (The workers-walk-home job migration died in E2 with the jobs system.)
   for (const ins of toM.migrations) {
     const bucket = S[ins.bucket];
     const snapBucket = snapshot[ins.bucket] || {};
@@ -113,8 +113,11 @@ export function applyConsolidation(spec) {
     // is (holdfast -> city -> nation) and raises per-tile output instead.
     // The FIRST levy border still consolidates, because it is the moment
     // population stops being people and becomes places.
-    const alreadyTiles = S.seen.levyMigrated && active().allocation === "tiles";
-    S.pop = alreadyTiles ? S.pop : Math.max(1, Math.floor(civ * spec.keep));
+    // Only the FIRST levy border consolidates -- the moment population stops
+    // being people and becomes places. Every later border leaves S.pop alone
+    // (dominion never shrinks; allocation is universal since E2, so
+    // levyMigrated alone is the test).
+    S.pop = S.seen.levyMigrated ? S.pop : Math.max(1, Math.floor(civ * spec.keep));
     S.seen.levyMigrated = true;   // also gates the load-time back-compat
   } else {
     let unitTotal = 0;

@@ -1,6 +1,6 @@
 import { active } from "../content/compile.js";
 import { CONFIG } from "../core/config.js";
-import { capWord, caps, housing, idle, ledgerRates } from "../core/derived.js";
+import { capWord, caps, housing, ledgerRates } from "../core/derived.js";
 import { S } from "../core/state.js";
 import { hexPopSum } from "../map/map.js";
 import { attachTip, fmt, fmtRate } from "./dom.js";
@@ -26,7 +26,6 @@ export function renderPopRow(bar) {
   const conquest = active().growth !== "timer";
   const cap = housing();
   const full = !conquest && S.pop >= cap;
-  const idleNow = idle();
   const noun = active().popNoun;
 
   // Engine rework E1: the POP row reads the SUM OF THE HEXES -- the odometer,
@@ -46,7 +45,7 @@ export function renderPopRow(bar) {
   rateEl.classList.toggle("pos", false);
 
   const noteEl = document.getElementById("note-pop");
-  noteEl.textContent = idleNow > 0 ? `${idleNow} idle` : "";
+  noteEl.textContent = "";   // "idle" died in E2: people work where they live
 
   attachTip(row, () => ({
     title: capWord(noun.plural),

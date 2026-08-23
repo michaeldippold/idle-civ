@@ -13,10 +13,24 @@ export const BRONZE_DELTA = {
   // families. Counts, thresholds and balance are untouched -- only the words.
   popNoun: { singular: "family", plural: "families" },
   arrivalLine: "A family seeks shelter here, and stays.",
-  // No `map` override at all any more: Bronze inherits Stone's board unchanged.
-  // It used to redeclare the block solely to widen the era view radius, and
-  // view radii are gone (one board, forever -- map.md 2.6). What widens now is
-  // the fog, as your dominion and your scouts reach further.
+  // Bronze redeclares the map wholesale (map specs copy, never merge) to
+  // put the ores on the ground: hills carry copper and tin -- tin at the
+  // scarce half-rate, which is both a real balance lever and why bronze was
+  // worth building trade routes over. A whisper of both on plains keeps a
+  // hills-poor start slow rather than dead.
+  map: {
+    radius: 4,
+    tileNoun: { singular: "clearing", plural: "clearings" },
+    terrains: ["plains", "forest", "hills", "river", "water"],
+    seats: [],
+    popCaps: { plains: 12, river: 15, forest: 8, hills: 5 },
+    works: {
+      plains: { food: 1.0, wood: 0.4, stone: 0.3, copper: 0.2, tin: 0.1 },
+      river:  { food: 1.2, wood: 0.3, stone: 0.2 },
+      forest: { wood: 1.0, food: 0.5, stone: 0.2 },
+      hills:  { stone: 1.0, food: 0.3, wood: 0.3, copper: 0.8, tin: 0.4 },
+    },
+  },
 
   remove: ["bronzeAge"],
 
@@ -35,13 +49,6 @@ export const BRONZE_DELTA = {
       // Bronze is spent on upgrades rather than stockpiled, so it gets a
       // generous ceiling and no storage building of its own.
       { id: "bronze", name: "Bronze", baseCap: 200, capBuilding: null,      reveal: () => true },
-    ],
-    jobs: [
-      // Tin deliberately yields half of copper -- it's the scarce half of the
-      // alloy, which is both a real balance lever and why bronze was worth
-      // building trade routes over.
-      { id: "copperMiner", name: "Mine copper", res: "copper" },
-      { id: "tinMiner",    name: "Mine tin",    res: "tin", rateMult: 0.5 },
     ],
     buildings: [
       {

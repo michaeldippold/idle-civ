@@ -35,7 +35,8 @@ export const ERA_ORDER = ["stone", "bronze", "iron"];   // chronological; drives
 // before a single frame renders. Silent wrongness from a dangling id is this
 // game's signature bug class; the compiler's job is to convert it into a
 // loud one. (Phase B adds a full cross-reference validator on top.)
-export const DEF_CATEGORIES = ["resources", "jobs", "buildings", "upgrades", "units"];
+// "jobs" left this list in E2: the category has no defs anywhere any more.
+export const DEF_CATEGORIES = ["resources", "buildings", "upgrades", "units"];
 
 export function resolveSlates(m, raw) {
   if (!raw.events) throw new Error(`era "${m.name}": missing events slate (slates are never inherited)`);
@@ -73,9 +74,11 @@ export function compileBase(raw) {
     // Growth-model era-facts (phase 6b). All three inherit, like popNoun:
     // an era that says nothing keeps its parent's model.
     growth: raw.growth || "timer",
-    allocation: raw.allocation || "jobs",
+    // `allocation` retired 2026-08-23 (engine rework E2): every era allocates
+    // hexes. `outputMult` retired with it -- it existed to compensate
+    // tile-count-as-population, and population is real now.
     levy: raw.levy || null,
-    outputMult: raw.outputMult || 1,
+
     raidTypes: raw.raidTypes.slice(),
     migrations: [],   // a base era is never entered FROM anywhere
     consolidate: null,
@@ -88,7 +91,7 @@ export function compileBase(raw) {
     // redeclares the spec recuts it. No spec (Stone) means no map.
     map: raw.map ? copyMapSpec(raw.map) : null,
   };
-  for (const cat of DEF_CATEGORIES) m[cat] = raw[cat].map((d) => Object.assign({}, d));
+  for (const cat of DEF_CATEGORIES) m[cat] = (raw[cat] || []).map((d) => Object.assign({}, d));
   resolveSlates(m, raw);
   return m;
 }
@@ -103,9 +106,9 @@ export function extendEra(parent, delta) {
     popNoun: delta.popNoun ? Object.assign({}, delta.popNoun) : parent.popNoun,
     arrivalLine: delta.arrivalLine || parent.arrivalLine,
     growth: delta.growth || parent.growth,
-    allocation: delta.allocation || parent.allocation,
+
     levy: delta.levy != null ? delta.levy : parent.levy,
-    outputMult: delta.outputMult != null ? delta.outputMult : parent.outputMult,
+
     raidTypes: delta.raidTypes ? delta.raidTypes.slice() : parent.raidTypes,
     // Explicit state-migration instructions, run once when this era is
     // ENTERED (see runEraMigrations). Never inherited: a migration describes
@@ -186,13 +189,11 @@ export function validateManifests(manifests) {
     const bad = (msg) => problems.push(`[${era}] ${msg}`);
 
     if (m.growth !== "timer" && m.growth !== "conquest") bad(`unknown growth mode "${m.growth}"`);
-    if (m.allocation !== "jobs" && m.allocation !== "tiles") bad(`unknown allocation mode "${m.allocation}"`);
-    if (m.allocation === "tiles") {
-      if (!m.map) bad("tile allocation needs a map");
-      else if (!m.map.works) bad("tile allocation needs map.works (what each terrain can be turned to)");
-    }
+    // Every era allocates hexes (E2), so every mapped era must say what its
+    // terrains can be turned to.
+    if (m.map && !m.map.works) bad("a mapped era needs map.works (what each terrain can be turned to)");
     if (m.levy != null && !(m.levy > 0)) bad(`levy must be positive, got ${m.levy}`);
-    if (!(m.outputMult > 0)) bad(`outputMult must be positive, got ${m.outputMult}`);
+
     if (m.growth === "conquest" && m.levy == null) bad("a conquest era needs a levy rate -- without one, training has no cap at all");
 
     if (m.map) {
@@ -254,8 +255,12 @@ export function validateManifests(manifests) {
       const boost = BOOST_BUILDING[r.id];
       if (boost && !buildIds.has(boost)) bad(`resource ${r.id} boost building "${boost}" is not a building this era`);
     }
-    for (const j of m.jobs) {
-      if (!resIds.has(j.res)) bad(`job ${j.id} gathers "${j.res}", not a resource this era`);
+    // The jobs validator died in E2 with the jobs category. Its successor:
+    // every works-table entry must name a resource that exists this era.
+    if (m.map && m.map.works) {
+      for (const t in m.map.works) for (const res in m.map.works[t]) {
+        if (!resIds.has(res)) bad(`works: ${t} can be turned to "${res}", not a resource this era`);
+      }
     }
     for (const u of m.units) {
       if (u.counters && !raidIds.has(u.counters)) bad(`unit ${u.id} counters "${u.counters}", not a raid type this era`);

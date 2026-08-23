@@ -1,6 +1,6 @@
 import { active } from "../content/compile.js";
 import { build } from "../core/actions.js";
-import { buildCost, canAfford, defById, idle, isCapped, isRevealed, levyCap, levyUsed, pendingCount } from "../core/derived.js";
+import { buildCost, canAfford, civilians, defById, isCapped, isRevealed, levyCap, levyUsed, pendingCount, reserved } from "../core/derived.js";
 import { S } from "../core/state.js";
 import { attachTip, shortfallLine } from "./dom.js";
 
@@ -251,7 +251,7 @@ export function renderTraining() {
     const levyFull = levied && levyUsed() + 1 > levyCap();
     if (def.popCost && !levied) {
       const noun = def.popCost > 1 ? active().popNoun.plural : active().popNoun.singular;
-      parts.push({ text: `${def.popCost} ${noun}`, short: idle() < def.popCost });
+      parts.push({ text: `${def.popCost} ${noun}`, short: civilians() - reserved() < def.popCost });
     } else if (levied) {
       // The levy line: how much of the muster this order would occupy.
       parts.push({ text: `levy ${levyUsed()}/${levyCap()}`, short: levyFull });
@@ -262,7 +262,7 @@ export function renderTraining() {
     setPending(skel, pendingCount(def.id));
     setCostParts(skel, parts);
     setText(skel.time, `${def.buildTime}s`);
-    card.disabled = S.dead || !canAfford(cost) || (!levied && def.popCost && idle() < def.popCost) || levyFull;
+    card.disabled = S.dead || !canAfford(cost) || (!levied && def.popCost && civilians() - reserved() < def.popCost) || levyFull;
     attachTip(card, () => ({
       title: def.name,
       body: def.desc,
@@ -270,7 +270,7 @@ export function renderTraining() {
       // easier to miss -- you can be rich in wood and still have nobody spare.
       why: levyFull
         ? `Your ${active().popNoun.plural} can levy no more. Grow your dominion, and the muster grows with it.`
-        : (!levied && def.popCost && idle() < def.popCost)
+        : (!levied && def.popCost && civilians() - reserved() < def.popCost)
         ? `No one is free to train. A ${active().popNoun.singular} must be idle first.`
         : shortfallLine(cost),
     }));

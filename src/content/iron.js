@@ -22,27 +22,16 @@ export const IRON_DELTA = {
   // Units are levied, not consumed: army capacity = holdfasts x levy. The
   // holdfasts that raise the war bands stay in the fields.
   levy: 2,
-  // The permanent allocation verb re-denominates here (design.md): you stop
-  // assigning PEOPLE with steppers and start assigning HOLDFASTS on the map.
-  // Terrain constrains each tile's menu -- see map.works below.
-  allocation: "tiles",
-  // The other half of deep consolidation: keep x outputMult ~= 1, so total
-  // throughput -- and therefore every existing cost -- survives the border.
-  // A holdfast works (and eats) like the four families it holds.
-  outputMult: 4,
+  // `allocation: "tiles"` and `outputMult: 4` both lived here until E2
+  // (2026-08-23). Allocation is universal now, and outputMult existed to make
+  // tile-count impersonate population -- population is real, so it retired.
   arrivalLine: "A holdfast swears fealty to your banner.",
-  // The first real consolidation (see design.md): generous, floored, and THE
-  // flex dial for playtest pacing. keep 0.7 reads as "for every 5, you get 3
-  // or 4." Never inherited -- each border decides its own ratio.
-  // Deep, per design.md: enter Iron with a HANDFUL of holdfasts, each one
-  // weighty enough that gaining or losing it is an event. Paired with
-  // outputMult above so the cut is re-denomination, not loss. Units are NOT
-  // consolidated at a levy border -- the fighting bands carry whole; the levy
-  // cap simply refuses new training until the dominion grows into them.
-  consolidate: {
-    keep: 0.25,
-    narrate: "Families band together behind shared walls — your people now count themselves in holdfasts, and each one answers for many.",
-  },
+  // `consolidate` died here in E2, ahead of its E5 schedule, because the
+  // harness caught it colliding with two newer laws at once: dominion never
+  // shrinks (so the lockstep instantly undid the pop cut), and population
+  // lives on hexes (so cutting S.pop changed nothing anyone could see).
+  // The border is a pure re-denomination now -- exactly where the design was
+  // heading anyway.
   // The tile noun changes, so the world recuts at holdfast scale (design.md,
   // Scale: The Tile Ladder) -- bigger country, and the three majors take
   // seats on it. Still a readout in 6a; the rest of phase 6 makes it real.
@@ -89,7 +78,7 @@ export const IRON_DELTA = {
 
   remove: [
     "copper", "tin", "bronze",            // the alloy economy, wholesale
-    "copperMiner", "tinMiner",            // its jobs (workers walk home -- default policy)
+    // (its jobs left the game entirely in E2 -- nothing to remove)
     "oreYard",                            // its storage
     "bronzeTools", "bronzeWeapons", "scouting",  // stranded: priced in a dead resource
     "flintSpears",                        // superseded twice over
@@ -97,8 +86,6 @@ export const IRON_DELTA = {
     "hut",                                // housing retires at Iron: the first founding building
                                           // to leave the game (design.md, Conquest Growth) --
                                           // holdfasts are not counted in roofs
-    "forager", "woodcutter", "miner",     // the job steppers retire with the allocation flip:
-                                          // holdfasts work their own lands now (assigned on the map)
     "granary", "woodshed", "stoneYard",   // storage caps retire at Iron (user ruling, in the
                                           // scheduled window): a king does not count sacks --
                                           // that is delegated. The friction hands off to the

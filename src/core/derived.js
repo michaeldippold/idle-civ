@@ -1,5 +1,5 @@
 import { BOOST_BUILDING, DEF_INDEX, active } from "../content/compile.js";
-import { world } from "../map/map.js";
+import { ensurePop, hexPopSum, syncDominion, world } from "../map/map.js";
 import { CONFIG, TICK_SECONDS } from "./config.js";
 import { S } from "./state.js";
 import { log } from "../ui/log.js";
@@ -33,22 +33,9 @@ export function levyCap() { return active().levy ? S.pop * active().levy : Infin
 export function levyUsed() {
   return totalUnits() + S.buildQueue.filter((q) => q.kind === "unit").length;
 }
-export function jobsUsed() {
-  if (active().allocation === "tiles") {
-    // Same books, new noun: "used" is worked holdfasts.
-    const owned = (S.map && S.map.owned) || [];
-    return Object.keys((S.map && S.map.work) || {}).filter((t) => owned.includes(t)).length;
-  }
-  return active().jobs.reduce((sum, j) => sum + (S.jobs[j.id] || 0), 0);
-}
-
-// Order jobs are emptied in when the population shrinks (see removeSettler).
-// Derived from the active manifest (reversed, foraging last) so a shrinking
-// settlement keeps feeding itself, and a job added by a later era can't be
-// forgotten here.
-export function releaseOrder() {
-  return active().jobs.map((j) => j.id).filter((id) => id !== "forager").reverse().concat("forager");
-}
+// jobsUsed() and releaseOrder() died here in E2 with the jobs system they
+// served: people are not assigned, they LIVE somewhere (design.md,
+// Population Lives Somewhere).
 // Anyone currently reserved by an in-progress (or still-waiting) unit order --
 // consumed the instant it's queued, not when it completes.
 export function reserved() {
@@ -58,7 +45,7 @@ export function reserved() {
     return sum + (def && def.popCost ? def.popCost : 0);
   }, 0);
 }
-export function idle() { return civilians() - jobsUsed() - reserved(); }
+// idle() died in E2: nobody is "unassigned" when people live on the land.
 
 // Units marching with an expedition are alive (still in S.units, still eat,
 // still count toward pop) but they are NOT HOME: they don't defend, and home
@@ -101,42 +88,31 @@ export function rates() {
   const m = mults();
   const prod = {};
   for (const r of active().resources) prod[r.id] = 0;
-  if (active().allocation === "tiles") {
-    // The allocation verb on the map (6c): each owned, assigned holdfast
-    // produces at the same per-worker rate the steppers used -- pop equals
-    // tiles, so totals and every existing cost carry across untouched. The
-    // engine trusts S.map.work the way it always trusted S.jobs; the map UI
-    // is what enforces terrain menus, and syncDominion() prunes lost tiles.
-    const work = (S.map && S.map.work) || {};
-    const owned = (S.map && S.map.owned) || [];
-    const works = (active().map && active().map.works) || {};
-    for (const tid in work) {
-      if (!owned.includes(tid)) continue;
-      const resId = work[tid];
-      if (!(resId in prod)) continue;
-      // Terrain sets the rate: par-or-better on a specialty, an overpay
-      // route everywhere else. A tile the rebuilt world doesn't know (a
-      // harness fixture, a mid-migration save) works at par rather than
-      // silently at zero.
-      const terrain = world && world.places[tid] ? world.places[tid].terrain : null;
-      const rate = terrain && works[terrain] && works[terrain][resId] != null ? works[terrain][resId] : 1;
-      prod[resId] += CONFIG.baseRate * rate * (m[resId] || 1);
-    }
-  } else {
-    for (const j of active().jobs) {
-      prod[j.res] += (S.jobs[j.id] || 0) * CONFIG.baseRate * (j.rateMult || 1) * (m[j.res] || 1);
-    }
+  // ONE formula, from the first minute to the last (engine rework E2):
+  // output = people x per-capita rate x terrain. The hex's FLOORED population
+  // works the land -- the same whole people the tile detail shows -- so what
+  // you read is what you earn. A tile the rebuilt world doesn't know (a
+  // harness fixture, a mid-migration save) works at par rather than silently
+  // at zero.
+  const work = (S.map && S.map.work) || {};
+  const owned = (S.map && S.map.owned) || [];
+  const pops = (S.map && S.map.pop) || {};
+  const works = (active().map && active().map.works) || {};
+  for (const tid in work) {
+    if (!owned.includes(tid)) continue;
+    const resId = work[tid];
+    if (!(resId in prod)) continue;
+    const people = Math.floor(pops[tid] || 0);
+    if (people <= 0) continue;
+    const terrain = world && world.places[tid] ? world.places[tid].terrain : null;
+    const rate = terrain && works[terrain] && works[terrain][resId] != null ? works[terrain][resId] : 1;
+    prod[resId] += people * CONFIG.baseRate * rate * (m[resId] || 1);
   }
-  // outputMult is consolidation's other half (keep x output ~= 1): a
-  // holdfast works like the families it holds -- and eats like them, which
-  // is what keeps the food equation balanced across the border. Converters
-  // are untouched: a Forge is a building, not a population.
-  const om = active().outputMult || 1;
-  for (const k in prod) prod[k] *= om;
-  // Under a levy the war bands are extra mouths -- they no longer live
-  // inside S.pop, so they're charged explicitly.
-  const mouths = S.pop + (active().levy ? totalUnits() : 0);
-  const upkeep = mouths * CONFIG.upkeep * om * (S.upgrades.fireMastery ? 0.85 : 1);
+  // Upkeep is charged on the people who actually exist -- the hex sum -- plus
+  // the war bands, who live outside the population under a levy. Per-capita
+  // on both sides, so the feed ratio survives any scale.
+  const mouths = hexPopSum() + (active().levy ? totalUnits() : 0);
+  const upkeep = mouths * CONFIG.upkeep * (S.upgrades.fireMastery ? 0.85 : 1);
   return Object.assign(prod, { upkeep, foodNet: prod.food - upkeep });
 }
 
@@ -191,6 +167,11 @@ export function accrueGrowth(dt) {
     S.growth -= CONFIG.settlerIntervalSeconds;
     S.pop += 1;
     S.bought += 1;
+    // E2 bridge, dies in E3: the timer still grants S.pop, and the dominion
+    // lockstep converts that into a HEX, whose own people then matter. The
+    // hut is temporarily the claim verb, which is at least funny.
+    syncDominion();
+    ensurePop();
     // What "one more" means -- and how it's told -- is an era-fact.
     log(active().arrivalLine, "good");
   }

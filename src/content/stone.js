@@ -57,6 +57,16 @@ export const STONE = {
     // numbers keep a 2-3 hex Stone endgame near today's 15-25 people. Water
     // holds no one and is deliberately absent: a missing terrain means cap 0.
     popCaps: { plains: 8, river: 10, forest: 5, hills: 3 },
+    // What each terrain can be turned to, from the FIRST minute (E2): one
+    // assignment per hex, terrain sets the rate, every ground works
+    // everything at a price. The Stone table is the Iron table minus iron --
+    // the permanent shape, learned on day one.
+    works: {
+      plains: { food: 1.0, wood: 0.4, stone: 0.3 },
+      river:  { food: 1.2, wood: 0.3, stone: 0.2 },
+      forest: { wood: 1.0, food: 0.5, stone: 0.2 },
+      hills:  { stone: 1.0, food: 0.3, wood: 0.3 },
+    },
   },
   arrivalLine: "A wanderer joins your settlement.",
 
@@ -64,12 +74,6 @@ export const STONE = {
     { id: "food",  name: "Food",  baseCap: 50, capBuilding: "granary"  },
     { id: "wood",  name: "Wood",  baseCap: 50, capBuilding: "woodshed" },
     { id: "stone", name: "Stone", baseCap: 50, capBuilding: "stoneYard" },
-  ],
-
-  jobs: [
-    { id: "forager",    name: "Forage food",  res: "food"  },
-    { id: "woodcutter", name: "Chop wood",    res: "wood"  },
-    { id: "miner",      name: "Gather stone", res: "stone" },
   ],
 
   buildings: [

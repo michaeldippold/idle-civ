@@ -1,4 +1,4 @@
-import { buildCost, canAfford, defById, housing, idle, isCapped, levyCap, levyUsed, pendingCount, playtime } from "./derived.js";
+import { buildCost, canAfford, civilians, defById, housing, isCapped, levyCap, levyUsed, pendingCount, playtime, reserved } from "./derived.js";
 import { active } from "../content/compile.js";
 import { marchFactor, routeCost, world, captureTile } from "../map/map.js";
 import { S } from "./state.js";
@@ -8,17 +8,9 @@ import { fmtTime, renderAll } from "../ui/chrome.js";
 import { log } from "../ui/log.js";
 
 // ---------- Actions -----------------------------------------
-export function assign(jobId, delta) {
-  if (S.dead) return;
-  if (delta > 0) { if (idle() <= 0) return; S.jobs[jobId] += 1; }
-  else           { if (S.jobs[jobId] <= 0) return; S.jobs[jobId] -= 1; }
-  save();  // save is load-bearing now: every player action commits (see persist.js)
-  renderAll();
-}
+// assign() -- the stepper verb -- died here in E2. Allocation lives on the
+// map: click a hex, set what its people work.
 
-// Clicking a building/upgrade/unit pays for it immediately and drops it in
-// the (shared) queue. If the queue was empty it starts progressing right
-// away; otherwise it waits its turn behind whatever's already building.
 export function build(def) {
   if (S.dead) return;
   if (def.kind === "upgrade" && (S.upgrades[def.id] || pendingCount(def.id) > 0)) return;
@@ -28,7 +20,7 @@ export function build(def) {
   if (def.kind === "unit" && active().levy) {
     // Levied, not consumed: capacity is the constraint, not spare people.
     if (levyUsed() + 1 > levyCap()) return;
-  } else if (def.popCost && idle() < def.popCost) return;
+  } else if (def.popCost && civilians() - reserved() < def.popCost) return;
   for (const k in cost) S.res[k] -= cost[k];
   const wasEmpty = S.buildQueue.length === 0;
   S.buildQueue.push({ id: def.id, kind: def.kind, uid: ++S.buildSeq, total: def.buildTime, remaining: def.buildTime, cost });
@@ -96,7 +88,7 @@ export function pendingSettle(tileId) {
 }
 
 export function launchSettle(tileId) {
-  if (S.dead || active().allocation !== "tiles") return;
+  if (S.dead) return;   // every era allocates hexes since E2
   const plan = settlePlan(tileId);
   if (!plan || pendingSettle(tileId)) return;
   if (!canAfford(plan.cost)) return;

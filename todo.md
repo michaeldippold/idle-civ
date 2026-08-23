@@ -338,12 +338,24 @@ per era-fact — the odometer comes from the ceiling rising, never from the rate
       round-trip. Live-verified on the curve: t471 predicted 5.4 people, page showed 5 of 8.
       *During the E1 window the old economy still runs on `S.pop` underneath (upkeep, steppers,
       levy), so the header and the old machinery can diverge — expected, temporary, retired in E2.*
-- [ ] **E2 — production flips, steppers die.** `rates()` becomes pop × per-capita × terrain from the
-      STONE age; every era declares `allocation: "tiles"`; the base manifest gets the works table
-      (minus iron); the seat opens assigned to food; jobs, steppers, `reconcileWorkforce`, and the
-      Your People job rows are deleted. Stone/Bronze manifests re-priced only where the new totals
-      demand it. **The acceptance test is feel:** minute-one Stone should play like today's —
-      forage first or die.
+- [x] **E2 — production flips, steppers die** *(shipped 2026-08-23)*. One formula from frame
+      one: output = floored hex population × per-capita rate × terrain, and upkeep charges the
+      people who actually exist (`hexPopSum`) plus levied bands. Deleted whole: the jobs system and
+      its manifests' arrays, `assign()`, `idle()`, `jobsUsed()`, `releaseOrder()`,
+      `reconcileWorkforce()`, the Your People steppers, and the `allocation`/`outputMult`
+      era-facts. The works table lives on the Stone manifest (the Iron table minus iron); Bronze
+      redeclares the map to put copper and tin on the hills (tin at the scarce half-rate).
+      **The seat opens RESTING, deliberately** — plan said assigned-to-food, but auto-feeding would
+      delete the forage-or-die opening lesson; a fresh board shows food at −0.28/s until the player
+      turns their clearing to food, verified live at exactly +0.32/s after the click.
+      **Two things came forward from E5 because the harness caught them colliding with newer laws:**
+      `consolidate` left every manifest (the lockstep instantly undid its pop-cut under
+      dominion-never-shrinks — borders are pure re-denomination now), and
+      `reconcileReservations()` was born (deaths must still abandon unit orders nobody can fill, or
+      civilians() goes negative — the one duty of reconcileWorkforce that was never about jobs).
+      **E2 bridge, dies in E3:** the settler timer still grants `S.pop`, and the lockstep converts
+      each arrival into a hex — the hut is temporarily the claim verb. Bronze units are unfed until
+      the levy (they are not on hexes); a window quirk, resolved by E5's army rework. 520 checks.
 - [ ] **E3 — expansion is the growth verb, from frame one.** Claiming adjacent land arrives in the
       Stone age (the settle verb, priced cheap and in food/time only at Stone — the first claim
       must be affordable before wood exists). The pop↔tiles lockstep in `syncDominion` dies; owned
@@ -357,9 +369,10 @@ per era-fact — the odometer comes from the ceiling rising, never from the rate
 - [ ] **E5 — the world strikes hexes.** Sickness and raids target a hex (weighted by population),
       roll against its mitigations, and kill people THERE; `removeSettler` retires; the army cap
       re-homes to held hexes (recommendation: cap = hexes × 2, the levy served to the hex);
-      training draws its person from the seat (recommendation — no source micromanagement);
-      consolidation, the levy and `levyMigrated` are deleted and era borders become pure
-      re-denomination. Iron manifest re-priced against Iron-era population.
+      training draws its person from the seat (recommendation — no source micromanagement); the
+      levy and `levyMigrated` machinery deleted. Iron manifest re-priced against Iron-era
+      population. *(Consolidation already died in E2 — the harness caught it colliding with
+      dominion-never-shrinks; borders are pure re-denomination as of E2.)*
 - [ ] **E6 — the harness overhaul settles.** Not really a slice — E2 and E5 each rewrite their
       checks as they land — but a closing pass: the regression suite's stepper fixtures replaced
       with hex fixtures, the count re-baselined, and a determinism run over the whole new economy.

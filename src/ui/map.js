@@ -50,7 +50,7 @@ let lastDetail = "";
 
 function advName(adv) { return adv.name.charAt(0).toUpperCase() + adv.name.slice(1); }
 function spec() { return active().map; }
-function tilesEra() { return active().allocation === "tiles"; }
+function tilesEra() { return true; }   // every era allocates hexes since E2
 function worksFor(terrain) { return (spec().works && spec().works[terrain]) || {}; }
 function fmtRate(x) { return "×" + (Math.round(x * 10) / 10); }
 function specialties(terrain) {

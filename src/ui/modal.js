@@ -159,8 +159,18 @@ export function openEraModal(era, before) {
     }
     const newRes = m.resources.filter((r) => !prevM.resources.some((p) => p.id === r.id));
     if (newRes.length) changes.push(`New resources: ${newRes.map((r) => r.name).join(", ")}.`);
-    const newJobs = m.jobs.filter((j) => !prevM.jobs.some((p) => p.id === j.id));
-    if (newJobs.length) changes.push(`New work: ${newJobs.map((j) => j.name.toLowerCase()).join(", ")}.`);
+    // "New work" now means the WORKS TABLE widened: resources this era's
+    // ground can be turned to that last era's could not (jobs died in E2).
+    if (m.map && m.map.works && prevM.map && prevM.map.works) {
+      const workable = (spec) => {
+        const set = new Set();
+        for (const t in spec.works) for (const res in spec.works[t]) set.add(res);
+        return set;
+      };
+      const prev = workable(prevM.map);
+      const now = [...workable(m.map)].filter((res) => !prev.has(res));
+      if (now.length) changes.push(`Your lands can be turned to new work: ${now.join(", ")}.`);
+    }
   }
 
   const unlocked = diff.added.map((d) => `${d.name} — ${d.desc}`);

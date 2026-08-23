@@ -181,18 +181,20 @@ Sub-phased so each slice is playable and pausable:
       actions now carry the panel's refusal reasons (found broken in play: silent no-op without a
       Muster Ground); and **the chart walks back to frame one** — the map spec lives in STONE,
       Bronze inherits the identical world, one layout forever, no era-gated UI machinery.
-- [ ] **6d — G2 growth verbs: subdue, settle, capture.** Scope grown by two user rulings
-      (2026-08-22): **every hex has a gameplay purpose** — wilderness is claimable, so the
-      designed population budget becomes the landmass, not just the seated minors; and **settling
-      is queued work** — "Establishing a minor lord in [hex]" goes through the Underway queue with
-      a real resource + time cost, the queue serving as the standing anti-speedrun governor.
-      Deliverables: minor-tier freeholds seated on tiles (subdue: campaign capture, +1 holdfast,
-      windfall, the Chronicle names the place for the last time); the settle verb on empty land
-      (expedition-shaped, distance-priced); dominion visibly spreading; **supply routes** —
-      campaign/caravan effective distance computed over a path where owned hexes travel cheap, so
-      conquering a line toward a rival is building a road (extends M2's distance-as-cost; no
-      canon conflict — the no-pathing ban is on rendered unit micro, not route math). Watch that
-      settle + levy + budget don't triple-charge growth pacing.
+- [x] **6d — G2 growth verbs: subdue, settle, capture, supply lines** *(shipped 2026-08-22)*.
+      The minor tier: 5 seats per iron world, hand-authored 14-name pool (pool > seats, runs
+      differ), procedural placement and stats-in-range, remnants in `S.map.minors`, ownership
+      trumping the regenerated seat (capture survives the save). Campaigns take a unified target
+      ref — major id or `tile:q,r` — one resolver, one muster modal; victory over a minor is
+      fealty: whole stock home, +1 holdfast on bread, the Chronicle names the place for the last
+      time. Settle: empty land, priced in food+wood and time, through the Underway queue (the
+      anti-speedrun governor as ruled); wasted honestly if the ground is taken first. Supply
+      lines: `routeCost()` multi-source Dijkstra (owned ½, land 1, water 3 — never impossible),
+      `marchFactor()` bending time and provisions for majors, minors and settling alike; routes
+      printed on tile details and the muster sheet. 13 new checks (490); live-verified.
+      *Open from this slice:* growth-pacing triple-charge watch (settle cost + levy + budget), the
+      carried-army upkeep flag from 6b, and the boost-building pruning question — all land in the
+      6e/balance pause.
 - [ ] **6e — G3 priests & the envoy.** Religious building + priest unit; envoy as the third
       adversary action; per-target affinity; the annexation ceremony modal (the first ceremony built
       under the pause-modal seam); standing hooks into event weights.

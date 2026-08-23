@@ -11,6 +11,27 @@
 
 ---
 
+## 2026-08-22 — Phase 6d: the growth verbs
+
+**The dominion finally spreads.** Three verbs, one destination — owned, +1 holdfast, turned to
+bread by the standing default. The **minor tier**: five seats per iron world, hand-authored names
+drawn from a pool that outnumbers them (Askel's Steading, the freehold at Coldwater, Thornwick…),
+stats rolled in authored ranges, placed by the seeded generator; their living remnants (walls,
+stock) persist in `S.map.minors`, and ownership trumps the regenerated seat — which is exactly what
+lets a capture survive the save. **Capture**: campaigns take a unified target ref through one
+resolver and one muster modal; against a minor the same walls-then-field sequence runs, but victory
+is fealty, not plunder — the whole stock comes home and the Chronicle records the name for the last
+time. **Settle**: empty land is claimable as queued, priced work ("Settling the forest" behind your
+buildings in Underway — the queue's seriality as the anti-speedrun governor, exactly as ruled), and
+honestly wasted if the ground is taken first. **Supply lines**: `routeCost()` walks the whole
+dominion at half a step, unowned land at one, water at three (slow, never impossible — an island
+seat can't deadlock a run); time and provisions bend by the route for majors, minors and settling
+alike, printed on every tile detail. Conquering a line toward a rival is now literally building a
+road. Thirteen new checks, 490 total, first-run green; one flavor collision fixed on sight (a
+"walled steading" band over a wall-less seat — descriptions are mechanics-bearing text).
+
+---
+
 ## 2026-08-22 — The flip: the map is the game's main surface
 
 Phase 9's structural half, pulled forward by user ruling so the growth verbs land straight into

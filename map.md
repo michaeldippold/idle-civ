@@ -4,6 +4,9 @@
 > not built.** What exists: the place-graph model, the seeded blob-growth hex generator (own rng
 > stream), `S.map` persistence with seed-rebuilt geometry, tile-noun-keyed regeneration, the Bronze
 > inert chart, Iron's seated majors, and the wide map modal with its click-to-read detail pane.
+> **6d (same day):** the growth verbs landed — the minor tier seated and named, capture-as-fealty,
+> the settle verb through the queue, and supply lines (`routeCost`/`marchFactor`: owned country
+> marches at half a step; water at three, never impassable). Dominion spreads for real.
 > **The flip (same day):** the map left its modal and became the game's main surface — full-bleed
 > stage, floating panels, the Expeditions panel dissolved into the Selected Tile panel. Era-scoped
 > view radii ride with it: Stone shows one hex, Bronze the ring, Iron the country.

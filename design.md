@@ -564,6 +564,11 @@ separate facts so they *can* diverge. See `map.md` §2 and §10.3.
    a modest stock. The era's capturable units are therefore a **designed population budget**: growth is
    finite, authored, and paced per age. This scales forever — you conquer a holdfast before its lord
    swears fealty for the same reason you'll one day conquer a planet before it joins your empire.
+   *(Shipped 2026-08-22: five seats per iron world from a hand-authored name pool larger than the
+   count, stats rolled in authored ranges, placed by the seeded generator. Alongside them, per the
+   same-day ruling, the budget widened to the landmass itself: empty land is settleable — priced,
+   timed, queued work. Subdue is fast and pays the whole stock; settle is safe and pays only the
+   ground; and the supply-line rule makes each taken tile cheapen the next march past it.)*
 6. **The peace path — religion's mechanism.** Priests (a trained unit) enable the **envoy**: a third
    action on an adversary that is slow, costs gifts and the expedition slot, risks no one, *raises*
    standing, and delivers the target intact. War is fast and pays plunder immediately, at the price of

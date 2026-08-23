@@ -1,6 +1,6 @@
 import { ERA_ORDER, MANIFESTS, active, manifestDiff } from "../content/compile.js";
 import { CONFIG } from "../core/config.js";
-import { housing, playtime } from "../core/derived.js";
+import { playtime } from "../core/derived.js";
 import { setModalHold } from "./chrome.js";
 import { suppressSaves } from "../core/persist.js";
 import { S } from "../core/state.js";
@@ -145,9 +145,7 @@ export function openEraModal(era, before) {
   if (prevM && prevM.popNoun.plural !== m.popNoun.plural) {
     changes.push(`You count your people in ${m.popNoun.plural} now.`);
   }
-  if (Number.isFinite(housing()) && before.housing !== housing()) {
-    changes.push(`Housing rises from ${before.housing} to ${housing()}.`);
-  }
+  // (the housing-rises line died in E3 with housing itself)
   if (prevM && prevM.growth === "timer" && m.growth === "conquest") {
     changes.push("No one will arrive unbidden again — your people grow by conquest and fealty now.");
   }

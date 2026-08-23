@@ -15,10 +15,7 @@ export function housingPerHut() { return active().housingPerHut; }
 // Housing is a timer-growth concept; under conquest growth there is no cap
 // on holdings, only on what you have taken. Infinity keeps every comparison
 // honest without a special case.
-export function housing() {
-  if (active().growth !== "timer") return Infinity;
-  return CONFIG.baseHousing + S.builds.hut * housingPerHut();
-}
+// housing() died in E3: the land's carrying capacity is the only ceiling.
 export function totalUnits() { return Object.values(S.units).reduce((a, b) => a + b, 0); }
 // Under a levy (Iron onward) population SUPPORTS the army instead of
 // containing it: every holdfast stays in the assignable pool, and the war
@@ -159,23 +156,8 @@ export function ledgerRates() {
 // only while housing has room, and FREEZES (not resets) while full, so
 // building a hut lets a partially-waited arrival land soon after. Housing is
 // the sole lever on population; food's pressure is entirely upkeep.
-export function accrueGrowth(dt) {
-  if (active().growth !== "timer") return;   // conquest eras: growth is a verb, not a tick
-  if (S.pop >= housing()) return;
-  S.growth += dt;
-  while (S.growth >= CONFIG.settlerIntervalSeconds && S.pop < housing()) {
-    S.growth -= CONFIG.settlerIntervalSeconds;
-    S.pop += 1;
-    S.bought += 1;
-    // E2 bridge, dies in E3: the timer still grants S.pop, and the dominion
-    // lockstep converts that into a HEX, whose own people then matter. The
-    // hut is temporarily the claim verb, which is at least funny.
-    syncDominion();
-    ensurePop();
-    // What "one more" means -- and how it's told -- is an era-fact.
-    log(active().arrivalLine, "good");
-  }
-}
+// accrueGrowth() -- the free settler timer -- died in E3. Growth is local
+// (people grow toward each hex's cap) and expansion is a claim you pay for.
 
 export function capWord(w) { return w.charAt(0).toUpperCase() + w.slice(1); }
 // Good enough for every unit name this game will ever have ("Horseman" ->

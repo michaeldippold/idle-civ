@@ -212,7 +212,7 @@ function detailHTML(p) {
       parts.push(`<div class="map-actions"><button class="map-act" data-act="settle" data-tile="${p.id}"${queued ? " disabled" : ""}>Settle</button></div>`);
       parts.push(`<span class="map-noworks">${queued
         ? "A party is already on its way."
-        : `${plan.cost.food} food, ${plan.cost.wood} wood · ${plan.time}s${plan.tilesOff != null ? ` · ${plan.tilesOff} tiles off` : ""}${best.length ? ` · best worked for ${best.join(" or ")}` : ""}. Raise a hall, install a lord — one more holdfast.`}</span>`);
+        : `${Object.entries(plan.cost).map(([k, v]) => `${v} ${k}`).join(", ")} · ${plan.time}s${plan.tilesOff != null ? ` · ${plan.tilesOff} tiles off` : ""}${best.length ? ` · best worked for ${best.join(" or ")}` : ""}. Stake the ground, raise a hearth — one more ${spec().tileNoun.singular}.`}</span>`);
     } else {
       parts.push(`<span class="map-noworks">Not yours${best.length ? ` — best worked for ${best.join(" or ")}` : ""}. Growth is conquest and fealty.</span>`);
     }

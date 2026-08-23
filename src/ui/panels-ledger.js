@@ -1,6 +1,6 @@
 import { active } from "../content/compile.js";
 import { CONFIG } from "../core/config.js";
-import { capWord, caps, housing, ledgerRates } from "../core/derived.js";
+import { capWord, caps, ledgerRates } from "../core/derived.js";
 import { S } from "../core/state.js";
 import { hexPopSum } from "../map/map.js";
 import { attachTip, fmt, fmtRate } from "./dom.js";
@@ -23,9 +23,6 @@ export function renderPopRow(bar) {
   // Under conquest growth the row is a COUNT, not a promise: no cap (there
   // is none), no rate (nothing ticks). The number is load-bearing -- it is
   // the levy base and the workforce -- but its growth is a verb now.
-  const conquest = active().growth !== "timer";
-  const cap = housing();
-  const full = !conquest && S.pop >= cap;
   const noun = active().popNoun;
 
   // Engine rework E1: the POP row reads the SUM OF THE HEXES -- the odometer,

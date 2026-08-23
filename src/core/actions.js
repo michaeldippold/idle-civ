@@ -1,4 +1,4 @@
-import { buildCost, canAfford, civilians, defById, housing, isCapped, levyCap, levyUsed, pendingCount, playtime, reserved } from "./derived.js";
+import { buildCost, canAfford, civilians, defById, isCapped, levyCap, levyUsed, pendingCount, playtime, reserved } from "./derived.js";
 import { active } from "../content/compile.js";
 import { marchFactor, routeCost, world, captureTile } from "../map/map.js";
 import { S } from "./state.js";
@@ -75,10 +75,16 @@ export function settlePlan(tileId) {
   if (p.terrain === "water" || p.adversary || p.minor) return null;
   if (S.map.owned.includes(tileId)) return null;
   const factor = marchFactor(tileId);
+  // The claim's price is an era-fact (E3): Stone pays food and time only --
+  // the first claim must be affordable before wood exists -- and later eras
+  // price in their own materials. The route scales everything, as always.
+  const spec = (active().map && active().map.claim) || { cost: { food: 40, wood: 25 }, time: 45 };
+  const cost = {};
+  for (const k in spec.cost) cost[k] = Math.round(spec.cost[k] * factor);
   return {
     tile: tileId,
-    cost: { food: Math.round(40 * factor), wood: Math.round(25 * factor) },
-    time: Math.round(45 * factor),
+    cost,
+    time: Math.round(spec.time * factor),
     tilesOff: Number.isFinite(routeCost(tileId)) ? Math.round(routeCost(tileId)) : null,
   };
 }
@@ -127,9 +133,7 @@ export function onComplete(def) {
   if (CAPSTONES[def.id]) { advanceEra(CAPSTONES[def.id]); return; }
 
   if (def.id === "hut") {
-    const n = S.builds.hut;
-    if (n === 1) log(`A ${def.name.toLowerCase()} stands. There is room to grow.`, "good");
-    else log(`Another ${def.name.toLowerCase()} raised. Housing now ${housing()}.`, "good");
+    // (the hut housing announcement died in E3 with the hut)
     if (n === 3) log("A cluster of rooftops — this is becoming a real place.", "big");
   } else if (def.kind === "unit") {
     log(`A settler trains as a ${def.name}. You now field ${S.units[def.id]}.`, "good");

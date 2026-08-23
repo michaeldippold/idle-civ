@@ -11,6 +11,40 @@
 
 ---
 
+## 2026-08-23 — Engine rework E3: expansion is the growth verb
+
+**The free real estate is over.** The E2 bridge's runaway was live-confirmed by the owner — huts
+handed out provinces as workers until the whole world was his before Bronze — and E3 tears the
+scaffolding down: the hut and housing die wholesale, the settler timer dies, and the pop↔tiles
+lockstep dies with them. Dominion now changes only by claim, capture and fealty.
+
+**The 3-hex start ships explicitly.** A fresh run opens with the seat plus two adjacent land hexes
+— the owner-ratified trio, one hex per resource possible from the first minute — granted at first
+chart rather than emerging from the dead lockstep. No terrain-variety guarantee, deliberately:
+wanting the forest you didn't get is the claim verb's first motivation.
+
+**Claims are era-priced, and the price is an era-fact.** `map.claim` is validator-required on every
+mapped era: Stone pays 25 food and 30 seconds — food and time only, because the first claim must be
+affordable before wood exists — Bronze adds timber, Iron keeps its 6d pricing, and the route scales
+everything. The settle line in the tile detail now prints the plan's actual costs (it printed
+"undefined wood" on a food-only claim for about a minute) and stakes its ground in the era's own
+noun.
+
+**`S.pop` is a mirror now**: the floored hex sum plus the standing army, refreshed wherever
+population moves. Every legacy reader — reveal gates, the levy cap, event scaling, `civilians()` —
+sees the real population until E5 retires the number outright. The reveal spine moved from the hut
+to the claim: the building tree opens as the dominion grows past its trio, and the capstones
+re-priced against real people (bronzeAge at 25 souls, ironAge at 50 — usually unreachable without
+claiming, which is the point). The Chronicle keeps its pulse, narrating arrivals in the era's own
+words while the settlement is small and going quiet past 25 souls.
+
+Verified live: trio start, two sim-minutes passing without a single unpaid hex, a hills claim
+priced at 17 food (route-scaled down from 25) entering the Underway queue and burning down.
+Claim completion, the mirror, era pricing and the runaway's absence are all pinned by the new E3
+tombstone block; 513 checks green.
+
+---
+
 ## 2026-08-23 — Engine rework E2: production flips, steppers die
 
 **One economy, from the first minute to the last.** Production is now

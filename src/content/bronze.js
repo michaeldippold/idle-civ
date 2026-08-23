@@ -7,7 +7,6 @@ import { S } from "../core/state.js";
 // two unit types join, the capstone that got us here is retired.
 export const BRONZE_DELTA = {
   name: "Bronze Age",
-  housingPerHut: 5,
   panelTitles: { "panel-holdings": "Village" },
   // The first re-denomination is a pure 1:1 relabel: your settlers started
   // families. Counts, thresholds and balance are untouched -- only the words.
@@ -24,6 +23,7 @@ export const BRONZE_DELTA = {
     terrains: ["plains", "forest", "hills", "river", "water"],
     seats: [],
     popCaps: { plains: 12, river: 15, forest: 8, hills: 5 },
+    claim: { cost: { food: 30, wood: 12 }, time: 35 },
     works: {
       plains: { food: 1.0, wood: 0.4, stone: 0.3, copper: 0.2, tin: 0.1 },
       river:  { food: 1.2, wood: 0.3, stone: 0.2 },
@@ -35,7 +35,6 @@ export const BRONZE_DELTA = {
   remove: ["bronzeAge"],
 
   override: {
-    hut:        { name: "Stone House", desc: "Shelter for 5 more settlers." },
     infirmary:  { name: "Infirmary" },
     herbalMedicine: { desc: "Increases how much each Infirmary reduces the chance sickness claims a life." },
   },
@@ -110,7 +109,7 @@ export const BRONZE_DELTA = {
         id: "ironAge", name: "Iron Age", kind: "upgrade",
         desc: "The far mines grow distant and dear. Turn to the stubborn metal in your own hills.",
         base: { food: 400, wood: 400, stone: 400, bronze: 50 }, buildTime: 180,
-        reveal: () => S.pop >= 16 && ((S.units.archer || 0) >= 1 || (S.units.horseman || 0) >= 1),
+        reveal: () => S.pop >= 50 && ((S.units.archer || 0) >= 1 || (S.units.horseman || 0) >= 1),
       },
     ],
     units: [

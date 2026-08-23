@@ -60,6 +60,7 @@ function copyMapSpec(m) {
     seats: (m.seats || []).slice(),
     works: m.works ? JSON.parse(JSON.stringify(m.works)) : null,
     popCaps: m.popCaps ? Object.assign({}, m.popCaps) : null,
+    claim: m.claim ? JSON.parse(JSON.stringify(m.claim)) : null,
     minors: m.minors ? JSON.parse(JSON.stringify(m.minors)) : null,
   };
 }
@@ -67,7 +68,6 @@ function copyMapSpec(m) {
 export function compileBase(raw) {
   const m = {
     name: raw.name,
-    housingPerHut: raw.housingPerHut,
     panelTitles: Object.assign({}, raw.panelTitles),
     popNoun: Object.assign({}, raw.popNoun),
     arrivalLine: raw.arrivalLine,
@@ -99,7 +99,6 @@ export function compileBase(raw) {
 export function extendEra(parent, delta) {
   const m = {
     name: delta.name || parent.name,
-    housingPerHut: delta.housingPerHut != null ? delta.housingPerHut : parent.housingPerHut,
     panelTitles: Object.assign({}, parent.panelTitles, delta.panelTitles),
     // The population noun inherits (Silicon keeps Bloc); an era that
     // re-denominates simply declares a new one.
@@ -210,6 +209,10 @@ export function validateManifests(manifests) {
       // Engine rework E1: a mapped era must say how many people its ground
       // holds. Water is exempt (no one lives on open water; absent = 0).
       if (!m.map.popCaps) bad("map declares no popCaps -- terrain must say how many people it holds");
+      // E3: growth is claiming, so a mapped era must price the claim verb.
+      if (!m.map.claim || !m.map.claim.cost || !(m.map.claim.time > 0)) {
+        bad("map declares no claim spec -- expansion is the growth verb and must be priced");
+      }
       else for (const t of m.map.terrains) {
         if (t === "water") continue;
         if (!(m.map.popCaps[t] > 0)) bad(`popCaps missing or non-positive for terrain "${t}"`);

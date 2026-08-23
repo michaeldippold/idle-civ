@@ -40,11 +40,29 @@ export function ensureMap() {
       owned: ["0,0"],
     };
     if (firstChart && !S.seen.mapCharted) {
+      S.seen.needsStartingTrio = true;   // granted below, once the world exists
+    }
+    if (firstChart && !S.seen.mapCharted) {
       S.seen.mapCharted = true;
       log("Your people mark the ground they stand on. The world is wider than this.", "good");
     }
   }
   world = generateMap(S.map.seed, spec);
+  // THE 3-HEX START (owner ruling, 2026-08-23, ratifying the E2 bridge's
+  // accident): a fresh run opens with the seat plus two adjacent land hexes,
+  // so one hex per resource is possible from the first minute -- the stepper
+  // trade-off reborn at hex scale. Deliberately NO terrain-variety guarantee:
+  // wanting the forest you didn't get is the claim verb's first motivation.
+  if (S.seen.needsStartingTrio) {
+    delete S.seen.needsStartingTrio;
+    const neighbours = world.places[world.home].adj
+      .map((id) => world.places[id])
+      .filter((p) => p.terrain !== "water" && !p.adversary && !p.minor)
+      .sort((a, b) => (a.r - b.r) || (a.q - b.q));
+    for (const p of neighbours.slice(0, 2)) {
+      if (!S.map.owned.includes(p.id)) S.map.owned.push(p.id);
+    }
+  }
   if (!S.map.work) S.map.work = {};     // 6a saves predate assignments
   if (!S.map.minors) S.map.minors = {}; // the minors' living remnants
   // Reconcile the minor remnants, initAdversaries-style: a seat without
@@ -65,36 +83,31 @@ export function ensureMap() {
   }
 }
 
-// Population IS tiles under tile allocation (design.md, Scale: The Tile
-// Ladder): one holdfast, one hex. This reconciler keeps S.map.owned in
-// lockstep with S.pop -- annexing the nearest workable land when the
-// dominion grows (the carried block at a border, captures later), dropping
-// the newest holding when one is lost, never the seat. Idempotent; called
-// from ensureMap and from every pop-changing site.
+// The pop-tiles LOCKSTEP died in E3 (it was the E2 bridge, and its runaway
+// was live-confirmed: huts handed out provinces until the whole world was
+// free real estate). Dominion now changes ONLY by claim, capture and fealty.
+// What survives here is hygiene: the seat is always owned, lost work entries
+// are pruned, the books get seeded, and the pop mirror is refreshed.
+// **Dominion never shrinks** (owner ruling, 2026-08-22) still stands -- there
+// is simply no machinery left that could shrink it.
 export function syncDominion() {
   if (!world || !S.map) return;
   const owned = S.map.owned;
   if (!owned.includes(world.home)) owned.unshift(world.home);
-  if (owned.length < S.pop) {
-    const candidates = Object.values(world.places)
-      .filter((p) => p.terrain !== "water" && !p.adversary && !owned.includes(p.id))
-      .sort((a, b) => hexDistance(a.q, a.r, 0, 0) - hexDistance(b.q, b.r, 0, 0) || a.r - b.r || a.q - b.q);
-    for (const c of candidates) {
-      if (owned.length >= S.pop) break;
-      owned.push(c.id);
-    }
-  }
-  // **Dominion never shrinks** (owner ruling, 2026-08-22): consolidation and
-  // expansion may change what a tile MEANS, never how many you hold or which.
-  // Take a hex in the Iron Age and you keep it through Enlightenment, where it
-  // is worth an Enlightenment tile. This is what makes one fixed board resolve
-  // the scale problem outright -- with no ground to lose, the elaborate schemes
-  // for carrying a dominion across a rescale all become unnecessary.
-  //
-  // So pop follows the land upward rather than the land following pop down.
-  if (S.pop < owned.length) S.pop = owned.length;
   for (const tid in S.map.work) if (!owned.includes(tid)) delete S.map.work[tid];
-  ensurePop();   // annexed ground enters the books immediately (E2)
+  ensurePop();
+  syncPopMirror();
+}
+
+// S.pop is a MIRROR now (E3): the floored hex sum plus the standing army.
+// Everything legacy that still reads S.pop -- reveal gates, the levy cap,
+// event scaling, civilians() -- sees the real population, until E5 re-homes
+// the army and S.pop can retire outright.
+export function syncPopMirror() {
+  if (!S.map || !S.map.pop) return;
+  let units = 0;
+  for (const k in S.units) units += S.units[k] || 0;
+  S.pop = hexPopSum() + units;
 }
 
 // What the player has SEEN. Sticky and additive, never removed -- the
@@ -181,6 +194,7 @@ export function ensurePop() {
 export function growPopulation(dt) {
   if (!S.map || !S.map.pop || !world) return;
   const r = CONFIG.popGrowthRate;
+  const before = hexPopSum();
   for (const id of S.map.owned) {
     const cap = capOf(id);
     if (cap <= 0) continue;
@@ -191,6 +205,15 @@ export function growPopulation(dt) {
     // hundredth so a full hex eventually reads "8 of 8" instead of hovering
     // at 7 forever. (~7 minutes from the far side of the curve at r=0.015.)
     S.map.pop[id] = cap - next < 0.01 ? cap : next;
+  }
+  const after = hexPopSum();
+  if (after !== before) {
+    syncPopMirror();
+    // The Chronicle keeps its pulse: each whole arrival is told in the era's
+    // own words -- but only while the settlement is SMALL. A hundred-soul
+    // dominion gaining a person a second would drown the Chronicle in birth
+    // announcements.
+    if (after > before && after <= 25) log(active().arrivalLine, "good");
   }
 }
 
@@ -248,6 +271,7 @@ export function captureTile(id, viaSettle) {
   S.pop += 1;
   S.map.work[id] = "food";   // the designed default: bread first
   ensurePop();               // the new holding enters the books with its party
+  syncPopMirror();
   syncCharted();              // taking ground shows you what borders it
   return true;
 }

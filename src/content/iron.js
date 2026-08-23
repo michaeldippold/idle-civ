@@ -51,6 +51,7 @@ export const IRON_DELTA = {
     // is an Iron-scale instinct -- hills land at 9 here and pass 20 in later
     // eras as the cap curve keeps climbing.
     popCaps: { plains: 24, river: 30, forest: 15, hills: 9 },
+    claim: { cost: { food: 40, wood: 25 }, time: 45 },
     works: {
       plains: { food: 1.0, wood: 0.4, stone: 0.3, iron: 0.2 },
       river:  { food: 1.2, wood: 0.3, stone: 0.2, iron: 0.2 },
@@ -83,9 +84,6 @@ export const IRON_DELTA = {
     "bronzeTools", "bronzeWeapons", "scouting",  // stranded: priced in a dead resource
     "flintSpears",                        // superseded twice over
     "ironAge",                            // a capstone exists only in the era it ends
-    "hut",                                // housing retires at Iron: the first founding building
-                                          // to leave the game (design.md, Conquest Growth) --
-                                          // holdfasts are not counted in roofs
     "granary", "woodshed", "stoneYard",   // storage caps retire at Iron (user ruling, in the
                                           // scheduled window): a king does not count sacks --
                                           // that is delegated. The friction hands off to the

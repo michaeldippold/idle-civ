@@ -1,5 +1,5 @@
 import { DEF_CATEGORIES, active } from "../content/compile.js";
-import { civilians, deployedCount, housing, playtime, totalUnits } from "../core/derived.js";
+import { civilians, deployedCount, playtime, totalUnits } from "../core/derived.js";
 import { defaultAssignments, ensureMap, syncDominion } from "../map/map.js";
 import { initAdversaries } from "../core/persist.js";
 import { S } from "../core/state.js";
@@ -11,7 +11,7 @@ import { openEraModal } from "../ui/modal.js";
 export function advanceEra(era) {
   const fromEra = S.era;
   const fromM = active();
-  const before = { housing: housing() };
+  const before = {};   // housing died in E3; the era modal reads other changes
   const shallow = Object.assign({}, S);
   delete shallow.eraHistory;               // snapshots don't nest snapshots
   S.eraHistory[fromEra] = JSON.parse(JSON.stringify(shallow));

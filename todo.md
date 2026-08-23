@@ -356,21 +356,20 @@ per era-fact — the odometer comes from the ceiling rising, never from the rate
       **E2 bridge, dies in E3:** the settler timer still grants `S.pop`, and the lockstep converts
       each arrival into a hex — the hut is temporarily the claim verb. Bronze units are unfed until
       the levy (they are not on hexes); a window quirk, resolved by E5's army rework. 520 checks.
-- [ ] **E3 — expansion is the growth verb, from frame one.** Claiming adjacent land arrives in the
-      Stone age (the settle verb, priced cheap and in food/time only at Stone — the first claim
-      must be affordable before wood exists). The pop↔tiles lockstep in `syncDominion` dies; owned
-      changes only by claim, capture and fealty. Housing and the settler timer die.
-      **The 3-hex start is CANON (owner ruling, 2026-08-23, ratifying what began as the E2 bridge
-      artifact):** a fresh run opens with the seat plus two adjacent hexes, explicitly granted at
-      world-gen once the lockstep dies. Three hexes means one per resource is possible from the
-      first minute — the stepper trade-off reborn at hex scale, in the owner's words "steppers
-      again but hexes" — and the seat still works too (Luthadel earns its keep). **Do NOT
-      guarantee terrain variety in the starting trio:** the owner's own run lacked a forest and
-      the itch to go claim one was immediate — that itch IS the claim verb's first motivation, and
-      a guaranteed-perfect start would delete it.
-      **The Stone opening becomes: work your three hexes, save up, choose your next neighbour** —
-      which diversifies production, which is the loop. (This pulls the essential half of
-      map-slice-6 forward; claiming is not scouting, but they share the frontier.)
+- [x] **E3 — expansion is the growth verb, from frame one** *(shipped 2026-08-23)*. The free
+      real estate is over (live-confirmed runaway: huts handed out provinces until the owner had
+      the whole world before Bronze). Deleted: the hut and housing wholesale, `housing()`,
+      `accrueGrowth()` and the settler timer, `housingPerHut`, and the pop↔tiles lockstep.
+      `S.pop` is now a MIRROR — floored hex sum plus the standing army — so every legacy reader
+      (reveal gates, levy cap, event scaling, `civilians()`) sees real people until E5 retires it.
+      **The 3-hex start ships explicitly** (seat + two adjacent land hexes at first chart, no
+      terrain-variety guarantee). **Claims are era-priced** via the `map.claim` era-fact,
+      validator-required: Stone pays food+time only (25 food/30s), Bronze adds timber, Iron keeps
+      its 6d pricing; all route-scaled. **The reveal spine moved from the hut to the claim**
+      (buildings open as the dominion grows past its trio) and the capstone gates re-priced
+      against real people (bronzeAge ≥ 25, ironAge ≥ 50 — usually unreachable without claiming,
+      which is the point). The Chronicle keeps its pulse: arrivals are narrated in the era's own
+      words while the settlement is under 25 souls, then go quiet. 513 checks.
 - [ ] **E4 — the frontier starves first.** `adminDistance()` (the `routeCost` Dijkstra seeded from
       `world.home` alone); when food runs dry the drain walks the frontier inward, narrated;
       death = the seat emptying. The global instant-death starvation check retires.

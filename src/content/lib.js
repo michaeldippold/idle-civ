@@ -169,7 +169,7 @@ export const HINT_LIB = {
   wood:  { when: () => S.res.wood  > 0, msg: "You have wood enough to notice its worth." },
   stone: { when: () => S.res.stone > 0, msg: "Stone piles up beside the wood." },
   build: { when: () => S.res.wood >= 8, msg: "There is timber enough to build. Raise a hut for your people." },
-  tools: { when: () => S.builds.hut >= 1, msg: "With shelter secured, your people turn to better tools." },
+  tools: { when: () => S.map && S.map.owned.length >= 4, msg: "With new ground claimed, your people turn to better tools." },
   rotFood: { when: () => S.res.food >= caps().food - 0.01,
     msg: "Your food stores are full — the surplus spoils in the open. Build a Granary." },
   rotWood: { when: () => S.res.wood >= caps().wood - 0.01,

@@ -23,7 +23,6 @@ import { S } from "../core/state.js";
 //     never granting immunity.
 export const STONE = {
   name: "Stone Age",
-  housingPerHut: 3,
   panelTitles: { "panel-holdings": "Settlement" },
   // What one unit of population MEANS this era (see design.md, Unit
   // Re-denomination): the number on screen stays small forever; this noun is
@@ -57,6 +56,10 @@ export const STONE = {
     // numbers keep a 2-3 hex Stone endgame near today's 15-25 people. Water
     // holds no one and is deliberately absent: a missing terrain means cap 0.
     popCaps: { plains: 8, river: 10, forest: 5, hills: 3 },
+    // What claiming adjacent land costs at Stone scale (E3): food and time
+    // ONLY -- the first claim must be affordable before wood exists. Scaled
+    // by the route, like every expedition.
+    claim: { cost: { food: 25 }, time: 30 },
     // What each terrain can be turned to, from the FIRST minute (E2): one
     // assignment per hex, terrain sets the rate, every ground works
     // everything at a price. The Stone table is the Iron table minus iron --
@@ -77,11 +80,10 @@ export const STONE = {
   ],
 
   buildings: [
-    {
-      id: "hut", name: "Hut", kind: "building", desc: "Shelter for 3 more settlers.",
-      base: { wood: 15 }, scale: 1.6, buildTime: 12,
-      reveal: () => S.res.wood >= 8 || S.builds.hut > 0,
-    },
+    // The Hut died in E3 with the housing system: people live on the land
+    // now, and the land's carrying capacity is the ceiling. The founding
+    // building's reveal-spine role passed to THE CLAIM -- your dominion
+    // growing is what opens the tree.
     {
       id: "woodshed", name: "Woodshed", kind: "building", desc: "Store +100 wood (else it rots in the rain).",
       base: { wood: 20 }, scale: 1.55, buildTime: 16,
@@ -100,30 +102,30 @@ export const STONE = {
     {
       id: "dryingRack", name: "Drying Racks", kind: "building", desc: "Foragers gather +12% food.",
       base: { wood: 22 }, scale: 1.5, buildTime: 20,
-      reveal: () => S.builds.hut >= 1,
+      reveal: () => S.map && S.map.owned.length >= 4,
     },
     {
       id: "lumberCamp", name: "Lumber Camp", kind: "building", desc: "Woodcutters gather +12% wood.",
       base: { wood: 18, stone: 10 }, scale: 1.5, buildTime: 24,
-      reveal: () => S.builds.hut >= 1,
+      reveal: () => S.map && S.map.owned.length >= 4,
     },
     {
       id: "stonePit", name: "Stone Pit", kind: "building", desc: "Gatherers mine +12% stone.",
       base: { wood: 20, stone: 12 }, scale: 1.5, buildTime: 24,
-      reveal: () => S.builds.hut >= 2,
+      reveal: () => S.map && S.map.owned.length >= 5,
     },
     {
       // "Medicine Tent" here so that "Infirmary" is available as this same
       // building's Bronze-era name (an override, not a new def). Id never changes.
       id: "infirmary", name: "Medicine Tent", kind: "building", desc: "Reduces the chance sickness claims a life.",
       base: { wood: 24, stone: 8 }, scale: 1.5, buildTime: 20,
-      reveal: () => S.builds.hut >= 1,
+      reveal: () => S.map && S.map.owned.length >= 4,
     },
     {
       id: "barracks", name: "Barracks", kind: "building", cap: 1,
       desc: "Lets your people train as Soldiers.",
       base: { wood: 40, stone: 15 }, scale: 1.5, buildTime: 30,
-      reveal: () => S.builds.hut >= 1,
+      reveal: () => S.map && S.map.owned.length >= 4,
     },
   ],
 
@@ -132,13 +134,13 @@ export const STONE = {
       id: "stoneTools", name: "Stone Tools", kind: "upgrade",
       desc: "Permanently improves all gathering by 8%.",
       base: { wood: 10 }, buildTime: 10,
-      reveal: () => S.res.wood >= 5 || S.builds.hut > 0,
+      reveal: () => S.res.wood >= 5,
     },
     {
       id: "fireMastery", name: "Fire Mastery", kind: "upgrade",
       desc: "Permanently reduces food upkeep by 15%.",
       base: { wood: 30, food: 10 }, buildTime: 25,
-      reveal: () => S.builds.hut >= 1,
+      reveal: () => S.map && S.map.owned.length >= 4,
     },
     {
       id: "herbalMedicine", name: "Herbal Medicine", kind: "upgrade",
@@ -167,7 +169,7 @@ export const STONE = {
       id: "bronzeAge", name: "Bronze Age", kind: "upgrade",
       desc: "Copper and tin, married in fire. Step out of the age of stone.",
       base: { food: 300, wood: 300, stone: 300 }, buildTime: 120,
-      reveal: () => S.pop >= 10 && (S.units.soldier || 0) >= 1,
+      reveal: () => S.pop >= 25 && (S.units.soldier || 0) >= 1,
     },
   ],
 

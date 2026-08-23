@@ -106,7 +106,7 @@ function snap(label) {
   const s = S();
   console.log(`${label.padEnd(34)} pop=${s.pop} civ=${api.civilians()} ` +
     `soldiers=${s.units.soldier} food=${s.res.food.toFixed(1)} wood=${s.res.wood.toFixed(1)} ` +
-    `stone=${s.res.stone.toFixed(1)} huts=${s.builds.hut} barracks=${s.builds.barracks} dead=${s.dead}`);
+    `stone=${s.res.stone.toFixed(1)} owned=${s.map ? s.map.owned.length : 0} barracks=${s.builds.barracks} dead=${s.dead}`);
 }
 // idle()'s successor (E2): who could still be trained. People are never
 // "unassigned" any more -- they live somewhere -- but a queued unit order
@@ -128,24 +128,25 @@ check("starvation still ends the game", S().dead === true);
 
 reset(); api.ensureMap();
 S().map.work[api.world.home] = "food";   // the E2 verb: turn the seat to food
-S().res.wood = 50;                        // the hut's timber; gathering has its own checks now
+S().res.wood = 50;                        // timber up front; gathering has its own checks
 run(5);
-api.build(findB("hut"));
-run(13);
-check("hut still completes with zero workers assigned", S().builds.hut === 1);
-check("housing still raised to 6", api.housing() === 6);
+api.build(findB("granary"));              // the hut died in E3; the granary leads the tree now
+run(17);
+check("a building still completes with zero workers assigned", S().builds.granary === 1);
 
 // ---- Barracks is capped at 1 ----
 console.log("\n--- Barracks: capped at 1 ---");
 reset(); api.ensureMap();
-S().map.work[api.world.home] = "food";    // stay fed for the long reveal window
-S().res.wood = 50;                         // the hut's timber, paid up front
-run(300);
-api.build(findB("hut"));
-run(13);
+S().map.work[api.world.home] = "food";    // stay fed for the reveal window
+// The reveal spine is THE CLAIM since E3: barracks opens when the dominion
+// grows past its starting trio.
+const fourth = Object.values(api.world.places)
+  .find((x) => x.terrain !== "water" && !x.adversary && !x.minor && !api.isOwned(x.id));
+api.captureTile(fourth.id);
+run(5);
 S().res.wood = 200; S().res.stone = 200;  // skip the grind, just testing cap behavior
-snap("hut done, barracks should be revealed now");
-check("barracks revealed once hut >= 1", api.isRevealed(findB("barracks")));
+snap("fourth hex claimed; barracks should be revealed");
+check("barracks revealed once the dominion grows past the trio", api.isRevealed(findB("barracks")));
 api.build(findB("barracks"));
 check("first barracks queued", S().buildQueue.some(q => q.id === "barracks"));
 api.build(findB("barracks"));
@@ -399,57 +400,64 @@ const woodHex = S().map.owned.find((id) => id !== api.world.home);
 S().map.pop[woodHex] = 8;
 S().map.work[woodHex] = "wood";
 run(90);
-check("enough wood gathered to afford the hut", S().res.wood >= api.buildCost(findB("hut")).wood);
-api.build(findB("hut"));
-check("hut actually entered the queue", S().buildQueue.length === 1);
-run(13); // let the hut finish, queue drains back to empty
-check("hut finished, queue now empty again", S().buildQueue.length === 0);
+check("enough wood gathered to afford the granary", S().res.wood >= api.buildCost(findB("granary")).wood);
+api.build(findB("granary"));
+check("granary actually entered the queue", S().buildQueue.length === 1);
+run(17); // let it finish, queue drains back to empty
+check("granary finished, queue now empty again", S().buildQueue.length === 0);
 
 // ================= BRONZE AGE PHASE 1 =================
-const hutDef = findB("hut");
 const infDef = findB("infirmary");
 const bronzeAgeDef = findU("bronzeAge");
 const bronzeToolsDef = findU("bronzeTools");
 
 console.log("\n--- Bronze P1: per-era display names (now manifest overrides) ---");
 reset();
-check("stone: hut named 'Hut'", api.defById("hut").name === "Hut");
+// (The hut was this block's other example until E3 killed it -- the
+// infirmary's Medicine Tent -> Infirmary rename carries the pattern alone.)
 check("stone: infirmary named 'Medicine Tent'", api.defById("infirmary").name === "Medicine Tent");
 S().era = "bronze";
-check("bronze: hut named 'Stone House'", api.defById("hut").name === "Stone House");
 check("bronze: infirmary named 'Infirmary'", api.defById("infirmary").name === "Infirmary");
-check("bronze: hut desc updates to 5 settlers", api.defById("hut").desc.includes("5"));
 check("ids never change regardless of era",
-  api.MANIFESTS.stone.buildings.some(b => b.id === "hut") &&
-  api.MANIFESTS.bronze.buildings.some(b => b.id === "hut"));
+  api.MANIFESTS.stone.buildings.some(b => b.id === "infirmary") &&
+  api.MANIFESTS.bronze.buildings.some(b => b.id === "infirmary"));
 check("an override can't reach back and rename the parent era's copy",
-  api.MANIFESTS.stone.buildings.find(b => b.id === "hut").name === "Hut");
+  api.MANIFESTS.stone.buildings.find(b => b.id === "infirmary").name === "Medicine Tent");
 check("overriding name does not disturb inherited fields (cost survives)",
-  api.MANIFESTS.bronze.buildings.find(b => b.id === "hut").base.wood ===
-  api.MANIFESTS.stone.buildings.find(b => b.id === "hut").base.wood);
+  api.MANIFESTS.bronze.buildings.find(b => b.id === "infirmary").base.wood ===
+  api.MANIFESTS.stone.buildings.find(b => b.id === "infirmary").base.wood);
 S().era = "stone";
 check("un-overridden defs read the same in both eras", api.defById("granary").name === "Granary" &&
   api.MANIFESTS.bronze.buildings.find(b => b.id === "granary").name === "Granary");
 
-console.log("\n--- Bronze P1: housing is retroactive ---");
-reset();
-S().builds.hut = 4;
-const housingStone = api.housing();
-check("stone: 4 huts = base 3 + 4*3 = 15", housingStone === 15);
+console.log("\n--- Bronze P1: carrying caps are retroactive (housing's heir) ---");
+reset(); api.ensureMap();
+const capStone = api.capOf(api.world.home);
+check("stone: the seat's plains hold 8", capStone === 8);
 S().era = "bronze";
-check("bronze: same 4 huts now = base 3 + 4*5 = 23", api.housing() === 23);
-check("advancing raised housing without building anything", api.housing() > housingStone);
+check("bronze: the SAME ground now holds 12 -- caps are the era curve",
+  api.capOf(api.world.home) === 12);
+check("advancing raised the ceiling without building anything",
+  api.capOf(api.world.home) > capStone);
+S().era = "stone";
 
 console.log("\n--- Bronze P1: capstone reveal gating ---");
-reset();
+// S.pop is a MIRROR since E3: fixtures populate the HEXES and let the mirror
+// report, because typing a population into S.pop is fiction the next tick
+// erases. The gate itself moved to 25 -- a trio start caps out around 14-28
+// depending on terrain, so reaching it usually requires claiming, which is
+// the point.
+reset(); api.ensureMap();
 check("capstone hidden on a fresh game", !api.isRevealed(bronzeAgeDef));
-S().pop = 10;
+for (const id of S().map.owned) S().map.pop[id] = 10;
+api.syncPopMirror();
 check("pop alone is not enough -- needs a Soldier too", !api.isRevealed(bronzeAgeDef));
-reset();
-S().pop = 5; S().units.soldier = 1;
+reset(); api.ensureMap();
+S().units.soldier = 1; api.syncPopMirror();
 check("a Soldier alone is not enough -- needs pop too", !api.isRevealed(bronzeAgeDef));
-reset();
-S().pop = 10; S().units.soldier = 1;
+reset(); api.ensureMap();
+for (const id of S().map.owned) S().map.pop[id] = 10;
+S().units.soldier = 1; api.syncPopMirror();
 check("both conditions met -> capstone reveals", api.isRevealed(bronzeAgeDef));
 S().units.soldier = 0;
 check("stays revealed after the soldier dies (sticky)", api.isRevealed(bronzeAgeDef));
@@ -459,10 +467,14 @@ console.log("\n--- Bronze P1: completing the capstone flips the era ---");
 // Deterministic block: over the 120s build, an unlucky raid could steal the
 // remaining food and starve the settlement before the capstone completes.
 api.setRngSource(() => 0.999999);
-reset();
-S().pop = 10; S().units.soldier = 1;
+reset(); api.ensureMap();
+for (const id of S().map.owned) S().map.pop[id] = 10;
+S().units.soldier = 1; api.syncPopMirror();
+S().map.work[api.world.home] = "food";   // fed through the build: 2/s in, 1.2/s eaten
+S().builds.granary = 4;                   // headroom so the larder isn't clamped
 S().res.food = 400; S().res.wood = 400; S().res.stone = 400;
 check("era starts as stone", S().era === "stone");
+const peopleBeforeFlip = api.hexPopSum();
 api.build(bronzeAgeDef);
 check("capstone entered the queue", S().buildQueue.length === 1 && S().buildQueue[0].id === "bronzeAge");
 check("era has NOT flipped merely by queuing it", S().era === "stone");
@@ -471,7 +483,8 @@ check("era still stone while mid-build", S().era === "stone");
 run(10);
 check("era flipped to bronze on completion", S().era === "bronze");
 check("capstone recorded as an owned upgrade", S().upgrades.bronzeAge === true);
-check("Bronze is a 1:1 relabel -- the count is untouched", S().pop === 10);
+check("Bronze is a 1:1 relabel -- the real population is untouched",
+  api.hexPopSum() >= peopleBeforeFlip);
 check("...but the noun changed: families now", api.active().popNoun.singular === "family");
 check("pre-transition snapshot archived under the era just left", !!S().eraHistory.stone);
 check("snapshot captured pre-flip facts (era still stone inside it)",
@@ -553,7 +566,7 @@ console.log("\n--- Bronze P1: old stone-age saves still load ---");
   check("legacy save keeps its era", S().era === "stone");
   check("legacy save's missing buildings default to 0", S().builds.barracks === 0 && S().builds.stoneYard === 0);
   check("legacy save's real buildings survive", S().builds.hut === 2 && S().builds.infirmary === 1);
-  check("housing computes correctly from a legacy save", api.housing() === 3 + 2 * 3);
+  // (the housing check died in E3 with housing itself)
   delete store[api.CONFIG.saveKey];
 }
 
@@ -612,15 +625,17 @@ reset();
   check("every era's units appear", everyEra("units"));
   check("every era's upgrades appear", everyEra("upgrades"));
   // The Bronze tab must read with Bronze names even while we're still in Stone.
+  // (The Stone House died with the hut in E3; the Infirmary carries the check.)
   check("bronze tab uses bronze-era names while era is still stone",
-    html.includes("Stone House") && html.includes("Infirmary"));
+    html.includes("Infirmary"));
   check("stone tab still uses stone-era names", html.includes("Medicine Tent"));
 }
 
 console.log("\n--- Era availability (presence in the compiled manifests) ---");
 {
   const inEra = (era, cat, id) => api.MANIFESTS[era][cat].some((d) => d.id === id);
-  check("a hut introduced in stone still exists in bronze", inEra("bronze", "buildings", "hut"));
+  check("the hut exists in NO era -- killed in E3, pop is hex now",
+    !inEra("stone", "buildings", "hut") && !inEra("bronze", "buildings", "hut"));
   check("bronze content does not exist back in the stone age", !inEra("stone", "upgrades", "bronzeTools"));
   check("bronze content exists in bronze", inEra("bronze", "upgrades", "bronzeTools"));
   check("the capstone is available in the era it leads out of", inEra("stone", "upgrades", "bronzeAge"));
@@ -633,59 +648,47 @@ console.log("\n--- Era availability (presence in the compiled manifests) ---");
   check("active tab follows the current era", html.includes('class="info-tab active" data-era="bronze"'));
 }
 
-console.log("\n--- Free timed growth: no cost, steady cadence, housing-gated ---");
+console.log("\n--- E3: the timer, the hut and the lockstep are gone, and stay gone ---");
 {
-  const N = api.CONFIG.settlerIntervalSeconds;
-  console.log(`  settler interval: ${N}s`);
-  // Force every chancePerSecond roll to miss so windfalls, sickness and raids
-  // can't perturb population or stores -- these tests are about cadence math.
   api.setRngSource(() => 0.999999);
+  reset(); api.closeModal(); api.ensureMap();
+  S().map.work[api.world.home] = "food";
 
-  // Frozen while housing is full (the starting state: pop 3 / housing 3).
-  reset();
+  check("accrueGrowth() is gone", api.accrueGrowth === undefined);
+  check("housing() is gone", api.housing === undefined);
+  check("the 3-hex start: seat plus two neighbours, owner-ratified",
+    S().map.owned.length === 3 && S().map.owned[0] === api.world.home);
+
+  // The runaway that killed the bridge, asserted dead: time passes, people
+  // grow on their hexes, and the dominion does NOT expand on its own.
+  const ownedBefore = S().map.owned.slice().sort().join("|");
+  run(180);
+  check("free real estate is over: time alone grants no ground",
+    S().map.owned.slice().sort().join("|") === ownedBefore);
+  check("people still grew on the ground they hold",
+    api.hexPopSum() > 7);
+  check("S.pop mirrors the real population (people + army)",
+    S().pop === api.hexPopSum() + Object.values(S().units).reduce((a, b) => a + b, 0));
+
+  // Claims are priced by the ERA: stone pays food and time only.
+  const target = Object.values(api.world.places)
+    .find((x) => x.terrain !== "water" && !x.adversary && !x.minor && !api.isOwned(x.id));
+  const plan = api.settlePlan(target.id);
+  check("a stone claim is priced in food and time only (no wood before wood exists)",
+    plan && plan.cost.food > 0 && !("wood" in plan.cost) && plan.time > 0);
+  S().era = "bronze";
+  const plan2 = api.settlePlan(target.id);
+  check("a bronze claim prices in timber too -- the claim spec is an era-fact",
+    plan2 && plan2.cost.wood > 0);
+  S().era = "stone";
+
+  // And the claim actually grows the dominion, through the queue.
   S().res.food = 400; S().builds.granary = 4;
-  run(120);
-  check("no growth while housing is full", S().pop === 3);
-  check("progress does not accrue while full (freeze, and nothing banked)", S().growth === 0);
-
-  // With room, settlers arrive on cadence -- and cost NOTHING.
-  // Pop 18 under the old model priced a settler at ~409 food; if any lump sum
-  // were still charged, this stockpile would crater.
-  reset();
-  S().pop = 18; S().builds.hut = 10;      // housing 33, lots of room
-  S().builds.granary = 5;                  // cap high enough to hold the pile
-  S().res.food = 500;
-  const upkeepPerSec = api.rates().upkeep;
-  run(N * 2 + 2);                          // two arrivals worth of time
-  check("two settlers arrived on cadence", S().pop === 20);
-  check("bought tracks lifetime arrivals", S().bought === 2);
-  const foodSpent = 500 - S().res.food;
-  check("growth cost NO food -- only upkeep drained the stores",
-    foodSpent < upkeepPerSec * 1.3 * (N * 2 + 2) + 1);   // 1.3 headroom for pop growing mid-run
-  console.log(`  food spent over ${N * 2 + 2}s at pop 18->20: ${foodSpent.toFixed(1)} (upkeep only; old model charged ~409/settler)`);
-
-  // Freeze semantics: partial progress survives a full-housing stretch.
-  reset();
-  S().res.food = 400; S().builds.granary = 4;
-  S().builds.hut = 1;                      // housing 6, room for 3 more
-  run(20);
-  check("partial progress accrued", Math.abs(S().growth - 20) < 0.5);
-  S().pop = api.housing();                 // housing suddenly full
-  run(60);
-  check("progress frozen while full, not reset", Math.abs(S().growth - 20) < 0.5);
-  const popBeforeRoom = S().pop;
-  S().builds.hut = 2;                      // room again (housing 9)
-  run(N - 20 + 2);                         // just past the remaining time
-  check("frozen progress counts toward the next arrival", S().pop === popBeforeRoom + 1);
-
-  // Growth stops exactly at the housing cap, never over.
-  reset();
-  S().res.food = 400; S().builds.granary = 4;
-  S().builds.hut = 1;                      // housing 6
-  run(N * 4);
-  check("population parks exactly at housing", S().pop === api.housing());
-  check("still alive throughout (tests were fed)", S().dead === false);
-
+  api.launchSettle(target.id);
+  check("the claim entered the queue", S().buildQueue.some((q) => q.kind === "settle"));
+  run(plan.time + 60);
+  check("the claim completed: the dominion grew by exactly one, paid for",
+    S().map.owned.length === 4 && api.isOwned(target.id));
   api.setRngSource(null);
 }
 
@@ -1151,15 +1154,15 @@ console.log("\n--- Free growth: the purchase model is fully excised ---");
   check("growthCost/growthBase/growthScale are gone",
     api.growthCost === undefined &&
     api.CONFIG.growthBase === undefined && api.CONFIG.growthScale === undefined);
-  check("settlerIntervalSeconds exists and is sane",
-    typeof api.CONFIG.settlerIntervalSeconds === "number" && api.CONFIG.settlerIntervalSeconds > 0);
-  // Raising a food cap must no longer be able to trigger any purchase: food
-  // parks at the new cap and simply sits there.
-  S().pop = 19; S().builds.hut = 10; S().builds.granary = 5;
-  S().res.food = api.caps().food;
-  const foodBefore = S().res.food;
-  api.accrueGrowth(1);
-  check("growth ticking never touches food", S().res.food === foodBefore);
+  // (settlerIntervalSeconds and accrueGrowth died in E3 -- growth is local
+  // to hexes and free; the E3 tombstone block owns those assertions now.)
+  check("hex growth never touches food either", (() => {
+    reset(); api.ensureMap();
+    S().res.food = api.caps().food;
+    const foodBefore = S().res.food;
+    api.growPopulation(1);
+    return S().res.food === foodBefore;
+  })());
 }
 {
   // The effect-may-return-its-own-line engine capability outlives its first
@@ -1175,8 +1178,8 @@ console.log("\n--- Phase A: compiled manifests have the right shape ---");
   const m = api.MANIFESTS;
   check("both eras compiled", !!m.stone && !!m.bronze);
   check("era-scoped values: names", m.stone.name === "Stone Age" && m.bronze.name === "Bronze Age");
-  check("era-scoped values: housing per hut 3 -> 5",
-    m.stone.housingPerHut === 3 && m.bronze.housingPerHut === 5);
+  check("era-scoped values: carrying caps 8 -> 12 on the same plains (housing's heir)",
+    m.stone.map.popCaps.plains === 8 && m.bronze.map.popCaps.plains === 12);
   check("era-scoped values: Settlement -> Village",
     m.stone.panelTitles["panel-holdings"] === "Settlement" &&
     m.bronze.panelTitles["panel-holdings"] === "Village");
@@ -1192,10 +1195,12 @@ console.log("\n--- Phase A: compiled manifests have the right shape ---");
   check("DEF_INDEX resolves a retired id (the capstone) after its era ends",
     api.DEF_INDEX.bronzeAge && api.DEF_INDEX.bronzeAge.id === "bronzeAge");
   check("DEF_INDEX carries the LATEST identity for a surviving id",
-    api.DEF_INDEX.forge.converts.out.steel === 1 &&   // iron's recipe, not bronze's
-    api.DEF_INDEX.hut.name === "Stone House");        // hut's LAST era is bronze -- housing retired at iron
+    api.DEF_INDEX.forge.converts.out.steel === 1 &&        // iron's recipe, not bronze's
+    api.DEF_INDEX.infirmary.name === "Infirmary");         // the bronze rename, not the stone name
+  check("the hut is not merely absent from eras -- it never compiled at all",
+    api.DEF_INDEX.hut === undefined);
   reset();
-  check("defById prefers the active era over DEF_INDEX", api.defById("hut").name === "Hut");
+  check("defById prefers the active era over DEF_INDEX", api.defById("infirmary").name === "Medicine Tent");
 }
 
 console.log("\n--- Phase A: the compiler is loud about authoring mistakes ---");
@@ -1282,8 +1287,7 @@ console.log("\n--- Phase B: manifestDiff ---");
   const d = api.manifestDiff(api.MANIFESTS.stone, api.MANIFESTS.bronze);
   check("ten additions across buildings/units/upgrades (incl. the iron capstone)", d.added.length === 10);
   check("exactly one removal: the capstone", d.removed.length === 1 && d.removed[0].id === "bronzeAge");
-  check("two renames: hut and infirmary", d.renamed.length === 2 &&
-    d.renamed.some(r => r.from.name === "Hut" && r.to.name === "Stone House") &&
+  check("one rename: the infirmary (the hut died in E3)", d.renamed.length === 1 &&
     d.renamed.some(r => r.from.name === "Medicine Tent" && r.to.name === "Infirmary"));
   const first = api.manifestDiff(null, api.MANIFESTS.stone);
   check("a first era diffs against nothing: all its content is 'added'",
@@ -1381,9 +1385,9 @@ console.log("\n--- C1: the iron manifest ---");
   check("bronze manifest gained the ironAge capstone",
     api.MANIFESTS.bronze.upgrades.some(u => u.id === "ironAge"));
   const d = api.manifestDiff(api.MANIFESTS.bronze, m);
-  check("diff: 6 added, 10 removed (hut and the whole storage line among them), 0 renamed",
-    d.added.length === 6 && d.removed.length === 10 && d.renamed.length === 0 &&
-    d.removed.some((r) => r.id === "hut") && d.removed.some((r) => r.id === "granary") &&
+  check("diff: 6 added, 9 removed (the storage line among them; the hut predeceased), 0 renamed",
+    d.added.length === 6 && d.removed.length === 9 && d.renamed.length === 0 &&
+    d.removed.some((r) => r.id === "granary") &&
     !d.added.some((r) => r.id === "ironYard"));
 }
 
@@ -1392,10 +1396,14 @@ console.log("\n--- C1: capstone gating and the real transition ---");
   api.setRngSource(() => 0.999999);   // no hazards during the long build
   reset();
   S().era = "bronze";
+  api.initAdversaries(); api.ensureMap();
   const capstone = api.MANIFESTS.bronze.upgrades.find(u => u.id === "ironAge");
-  S().pop = 16;
+  // The gate is 50 real people now: give the trio deep pops (held above cap,
+  // never shrunk) and let the mirror report them.
+  for (const id of S().map.owned) S().map.pop[id] = 20;
+  api.syncPopMirror();
   check("pop alone does not reveal the iron capstone", !api.isRevealed(capstone));
-  S().units.archer = 1;
+  S().units.archer = 1; api.syncPopMirror();
   check("pop + a composition unit reveals it", api.isRevealed(capstone));
 
   // A real bronze settlement takes the leap: stocked ores, workers on the
@@ -1440,7 +1448,7 @@ console.log("\n--- C1: capstone gating and the real transition ---");
   check("the books balance after all of it", spare() >= 0 && api.reserved() <= Math.max(0, api.civilians()));
   check("bronze-era snapshot archived at the border", !!S().eraHistory.bronze &&
     S().eraHistory.bronze.res.bronze === 70);
-  check("housing is uncapped at iron -- the concept retired with the hut", api.housing() === Infinity);
+  // (housing died in E3 -- its absence is asserted in the E3 tombstone block)
   api.setRngSource(null);
 }
 
@@ -1956,7 +1964,7 @@ console.log("\n--- Phase 3: offline is gone; the save is load-bearing ---");
   // survives serialization verbatim and the revived save finishes the build.
   reset();
   S().res.wood = 100;
-  api.build(findB("hut"));
+  api.build(findB("granary"));
   run(3);
   const midRemaining = S().buildQueue[0].remaining;
   api.save();
@@ -1966,7 +1974,7 @@ console.log("\n--- Phase 3: offline is gone; the save is load-bearing ---");
     S().buildQueue.length === 1 && Math.abs(S().buildQueue[0].remaining - midRemaining) < 1e-9);
   check("load restores the saved copy, not live state", S().res.wood < 9999);
   run(15);
-  check("the revived save finishes the build", S().builds.hut === 1 && S().buildQueue.length === 0);
+  check("the revived save finishes the build", S().builds.granary === 1 && S().buildQueue.length === 0);
 
   // Mid-flight expedition round-trip: a column in the field survives the
   // save, and the revived save resolves it on the world's schedule.
@@ -2030,8 +2038,9 @@ console.log("\n--- Phase 6d: the growth verbs -- minors, settle, routes ---");
   api.setRngSource(() => 0.99);         // hold the world's dice: this checks settle
   run(Math.ceil(plan.time) + 60);       // completion, not event weather -- a sickness
   api.setRngSource(null);               // or raid in ~90s would shift pop (the old flake)
-  check("the party raises a hall: owned, +1 holdfast, turned to bread",
-    S().map.owned.includes(empty.id) && S().pop === popBefore + 1 && S().map.work[empty.id] === "food");
+  check("the party raises a hall: owned, peopled, turned to bread",
+    S().map.owned.includes(empty.id) && api.hexPop(empty.id) >= 2 && S().pop > popBefore &&
+    S().map.work[empty.id] === "food");
 
   // Capture: a campaign against a minor, forced win, takes the place whole.
   S().builds.musterGround = 1; S().units.soldier = 6; S().res.food = 500;
@@ -2045,8 +2054,9 @@ console.log("\n--- Phase 6d: the growth verbs -- minors, settle, routes ---");
   api.setRngSource(() => 0.0);          // win, no casualty roll fires bad
   api.resolveExpeditions(0.2);
   api.setRngSource(null);
-  check("capture: the tile swears fealty -- owned, +1 holdfast, bread by default",
-    S().map.owned.includes(mtile) && S().pop === popBefore2 + 1 && S().map.work[mtile] === "food");
+  check("capture: the tile swears fealty -- owned, peopled, bread by default",
+    S().map.owned.includes(mtile) && api.hexPop(mtile) >= 2 && S().pop > popBefore2 &&
+    S().map.work[mtile] === "food");
   check("the whole stock came home", Object.keys(mstock).every((k) => S().res[k] >= mstock[k]));
   check("the minor's remnant is gone -- the Chronicle had the name last",
     S().map.minors[mtile] === undefined);
@@ -2225,11 +2235,11 @@ console.log("\n--- Phase 10: one board, forever ---");
     api.S.pop >= api.S.map.owned.length);
 
   // Reveal is sticky and additive, per the interface's reveals-never-flicker
-  // law applied to geography.
+  // law applied to geography. Ground is TAKEN now, never granted (E3).
   const seenBefore = api.S.map.revealed.length;
-  api.S.pop += 3;
-  api.syncDominion();
-  api.syncCharted();
+  const frontier = Object.values(api.world.places)
+    .find((x) => x.terrain !== "water" && !x.adversary && !x.minor && !api.isOwned(x.id));
+  api.captureTile(frontier.id);
   check("taking ground reveals what borders it", api.S.map.revealed.length > seenBefore);
   const snapshot = api.S.map.revealed.slice();
   api.syncCharted();
@@ -2272,7 +2282,7 @@ console.log("\n--- Phase 6b: Conquest Growth G1 -- levy, output, no housing ---"
   run(120);
   api.setRngSource(null);
   check("no one arrives unbidden under conquest growth", S().pop === popBefore);
-  check("housing is uncapped under conquest growth", api.housing() === Infinity);
+  // (housing died in E3)
 
   // Output multiplier: a holdfast works -- and eats -- like the families it holds.
   S().pop = 5; S().units = { soldier: 2, archer: 0, horseman: 0, siegeEngine: 0 };
@@ -2439,7 +2449,7 @@ console.log("\n--- Seeded RNG: determinism and the source ban ---");
     S().map.work[api.world.home] = "food";
     S().map.work[S().map.owned[1]] = "wood";
     run(120);
-    api.build(findB("hut"));   // affordable or not, identically in both runs
+    api.build(findB("granary"));   // affordable or not, identically in both runs
     run(240);
     return JSON.stringify(S());
   };

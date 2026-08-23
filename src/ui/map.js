@@ -3,7 +3,7 @@ import { S } from "../core/state.js";
 import { capWord } from "../core/derived.js";
 import { save } from "../core/persist.js";
 import { launchSettle, pendingSettle, settlePlan } from "../core/actions.js";
-import { world, isOwned } from "../map/map.js";
+import { world, isOwned, isCharted } from "../map/map.js";
 import { hexDistance, hexPoints, toPixel } from "../map/model.js";
 import { campaignPlan, expeditionOut, standingWord } from "../sim/expeditions.js";
 import { attachTip, tipHide, tipMove, tipShow } from "./dom.js";
@@ -57,9 +57,11 @@ function specialties(terrain) {
   const w = worksFor(terrain);
   return Object.keys(w).filter((r) => w[r] >= 1);
 }
+// The WHOLE board, every era. Era view radii are retired (one board, forever
+// -- map.md 2.6): the world is not what grows, the fog is what retreats. What
+// each tile shows is decided per tile by `isCharted`.
 function visiblePlaces() {
-  const view = spec().view != null ? spec().view : Infinity;
-  return Object.values(world.places).filter((p) => hexDistance(p.q, p.r, 0, 0) <= view);
+  return Object.values(world.places);
 }
 
 function mapSVG() {
@@ -76,10 +78,16 @@ function mapSVG() {
 
   let cells = "", marks = "";
   for (const { p, c } of centers) {
-    const owned = isOwned(p.id);
-    cells += `<polygon class="tile t-${p.terrain}${owned ? " tile-owned" : ""}${p.adversary ? " tile-seat" : ""}${p.id === selectedId ? " selected" : ""}"
-      points="${hexPoints(c.x, c.y, HEX - 1)}" data-id="${p.id}"></polygon>`;
-    if (p.id === world.home) {
+    const lit = isCharted(p.id);
+    const owned = lit && isOwned(p.id);
+    // Fogged tiles keep their geometry and lose everything else, including
+    // their terrain class -- the 2D view is the debug surface, and a debug
+    // surface that leaks what the real one hides is worse than useless.
+    cells += `<polygon class="tile ${lit ? "t-" + p.terrain : "tile-fog"}${owned ? " tile-owned" : ""}${lit && p.adversary ? " tile-seat" : ""}${p.id === selectedId ? " selected" : ""}"
+      points="${hexPoints(c.x, c.y, HEX - 1)}"${lit ? ` data-id="${p.id}"` : ""}></polygon>`;
+    if (!lit) {
+      // nothing else to draw: unpainted board
+    } else if (p.id === world.home) {
       marks += `<text class="tile-mark" x="${c.x}" y="${c.y + 5}" text-anchor="middle">⌂</text>`;
     } else if (p.adversary) {
       const adv = active().adversaries.find((a) => a.id === p.adversary);
@@ -231,7 +239,8 @@ function titleFor(p) {
 // ---------- Stage rendering ---------------------------------
 function signature() {
   if (!world) return "none";
-  return [S.era, spec().view, ((S.map && S.map.owned) || []).join("|"),
+  return [S.era, ((S.map && S.map.owned) || []).join("|"),
+    ((S.map && S.map.revealed) || []).length,
     JSON.stringify((S.map && S.map.work) || {}), selectedId].join("~");
 }
 
@@ -240,6 +249,9 @@ function signature() {
 // ladder the SVG renderer draws, lifted out so both renderers read from one
 // definition rather than drifting apart.
 export function markFor(p) {
+  // Unpainted board says nothing about itself. Fog hides the BOARD; what is
+  // on it is a separate layer that simply is not known yet.
+  if (!isCharted(p.id)) return null;
   if (p.id === world.home) return { glyph: "\u2302", cls: "home" };
   if (p.adversary) {
     const adv = active().adversaries.find((a) => a.id === p.adversary);
@@ -268,7 +280,7 @@ export function renderMapStage() {
   lastSignature = sig;
 
   if (mode === "3d") {
-    stage3d.setWorld(visiblePlaces(), { isOwned, homeId: world.home });
+    stage3d.setWorld(visiblePlaces(), { isOwned, isRevealed: isCharted, homeId: world.home });
     stage3d.setSelected(selectedId);
     return;
   }

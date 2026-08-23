@@ -61,7 +61,7 @@ function jitterScale(id, tag) {
   return 0.9 + 0.2 * hash01(id + ":s" + tag); // ±10%
 }
 
-export function buildProps(places, elev, homeId) {
+export function buildProps(places, elev, homeId, isRevealedFn) {
   const group = new THREE.Group();
 
   const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6b4a33, roughness: 0.95 });
@@ -90,8 +90,12 @@ export function buildProps(places, elev, homeId) {
     hutRoof.add(x, y + (0.16 + 0.08) * s, z, rot + Math.PI / 4, s, roofCol.clone());
   };
 
+  const shown = isRevealedFn || (() => true);
   for (const p of places) {
     const id = p.id;
+    // Unrevealed board carries nothing. A tree poking out of the fog would
+    // announce a forest the player has not found yet.
+    if (!shown(id)) continue;
     const { x: cx, z: cz } = axialToWorld(p.q, p.r);
     const y = elev[id];
 

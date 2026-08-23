@@ -974,3 +974,8 @@ body.dead #mainArea .block { filter: saturate(.25); }
   font-size: 11.5px; font-weight: 600; letter-spacing: .04em;
   color: #f4e6df;
 }
+
+/* Unpainted board in the 2D debug view (phase 10, slice 3). Matches the 3D
+   stage's fog: neutral, flat, and carrying no information. Deliberately not
+   a dark shroud -- see map.md 2.6. */
+.tile-fog { fill: #b6ab94; stroke: #9c9179; }

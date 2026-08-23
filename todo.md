@@ -146,9 +146,18 @@ verified stop and a test brief.
       SVG knowledge, and `selectTile` is already the seam. About 90 lines move: `mapSVG()` becomes
       scene-building, the stage click's `dataset.id` becomes raycast-and-round, `attachTip` becomes
       raycast hover. `signature()` survives as the chunk-dirty trigger.)*
-- [ ] **3 — Fog and the camera.** Delete era view radii and the regen branch; render the whole board
-      with unpainted-board fog; camera height per era, pulling back as ages pass. Runs on the old
-      blob world on purpose — fog is a system and deserves a stable world under it.
+- [x] **3 — Fog, the camera, and one board** *(shipped 2026-08-22)*. Era view radii and the
+      regenerate-on-tile-noun branch are both deleted; every era generates the same radius-4 disk
+      (Stone and Bronze used to build a radius-3 world that Iron threw away — that, not the noun
+      check, was the real reason the board was recut). Fog renders as unpainted board: flat,
+      neutral, no props, no marks, not pickable. You always see the country adjacent to what you
+      hold, so Stone opens on your hex plus its ring inside a 61-tile board. **The camera frames
+      what is KNOWN rather than a per-era number**, so the era zoom-out arc falls out of discovery
+      itself and needs no authored camera heights. Dominion never shrinks (owner ruling — see
+      `map.md` §2.6). 10 new checks (511).
+      *Flagged for the balance pass:* `removeSettler` is now inert in tile eras, since taking a hex
+      for a fever is the land-loss the ruling forbids. Sickness and raids need a designed tile-scale
+      effect instead of a population number.
 - [ ] **4 — The frame generator.** Coastline, hex packing, islands, named sub-streams, ~120 hexes.
       Judged in the renderer built in slice 2 rather than imagined.
 - [ ] **5 — The picker.** Three continents as outlines, filling the shell from slice 1. Outlines are

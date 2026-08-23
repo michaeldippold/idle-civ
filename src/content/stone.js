@@ -37,15 +37,17 @@ export const STONE = {
   // walks back to Stone as a purely visual surface, so there is ONE layout
   // for the whole game and the transition from "neat map" to "main game
   // surface" is continuity, not a reveal. A tile is a clearing here and
-  // stays one through Bronze -- same noun, same world, no regeneration
-  // until Iron recuts at holdfast scale.
-  // view: how much of the generated world this era SHOWS (radius stays 3, so
-  // Bronze widens onto ground that was always there -- continuity, not a
-  // recut). Stone is one hex: the ground you happen to be standing on. The
-  // world literally grows with the ages; that growth IS the scaling story.
+  // stays one through Bronze; Iron re-denominates it to `holdfast` without
+  // touching the ground underneath.
+  //
+  // ONE BOARD, FOREVER (map.md 2.6). The radius is the same in every era and
+  // the world is never regenerated: what changes across the ages is what you
+  // can SEE (fog) and what you can DO, never what the world IS. The era `view`
+  // radius that used to hard-filter rendering is gone -- it made the world
+  // literally grow, which meant the board a player learned in Bronze was
+  // thrown away at Iron, and you cannot re-dress ground you regenerate.
   map: {
-    radius: 3,
-    view: 0,
+    radius: 4,
     tileNoun: { singular: "clearing", plural: "clearings" },
     terrains: ["plains", "forest", "hills", "river", "water"],
     seats: [],

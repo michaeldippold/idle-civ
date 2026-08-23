@@ -2048,12 +2048,22 @@ console.log("\n--- Phase 10: the renderer port keeps the marks ---");
   const home = P(api.world.home);
   check("the home tile wears the house glyph", api.markFor(home).glyph === "\u2302");
 
+  // Fog first: unpainted board says NOTHING about itself, which is the whole
+  // honesty rule. A seat sitting in the fog must not announce itself.
+  const hidden = Object.values(api.world.places).find((x) => !api.isCharted(x.id));
+  check("the board is bigger than what is known", !!hidden);
+  check("unrevealed board carries no mark at all", api.markFor(hidden) === null);
+
   const seat = Object.values(api.world.places).find((x) => x.adversary);
+  // Reveal it by hand: what a seat looks like ONCE FOUND is the thing under
+  // test here, and scouting is not built until slice 6.
+  api.S.map.revealed.push(seat.id);
   const sm = api.markFor(seat);
   check("a seat wears a diamond AND its name -- the label is the map's only prose",
     sm.glyph === "\u25c6" && typeof sm.label === "string" && sm.label.length > 0);
 
   const minor = Object.values(api.world.places).find((x) => x.minor && !api.isOwned(x.id));
+  api.S.map.revealed.push(minor.id);
   check("a minor wears a dot and no label (a map, not a directory)",
     api.markFor(minor).glyph === "\u25aa" && !api.markFor(minor).label);
 
@@ -2073,8 +2083,58 @@ console.log("\n--- Phase 10: the renderer port keeps the marks ---");
     api.markFor(P(ownedId)) === null);
 
   const wild = Object.values(api.world.places)
-    .find((x) => !api.isOwned(x.id) && !x.adversary && !x.minor && x.id !== api.world.home);
-  check("empty country carries no mark at all", api.markFor(wild) === null);
+    .find((x) => !api.isOwned(x.id) && !x.adversary && !x.minor && x.id !== api.world.home
+      && api.isCharted(x.id));
+  check("known but empty country carries no mark at all", api.markFor(wild) === null);
+}
+
+console.log("\n--- Phase 10: one board, forever ---");
+{
+  // The board is generated once and never rebuilt. Eras re-denominate what a
+  // tile IS; they never touch the ground, because ground you rebuild is ground
+  // you cannot re-dress -- and the per-era re-dress is the whole visual arc.
+  reset();
+  api.closeModal();
+  api.ensureMap();
+  const stoneIds = Object.keys(api.world.places).sort().join("|");
+  const stoneTerrain = Object.values(api.world.places).map((p) => p.id + ":" + p.terrain).sort().join("|");
+  const stoneSeed = api.S.map.seed;
+
+  api.S.era = "iron";
+  api.initAdversaries();
+  api.ensureMap();
+  check("the tile noun re-denominates across the border",
+    api.world.tileNoun === "holdfast" && api.S.map.tileNoun !== undefined);
+  check("the ground is the SAME ground -- same tiles, same seed",
+    Object.keys(api.world.places).sort().join("|") === stoneIds && api.S.map.seed === stoneSeed);
+  check("terrain is untouched by the era change -- you can re-dress it",
+    Object.values(api.world.places).map((p) => p.id + ":" + p.terrain).sort().join("|") === stoneTerrain);
+
+  // Dominion never shrinks: a border may change what a tile means, never how
+  // many you hold or which. This is what lets one fixed board resolve scale.
+  api.syncDominion();
+  const held = api.S.map.owned.slice().sort().join("|");
+  const heldCount = api.S.map.owned.length;
+  api.applyConsolidation({ keep: 0.25 });
+  api.syncDominion();
+  check("consolidation takes no land -- same count",
+    api.S.map.owned.length === heldCount);
+  check("consolidation takes no land -- the SAME tiles",
+    api.S.map.owned.slice().sort().join("|") === held);
+  check("population never falls below the land it holds",
+    api.S.pop >= api.S.map.owned.length);
+
+  // Reveal is sticky and additive, per the interface's reveals-never-flicker
+  // law applied to geography.
+  const seenBefore = api.S.map.revealed.length;
+  api.S.pop += 3;
+  api.syncDominion();
+  api.syncCharted();
+  check("taking ground reveals what borders it", api.S.map.revealed.length > seenBefore);
+  const snapshot = api.S.map.revealed.slice();
+  api.syncCharted();
+  check("charting never un-charts (sticky, like every other reveal)",
+    snapshot.every((id) => api.isCharted(id)));
 }
 
 console.log("\n--- Phase 10: the run waits for a person ---");
@@ -2164,7 +2224,11 @@ console.log("\n--- Phase 6a: the map exists ---");
   api.ensureMap();
   check("the chart exists from the first frame (stone has a map now)",
     api.world !== null && api.world.tileNoun === "clearing");
-  check("a radius-3 disk is 37 tiles", Object.keys(api.world.places).length === 37);
+  // ONE BOARD, FOREVER: every era generates the same radius-4 disk. Stone no
+  // longer gets a small world that Iron throws away -- what changes across the
+  // ages is the fog and the tile noun, never the ground.
+  check("one board, forever: a radius-4 disk is 61 tiles in every era",
+    Object.keys(api.world.places).length === 61);
   const stoneWorld = JSON.stringify(api.world);
 
   S().era = "bronze";

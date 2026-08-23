@@ -13,16 +13,10 @@ export const BRONZE_DELTA = {
   // families. Counts, thresholds and balance are untouched -- only the words.
   popNoun: { singular: "family", plural: "families" },
   arrivalLine: "A family seeks shelter here, and stays.",
-  // Same world as Stone (same noun, same seed, nothing regenerates) -- the
-  // view simply widens from your one hex to the six around it. Redeclared
-  // only because `view` differs; every other field matches the base.
-  map: {
-    radius: 3,
-    view: 1,
-    tileNoun: { singular: "clearing", plural: "clearings" },
-    terrains: ["plains", "forest", "hills", "river", "water"],
-    seats: [],
-  },
+  // No `map` override at all any more: Bronze inherits Stone's board unchanged.
+  // It used to redeclare the block solely to widen the era view radius, and
+  // view radii are gone (one board, forever -- map.md 2.6). What widens now is
+  // the fog, as your dominion and your scouts reach further.
 
   remove: ["bronzeAge"],
 

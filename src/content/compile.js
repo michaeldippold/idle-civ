@@ -54,7 +54,6 @@ export function resolveSlates(m, raw) {
 function copyMapSpec(m) {
   return {
     radius: m.radius,
-    view: m.view != null ? m.view : null,   // null = show everything
     tileNoun: Object.assign({}, m.tileNoun),
     terrains: m.terrains.slice(),
     seats: (m.seats || []).slice(),
@@ -197,8 +196,12 @@ export function validateManifests(manifests) {
 
     if (m.map) {
       if (!(m.map.radius >= 2)) bad(`map radius ${m.map.radius} is too small to mean anything`);
-      if (m.map.view != null && !(m.map.view >= 0 && m.map.view <= m.map.radius)) {
-        bad(`map view ${m.map.view} must sit within the radius`);
+      // `view` (the era render radius) was retired 2026-08-22 with one board,
+      // forever. A manifest still carrying one is a leftover, and a silently
+      // ignored era-fact is exactly the kind of wrongness this validator exists
+      // to refuse.
+      if (m.map.view != null) {
+        bad("map.view is retired -- one board, forever; fog decides what is seen");
       }
       if (!m.map.tileNoun || !m.map.tileNoun.singular || !m.map.tileNoun.plural) bad("map tileNoun needs singular and plural");
       if (!Array.isArray(m.map.terrains) || !m.map.terrains.length) bad("map declares no terrains");

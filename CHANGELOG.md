@@ -24,6 +24,48 @@ pass → 6e priests & envoy → phase 7 decision queue).
 
 ---
 
+## 2026-08-22 — Phase 10, slice 3: one board, forever
+
+**The world stopped being rebuilt.** Era view radii and the regenerate-on-tile-noun branch are both
+gone, and every era now generates the same radius-4 disk. The real culprit was not the noun check at
+all: Stone and Bronze declared `radius: 3` and Iron `radius: 4`, so the board a player learned was
+thrown away at the border regardless. One board, forever — eras re-denominate what a tile *is* and
+change what you can see and do on it, never what the world is. `map.view` is retired hard: a
+manifest still carrying one now fails validation, because a silently ignored era-fact is exactly the
+wrongness the validator exists to refuse.
+
+**Fog is unpainted board.** Unrevealed tiles render flat, neutral, propless and markless, and cannot
+be hovered or clicked — blank pieces waiting to be painted, not a military blackout, which would
+fight the warm palette and read as the wrong genre. They are deliberately *flat*: real elevation
+would let you read the mountain ranges straight through the fog. You always see the country adjacent
+to what you hold, so Stone now opens on your own hex plus its ring inside a full 61-tile board, with
+the rest falling away unpainted at the edges. Charting is sticky and additive, the interface's
+reveals-never-flicker law applied to geography. The 2D debug view fogs identically — a debug surface
+that leaks what the real one hides is worse than useless.
+
+**The camera frames what is known, not a per-era number.** The view opens tight on your ground and
+pulls back on its own as the fog retreats, so the era zoom-out arc falls out of discovery itself
+rather than needing authored camera heights per age.
+
+**Dominion never shrinks** *(owner ruling)*: a border may change what a tile means, never how many
+you hold or which. Capture a hex in the Iron Age and you keep it through Enlightenment, where it is
+worth an Enlightenment tile. Consolidation still fires at the **first** levy border — the moment
+population stops being people and becomes places — and never again; `syncDominion` no longer trims
+holdings to a shrinking population, and population follows the land upward instead. The harness
+caught an ordering consequence: consolidation must run *before* `ensureMap()`, or the dominion is
+granted at the old population's size and cannot be given back.
+
+That one ruling dissolves the scale problem outright. Every scheme `map.md` once weighed for
+carrying a dominion across a rescale existed to answer what happens to your land when the world
+changes size — and the world does not change size.
+
+Ten new checks (511), including that the ground is bit-identical across an era border, that
+consolidation takes neither the count nor the specific tiles, and that unpainted board carries no
+mark at all. *Flagged for the balance pass:* `removeSettler` is now inert in tile eras, so sickness
+and raids need a designed tile-scale effect rather than a population number.
+
+---
+
 ## 2026-08-22 — Phase 10, slice 2: the map becomes a lit board
 
 **The SVG stage is no longer the game's surface.** `src/render3d/` renders the world as a lit 3D

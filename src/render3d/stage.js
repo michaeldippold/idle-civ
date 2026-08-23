@@ -38,7 +38,8 @@ let byId = {};
 let elev = {};
 let selectedId = null;
 let hoveredId = null;
-let lastCount = -1;             // re-frame the camera only when the board resizes
+let lastRevealed = -1;          // re-frame only when the KNOWN world changes size
+let isRevealed = () => true;
 let rafId = 0;
 let started = false;
 
@@ -196,16 +197,23 @@ export function setWorld(list, opts) {
   }
   worldGroup = new THREE.Group();
 
-  const built = buildTerrain(list, o.isOwned || (() => false));
+  isRevealed = o.isRevealed || (() => true);
+  const built = buildTerrain(list, o.isOwned || (() => false), isRevealed);
   elev = built.elev;
   worldGroup.add(built.landMesh, built.wetMesh, built.ringMesh);
-  worldGroup.add(buildProps(list, elev, o.homeId));
+  worldGroup.add(buildProps(list, elev, o.homeId, isRevealed));
   scene.add(worldGroup);
 
-  // Re-frame only when the board itself changes size (an era widening the
-  // view), never on a capture -- yanking the camera because the player claimed
-  // a tile would be hostile.
-  if (list.length !== lastCount) { frameBoard(list); lastCount = list.length; }
+  // The camera frames what the player KNOWS, not the whole board -- so Stone
+  // opens tight on your own ground with the unpainted world falling away at
+  // the edges, and the view pulls back on its own as the fog retreats. That is
+  // the era zoom-out arc without a single per-era camera number: it follows
+  // discovery, which is what it was always really about.
+  const known = list.filter((p) => isRevealed(p.id));
+  if (known.length !== lastRevealed) {
+    frameBoard(known.length ? known : list);
+    lastRevealed = known.length;
+  }
 
   placeRing(selectRing, selectedId);
   placeRing(hoverRing, hoveredId);
@@ -297,7 +305,11 @@ function pickAt(clientX, clientY) {
   raycaster.setFromCamera(ndc, camera);
   if (!raycaster.ray.intersectPlane(groundPlane, hit)) return null;
   const { q, r: rr } = worldToAxialRounded(hit.x, hit.z);
-  return byId[q + "," + rr] || null;
+  const p = byId[q + "," + rr];
+  // Unpainted board is not a place yet: it has no stats, no flavor and no
+  // actions, so it takes no hover ring and no selection. There is nothing
+  // dishonest here -- the player can see plainly that it is unknown.
+  return p && isRevealed(p.id) ? p : null;
 }
 
 function wirePointer(canvas) {

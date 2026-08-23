@@ -16,17 +16,19 @@ import { hashStr } from "./model.js";
 export let world = null;
 
 // Idempotent, like initAdversaries(), and called from the same places: boot,
-// load, era entry. **The map regenerates when the tile noun changes, and only
-// then** (design.md, Scale: The Tile Ladder) -- Bronze inherits Stone's
-// clearing so nothing regenerates at that border; Bronze->Iron recuts the
-// world at holdfast scale. A GEN_VERSION mismatch also regenerates (dev-time
-// reshape, deliberate and visible).
+// load, era entry. **The map is generated once and NEVER regenerates**
+// (map.md 2.6, One board, forever). It used to recut whenever the tile noun
+// changed; that is retired. Eras re-denominate what a tile IS and change what
+// you can see and do on it -- they never rebuild the ground, because ground
+// you rebuild is ground you cannot re-dress, and the per-era re-dress is the
+// whole visual arc. Only a GEN_VERSION bump regenerates now: a deliberate,
+// visible dev-time reshape.
 export function ensureMap() {
   const spec = active().map;
   if (!spec) { world = null; return; }   // an era without a map (Stone)
 
   const noun = spec.tileNoun.singular;
-  if (!S.map || S.map.gen !== GEN_VERSION || S.map.tileNoun !== noun) {
+  if (!S.map || S.map.gen !== GEN_VERSION) {
     const firstChart = !S.map;
     // The sub-seed folds the noun into the run's seed: one number per run
     // per world-scale, stable across any number of regenerations.
@@ -54,6 +56,7 @@ export function ensureMap() {
     }
   }
   syncDominion();
+  syncCharted();
   if (S.seen.needsDefaultWork) {
     delete S.seen.needsDefaultWork;
     defaultAssignments();
@@ -80,11 +83,38 @@ export function syncDominion() {
       owned.push(c.id);
     }
   }
-  while (owned.length > Math.max(1, S.pop)) {
-    const dropped = owned.pop();
-    delete S.map.work[dropped];
-  }
+  // **Dominion never shrinks** (owner ruling, 2026-08-22): consolidation and
+  // expansion may change what a tile MEANS, never how many you hold or which.
+  // Take a hex in the Iron Age and you keep it through Enlightenment, where it
+  // is worth an Enlightenment tile. This is what makes one fixed board resolve
+  // the scale problem outright -- with no ground to lose, the elaborate schemes
+  // for carrying a dominion across a rescale all become unnecessary.
+  //
+  // So pop follows the land upward rather than the land following pop down.
+  if (S.pop < owned.length) S.pop = owned.length;
   for (const tid in S.map.work) if (!owned.includes(tid)) delete S.map.work[tid];
+}
+
+// What the player has SEEN. Sticky and additive, never removed -- the
+// interface's reveals-are-sticky law applied to geography. You always see the
+// country adjacent to what you hold; reaching beyond that is what the scouting
+// verb is for (slice 6). Fog hides the BOARD, never the pieces: an unrevealed
+// tile shows as unpainted board, and what it turns out to be is honest ground
+// that was always there.
+export function syncCharted() {
+  if (!world || !S.map) return;
+  if (!S.map.revealed) S.map.revealed = [];
+  const seen = new Set(S.map.revealed);
+  for (const id of S.map.owned) {
+    seen.add(id);
+    const p = world.places[id];
+    if (p) for (const n of p.adj) seen.add(n);
+  }
+  S.map.revealed = Array.from(seen);
+}
+
+export function isCharted(id) {
+  return !!S.map && !!S.map.revealed && S.map.revealed.includes(id);
 }
 
 // The designed default for the allocation choice (design.md: any choice
@@ -155,6 +185,7 @@ export function captureTile(id, viaSettle) {
   delete S.map.minors[id];
   S.pop += 1;
   S.map.work[id] = "food";   // the designed default: bread first
+  syncCharted();              // taking ground shows you what borders it
   return true;
 }
 

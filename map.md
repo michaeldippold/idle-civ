@@ -460,14 +460,30 @@ cities on a board you keep would mean visibly losing nine hexes of hard-won grou
 invisible-sink mistake this project wrote a rule against. That objection survives the new model and
 must be answered rather than quietly inherited.
 
-**Proposed resolution, needs the post-Iron balance pass to confirm:** on a fixed board, **the board
-is the cap**, so consolidation no longer needs to shrink anything to keep numbers small — geography
-does that job. Past Iron, a consolidation border should **re-denominate what a tile is** (holdfast →
-city → nation) and raise per-tile output, while dominion and tile count stay exactly where they are.
-`applyConsolidation`'s current behaviour of reducing `S.pop` is correct for the Bronze→Iron border
-it was built for, where pop was not yet geographic, and is the thing to re-examine for every border
-after it. **Flagged for the balance pass; do not change it before the pop ladder past Iron is
-designed.**
+**RULED and SHIPPED (owner, 2026-08-22; phase 10 slice 3).** In the owner's words: *consolidation
+or expansion should never change how many tiles you have or which. If you capture it in Iron, you
+get the full reward of it becoming an Enlightenment tile.* On a fixed board **the board is the cap**,
+so nothing needs shrinking to keep numbers small — geography already does that job.
+
+- A tile-era border **re-denominates what a tile is** (holdfast → city → nation) and raises per-tile
+  output. It takes no land, ever.
+- `applyConsolidation` still consolidates at the **first** levy border, because that is the moment
+  population stops being people and becomes places. Every border after it leaves `S.pop` alone.
+- `syncDominion` no longer trims holdings to fit a shrinking population. Population follows the
+  land upward instead of the land following population down.
+- One ordering consequence, found by the harness and worth knowing: **consolidation must run before
+  `ensureMap()`**. Syncing the dominion first would grant a block sized from the pre-consolidation
+  population, which a land-preserving reconciler then cannot give back.
+
+This is the single ruling that dissolves the whole scale problem. Every elaborate scheme this
+document once weighed for carrying a dominion across a rescale — summaries, pre-owned blocks,
+grow-the-lattice-outward — existed only to answer *what happens to your land when the world changes
+size*. The world does not change size.
+
+**Consequence to settle in the balance pass, flagged rather than silently decided:** population loss
+from sickness and raids (`removeSettler`) is now inert in tile eras, because taking a hex away for a
+fever is exactly the land-loss this ruling forbids. Those events need a designed replacement effect
+at tile scale — reduced output, lost units, damaged holdings — rather than a population number.
 
 ---
 

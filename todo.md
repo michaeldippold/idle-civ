@@ -91,7 +91,17 @@ difference via instanced prop/palette swaps from cheap stylized kits, pan/zoom/t
 camera rig. The fork is confined to the paint layer by construction (geometry/paint separation);
 the sim, generator, harness, panels and interaction pattern are route-independent.
 
-**The decision method: a time-boxed spike, on a branch** — build the guide's steps 1–7 against OUR
+**SPIKE RUN AND MERGED (same evening): see `/spike3d/` on the dev server.** All guide steps 1–9
+landed against the real generator (curvature and DOF skipped by design); primitives instead of
+GLBs (downloads 404'd) — and the lighting carried them anyway, which was the thesis. 61 tiles,
+~10 draw calls, 60fps; verified by readPixels through the post chain AND by the owner live, who
+spun the board and called it awesome. Two stale-path guide corrections recorded as an addendum in
+`spikes/`. **Decision-relevant finding from the owner's parallel asset hunt:** purchasable HEX-TILE
+packs are 2D and stop at medieval (the 12-era problem returns), while the 3D route buys MODEL
+packs instead — and that ecosystem (Synty POLYGON line, Kenney) covers eras neolithic→space in one
+coherent house style. **The route verdict is the owner's, still open.**
+
+**The original decision method: a time-boxed spike, on a branch** — build the guide's steps 1–7 against OUR
 generator output (same seed as the live game), drop in 3–4 free kit assets, and put it beside the
 shipped SVG stage for an eyes-on verdict. The SVG map survives either way (it becomes the 2D debug
 view the guide itself prescribes, and the agent's testing surface). If Route B wins, revise

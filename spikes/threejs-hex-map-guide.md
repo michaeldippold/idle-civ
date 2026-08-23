@@ -6,6 +6,13 @@ plus Three.js. No build step, no engine, no compile-to-WASM.
 Written to be consumed by a coding agent. Directives are normative; rationale is included
 where it changes implementation decisions.
 
+> **Spike addendum (2026-08-22, after building this for real — see `/spike3d/`):** two paths in
+> this guide were stale as written. (1) `postprocessing@6.35.3`'s module entry is
+> `build/index.js`, not `build/postprocessing.esm.js`. (2) `N8AOPostPass` is NOT part of
+> `postprocessing` — it lives in the separate `n8ao` package (pinned 2.0.1 works), which also
+> needs a `three/examples/jsm/` alias in the import map. Everything else held up; the lighting
+> thesis (§0, §2–3, §6) was confirmed with primitive-geometry props alone.
+
 ---
 
 ## 0. What we're actually replicating

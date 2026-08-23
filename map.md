@@ -487,6 +487,83 @@ at tile scale — reduced output, lost units, damaged holdings — rather than a
 
 ---
 
+---
+
+### 2.7 A hex has people on it — and distance from your seat now matters
+
+*(Settled 2026-08-23. `design.md` → *Population Lives Somewhere* is the canon; this section records
+only what is specifically the MAP's business.)*
+
+**Every hex in your dominion carries a population**, and the map is where that becomes legible: click
+a hex, see its people. Total population — the odometer — is their sum, so for the first time the big
+number is a readout of real things rather than a decoration.
+
+**Terrain sets carrying capacity, which gives terrain a second job.** Today terrain sets a production
+*rate*; now it also sets how many people the ground supports. A river valley is worth taking in a way
+a player can see at a glance, and a mountain is not, and nobody has to be told why.
+
+This produces the oldest real trade-off in strategy games, for free, out of two rules that already
+had to exist: **defensible terrain is defensible because it is inhospitable.** The mountains that
+protect a seat are the mountains that cannot feed it. That was not designed — it fell out — and it
+gives the owner's Stone-Age reading of a mountain-ringed start (*"what a defensible starting
+position"*) a mechanical spine that argues back at it.
+
+#### Two distances, and conflating them is the trap
+
+**`routeCost` measures LOGISTICAL distance** — from your nearest owned tile, over owned/land/water,
+answering *how long is the march*. Shipped, unchanged.
+
+**Distance from your SEAT is a different number** — administrative distance, answering *how well can
+you hold this*. A long tendril of hexes stays logistically close while being administratively
+terrible. This is the number starvation drains against (frontier first, `design.md` rule 8), and it
+is cheap to build: the same Dijkstra seeded only from `world.home` instead of from every owned tile.
+
+#### The design rule that keeps this from becoming Civ 3 corruption
+
+**Distance governs EXPOSURE, never EFFICIENCY.** Far hexes are not less productive. They are the
+first to starve and the first to be raided. The difference is the whole thing: an efficiency falloff
+is a constant *tax* that punishes playing well and invites the exact optimisation this game refuses
+("what is my ideal empire radius?"), whereas exposure costs nothing while you are solvent and bites
+only when you overextend. It is a **risk**, not a rent. Civ 3's corruption is the cautionary tale.
+
+#### Empire shape becomes strategy, with no new systems
+
+If starvation eats the far edge and raids strike the perimeter, then a compact blob and a sprawling
+tendril play completely differently at identical hex counts — same production, wildly different
+risk. And the player expresses that choice entirely through **which hex they take next**. No new
+resource, no new UI, no numbers to tune. Perimeter versus area, which is about as board-game as this
+gets, and it is why a chokepoint is valuable: a large area behind a small defensible perimeter.
+
+#### Interaction to settle before islands ship
+
+**Islands are far from your seat by definition.** If administrative distance bites hard, islands
+become worthless the moment you can finally reach them — killing the long-horizon carrot §2.6 wants
+them for. Something must give: naval tech shortening sea distance, islands permitting their own
+seat, or coastal hexes projecting administration over water. Obvious now; infuriating to discover
+after both features ship.
+
+#### Scouting is promoted again: it becomes intelligence
+
+Scouting was already the Stone Age's spatial verb (§2.6). With people on hexes it stops being *map
+reveal* and becomes **reconnaissance**: how many live there, how defensible it is, what they are
+sitting on. That turns "who do I attack" into an informed decision instead of a coin flip, and it
+gives scouting a permanent job — you would want to re-scout a neighbour before committing, in every
+era of the game.
+
+#### Performance: measured, and a non-issue
+
+Recorded because it was asked and because the intuition runs the wrong way. Summing population
+across every hex, every tick, for a full hour of play: **28 ms at 61 hexes, 68 ms at 150, 202 ms at
+400** — against a per-tick budget of 200 *milliseconds*. A 150-planet endgame would use roughly two
+thousandths of one percent of it. Save growth is ~2.4 KB at 150 hexes. `routeCost` already runs a
+multi-source Dijkstra over the whole board and nobody notices.
+
+**Per-hex storage is free; per-hex SIMULATION is not expensive either — it is unholdable.** Even 150
+independent food economies would compute fine; what fails is a human's ability to predict a system
+with a hundred and fifty interacting parts. The cost that matters is design surface, never CPU.
+
+---
+
 ## 3. Hexes: pointy-top, and why hexes win here
 
 **Pointy-top hexagons — points at top and bottom, flat sides left and right. LOCKED.** This is the

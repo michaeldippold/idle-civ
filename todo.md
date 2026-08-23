@@ -8,53 +8,80 @@
 
 ---
 
-## STATUS — the map is the game (2026-08-22, evening)
+## STATUS — the map arc is PAUSED for an engine rework (2026-08-23)
 
-**Three slices of Phase 10 are shipped and verified in a live run to Iron.** The design pause
-point this section used to describe is over: the UI conversation happened, the identity got
-settled (the digital tabletop), and the build resumed the same day.
+**Read this first if you are picking the project up cold.** The map arc stopped mid-build, on
+purpose, after three good slices. Nothing is broken; a fundamental design decision landed that
+everything unbuilt depends on, and building further before taking it would mean building around
+code already slated for deletion.
 
-**Where the game actually is.** A run opens on a start screen and waits for a person. The board is
-a lit 3D diorama you can spin, pitch and zoom — one board, generated once, never rebuilt — with
-the game's panels floating over it. Unreached country sits under fog rendered as unpainted board.
-Your own hexes wear a green rim and the letter of whatever they are working; seats carry a diamond
-and their people's name; minors carry a dot. Click any of it and the Selected Tile panel opens
-with every stat, every line of flavor and every action for that place. Verified end to end through
-the Iron border in a real run.
+### What is shipped and working right now
 
-**The owner's verdict on seeing it at Iron:** *"oh my god I've (well, we) made a real video game."*
+A run opens on a start screen and waits for a person. The board is a lit 3D diorama you can spin,
+pitch and zoom — **one board, generated once, never rebuilt** — with the game's panels floating over
+it. Unreached country sits under fog rendered as unpainted board. Owned hexes wear a green rim and
+the letter of what they work; seats carry a diamond and a name; minors carry a dot. Click anything
+and the Selected Tile panel opens with every stat, line of flavor and action for that place.
+Verified end to end through the Iron border in a live run. **511 harness checks, green.** The
+owner's verdict on seeing it at Iron: *"oh my god I've (well, we) made a real video game."*
 
-**Two design findings worth keeping**, both from playing rather than planning:
+### What just changed, and why the pause
 
-- **The map generates fiction ahead of its mechanics.** Looking at a fresh Stone board the owner
-  immediately read *"what a defensible starting position — three sides mountains, one side water,
-  only two easy approaches, and they are next to each other."* Nothing in the code knows any of
-  that. Terrain has no defensive meaning today. The instinct arrived anyway, which is the
-  strongest argument yet that `routeCost` should eventually care about terrain — the player is
-  already assuming it does. Not scheduled; recorded because the gap runs in the good direction.
-- **Evocative is the word that keeps recurring**, and it is now doing real work as a design test:
-  the board does not need a mechanic to make you want one.
+**The engine rework: `design.md` → *Population Lives Somewhere*.** Read that section before writing
+any code; `map.md` §2.7 holds the spatial half and `tech.md` → *The engine rework* the architectural
+half. In one line: **production runs on hexes from the Stone Age, population lives on hexes and is a
+variable rather than a control, and steppers die.**
 
-### Phase 10 progress (build order and the full slice list live below)
+The game currently teaches an entire economy — steppers, jobs, housing, a global population pool —
+and then retires it fifteen minutes in, at a border that changes seven systems at once and has
+already starved a live playtest. Two economies, one disposable. The hex is now the anchor noun *and*
+on screen from frame one, so the second economy should simply be the first one.
 
-- [x] **1 — the start screen shell** — the run waits for a person; `preGame` as a fourth
-      independent hold flag. Verified, including a tab-close mid-upgrade resuming bit-identically.
-- [x] **2 — the renderer port** — 3D replaces SVG with nothing downstream of `selectTile`
-      changed; marks are projected DOM text. `?map=2d` keeps the SVG board, `?glcheck=1` makes
-      the canvas readable.
-- [x] **3 — one board, forever** — view radii and map regeneration deleted, fog as unpainted
-      board, the camera framing what is known, dominion that never shrinks.
-- [x] **3a — the zoom fix** — framing on charted country had also capped the zoom to it.
-- [ ] **4–7** — the frame generator, the picker, scouting, the era re-dress. See the build order.
+**Why it blocks the map arc.** Slice 4 chooses a hex count, and under this model board size × people
+per hex × rate **is** the production curve. Picking ~120 hexes before knowing what a hex is worth is
+choosing blind, and it is the one number that is expensive to change later. Slice 6 (scouting) is
+coupled even harder: scouting stops being map reveal and becomes reconnaissance, so what it reveals
+and why anyone would want it both change.
 
-**511 harness checks, green.** Saves remain explicitly disposable until the fundamentals stop
-moving; assume every slice breaks the running save and replay at 12×.
+### The order from here
 
-**Held, not forgotten:** the balance pass (now carrying a new item — `removeSettler` is inert in
-tile eras, so sickness and raids need a designed tile-scale effect); the Claude Design panel
-legibility pass, now to be run against the diorama; 6e priests and the envoy; phase 7's decision
-queue. And **the owner has a large proposal in draft** that may touch the map — worth hearing
-before slice 4 decides continent shape.
+1. **The engine rework** (needs a phase plan — that is the next thing to write). Its four re-homings
+   and its numbers-to-decide are listed in `design.md`.
+2. **Resume the map arc at slice 4** — the frame generator, then the picker, then scouting (which
+   likely merges INTO the rework, since territorial expansion becomes the early growth verb), then
+   the era re-dress.
+3. Parked and specced, deliberately not bundled: **the tech tree** (below), the balance pass, 6e
+   priests and the envoy, phase 7's decision queue.
+
+### Phase 10 progress
+
+- [x] **1 — the start screen shell.** The run waits for a person; `preGame` as a fourth independent
+      hold flag. Verified, including a tab-close mid-upgrade resuming bit-identically.
+- [x] **2 — the renderer port.** 3D replaces SVG with nothing downstream of `selectTile` changed;
+      marks are projected DOM text. `?map=2d` keeps the SVG board, `?glcheck=1` makes the canvas
+      readable.
+- [x] **3 — one board, forever.** View radii and map regeneration deleted, fog as unpainted board,
+      the camera framing what is known, dominion that never shrinks.
+- [x] **3a — the zoom fix.** Framing on charted country had also capped the zoom to it.
+- [ ] **4–7 — PAUSED** pending the engine rework. The build order stands below, unchanged.
+
+### Standing notes
+
+**Saves are explicitly disposable** until the fundamentals stop moving. Assume every slice breaks the
+running save; replay at 12×. No migrations.
+
+**Two findings from playing rather than planning**, both of which shaped the rework:
+
+- **The map generates fiction ahead of its mechanics.** Shown a fresh Stone board the owner instantly
+  read a defensible position — three sides mountains, one side water, two adjacent approaches — and
+  wanted to hold it. Nothing in the code knew any of that. Under the rework it becomes true, and
+  argues back: the mountains that protect a seat cannot feed it.
+- **"Evocative" is now a design test, not a compliment.** The board does not need a mechanic to make
+  you want one.
+
+**Owner's working style, worth knowing:** long messages are thinking, not reports. He often argues
+toward a position and lands opposite where he started without flagging it — **trust the end of a
+long message over its opening.**
 
 
 ### The playtest brief (what the user verifies during the hold)
@@ -255,6 +282,36 @@ Port the map stage from SVG to the spike's renderer, for real:
 5. Parked ideation, logged where it lives: pan/zoom (`map.md` §10 — now an orbit-rig clamp
    rather than a `viewBox` question), the odometer build, the name. *(Directed scouting left this
    list on 2026-08-22: it is promoted to the Stone Age's spatial verb and specced into Phase 10.)*
+
+## Parked, specced: the tech tree replaces the Upgrades panel
+
+*(Proposed and logged 2026-08-23. Deliberately NOT scheduled — it is independent of the production
+rework and must not ride along with it, so that an economy which feels wrong can only have one
+cause.)*
+
+**The Upgrades panel retires from the board and becomes a window you open.** One tree, opened on
+demand, with sections by purpose (military, production, diplomacy). It is a three-for-one:
+
+- **It removes a panel** from a board that is already fighting for room.
+- **It kills the available/owned tabs.** Owned techs are simply the nodes you have taken, visible
+  in place, the way every tree in the genre already works. The tab pair exists today only because
+  a flat list has nowhere to show history.
+- **It gives the late game somewhere to look.** Watching a Dyson sphere crawl is more bearable with
+  a tree to plan against, and a window can be big in a way a floating panel cannot.
+
+**Nodes cost RESOURCES, not tech points** *(owner ruling, same day, reversing his own opening
+proposal within the same message)*. A points currency would decouple tech from the economy and
+delete a resource sink — and sinks are what keep production meaningful, especially late, when
+buildings and units alone stop absorbing income. If a points economy is ever wanted, add it once
+the gap can be felt rather than predicted. A late node priced at *500 iridium* is the intended
+flavour of the thing.
+
+**Migration looks cheap:** the existing upgrades import fairly cleanly into two or three small
+trees. The one real design question is how tree nodes interact with the era manifest model, since
+upgrades are currently declared per era and revealed by predicate, while a tree spans eras by
+nature.
+
+---
 
 ## The phase plan
 

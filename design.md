@@ -204,7 +204,174 @@ themselves. See *Conquest Growth & the Peace Path*.
 
 ## Systems
 
+### Population Lives Somewhere — the one economy
+
+*(Settled 2026-08-23, in conversation, replacing the two-phase economy below. This is the largest
+change to the simulation since offline was deleted, and it was taken deliberately: the map arc was
+paused mid-build to make it, because everything still unbuilt depends on what a hex is worth.)*
+
+**Why it happened.** By 2026-08-22 the hex had become the anchor noun *and* was on screen from the
+Stone Age. That left the game teaching a whole economy — steppers, jobs, housing, a global
+population pool — and then retiring it about fifteen minutes in, at a border that changed seven
+systems at once and had already starved a live playtest. Two economies, one of them disposable.
+The fix is to run the hex economy from the first minute instead of the fortieth.
+
+#### The rules
+
+**1. Population lives on hexes.** Every hex in your dominion carries its own population. Your total
+is their sum. There is no global pool and no pool of unassigned people.
+
+**2. Terrain sets carrying capacity.** A river valley holds many people; a mountain holds few.
+Population grows toward the cap on its own. Tech and buildings raise the cap.
+
+**3. People are immobile. There is no migration, ever.** They grow in place, work in place, and die
+in place. This is the load-bearing rule and it is not a balance knob — see *the fungibility trap*
+below.
+
+**4. One assignment per hex.** A hex works one resource. Terrain sets the rate through the works
+table that already ships; every ground works everything, at a price. There is **no splitting a
+hex's people across resources** — that would be a stepper per hex, and a hundred and twenty
+steppers is worse than the three we started with.
+
+**5. Output = population × per-capita rate.** One formula, from the first minute to the last.
+
+**6. Population is a VARIABLE, not a control.** The player never sets it. The world writes to it —
+growth, plague, raids, starvation — and the player reads it and lives with it. It is the same
+category as a food stockpile or an adversary's wall damage. *This distinction is the whole design:
+a stepper is a control; this is a number other systems change.*
+
+**7. Rates are per-capita, and this is a law rather than a detail.** Population is the one number in
+this game permitted to explore — it is the odometer, and big numbers are the point. **Per-capita
+rates are the firewall that stops every OTHER number exploding with it.** If a rate were per-hex
+instead, a hex growing from 20 people to 60 would triple output with no design decision behind it,
+and every cost, cap and curve in the game would have to chase it. Per-capita, the same growth is
+legible, gradual, and priced. Anything that scales with population must be expressed per person.
+
+**8. Starvation drains the frontier first.** One food pool, not per-hex food. When the empire cannot
+feed itself, people die at the hexes furthest from your seat and inward from there. Overextension is
+punished *spatially*, which makes a compact empire genuinely cheaper to hold than a sprawling one —
+strategy out of pure geometry, with no new resource and no new UI.
+
+**9. Land stays yours when a hex empties.** *Dominion never shrinks* (the 2026-08-22 ruling) holds
+here too: a starved hex drops to zero people and remains your holding, repopulating if you can feed
+it again. A ghost town you can bring back is more interesting than a hex that vanishes. **Death
+comes when your seat empties** — the capital falling is a better ending than an arithmetic one.
+
+**10. Every problem the world creates must have a STRUCTURAL answer, never a micromanagement one.**
+Frontier hexes starving is solved by founding a second seat, taking better ground, keeping the
+empire compact, or researching supply — things you *build*, *choose* or *research*. Never by
+fiddling. This rule is what keeps the game from drifting back toward Age of Empires by accident,
+and it follows directly from rule 3.
+
+#### The fungibility trap (why steppers actually failed)
+
+Worth stating precisely, because the wrong lesson is easy to draw. Steppers were not bad because
+*assignment* is bad. They were bad because the pool was **fungible and global**: any person could go
+anywhere, so moving one person changed the correct answer for every other slider, and the system was
+implicitly asking the player to re-solve a global optimisation every time anything changed. That is
+what made it minmaxy, and what made it easy to forget and then resent.
+
+Per-hex population is not that. The people in a hex cannot leave, so each decision is *local* —
+changing what one hex works has no effect on any other hex's best answer. Cost grows linearly with
+hexes rather than combinatorially, and each individual decision stays correct until the player
+changes their mind. The shipped Iron map already proved this: one assignment per hex, and the
+owner's verdict on playing it was "allocating based on hex feels fine."
+
+**The rule that falls out: fungibility is the enemy, not assignment.**
+
+#### One number, five jobs
+
+The elegance to protect. A hex's population is simultaneously:
+
+1. its **capacity** (what the land supports),
+2. its **production** (output = population × rate),
+3. what **plague** kills,
+4. what **starvation** drains, frontier-first,
+5. what a **raid** takes.
+
+Five systems pushing on one number the player can see. That is the opposite of an unholdable
+balance surface — every consequence lands in the same place, so all five are predictable at once.
+This is also why *slots* died: it was a second capacity number sitting beside population, and two
+numbers meaning "how much this place can do" is what made per-hex simulation start to look like a
+hundred and fifty little economies. Capacity simply *is* population now.
+
+#### Loss events, and the two mitigation tracks
+
+Sickness finally works, and the reason it was broken is instructive: with a global pool, a plague
+had to kill someone *nowhere in particular*. **Where did they die?** Now a plague strikes a hex and
+kills people there — and because population regrows toward its cap, the shape is disaster, dip,
+recovery rather than a permanent scar. That makes infirmaries obviously worth building.
+
+Two deliberately separate mitigation tracks, which give the tech tree two real branches:
+
+- **Plague** — medicine, infirmaries, sanitation.
+- **Raids** — terrain, walls, military tech.
+
+Raids follow the same shape: a hex is attacked, it rolls, people there die. **No garrisons and no
+army-per-hex** — you have one army, you send it out to war or trade, and it comes home. Defence is
+passive, from terrain and tech.
+
+#### What this retires
+
+Steppers and the jobs system; `reconcileWorkforce`; housing and free timer growth; consolidation and
+its keep ratios; the levy and `levyMigrated`; the pop↔dominion lockstep in `syncDominion`; and
+**the Bronze→Iron cliff itself**, which stops being a genre change and becomes a re-denomination.
+That is most of the remaining complexity in the simulation, replaced by one rule that runs the whole
+game.
+
+#### The four re-homings (the actual work)
+
+Population was load-bearing in four places. Each needs a new home on the hex:
+
+| What pop carried | New home |
+|---|---|
+| **Food upkeep** (everyone eats — the failure state) | Per-capita upkeep against one pool; starvation drains frontier-first (rule 8) |
+| **Levy cap** (army size) | Hexes. *"Make it serve the hex"* — owner. Each holding supports so many soldiers |
+| **Loss events** (sickness, raids) | Per-hex and real (above) |
+| **Growth pacing** | Population growing toward its cap, plus territorial expansion. **The ceiling only rises by taking land or researching** — which keeps the shipped Iron line true: *"No one arrives unbidden. Your people grow by conquest and fealty."* Local repopulation is healing, not growth |
+
+#### Numbers to decide before code
+
+- **The scale of per-hex population.** Owner's instinct is people-sized (tens — "a mountain starts at
+  20"), not token-sized. That is what makes the odometer real.
+- **The per-capita rate constants.** A one-time global rebalance: today's rates are effectively
+  per-hex, so they must be divided down by roughly the population scale or food arrives forty times
+  too fast. Do this deliberately, once.
+- **Starting caps per terrain**, and **how fast population grows toward its cap.**
+- **Food upkeep per person**, which sets how hard the failure state bites.
+
+#### Flagged for the balance pass
+
+**Tech raises the cap, so it does not pay out immediately** — people have to grow into the new
+ceiling. That is good (tech becomes an investment that matures, the same shape as building a
+granary) but a tech that does nothing visible for two minutes can read as broken. Signal it clearly
+in the interface; allow it.
+
+**The frontier is punished twice** — starvation eats it first and raids hit the perimeter. Each is
+good alone; together they may make expansion feel strictly bad. This will present much later as
+"expansion feels bad" and the cause will not be obvious, so it is written down here.
+
+#### Ideation, explicitly NOT canon
+
+Recorded so it is not lost, not because it is decided: **contagion** (plague spreading through
+`adj`, which would look extraordinary on the diorama); **density attracts plague** (your richest
+province is your most fragile — historically true, and real counter-pressure against loading up your
+best land); **second seats** (provincial capitals that shorten administrative distance — a growth
+verb that answers overextension with a reward rather than a tax); **terrain-aware `routeCost`**; and
+**scouting as intelligence** rather than map reveal (see `map.md`).
+
+---
+
 ### Allocation — the permanent verb
+
+> **Half superseded 2026-08-23 by *Population Lives Somewhere*, above.** The verb is unchanged and
+> the section's central argument — that allocation re-denominates rather than retiring — is not
+> only intact but strengthened: it now runs from the FIRST minute rather than arriving at Iron.
+> What is dead is the two-phase split below. There is no "Stone and Bronze — people, allocated with
+> steppers" phase any more; hexes are allocated from the Stone Age, and the stepper is gone as a
+> control entirely rather than surviving to Iron. Kept whole because the reasoning trail — including
+> the corrected "retirement" ruling — is why the current model is trusted.
+
 
 **You assign production units to resources. That verb never retires; it re-denominates.**
 *(Settled 2026-08-22, correcting a same-day ruling that called it a retirement.)*
@@ -358,6 +525,11 @@ some future age, that's a sign the age needs its own mechanic, not a forced fit.
 
 ### Failure
 
+> **Amended 2026-08-23 (*Population Lives Somewhere*).** Starvation is no longer a single global
+> stop: the empire drains from its frontier inward, hex by hex, and the run ends when your **seat**
+> empties. Land is never lost — an emptied holding stays yours and can be repopulated. The
+> Sickness/Conflict asymmetry below stands, now expressed per hex.
+
 Two ways to lose. **Starvation** is a hard stop. **Conflict** is allowed to be lethal in the worst
 case — unlike Sickness, which floors at one survivor by design. That asymmetry is what gives a
 Barracks and a healthy population genuine stakes rather than another number to grow.
@@ -453,6 +625,13 @@ had been a tile ladder in disguise for ten of its twelve rungs. Merging deleted 
 adding one, and *holdfast* was not renamed but promoted.
 
 **Population is a lever for two ages, then it is the tiles.**
+
+> **Superseded 2026-08-23 by *Population Lives Somewhere*.** Population is never a lever, in any
+> age: it lives on hexes, grows toward a terrain-set cap, and is written to by the world rather than
+> set by the player. The table above and the anchor-noun ruling stand unchanged; only this
+> two-phase account of population does not. The instinct below — *"there is no second number"* —
+> turned out to be exactly right and simply arrived two ages late.
+
 
 - **Stone and Bronze:** a tile is a clearing and population is individual people inside it. Small,
   assignable, load-bearing — the tactile early game. This is the one stretch where a person and a

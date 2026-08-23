@@ -23,6 +23,12 @@ and open <http://localhost:8123>. Progress auto-saves to your browser's local st
 
 ## The loop
 
+> **This describes what currently RUNS, and the first half of it is being replaced.** As of
+> 2026-08-23 the economy is being reworked so that production runs on hexes from the Stone Age and
+> population lives on the map rather than in a global pool — steppers, jobs and housing all retire.
+> See `design.md` → *Population Lives Somewhere*. Kept accurate to the shipped game until that
+> lands, because a README that describes an intention is worse than one that is merely out of date.
+
 - You begin with **3 settlers** and a nearly empty board. Everyone **eats food** every second, so
   your first job is to forage — **run out and the settlement dies.**
 - Assign settlers to gather **food**, **wood**, and **stone** with the steppers in Your People.

@@ -180,6 +180,34 @@ harness.js                  imports all of the above except main.js
 
 **The harness bootstrap is a real rewrite, and it should be honest about that.** `harness.js` currently reads `game.js` as text, appends an `exportHook` string that captures ~60 internals into `globalThis.__api`, and runs the whole thing through `vm.createContext` against a stubbed `document`/`localStorage`/`window`. Under modules that entire mechanism can be replaced by ordinary `import`s — cleaner, no string concatenation, no sandbox — but the stubs still have to exist somewhere (the UI modules touch `document` the moment they're called), and the `__api` surface becomes a set of real exports. **The ~420 assertions themselves are unaffected**; only the first 60 lines of the file change. Do the bootstrap rewrite as the *last* commit of phase 1, after the split is proven green through the old `vm` path, so a harness failure can only mean one thing.
 
+## The engine rework (planned, 2026-08-23)
+
+**Not built yet. Canon is `design.md` → *Population Lives Somewhere*; this records only what it does
+to the architecture.** The map arc was paused after phase 10 slice 3 to take this, because every
+remaining slice depends on what a hex is worth.
+
+**What is deleted outright:** the jobs/steppers system and `reconcileWorkforce`; housing and timer
+growth; `applyConsolidation` and its keep ratios; the levy, `levyCap`/`levyUsed` and the
+`levyMigrated` flag; and `syncDominion`'s pop↔dominion lockstep. The Bronze→Iron border stops being
+a genre change — seven systems switching at once — and becomes a re-denomination of the tile noun.
+
+**What is added:** a population number per owned hex (`S.map.pop` keyed by tile id, or a `pop` field
+on the per-tile record — schema decision at build time), a terrain-derived carrying cap, growth
+toward that cap, and an administrative-distance function (the existing `routeCost` Dijkstra seeded
+from `world.home` alone).
+
+**What changes shape:** `rates()` becomes `population × per-capita rate` summed over owned hexes
+rather than `jobs × rate`. Food upkeep becomes per-capita against one pool. Starvation becomes an
+ordered drain, frontier inward, rather than a single global stop.
+
+**The one-time global rebalance:** today's rate tables are effectively per-hex, so every rate must be
+divided down by roughly the population scale, or output arrives tens of times too fast. This is the
+main numeric work and it should be done deliberately, in one pass, with the harness's regression
+checks rewritten to match rather than nudged.
+
+**Performance is not a consideration.** Measured: summing population across 150 hexes every tick
+costs ~68 ms *per hour of play*, against a 200 ms per-tick budget. See `map.md` §2.7.
+
 ## Simulation Model
 
 **Status: shipped — fixed ticks (phase 4, 2026-08-22).**

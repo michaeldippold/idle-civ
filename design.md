@@ -332,6 +332,11 @@ Population was load-bearing in four places. Each needs a new home on the hex:
 
 #### Numbers to decide before code
 
+*(Resolved to v1 values 2026-08-23 — the table and reasoning live in `todo.md` → *The engine
+rework — phase plan*. Headline: `baseRate`/`upkeep` were already per-capita so they carry
+unchanged; carrying caps are small at Stone (3–10) and grow by era; growth is logistic at
+r ≈ 0.015/s. The items below remain the list of what those values answer.)*
+
 - **The scale of per-hex population.** Owner's instinct is people-sized (tens — "a mountain starts at
   20"), not token-sized. That is what makes the odometer real.
 - **The per-capita rate constants.** A one-time global rebalance: today's rates are effectively

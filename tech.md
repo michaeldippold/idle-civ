@@ -200,10 +200,15 @@ from `world.home` alone).
 rather than `jobs × rate`. Food upkeep becomes per-capita against one pool. Starvation becomes an
 ordered drain, frontier inward, rather than a single global stop.
 
-**The one-time global rebalance:** today's rate tables are effectively per-hex, so every rate must be
-divided down by roughly the population scale, or output arrives tens of times too fast. This is the
-main numeric work and it should be done deliberately, in one pass, with the harness's regression
-checks rewritten to match rather than nudged.
+**The rebalance mostly dissolves (corrected 2026-08-23, while drafting the phase plan):** the
+prediction above was wrong in a useful way. `CONFIG.baseRate` and `CONFIG.upkeep` are *already
+per-capita* — Stone always was per-person, and the Iron tile branch deliberately produced "at the
+same per-worker rate the steppers used." Since output and upkeep are both per-person, the feed
+ratio (one worker feeds five) is scale-invariant at any population in any era. What keeps totals
+sane is **small early-era carrying caps that grow by era-fact** — the era production curve is a
+ceiling change, not a rate change. Residual pricing work lands where pricing already lives: each
+era's manifest re-prices against that era's expected population. See `todo.md` → *The engine
+rework — phase plan* for the v1 numbers.
 
 **Performance is not a consideration.** Measured: summing population across 150 hexes every tick
 costs ~68 ms *per hour of play*, against a 200 ms per-tick budget. See `map.md` §2.7.

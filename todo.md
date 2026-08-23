@@ -45,8 +45,8 @@ and why anyone would want it both change.
 
 ### The order from here
 
-1. **The engine rework** (needs a phase plan — that is the next thing to write). Its four re-homings
-   and its numbers-to-decide are listed in `design.md`.
+1. **The engine rework** — planned: see *The engine rework — phase plan* below (slices E1–E6,
+   numbers v1 included). Canon in `design.md`; the plan is the buildable form.
 2. **Resume the map arc at slice 4** — the frame generator, then the picker, then scouting (which
    likely merges INTO the rework, since territorial expansion becomes the early growth verb), then
    the era re-dress.
@@ -282,6 +282,96 @@ Port the map stage from SVG to the spike's renderer, for real:
 5. Parked ideation, logged where it lives: pan/zoom (`map.md` §10 — now an orbit-rig clamp
    rather than a `viewBox` question), the odometer build, the name. *(Directed scouting left this
    list on 2026-08-22: it is promoted to the Stone Age's spatial verb and specced into Phase 10.)*
+
+## The engine rework — phase plan (drafted 2026-08-23)
+
+**Canon: `design.md` → *Population Lives Somewhere*. This section is HOW, in what order, and with
+what numbers.** Same discipline as phase 10: one thing changes per slice, every slice ends playable
+and harness-green, a pause and a test brief at each stop.
+
+### The numbers (v1 — the anchoring insight first)
+
+**The rebalance predicted in `tech.md` mostly dissolves, and the reason is worth recording.**
+`CONFIG.baseRate` (0.20/s) and `CONFIG.upkeep` (0.04/s) are *already per-capita* — the Stone
+stepper game always was per-person, and the shipped Iron tile branch deliberately produces "at the
+same per-worker rate the steppers used." So the per-capita law is not a conversion, it is a
+promotion of the existing constants. Better: since output and upkeep are both per-person, the
+**feed ratio is scale-invariant** — one working person feeds themselves plus four, at any
+population, in any era. Starvation math carries across the entire game automatically.
+
+What actually keeps the economy sane is that **carrying caps are small in early eras and grow by
+era and tech**. That is the era production curve — not a rate change, a ceiling change — and it
+keeps Stone's totals close to today's shipped balance without touching a single cost:
+
+| | food | wood | stone | iron | **cap: Stone** | **cap: Iron** |
+|---|---|---|---|---|---|---|
+| **plains** | ×1.0 | ×0.4 | ×0.3 | ×0.2 | **8** | **24** |
+| **river** | ×1.2 | ×0.3 | ×0.2 | ×0.2 | **10** | **30** |
+| **forest** | ×0.5 | ×1.0 | ×0.2 | ×0.2 | **5** | **15** |
+| **hills** | ×0.3 | ×0.3 | ×1.0 | ×1.0 | **3** | **9** |
+
+*(Rate columns are the shipped Iron works table, unchanged — it becomes the game-long table, with a
+Stone/Bronze copy that simply omits iron. Caps are first guesses; the Stone column is tuned so a
+2–3 hex Stone endgame carries ~15–25 people, matching today's late-Stone settlement. The
+owner's "a mountain starts at 20" instinct is an Iron-scale number. Later eras multiply caps
+per era-fact — the odometer comes from the ceiling rising, never from the rates.)*
+
+- **Start:** the seat hex opens at pop 3 (today's `startPop`), assigned to food.
+- **Growth:** logistic — `dP/dt = r × P × (1 − P/cap)`, r ≈ 0.015/s, integer pop with a fractional
+  accumulator per hex. At 3-of-8 that is a first arrival in ~35s, close to today's 45s settler
+  cadence; growth visibly slows as a hex fills. One knob (`r`), self-limiting, no timers.
+- **Per-capita rate:** `baseRate` 0.20/s × terrain × tool mults, as today. **Upkeep:** 0.04/s per
+  person, as today.
+- **Later-era pricing has a natural home:** era manifests already re-declare every cost. Each era's
+  manifest prices against that era's expected total population — authored per era, not one global
+  pass.
+
+### The slices
+
+- [ ] **E1 — population exists** *(additive; nothing reads it yet)*. `S.map.pop` keyed by tile id;
+      caps from terrain × era-fact; logistic growth each tick; the header's POP becomes the sum (the
+      odometer, real at last); the tile detail and hover show each hex's people. Steppers still run
+      production untouched — this slice is pure state, fully save-round-tripped and
+      determinism-checked, so the growth curve can be watched and tuned live before anything
+      depends on it.
+- [ ] **E2 — production flips, steppers die.** `rates()` becomes pop × per-capita × terrain from the
+      STONE age; every era declares `allocation: "tiles"`; the base manifest gets the works table
+      (minus iron); the seat opens assigned to food; jobs, steppers, `reconcileWorkforce`, and the
+      Your People job rows are deleted. Stone/Bronze manifests re-priced only where the new totals
+      demand it. **The acceptance test is feel:** minute-one Stone should play like today's —
+      forage first or die.
+- [ ] **E3 — expansion is the growth verb, from frame one.** Claiming adjacent land arrives in the
+      Stone age (the settle verb, priced cheap and in food/time only at Stone — the first claim
+      must be affordable before wood exists). The pop↔tiles lockstep in `syncDominion` dies; owned
+      changes only by claim, capture and fealty. Housing and the settler timer die. **The Stone
+      opening becomes: work your hex, save up, choose your first neighbour** — which diversifies
+      production, which is the loop. (This pulls the essential half of map-slice-6 forward;
+      claiming is not scouting, but they share the frontier.)
+- [ ] **E4 — the frontier starves first.** `adminDistance()` (the `routeCost` Dijkstra seeded from
+      `world.home` alone); when food runs dry the drain walks the frontier inward, narrated;
+      death = the seat emptying. The global instant-death starvation check retires.
+- [ ] **E5 — the world strikes hexes.** Sickness and raids target a hex (weighted by population),
+      roll against its mitigations, and kill people THERE; `removeSettler` retires; the army cap
+      re-homes to held hexes (recommendation: cap = hexes × 2, the levy served to the hex);
+      training draws its person from the seat (recommendation — no source micromanagement);
+      consolidation, the levy and `levyMigrated` are deleted and era borders become pure
+      re-denomination. Iron manifest re-priced against Iron-era population.
+- [ ] **E6 — the harness overhaul settles.** Not really a slice — E2 and E5 each rewrite their
+      checks as they land — but a closing pass: the regression suite's stepper fixtures replaced
+      with hex fixtures, the count re-baselined, and a determinism run over the whole new economy.
+
+**Then the map arc resumes at slice 4** (the frame generator), now able to choose a hex budget with
+the economy known. Slice 6 (scouting) inherits only its *intelligence* half — the claiming half
+shipped in E3.
+
+### Owner decisions embedded above (defaults chosen, veto at any pause)
+
+1. **Stone caps small** (3–10 per hex) so early balance carries; "20 on a mountain" lands at Iron.
+2. **Army cap = held hexes × 2**; recruits drawn from the seat's population.
+3. **First-claim pricing** in food/time only, so the opening cannot deadlock.
+4. Cap-raising lives on **era-facts and tech**, not on a revived housing building line.
+
+---
 
 ## Parked, specced: the tech tree replaces the Upgrades panel
 

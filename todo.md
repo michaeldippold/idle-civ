@@ -359,10 +359,18 @@ per era-fact — the odometer comes from the ceiling rising, never from the rate
 - [ ] **E3 — expansion is the growth verb, from frame one.** Claiming adjacent land arrives in the
       Stone age (the settle verb, priced cheap and in food/time only at Stone — the first claim
       must be affordable before wood exists). The pop↔tiles lockstep in `syncDominion` dies; owned
-      changes only by claim, capture and fealty. Housing and the settler timer die. **The Stone
-      opening becomes: work your hex, save up, choose your first neighbour** — which diversifies
-      production, which is the loop. (This pulls the essential half of map-slice-6 forward;
-      claiming is not scouting, but they share the frontier.)
+      changes only by claim, capture and fealty. Housing and the settler timer die.
+      **The 3-hex start is CANON (owner ruling, 2026-08-23, ratifying what began as the E2 bridge
+      artifact):** a fresh run opens with the seat plus two adjacent hexes, explicitly granted at
+      world-gen once the lockstep dies. Three hexes means one per resource is possible from the
+      first minute — the stepper trade-off reborn at hex scale, in the owner's words "steppers
+      again but hexes" — and the seat still works too (Luthadel earns its keep). **Do NOT
+      guarantee terrain variety in the starting trio:** the owner's own run lacked a forest and
+      the itch to go claim one was immediate — that itch IS the claim verb's first motivation, and
+      a guaranteed-perfect start would delete it.
+      **The Stone opening becomes: work your three hexes, save up, choose your next neighbour** —
+      which diversifies production, which is the loop. (This pulls the essential half of
+      map-slice-6 forward; claiming is not scouting, but they share the frontier.)
 - [ ] **E4 — the frontier starves first.** `adminDistance()` (the `routeCost` Dijkstra seeded from
       `world.home` alone); when food runs dry the drain walks the frontier inward, narrated;
       death = the seat emptying. The global instant-death starvation check retires.

@@ -280,7 +280,8 @@ export function renderMapStage() {
   lastSignature = sig;
 
   if (mode === "3d") {
-    stage3d.setWorld(visiblePlaces(), { isOwned, isRevealed: isCharted, homeId: world.home });
+    stage3d.setWorld(visiblePlaces(),
+      { isOwned, isRevealed: isCharted, homeId: world.home, era: S.era });
     stage3d.setSelected(selectedId);
     return;
   }

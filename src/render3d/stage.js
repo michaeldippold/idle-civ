@@ -40,6 +40,9 @@ let selectedId = null;
 let hoveredId = null;
 let lastRevealed = -1;          // re-frame only when the KNOWN world changes size
 let isRevealed = () => true;
+let lastEra = null;
+let userMoved = false;          // once the player takes the camera, it is theirs
+let panBounds = null;
 let rafId = 0;
 let started = false;
 
@@ -90,7 +93,10 @@ export async function initStage(el, h) {
 
   scene = new THREE.Scene();
   scene.background = VOID;
-  scene.fog = new THREE.Fog(VOID, 30, 78);
+  // Set generously and re-tuned per board in frameBoard(): atmospheric fog
+  // exists to soften the void at the rim, and it must never start dissolving
+  // the far edge of the board itself when the camera pulls back.
+  scene.fog = new THREE.Fog(VOID, 60, 140);
 
   camera = new THREE.PerspectiveCamera(38, 1, 0.5, 300);
   camera.position.set(0, 11, 10);
@@ -104,8 +110,12 @@ export async function initStage(el, h) {
   controls.minPolarAngle = THREE.MathUtils.degToRad(25);
   controls.maxPolarAngle = THREE.MathUtils.degToRad(50);
   controls.minDistance = 4;
-  controls.maxDistance = 40;
+  controls.maxDistance = 40;   // replaced per board by frameBoard()
   controls.screenSpacePanning = false;
+  // Auto-framing is a courtesy, not a policy. The moment the player drags,
+  // zooms or pans, the camera belongs to them and the stage stops moving it --
+  // right up until an era turns, which is a ceremony and gets to reframe.
+  controls.addEventListener("start", () => { userMoved = true; });
 
   await setupLighting();
   await setupPost();
@@ -210,8 +220,16 @@ export function setWorld(list, opts) {
   // the era zoom-out arc without a single per-era camera number: it follows
   // discovery, which is what it was always really about.
   const known = list.filter((p) => isRevealed(p.id));
-  if (known.length !== lastRevealed) {
-    frameBoard(known.length ? known : list);
+  const eraTurned = o.era !== undefined && o.era !== lastEra;
+  if (eraTurned) { lastEra = o.era; userMoved = false; }
+  // Reframe while the camera is still the stage's to move, and again whenever
+  // an era turns. Otherwise only the LIMITS refresh, so newly charted country
+  // becomes reachable by zooming out without the view lurching mid-play.
+  if ((known.length !== lastRevealed || eraTurned) && !userMoved) {
+    frameBoard(known.length ? known : list, list);
+    lastRevealed = known.length;
+  } else {
+    applyBoardLimits(list);
     lastRevealed = known.length;
   }
 
@@ -234,17 +252,59 @@ function placeRing(ring, id) {
   ring.visible = true;
 }
 
-function frameBoard(list) {
+function spanOf(list) {
   let maxR = 1;
   for (const p of list) {
     const w = axialToWorld(p.q, p.r);
     maxR = Math.max(maxR, Math.hypot(w.x, w.z));
   }
-  const dist = THREE.MathUtils.clamp(maxR * 2.1 + 5, 6, 38);
+  return maxR;
+}
+
+// `focus` is what the camera should OPEN on -- the country the player knows.
+// `all` is the whole board, fog included, and it sets how far back the player
+// may pull. These were one number until a player could not zoom out far enough
+// to see their own world: framing tight on seven known hexes had also capped
+// the zoom at seven hexes. Being able to look at the unpainted board is the
+// entire point of drawing it -- "the world is wider than this" has to be
+// something you can go and LOOK at.
+function frameBoard(focus, all) {
+  const near = spanOf(focus);
+  const far = spanOf(all && all.length ? all : focus);
+
+  const dist = THREE.MathUtils.clamp(near * 2.1 + 5, 6, 38);
   controls.target.set(0, 0, 0);
   camera.position.set(0, dist * 0.72, dist * 0.66);
-  controls.maxDistance = Math.max(12, dist * 1.6);
   controls.update();
+
+  applyBoardLimits(all && all.length ? all : focus, far);
+}
+
+// Zoom and pan limits belong to the BOARD, not to what has been discovered on
+// it, so these are refreshed on every build rather than only when the camera
+// is reframed.
+function applyBoardLimits(all, farSpan) {
+  const far = farSpan != null ? farSpan : spanOf(all);
+  controls.maxDistance = THREE.MathUtils.clamp(far * 3.0 + 10, 14, 120);
+  // Keep the focus point over the board plus a margin, so the player cannot
+  // pan off into empty space and lose the world.
+  panBounds = { r: far + 2 };
+  // Push atmospheric fog out past the far corner of the board at full zoom.
+  if (scene.fog) {
+    scene.fog.near = far * 4 + 20;
+    scene.fog.far = far * 9 + 60;
+  }
+}
+
+function clampPan() {
+  if (!panBounds) return;
+  const t = controls.target;
+  const d = Math.hypot(t.x, t.z);
+  if (d > panBounds.r) {
+    const k = panBounds.r / d;
+    t.x *= k; t.z *= k;
+  }
+  t.y = 0;
 }
 
 // ---------- Labels: projected DOM ------------------------------------------
@@ -358,6 +418,7 @@ function resize() {
 function loop() {
   rafId = requestAnimationFrame(loop);
   controls.update();
+  clampPan();
   if (composer) composer.render();
   else renderer.render(scene, camera);
   positionLabels();

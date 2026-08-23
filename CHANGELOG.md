@@ -11,6 +11,34 @@
 
 ---
 
+## 2026-08-22 — Phase 10, slice 3a: you can see your own world again
+
+**Zoom fix.** Framing the camera on the charted country had also *capped the
+zoom* to the charted country, so a Stone player looking at seven known hexes
+could not pull back far enough to see the board those hexes sit in. One number
+was doing two different jobs. They are now separate questions: where the camera
+**opens** comes from what the player knows, and how far it may pull **back**
+comes from the whole board, fog included. Being able to look at the unpainted
+world is the entire point of drawing it — *the world is wider than this* has to
+be something you can go and look at. Max zoom distance roughly doubles (13.8 to
+30.8 world units on a radius-4 board), which clears the far corner with margin.
+
+Three things rode along, all found in the same few lines:
+
+- **Atmospheric fog was going to eat the far edge** once the camera could pull
+  back that far. Its near and far planes are now derived from the board size
+  rather than fixed at 30 and 78.
+- **Panning was unclamped**, so the focus point could be dragged off into empty
+  space and the world lost entirely. It is now held over the board plus a
+  margin — a port omission from the spike, which had this.
+- **The camera no longer lurches mid-play.** Auto-framing is a courtesy, not a
+  policy: the moment the player drags, zooms or pans, the camera is theirs and
+  the stage stops moving it. Newly charted country still becomes reachable,
+  because the *limits* keep refreshing even when the framing does not. An era
+  turn is a ceremony and gets to reframe.
+
+---
+
 ## 2026-08-22 — Design pause point *(DOCS ONLY — the hold)*
 
 The day ends where it should: **feature development holds here, deliberately**, until the next UI

@@ -6,13 +6,14 @@
 > see *Where this is going*, below, and `design.md` → *Time, Presence & Pause*. Renaming waits
 > until the pivot is playable.
 
-A civilization game with the graphics stripped out. No map, no rendered units — just resources,
-people, and choices. Inspired by *Civilization* (decisions with real opportunity cost), *Crusader
+A civilization game as a **digital tabletop**: a lit 3D hex board in the browser — depth,
+shadows, pieces on a board, bright warm colors — with a numbers-and-choices game underneath and no
+rendered units marching around. Inspired by *Civilization* (decisions with real opportunity cost), *Crusader
 Kings* (a real-time clock you pause, and a world of neighbours you fight, trade with, or win over),
 and *A Dark Room* (start with almost nothing; complexity is earned, never dumped on you).
 
 The pitch in one line: **you start by foraging for food, and by the end you're deciding the fate of
-star systems — and the interface never stops looking like paperwork.**
+star systems — a civilization board game, played on a living digital tabletop.**
 
 ## Run it
 
@@ -42,15 +43,18 @@ and open <http://localhost:8123>. Progress auto-saves to your browser's local st
 
 ## The interface
 
-The board is **whole from the first frame** — every panel the current age can fill is on screen,
-named, empty and waiting. What unravels is what goes *inside* them. The visual direction is
-**Bureau**: dense administrative paper, because the game is a spreadsheet and would rather be proud
-of that than disguise it. Each column gets its own stock — cork for people, graph paper for
-construction, dot grid for progress, a legal pad for the Chronicle.
+The identity is **the digital tabletop** (`design.md`, Open Question 3 — resolved): the world is
+a lit 3D hex diorama — a board game come to life, bright and warm, that you can spin, pitch and
+zoom like a plate — with the game's panels floating over it. A working spike of the renderer is
+merged (`spike3d/`); porting the live map onto it is the next build phase. Comparisons to a
+physical board game are invited on purpose.
 
-Two rules run through all of it: **opacity is never used to convey state** (a card you can't afford
-stays fully readable, because reading it is how you plan), and **descriptions live on hover**, along
-with the reason a purchase is refused.
+The board is **whole from the first frame** — every panel the current age can fill is on screen,
+named, empty and waiting; what unravels is what goes *inside* them. The panels currently wear
+**Bureau**, the interim skin from the panel-game era, until the tabletop reskin. Two of its laws
+are permanent regardless of skin: **opacity is never used to convey state** (a card you can't
+afford stays fully readable, because reading it is how you plan), and **descriptions live on
+hover**, along with the reason a purchase is refused.
 
 ## Where this is going
 
@@ -67,7 +71,8 @@ Concretely, in progress:
   default.
 - A seeded simulation, so any run is exactly reproducible from its number.
 - A **hex map** of places you can hold, take, or win over, procedurally generated per run from a
-  hand-authored pool of neighbours.
+  hand-authored pool of neighbours — shipped, and being ported from its SVG stage onto the 3D
+  diorama (`todo.md`, Phase 10).
 
 `todo.md` has the phase plan.
 
@@ -83,7 +88,7 @@ plus the `bronze.js`/`iron.js` deltas). Change a number, refresh the page.
 node harness.js
 ```
 
-A headless Node harness (420 checks) that imports the game's modules directly — no browser, no
+A headless Node harness (490 checks) that imports the game's modules directly — no browser, no
 framework, no dependencies — and exercises the simulation through its real exports.
 
 ## Docs
@@ -93,7 +98,7 @@ framework, no dependencies — and exercises the simulation through its real exp
 | `design.md` | Game design canon: pillars, systems, the age list, settled questions |
 | `tech.md` | Architecture: simulation model, manifests, rendering, what's shipped vs pending |
 | `map.md` | The map arc: place-graph model, hexes, procedural generation, art strategy |
-| `interface.md` | The interface system: layout, components, presentation rules, Bureau |
+| `interface.md` | The interface system: layout, components, presentation rules, the interim Bureau skin |
 | `todo.md` | **Start here.** Status, the phase plan, and what is actually built |
 | `CHANGELOG.md` | The shipped-feature record, newest first |
 | `redesign/` | The design pass that produced Bureau — prototype and reasoning |

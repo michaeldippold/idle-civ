@@ -25,7 +25,7 @@ rather than waiting turn-by-turn for permission. You can pause it, speed it up, 
 it. What you cannot do is miss anything.
 
 The pitch in one line: **you start by foraging for food, and by the end you're deciding the fate of
-star systems — and the interface never stops looking like paperwork.**
+star systems — a civilization board game, played on a living digital tabletop.**
 
 ## Touchstones
 
@@ -141,8 +141,8 @@ themselves to arrive or retire.
 *Historical note:* this previously hid whole panels until earned. That rule was calibrated for a
 pen-on-paper wireframe in which an empty panel and a full one were the same hairline box, so showing
 them all read as clutter. Bureau's ink header plates and per-column paper stock removed the premise —
-an empty panel now reads as a *blank form*, which suits a game about administration — and against
-defined content areas a slow reveal reads as broken rather than as discovery.
+an empty panel reads as a defined region waiting to fill — and against defined content areas a slow
+reveal reads as broken rather than as discovery. The rule outlives the skin that fixed it.
 
 **Friction is the game.** A game with escalating production and no counter-pressure gets solved in
 minutes. Food upkeep that can starve you, storage caps that make surplus rot, construction costs that
@@ -159,12 +159,14 @@ debug console, it's the settlement's memory. It is no longer the *only* surface 
 world — a map will do that better — but it remains the record of what *happened*, as distinct from
 what *is*.
 
-**Restraint and legibility.** The founding identity test is that the whole game *could* be drawn in
-black pen on ruled paper: boxes, rules, text, small glyphs. What survives of that as law: restraint
-(nothing decorative that carries no information), legibility, and **color reserved entirely for
-meaning** — green is genuinely new good information, red is danger, amber is a rare milestone. Color
-is never ambience. Everything more specific — the palette, the paper textures, the line-art doodles —
-is presentation, and presentation is open (see `interface.md`).
+**Restraint and legibility.** Nothing decorative that carries no information; legibility outranks
+texture; and **color reserved entirely for meaning** — green is genuinely new good information, red
+is danger, amber is a rare milestone. Color is never ambience. *(These laws were first derived from
+a founding-era test — "the whole game could be drawn in black pen on ruled paper" — which retired
+with the paper identity on 2026-08-22. The laws did not, and they bind the 3D board exactly as they
+bound panels: light and depth may carry atmosphere; color still carries meaning.)* Everything more
+specific — palette, materials, texture — is presentation, and the identity it serves is settled:
+**the digital tabletop** (Open Question 3; `interface.md`; `map.md` §8).
 
 **Small numbers, slow start.** Displayed counts stay in roughly the 3–50 range forever; scale is
 carried by re-denominating what a unit *means*. The opening minutes are deliberately unhurried.
@@ -797,12 +799,12 @@ rule was aimed at the right danger and pointed at the wrong noun.
 
 ## Open Questions
 
-1. **The name.** "Idle Civ" is wrong now. "Paper Civ" was floated and is complicated by (3) below.
+1. **The name.** "Idle Civ" is wrong now. "Paper Civ" was floated and died with the paper identity — (3) resolved against it.
    Deferred deliberately until the pivoted game is playable — deciding a name against an imagined game
    is how you get a name you have to change twice.
 2. ~~**When does the map take the centre of the interface?**~~ **DONE (2026-08-22, "the flip").**
-   Structure shipped ahead of 6d; the remaining half of phase 9 is the visual identity — see (3),
-   now the live question. Original text: The
+   Structure shipped ahead of 6d; the remaining half of phase 9 is the visual identity — see (3), since
+   resolved: the digital tabletop. Original text: The
    stated end-state is **map in the middle, controls on the edges of the screen**, with the Expeditions
    panel dissolving into the map rather than surviving beside it — a list of adversaries next to a map
    showing the same adversaries is the worse of the two. Only the *timing* is open, and it is gated on

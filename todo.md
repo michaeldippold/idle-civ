@@ -41,7 +41,9 @@ harness-green throughout, currently **490 checks**:
 
 **Docs are current** through all of it — this file, `design.md`, `tech.md`, `map.md`,
 `interface.md`, `CHANGELOG.md` all updated per-phase. `deleteme.md` and `interface-brief.md` are
-gone. Bureau is the interim skin, **formally under review** in the design thread.
+gone. Bureau is the interim panel skin; the identity itself is resolved — **the digital
+tabletop** (`design.md` OQ3) — and the design thread's brief is panel legibility against the
+diorama.
 
 ### The playtest brief (what the user verifies during the hold)
 
@@ -133,10 +135,11 @@ Port the map stage from SVG to the spike's renderer, for real:
       owner-eye QA for aesthetics, per the revised tech.md contract.
 
 ### Held until the UI conversation (in intended order)
-1. **The design-thread verdict** — panel juggling/legibility, now joined by the successor skin:
-   paper is RULED OUT as the identity (war-table candidate killed same-day; see `interface.md`),
-   the direction is evocative illustrated tile art with per-era tilesets and an evolving home tile
-   (`map.md` §8). Structure is settled; the thread decides the new dress.
+1. **The design-thread verdict** — panel juggling/legibility against the diorama. The identity
+   itself is no longer on the table: paper is out (war-table candidate killed same-day; see
+   `interface.md`) and the successor is ruled — **the digital tabletop**, the lit 3D board
+   (`design.md` OQ3, `map.md` §8 Route B). Structure is settled; the thread designs how the
+   floating panels read over the 3D world.
 2. **The balance pass** the judgment flags feed (upkeep, pacing, routes, pruning).
 3. **6e — priests & the envoy** (the peace path; the annexation ceremony under the modal-hold).
 4. **Phase 7 — the decision queue** (the pause-modal seam is built and waiting).
@@ -196,6 +199,11 @@ failure that cannot be re-run, cannot be bisected, and cannot be reported as any
 than "it happened once." The project's own status notes have been quoting "20/20 consecutive runs"
 for months, which is a statement about flake *rate*, not about correctness. Until phase 2 lands, any
 harness failure that doesn't reproduce should be recorded verbatim rather than re-run away.
+*(Solved later the same day: it reproduced during the identity-purge docs pass and was captured —
+"the party raises a hall", the 6d settle-completion check. The ~90 sim-seconds it runs left the
+world's event dice live, and a rare sickness/raid shifted `pop` out from under `popBefore + 1`.
+Fixed by pinning `setRngSource(() => 0.99)` around that run — the check tests settle completion,
+not event weather. Exactly the class of bug the seed work predicted, caught by its own advice.)*
 
 ### Phase 3 — Kill offline ✅ *(shipped 2026-08-22)*
 - [x] Deleted whole: `simulateOffline()`, the `SIM`/`SIM_STOP`/`SIM_STOP_CAUSE` flags and setters,
@@ -340,13 +348,15 @@ radii** (Stone shows one hex, Bronze the ring, Iron the country — the world li
 the ages) and the frame-one chart. Bureau remains as the **interim skin**: structure was adopted
 from the Claude Design sketch, palette explicitly was not.
 
-**What remains of phase 9:** the visual identity. **Bureau is now formally under review** (user,
-2026-08-22): it was built to make a wireframe legible and did that job — its lessons (no opacity
-for state, semantic color, legibility over texture) survive any reskin — but paper-as-identity may
-have outlived the panel game it dressed. Process: run a proper design pass in the Claude Design
-thread with the flipped structure as the brief, the way Bureau itself was commissioned. One
-candidate direction to weigh there, not decided: the **war table** — campaign maps historically ARE
-paper, so Bureau could evolve (parchment map, paper panels pinned around it) rather than die.
+**What remains of phase 9:** executing the reskin, not choosing it. The identity question opened
+here **resolved the same day** — paper retired (the war table weighed and killed), and the 3D
+spike settled the successor: **the digital tabletop** (`design.md` OQ3, `map.md` §8, Phase 10
+above). Bureau stays as the interim panel skin; its lessons (no opacity for state, semantic color,
+legibility over texture) survive the reskin as law. The Claude Design pass still runs — its brief
+is panel legibility with the flipped structure over the diorama. *(As originally written this
+paragraph put Bureau formally under review with the war table as one candidate to weigh — campaign
+maps historically ARE paper, so Bureau could evolve, parchment map and paper panels, rather than
+die. Both halves were ruled within hours.)*
 Original text follows for the record:
 *(pulled forward 2026-08-22)* The user returned to the Claude Design thread and came back with a
 structural sketch: the map as the main canvas, everything else as floating panels over it — Orders

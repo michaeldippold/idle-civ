@@ -684,9 +684,9 @@ Under Bureau the modal is the **ceremony register** and looks the part: legal-pa
 
 ## Layout & Visual System
 
-**Status: shipped.** Full treatment in `interface.md`; what follows is the load-bearing summary.
+**Status: shipped as the interim skin; the identity is resolved elsewhere.** The visual identity is **the digital tabletop** (`design.md` OQ3, `map.md` §8 — a lit 3D diorama; Phase 10 in `todo.md` ports the map onto it). `styles.css` implements **Bureau**, the interim panel skin that dresses the floating panels until that reskin. Full treatment in `interface.md`; what follows is the load-bearing summary of what is on screen today.
 
-`styles.css` implements **Bureau**: the game is a spreadsheet, so the presentation stops disguising that and becomes dense administrative paper — ledger sheets, ink tab headers, monospace numerals, hard 1px borders, no rounded corners, no shadow anywhere except the modal's hard offset.
+Bureau is dense administrative paper — ledger sheets, ink tab headers, monospace numerals, hard 1px borders, no rounded corners, no shadow anywhere except the modal's hard offset. (Its founding framing — "the game is a spreadsheet, so stop disguising it" — retired with the paper identity on 2026-08-22; the laws below did not.)
 
 **Tokens, not literals.** `:root` holds surfaces, the three-value semantic channel, border weights, the rulings and the three type registers. A palette that can be re-pointed in one place is the only version that survives nine more eras of content.
 
@@ -695,7 +695,7 @@ Under Bureau the modal is the **ceremony register** and looks the part: legal-pa
 1. **Opacity is never used, for anything.** It previously did double duty for *unaffordable*, *queued* and *already owned*, and all three read to players as "you can't have this." State is carried by border weight, border colour, glyph colour and status words instead. Concretely: an unaffordable buy-card is a lighter border and nothing else — its text stays at full contrast, because most cards spend most of their life unaffordable and *reading* them is how players plan. Death drains the board's saturation rather than fading it.
 2. **Legibility outranks texture.** Each column gets its own stock — cork, graph 16px, dot grid 14px, legal pad — which is what makes the columns distinguishable without spending colour on it. Anything carrying words sits in an opaque box on top. One exception: loose text on *cork* sits straight on the speckle (nothing crosses a letterform) with a darker ink; on ruled stocks it needs a paper patch, because a ruling is geometric lines cutting through letters.
 
-**Layout.** `body` is `overflow: hidden` — the page itself never scrolls. `#mainArea` is a CSS Grid, `0.86fr 1fr 1fr 1.24fr` × `1fr 1.7fr`: People narrowest (mostly steppers), Chronicle widest (prose). Eight `.block` panels placed explicitly, each a flex column with a fixed ink header plate and a separately-scrolling `.block-body`.
+**Layout (post-flip).** `body` is `overflow: hidden` — the page itself never scrolls. `#mainArea` is `flex: 1 1 auto; min-height: 0; position: relative; overflow: hidden` (every declaration load-bearing — losing `min-height: 0` once shipped a zero-height page), holding the full-bleed `#mapStage` with the panels floating over it: Train/Build/Upgrade as fixed shares down the left, People / Selected Tile / Chronicle down the right, Underway docked at the bottom. Each panel is a flex column with a fixed ink header plate and a separately-scrolling `.block-body`. (The pre-flip 2×4 Bureau grid is gone; the flip is documented in `interface.md`.)
 
 **Era chrome.** `renderEraChrome()` writes `S.era` to `body[data-era]` and CSS does the rest: desk colour, era badge, and a wholesale inversion of the header chrome for dark desks. Header chrome is authored as three layers — border, fill, text — so it never assumes a light background, which is what lets later eras go as dark as they like.
 

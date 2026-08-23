@@ -21,12 +21,14 @@ reversal is still load-bearing; this is not a record of every decision ever take
 
 Game-design facts the interface must express, not stylistic preferences.
 
-1. **This is a numbers-and-menus game.** No rendered units, no animation, no twitch input; the
-   interface is panels of numbers, labels, form controls and prose. The founding identity test is
-   that *the whole game could be drawn in black pen on ruled paper* — read that as restraint and
-   legibility (boxes, rules, text, small glyphs), not as literal art direction. **The one amendment:**
-   a map is now in scope (`map.md`). A map of *places* is still not a rendered unit; the ban on
-   drawing armies stands unchanged.
+1. **This is a board game, not an action game.** No rendered units marching around, no twitch
+   input; the game is numbers, labels, form controls and prose — played over a board. The board is
+   **the digital tabletop** (the resolved identity, 2026-08-22: a lit 3D hex diorama, bright and
+   warm — `design.md` OQ3, `map.md` §8), with the panels floating on top. The founding-era test
+   (*the whole game could be drawn in black pen on ruled paper*) retired with the paper identity;
+   what it always encoded survives as law — restraint and legibility, nothing decorative that
+   carries no information. A map of *places* is still not a rendered unit; the ban on drawing
+   armies stands unchanged.
 
 2. **Text is a game mechanic.** Flavor is load-bearing by design law: an adversary's description is
    how the player reads its strength, standing and wall damage are narrated in words and never
@@ -44,9 +46,9 @@ Game-design facts the interface must express, not stylistic preferences.
    *Historical note, kept because the reversal explains the current rule.* This previously hid whole
    panels until earned. That was calibrated for a wireframe in which an empty panel and a full one
    were the same hairline box on white — showing them all read as clutter. Bureau's ink header plates
-   and per-column paper stock removed the premise: an empty panel now reads as a *blank form*, which
-   suits a game about administration, and against defined content areas a slow reveal reads as broken
-   rather than as discovery.
+   and per-column paper stock removed the premise: an empty panel reads as a defined region waiting
+   to fill, and against defined content areas a slow reveal reads as broken rather than as
+   discovery. The rule outlives the skin that fixed it.
 
 4. **The game never punishes you for leaving — but it is meant to be watched.** *(Replaces the old
    constraint "the UI never demands presence", which is dead. It banned every interesting decision,
@@ -75,12 +77,15 @@ Game-design facts the interface must express, not stylistic preferences.
 
 ---
 
-## 2. Bureau — the shipped visual system
+## 2. Bureau — the interim panel skin
 
-**Shipped 2026-08-20.** Dense administrative paper: ledger sheets, ink tab headers, monospace
-numerals, hard 1px borders, no rounded corners, no shadows except the modal's hard offset. The game
-is a spreadsheet, and the design is proud of that rather than disguising it. Two directions were
-rejected on the way: an airy "Field Notes" layout that read as a retail product page, and a dark
+**Shipped 2026-08-20; superseded as identity 2026-08-22.** Bureau dresses the floating panels
+until the tabletop reskin and is documented here because it is what's on screen — a skin, not the
+direction. The identity is **the digital tabletop** (`design.md` OQ3); the two laws below are
+permanent canon regardless of skin. The skin itself: dense administrative paper — ledger sheets,
+ink tab headers, monospace numerals, hard 1px borders, no rounded corners, no shadows except the
+modal's hard offset. Its founding framing ("the game is a spreadsheet, and the design is proud of
+that") retired with the paper identity. Two directions were rejected on the way: an airy "Field Notes" layout that read as a retail product page, and a dark
 "Basalt" register that was handsome but fought the paper metaphor. A pastel chalkboard variant died
 because panel tints plus semantic red/green overloaded the color channel.
 
@@ -222,11 +227,13 @@ detail re-renders only when its content string changes; all wiring is by delegat
 panels carry the modal's hard offset shadow — the on-the-board ceremony deliberately extended to
 the panel layer.
 
-**Skin status: Bureau, interim, formally under review.** The flip adopted the Claude Design
-sketch's *structure* only — the user was explicit that the sketch is not a theming example. Whether
-paper survives as the identity is the open question, to be resolved by a proper design pass with
-the flipped structure as its brief (the same process that produced Bureau). Bureau's *laws* — no
-opacity for state, the three-value semantic channel, legibility over texture — survive any answer.
+**Skin status: Bureau, interim; the identity is resolved — the digital tabletop.** The flip
+adopted the Claude Design sketch's *structure* only — the user was explicit that the sketch is not
+a theming example. The identity question this paragraph once held open closed the same day, twice:
+paper retired (war table killed, below), then the 3D spike settled the successor — a lit
+board-game diorama with the panels floating over it (`design.md` OQ3, `map.md` §8). The design
+pass now runs with the flipped structure *and the diorama* as its brief. Bureau's *laws* — no
+opacity for state, the three-value semantic channel, legibility over texture — survive any skin.
 
 ### Killed candidate: the war table *(same-day, 2026-08-22)*
 
@@ -242,11 +249,12 @@ reasoning is the load-bearing part:
   geometry/paint separation (`map.md` §8) was locked for exactly this.
 - Reference class (not literal): Civ-style painterly tile richness. Direction details in `map.md`.
 
-**Skin ruling that follows:** paper retires as the game's identity. The successor comes from the
-Claude Design thread (panel legibility and the new register together); the sketch's darker,
-modern-strategy direction is now the natural front-runner rather than the rival. **Bureau's laws
-outlive Bureau**: no opacity for state, the three-value semantic channel, legibility over texture,
-words-not-meters — those were never about paper.
+**Skin ruling that follows:** paper retires as the game's identity. *(Resolved further the same
+evening: the successor is **the digital tabletop** — bright, warm, the board-game read invited —
+not the sketch's darker modern-strategy register; see `design.md` OQ3. The Claude Design thread's
+brief is panel legibility against the diorama.)* **Bureau's laws outlive Bureau**: no opacity for
+state, the three-value semantic channel, legibility over texture, words-not-meters — those were
+never about paper.
 
 *Historical note:* the previous layout was a fixed 2×4 grid of eight panels with span machinery
 (the Chronicle double-height until Expeditions arrived). It, its `updateSpans`, and the Map button
@@ -355,8 +363,8 @@ rather than self-applying; the choice sits until the player gets to it. Requirem
   might.
 - **It must not read as urgent.** It is a standing question, not an alarm. Red is wrong here unless
   the *content* is genuinely bad news; a waiting decision is closer to an unopened item in an in-tray
-  than to a warning. Bureau has the vocabulary for this already — a card on cork or a docketed slip
-  reads as filed, not as flashing.
+  than to a warning. The read to hit is *filed, not flashing* — whatever the skin (in interim
+  Bureau terms: a card on cork or a docketed slip).
 - **Every choice ships a designed default**, so fast-forwarding past it or dismissing it resolves
   sensibly rather than blocking.
 - **It is part of the save**, like everything else a player can be part-way through.
@@ -471,24 +479,18 @@ hex; seats carry March and Caravan, handing off to the muster and escort modals.
 beginning of the Expeditions panel dissolving into the map; the panel survives as a secondary
 surface until phase 9.
 
-### The open arc: the map
+### The map arc — both questions answered
 
-**`map.md` owns this; do not redesign the interface here.** The map is promoted from out-of-scope to
-a designed arc (phase 8): a place-graph of pointy-top hexes, procedurally generated and seeded,
-rendered as SVG geometry with a DOM overlay so everything stays hit-testable and inspectable.
+**`map.md` owns the map; do not redesign the interface here.** When this section was written it
+held two open questions. Both have since been ruled:
 
-The interface question it raises, recorded in `design.md`'s Open Questions: **does the map become the
-centre of the interface, with the panels moved to the periphery?** Likely eventually, and explicitly
-gated on having a map good enough to deserve it. Two consequences worth flagging now:
-
-- **Until then, Bureau's 4×2 grid stands and is not in question.** Design against it.
-- If the map does take the centre, the pillar "panels filling up is part of the fun" keeps its intent
-  but loses its mechanism — the growth display becomes territory rather than a filling board. That is
-  a design problem to solve then, not now.
-- Separately open: **does Bureau survive the map?** Bureau is pure CSS with zero assets, which is part
-  of why it shipped fast and reads cohesively. If commissioned art arrives, paper is either a
-  placeholder to be replaced or the identity the art should be commissioned *in the style of* — very
-  different briefs, and not answerable until the question above is.
+- **Does the map become the centre of the interface?** Yes — shipped as **the flip** (2026-08-22,
+  documented above): full-bleed map stage, floating panels, the Bureau grid gone.
+- **Does Bureau survive the map?** No — the identity is **the digital tabletop** (`design.md`
+  OQ3): a lit 3D hex diorama (`map.md` §8, Route B; spike merged at `spike3d/`), with Bureau
+  staying on as the interim panel skin until the reskin. The pillar "panels filling up is part of
+  the fun" keeps its intent but trades its mechanism: the growth display is territory — dominion
+  spreading on the board — rather than a filling grid.
 
 Two smaller threads left open by the design pass: **later-era consolidation** beyond eight panels
 (§3), and **mobile**, which was scoped to a concept sketch and deliberately not built (§1.6).

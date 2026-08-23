@@ -808,7 +808,7 @@ Honest list. Several of these are not decidable from a desk and should not be fo
     Touch stays out of scope with the rest of mobile. Performance is a non-issue until the low
     thousands of polygons. One design interaction worth deciding when it lands: the era `view`
     radius currently hard-filters what renders — under pan/zoom it could instead become a soft
-    edge (unexplored country visible as blank parchment at the map's rim), which pairs naturally
+    edge (unexplored country hidden under fog at the map's rim), which pairs naturally
     with directed scouting. Wants deciding together with map size per era, below.
 
 11. **Map size per era.** ~20 / ~150 / a few hundred are sketches. They interact directly with the

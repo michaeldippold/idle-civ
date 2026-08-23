@@ -81,6 +81,25 @@ gone. Bureau is the interim skin, **formally under review** in the design thread
 - **Minor flavor.** Do the strength bands and wall words read honestly against the fights they
   predict? (Descriptions are mechanics-bearing text.)
 
+### Next up, decided (2026-08-22, evening): the 3D map spike
+
+**The fork:** the evocative-art ruling opened two routes for the map's paint layer. Route A (in
+`map.md` §8 today): 2D SVG + commissioned painterly tilesets — art cost scales linearly with 12
+eras. Route B (proposed via `spikes/threejs-hex-map-guide.md`, a technically sound external guide):
+Three.js 3D where LIGHTING does the heavy lifting — tonemapping/HDRI/AO one-time engineering, era
+difference via instanced prop/palette swaps from cheap stylized kits, pan/zoom/tilt free from the
+camera rig. The fork is confined to the paint layer by construction (geometry/paint separation);
+the sim, generator, harness, panels and interaction pattern are route-independent.
+
+**The decision method: a time-boxed spike, on a branch** — build the guide's steps 1–7 against OUR
+generator output (same seed as the live game), drop in 3–4 free kit assets, and put it beside the
+shipped SVG stage for an eyes-on verdict. The SVG map survives either way (it becomes the 2D debug
+view the guide itself prescribes, and the agent's testing surface). If Route B wins, revise
+`tech.md`'s stack section honestly (vendor three.module.js — no CDN at runtime, no build step via
+import maps; "a canvas is a bag of pixels" was overstated: the scene graph is queryable, only
+semantic pixel-checks fall to human review) and `map.md` §8. If it loses, delete the branch;
+nothing else was touched.
+
 ### Held until the UI conversation (in intended order)
 1. **The design-thread verdict** — panel juggling/legibility, now joined by the successor skin:
    paper is RULED OUT as the identity (war-table candidate killed same-day; see `interface.md`),

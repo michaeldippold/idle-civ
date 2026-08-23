@@ -66,6 +66,27 @@ The consequences that follow, and that should survive any future redesign:
 - **Nothing goes behind a compile step that an agent cannot read through.** No build step is a convenience; a *legible* build output is the actual requirement, and ES modules satisfy it because the served file is the authored file.
 - Godot and equivalent engines are ruled out for the same reason plus two more: GDScript is thinly represented in training data, and scene files are GUI-mediated rather than comfortably agent-authorable.
 
+**Revision (2026-08-22, evening — Route B adopted): the map's PAINT layer moves to Three.js.**
+A time-boxed spike (`/spike3d/`, built by a subagent from `spikes/threejs-hex-map-guide.md`
+against the real `generateMap` output) settled the 2D-vs-3D fork with the owner's eyes: ACES +
+HDRI + AO made primitive geometry read as a premium board-game diorama at 60fps, ~10 draw calls
+for 61 tiles, with headroom designed for 10,000. What this revises and what it doesn't:
+
+- **"A canvas is a bag of pixels" was overstated, and I am walking it back.** A Three scene graph
+  is a queryable object tree (mesh counts, instance counts, positions, materials — all inspectable
+  at runtime), picking is pure testable math, and `readPixels` sampling through the post chain is
+  a real automated check (the spike used it, honoring the black-canvas lesson). What is genuinely
+  lost is *semantic* pixel verification — "does it look right" becomes owner-eye QA plus
+  screenshots. Bounded, and accepted with eyes open.
+- **The sim never touches the renderer** — the spike's guide calls this non-negotiable and it is
+  already this codebase's architecture. All harness checks are renderer-independent, forever.
+- **No build step survives** (import maps); "no dependencies" becomes "pinned, and vendored before
+  release" — three.module.js, postprocessing, n8ao checked into the repo rather than trusted to a
+  CDN at runtime. (The spike pins CDN URLs; vendoring is an integration-phase task.)
+- **The SVG map stage survives as the 2D debug view** (`render2d` in the guide's terms) and as
+  the agent-verification surface — not deleted, demoted.
+- The Godot rejection and everything else in this section stands.
+
 ## Module Structure
 
 **Status: shipped (phase 1, 2026-08-22).**

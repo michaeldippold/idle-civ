@@ -99,7 +99,14 @@ spun the board and called it awesome. Two stale-path guide corrections recorded 
 `spikes/`. **Decision-relevant finding from the owner's parallel asset hunt:** purchasable HEX-TILE
 packs are 2D and stop at medieval (the 12-era problem returns), while the 3D route buys MODEL
 packs instead — and that ecosystem (Synty POLYGON line, Kenney) covers eras neolithic→space in one
-coherent house style. **The route verdict is the owner's, still open.**
+coherent house style. **VERDICT CALLED (same evening): ROUTE B — 3D.** The owner's words: the coolest thing any of
+these browser games has produced; premium before a single purchased asset; happy to look at
+dev-art "for a long time if there was a fun game around it"; and the tabletop read (depth,
+shadows, bright board-game colors) is *invited* — "you could translate this to the tabletop" is
+a compliment to court. Willing to spend a few hundred on model packs — cheaper than the 2D
+commissioning it replaces — with extra art budget aimed at era-advance splash illustrations and a
+premium SVG icon set instead. Docs revised: `design.md` OQ3 (the digital tabletop identity),
+`tech.md` stack revision (the honest walk-back), `map.md` §8 (the 3D art strategy).
 
 **The original decision method: a time-boxed spike, on a branch** — build the guide's steps 1–7 against OUR
 generator output (same seed as the live game), drop in 3–4 free kit assets, and put it beside the
@@ -109,6 +116,21 @@ view the guide itself prescribes, and the agent's testing surface). If Route B w
 import maps; "a canvas is a bag of pixels" was overstated: the scene graph is queryable, only
 semantic pixel-checks fall to human review) and `map.md` §8. If it loses, delete the branch;
 nothing else was touched.
+
+### Phase 10 — 3D map integration *(next build phase; sequencing vs the UI talk is the owner's call)*
+Port the map stage from SVG to the spike's renderer, for real:
+- [ ] Move `spike3d/`'s pipeline into `src/render3d/` behind the existing stage seam: `renderMapStage`
+      swaps implementations; the SVG stage survives as the 2D debug/fallback view (`?map=2d`).
+- [ ] Re-wire the shipped interaction pattern: plane-picking → `selectTile` (same Selected Tile
+      panel), hover ring + DOM tooltip, work-glyph equivalents (3D markers or projected DOM labels),
+      owned/selected state via materials — **never opacity**, the law follows the renderer.
+- [ ] Era-fact hooks: palette + light mood + prop-set keys in the `map` manifest spec.
+- [ ] View radii / fog, dominion growth, captures, settle — all state-driven re-mesh triggers
+      (chunk-dirty on the same signature the SVG stage already watches).
+- [ ] The §7 curvature shader (tabletop signature), WITH its depth-material and culling gotchas.
+- [ ] Vendor three/postprocessing/n8ao into the repo (pinned builds; no CDN at runtime).
+- [ ] Verification: keep readPixels smoke checks + the 2D debug view as the assertable surface;
+      owner-eye QA for aesthetics, per the revised tech.md contract.
 
 ### Held until the UI conversation (in intended order)
 1. **The design-thread verdict** — panel juggling/legibility, now joined by the successor skin:

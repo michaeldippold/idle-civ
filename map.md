@@ -586,6 +586,29 @@ capture, the state shape), `mapgen.js` (the generator — seeded, kind-specific,
 
 ## 8. Art strategy
 
+**Direction re-ruled the same evening (supersedes the paragraph below): ROUTE B — the lit 3D
+diorama.** The spike (`/spike3d/`) proved the guide's thesis: lighting does the heavy lifting, and
+terrain costs nothing (geometry + vertex color + ACES/HDRI/AO). The art strategy becomes:
+
+- **Buy model packs, not tile art.** One coherent family (Synty POLYGON class; CC0 Kenney/
+  Quaternius as gap-fillers ONLY if they sit well beside it in the lit scene — validate before
+  purchase, per the guide). A few hundred dollars covers neolithic→space; the 2D packs the owner
+  surveyed were beautiful, medieval-locked, and era-priced.
+- **Eras are prop-set + palette + LIGHT swaps.** Era legibility — the priority that killed paper —
+  comes from swapping which props render, the terrain palette, and the sun/environment mood per
+  era (warm dawn Stone, cold Iron, smog Industrial…), all era-fact data. The home tile's
+  huts→metropolis evolution is the easy case: denser, taller prop clusters on one hex.
+- **The identity is the digital tabletop** (design.md OQ3): bright, warm, Stardew-adjacent
+  palette; the board-game read is invited. The guide's §7 board-on-a-table curvature shader —
+  skipped in the spike — is promoted from optional to *wanted*: it IS the tabletop signature.
+- **Splash art and premium icons** are where additional art budget goes (era-transition
+  illustrations for the ceremony modal; a detailed SVG icon set) — not tiles.
+- **Dev-art is livable indefinitely** (owner ruling): primitives under the lighting stack are good
+  enough to build the whole game on; packs arrive when convenient, ideally via the recurring Synty
+  Humble bundles.
+
+*The paragraph below is the superseded same-day 2D ruling, kept for the reasoning trail:*
+
 **Direction ruled (2026-08-22): evocative illustrated tile art, not paper.** The war-table/parchment
 candidate is dead (see `interface.md`); the commission target is Civ-adjacent painterly richness —
 as a reference *class*, not a literal — chosen for one stated reason: **the difference between ages

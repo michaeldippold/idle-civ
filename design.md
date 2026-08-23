@@ -808,15 +808,23 @@ rule was aimed at the right danger and pointed at the wrong noun.
    showing the same adversaries is the worse of the two. Only the *timing* is open, and it is gated on
    having a map good enough to deserve it. Until then Bureau's 4×2 grid stands and is not in question,
    and phase 8 must be buildable without answering this.
-3. ~~**Does Bureau survive the map?**~~ **RULED (2026-08-22, same day it opened): it does not — paper
-   retires as the identity.** The war-table candidate (paper evolved to the commander's register) was
-   expanded, weighed, and killed by the user within the day — loved as a concept, outbid by what the
-   game actually needs: **era legibility on the map**, delivered by commissioned evocative tile art,
-   including a home tile that visibly grows from huts to a metropolis as pure per-era art on
-   unchanged mechanics. The successor skin comes from the Claude Design thread (with panel
-   legibility, as one brief). **Bureau's laws outlive Bureau** — no opacity for state, the semantic
-   channel, legibility over texture, words-not-meters were never about paper. What remains open is
-   only *what the successor looks like*, not whether there is one.
+3. ~~**Does Bureau survive the map? / What replaces it?**~~ **RESOLVED (2026-08-22, evening): the
+   identity is THE DIGITAL TABLETOP.** The same evening paper died, a time-boxed Three.js spike
+   (`/spike3d/`) rendered the real generator's world as a lit 3D diorama — and the user's verdict
+   was immediate: the coolest thing any of these browser games has produced, premium-feeling before
+   a single purchased asset, and above all **it reads as a beautiful physical board game**. That
+   read is now *invited, deliberately*: depth, shadows, pieces on a board — "you could translate
+   this to the tabletop" is the compliment to court. Palette direction: **bright and warm**
+   (Stardew-adjacent), never grimdark. And the fit was never accidental — a hex board, buy cards,
+   one ceremony modal at a time, seeded dice, small tactile numbers, no animation: the game had
+   been converging on *board game* all along; the diorama revealed it rather than changed it.
+   The art economics sealed it: 2D painterly tilesets dead-end at medieval and cost linearly per
+   era; the 3D route's terrain is free (geometry + lighting), eras are prop-set/palette/light
+   swaps, and one coherent model-pack family covers neolithic→space for a few hundred dollars.
+   Where extra art money goes instead, per the user: **era-advance splash illustrations** for the
+   transition ceremony, and **a premium SVG icon set** (wanted regardless). **Bureau's laws still
+   outlive Bureau** — no opacity for state, the semantic channel, legibility over texture,
+   words-not-meters. The Claude Design thread now designs panel legibility against the diorama.
 4. **What replaces storage caps' friction when they retire?**
 5. **What is the Enlightenment's science mechanic?** The emptiest slot in the age list.
 6. **What are the `soulsPerTile` multipliers per era?** Tuning, not design — but do it deliberately in

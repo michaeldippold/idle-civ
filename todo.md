@@ -8,80 +8,73 @@
 
 ---
 
-## STATUS — the map arc is PAUSED for an engine rework (2026-08-23)
+## STATUS — night pause, mid-engine-rework (end of 2026-08-23)
 
-**Read this first if you are picking the project up cold.** The map arc stopped mid-build, on
-purpose, after three good slices. Nothing is broken; a fundamental design decision landed that
-everything unbuilt depends on, and building further before taking it would mean building around
-code already slated for deletion.
+**READ THIS FIRST on a cold start.** The owner went to sleep after the largest two-day stretch in
+the project's history. The state is clean — all committed, all pushed, 513 harness checks green —
+but it is a *specific* moment: three slices into a six-slice engine rework, with the newest slice
+**not yet playtested by the owner**.
 
-### What is shipped and working right now
+### START HERE next session
 
-A run opens on a start screen and waits for a person. The board is a lit 3D diorama you can spin,
-pitch and zoom — **one board, generated once, never rebuilt** — with the game's panels floating over
-it. Unreached country sits under fog rendered as unpainted board. Owned hexes wear a green rim and
-the letter of what they work; seats carry a diamond and a name; minors carry a dot. Click anything
-and the Selected Tile panel opens with every stat, line of flavor and action for that place.
-Verified end to end through the Iron border in a live run. **511 harness checks, green.** The
-owner's verdict on seeing it at Iron: *"oh my god I've (well, we) made a real video game."*
+1. **The owner playtests E3** (shipped last night, untested). The brief:
+   - New Game. The start is the **3-hex trio** (seat + two neighbours). Turn the seat to food.
+   - **The early loop is now: work your hexes → save 25 food → claim a neighbour** (click an
+     adjacent unowned hex → Settle → it runs through the Underway queue). Does that loop have a
+     pulse? This is THE feel question of the whole rework.
+   - Let it idle at 12×: you should **never** gain a hex you didn't pay for (the free-real-estate
+     runaway from the E2 bridge is dead — huts no longer exist at all).
+   - Claim prices should rise with distance. Bronze claims should also want timber.
+   - The Bronze capstone now wants **25 real people**, which effectively requires claiming ~4-6
+     hexes. Does reaching it feel earned?
+   - Known quirks, deliberately unfixed until E5: sickness/raids kill no one (inert), and the army
+     eats nothing at Bronze.
+2. **Then E4 — the frontier starves first** (administrative distance from the seat, ordered drain,
+   death = the seat emptying). Specced in *The engine rework — phase plan* below.
+3. Then E5 (events strike hexes, army re-homed), E6 (harness settling), and **back to the map arc
+   at slice 4** — the frame generator, at last with a known economy to size the board against.
 
-### What just changed, and why the pause
+### Where the project actually stands
 
-**The engine rework: `design.md` → *Population Lives Somewhere*.** Read that section before writing
-any code; `map.md` §2.7 holds the spatial half and `tech.md` → *The engine rework* the architectural
-half. In one line: **production runs on hexes from the Stone Age, population lives on hexes and is a
-variable rather than a control, and steppers die.**
+**Two arcs are interleaved, on purpose.** The 3D map arc (phase 10) shipped three slices — start
+screen, the lit 3D board, one-board-forever with fog — and was then deliberately **interrupted**
+by the engine rework when the owner realized the game was teaching an economy it would retire
+fifteen minutes in. The owner's verdict on that interruption, end of night: *"it's clear it was
+right to do this first."* The map slices that remain (frame generator, continent picker, scouting,
+era re-dress) all depend on what a hex is worth, and now a hex is worth something.
 
-The game currently teaches an entire economy — steppers, jobs, housing, a global population pool —
-and then retires it fifteen minutes in, at a border that changes seven systems at once and has
-already starved a live playtest. Two economies, one disposable. The hex is now the anchor noun *and*
-on screen from frame one, so the second economy should simply be the first one.
+**The engine rework, three of six slices in:**
 
-**Why it blocks the map arc.** Slice 4 chooses a hex count, and under this model board size × people
-per hex × rate **is** the production curve. Picking ~120 hexes before knowing what a hex is worth is
-choosing blind, and it is the one number that is expensive to change later. Slice 6 (scouting) is
-coupled even harder: scouting stops being map reveal and becomes reconnaissance, so what it reveals
-and why anyone would want it both change.
+- **E1 — population exists** ✅: people live on hexes, grow logistically toward terrain caps
+  (8/10/5/3 at Stone, 3× at Iron), the header POP is their sum, tiles read "People: N of CAP."
+- **E2 — production flips, steppers die** ✅: output = people × per-capita rate × terrain, one
+  formula from frame one. Jobs, steppers, `idle()`, `allocation`, `outputMult` all deleted.
+  Consolidation died ahead of schedule (collided with dominion-never-shrinks). The seat opens
+  RESTING — forage-or-die survives as the first lesson.
+- **E3 — expansion is the growth verb** ✅ *(untested by owner)*: the hut, housing, the settler
+  timer and the pop↔tiles lockstep are all dead. Claims are era-priced (`map.claim` era-fact;
+  Stone: 25 food + 30s, food-only). The trio start is explicit. `S.pop` is a mirror of real
+  people + army. The reveal spine moved from the hut to the claim; capstones re-priced (25/50
+  real souls).
+- **E4 — frontier starvation**: next. **E5 — events strike hexes, army re-homed**: after.
+  **E6 — harness settling**: last.
 
-### The order from here
-
-1. **The engine rework** — planned: see *The engine rework — phase plan* below (slices E1–E6,
-   numbers v1 included). Canon in `design.md`; the plan is the buildable form.
-2. **Resume the map arc at slice 4** — the frame generator, then the picker, then scouting (which
-   likely merges INTO the rework, since territorial expansion becomes the early growth verb), then
-   the era re-dress.
-3. Parked and specced, deliberately not bundled: **the tech tree** (below), the balance pass, 6e
-   priests and the envoy, phase 7's decision queue.
-
-### Phase 10 progress
-
-- [x] **1 — the start screen shell.** The run waits for a person; `preGame` as a fourth independent
-      hold flag. Verified, including a tab-close mid-upgrade resuming bit-identically.
-- [x] **2 — the renderer port.** 3D replaces SVG with nothing downstream of `selectTile` changed;
-      marks are projected DOM text. `?map=2d` keeps the SVG board, `?glcheck=1` makes the canvas
-      readable.
-- [x] **3 — one board, forever.** View radii and map regeneration deleted, fog as unpainted board,
-      the camera framing what is known, dominion that never shrinks.
-- [x] **3a — the zoom fix.** Framing on charted country had also capped the zoom to it.
-- [ ] **4–7 — PAUSED** pending the engine rework. The build order stands below, unchanged.
+**Design canon that landed this session** (all in `design.md` / `map.md` §2.6-2.7 / plan below):
+Population Lives Somewhere (the ten rules); per-capita as law; fungibility-not-assignment as the
+stepper lesson; one board forever + the continent picker + fog as face-down tiles; two distances
+(exposure, never efficiency); the Luthadel rule (buildings are the capital); the 3-hex start;
+rest-as-fallow ideation; the tech tree parked (resources, not points).
 
 ### Standing notes
 
-**Saves are explicitly disposable** until the fundamentals stop moving. Assume every slice breaks the
-running save; replay at 12×. No migrations.
+**Saves are disposable** until the fundamentals stop moving. Assume every slice breaks the running
+save; replay at 12×. **The owner has not seen E3 run** — expect the first minutes of next session
+to surface feel notes (claim pricing, capstone pacing, Chronicle cadence) that should be tuned
+before E4 code.
 
-**Two findings from playing rather than planning**, both of which shaped the rework:
-
-- **The map generates fiction ahead of its mechanics.** Shown a fresh Stone board the owner instantly
-  read a defensible position — three sides mountains, one side water, two adjacent approaches — and
-  wanted to hold it. Nothing in the code knew any of that. Under the rework it becomes true, and
-  argues back: the mountains that protect a seat cannot feed it.
-- **"Evocative" is now a design test, not a compliment.** The board does not need a mechanic to make
-  you want one.
-
-**Owner's working style, worth knowing:** long messages are thinking, not reports. He often argues
-toward a position and lands opposite where he started without flagging it — **trust the end of a
-long message over its opening.**
+**The pane cannot screenshot and background tabs throttle the sim** — verify with readPixels,
+DOM checks and the harness; owner-eye QA for aesthetics. **Long owner messages land on their later
+position, not their opening** (see memory).
 
 
 ### The playtest brief (what the user verifies during the hold)

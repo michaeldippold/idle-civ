@@ -9,7 +9,9 @@
 > marches at half a step; water at three, never impassable). Dominion spreads for real.
 > **The flip (same day):** the map left its modal and became the game's main surface — full-bleed
 > stage, floating panels, the Expeditions panel dissolved into the Selected Tile panel. Era-scoped
-> view radii ride with it: Stone shows one hex, Bronze the ring, Iron the country.
+> view radii rode with it (Stone one hex, Bronze the ring, Iron the country) — **since retired in
+> design by §2.6, *One board, forever*: one world at full size from frame one, fog instead of
+> radii, a camera that pulls back per era. The code still does the old thing until Phase 10.**
 > **6c.1 (same day):** works are rate tables — every land works every resource, terrain sets the
 > rate, specialties at par-plus and the rest overpay routes. And the chart exists from the first
 > frame: the map spec lives in the STONE manifest, Bronze inherits the identical world.
@@ -175,6 +177,12 @@ Persistence, and there is no reason for the map to be the first thing that break
 
 *(Settled 2026-08-22, and the resolution to §10.3.)*
 
+> **Partly superseded the same evening — see §2.6, *One board, forever*.** Rules 1 and 2 below
+> (regenerate on tile-noun change; dominion carried across a rescale as a summary) are **dead**:
+> the world is now generated once at full size and never regenerates. Rule 3 stands, and the
+> section's central claim — the tile is the anchor noun, and the two ladders were one — is
+> untouched and load-bearing. The rest is kept because the reasoning trail matters.
+
 **The tile is the game's anchor noun**, and `design.md` → *Scale: The Tile Ladder* is its home. This
 document had proposed a tile ladder while `design.md` carried a population ladder; they were the same
 ladder, and they collided at Iron where both wanted the word *holdfast*. From Iron onward every rung
@@ -183,7 +191,10 @@ system. The ladders merged; *holdfast* was promoted, not renamed.
 
 Three rules follow, and they close most of what §10 was holding open:
 
-**1. The map regenerates when the tile noun changes — and only then.** That is the entire test.
+**1. ~~The map regenerates when the tile noun changes — and only then.~~ RETIRED (§2.6): the map
+never regenerates.** Kept for the trail; the test below was a good answer to a question that no
+longer exists. The tile *noun* still changes on these borders — it just re-dresses the same ground
+instead of rebuilding it. That is the entire test.
 Bronze inherits Stone's clearing unchanged, so Stone→Bronze keeps its geometry and swaps only the
 tileset. Bronze→Iron rescales, because a clearing becomes a holdfast. Declared as an era-fact on the
 delta, in the same shape as `consolidate`:
@@ -201,15 +212,21 @@ The important property: **this is cheaper than regenerating every era, not more 
 not rescale" means "do nothing to the map," and doing nothing needs no code. The only new machinery
 is one comparison at era entry, which `ensureMap()` already performs.
 
-**2. On a rescaling border, dominion carries as a summary.** A new world, with your holdings arriving
-as a pre-owned block sized from *post-consolidation* holdings, narrated through `runEraMigrations`
-like any other state transformation. This is candidate (c) from §10.3, and consolidation is exactly
-why the other two fail — see there.
+**2. ~~On a rescaling border, dominion carries as a summary.~~ RETIRED (§2.6): dominion never
+moves, because the world never does.** Your holdings stay on the exact hexes you took them on,
+forever. Original text: a new world, with your holdings arriving as a pre-owned block sized from
+*post-consolidation* holdings, narrated through `runEraMigrations` like any other state
+transformation. This was candidate (c) from §10.3; §2.6 adds the candidate (d) nobody listed.
 
 **3. Terrain carries the economy from Iron.** Once population *is* tiles, production derives from
 tiles, and terrain is the only thing that makes one tile worth more than another. See §10.6.
 
-**Build consequence: introduce the map an age before it becomes mechanical.** Bronze→Iron already
+**Build consequence — since revised upward by §2.6.** The plan below (ship the map early and
+*inert*) was right about the disease and too timid about the cure: under §2.6 the map is
+interactive from the Stone Age via scouting, so by Iron the player has been *using* it for hours
+rather than merely looking at it. The reasoning stands verbatim, only stronger:
+
+**Introduce the map an age before it becomes mechanical.** Bronze→Iron already
 carries seven simultaneous changes (housing retires, free growth ends, units become levied,
 population becomes tiles, the map rescales, the job steppers give way to per-hex allocation, production moves to terrain).
 That is a genre change mid-game, and it is deliberately not spread across two borders because the
@@ -219,6 +236,238 @@ on.** Your clearing, a few neighbouring ones, no adversaries, no yield, no actio
 load-bearing the player has been reading it for forty minutes. That is *unravel the contents, not the
 board* pointed at geography — and it makes M1 in the build order shippable content rather than
 scaffolding.
+
+---
+
+---
+
+### 2.6 One board, forever — the frame, the fog, and the picker
+
+*(Settled 2026-08-22, evening, across one long design conversation. **Supersedes rules 1 and 2 of
+§2.5 above, and the §10.3 ruling those rules resolved.** It also answers §10.8, §10.10's soft-edge
+question and §10.11.)*
+
+**The world is generated once, at full size, and it never regenerates.** Eras change what you can
+*see* and what you can *do*; they never change what the world *is*. The law, in the owner's words:
+
+> **The map is always there. What you can do and see changes.**
+
+That sentence retires the entire "how does the map scale across eras" problem this document spent
+three sections on. There is no scaling. There is one board, and you grow into it.
+
+#### Why this beats the ruling it replaces
+
+§10.3 weighed three candidates and picked (c). All three assumed the world must somehow *keep up*
+with the player — regenerate wholesale, or grow outward, or recut at rescale borders. **There was a
+fourth nobody listed: generate the whole world at final scale immediately, and hide most of it.**
+
+It takes candidate (b)'s emotional payoff — the dominion you spent an age taking is still exactly
+where you left it, a bright core in a wider country — and pays candidate (a)'s implementation cost,
+because generating one world once is the cheapest option on the table. The objection that killed
+(b) was needing "a generator that grows a world outward without reshaping its interior." Fog does
+that job for free: the interior was never reshaped because it was there from the first frame.
+
+The 3D adoption is what forced the issue, and the argument is concrete rather than aesthetic:
+**you cannot re-dress board you regenerate.** Per-era prop swaps — huts becoming a castle on the
+same ground — are the marquee moment of every era advance under Route B (`§8`), and they require
+the ground to be the same ground. Regeneration would delete the feature.
+
+#### The frame: a continent silhouette, filled with hexes
+
+Generation runs in two stages instead of one. **First a coastline**, drawn as an organic closed
+curve — capes, bays, peninsulas, plus a few offshore islands. **Then hexes are packed inside it**,
+each hex kept only if it fits without clipping the coast. The silhouette is a generation-time
+device only: **it is not rendered.** Once the hexes are placed the curve has done its job, and the
+board is the tiles themselves, whose outer edge is now organically ragged instead of a circular
+clump. Drawing the curve would only expose the gaps between it and the outermost hexes.
+
+This is *fixed frame, shuffled contents* — the Catan pattern, and the most durable replayability
+design tabletop has. The coastline is the board; where the rivers, mountains, rivals and your own
+start land is the shuffle. It is also the pattern this project already uses for adversaries (§5):
+author the frame, let procedure fill it.
+
+#### The picker: three continents, outlines only
+
+The run begins on a **pregame screen showing three continents as bare outlines**, each labelled
+with the only two numbers that make the choice mechanical — **hex count and island count**. Size is
+game length and population ceiling; islands are how much naval content the run holds. Shape matters
+too, and mechanically rather than decoratively, because `routeCost` and `marchFactor` already ship:
+a long-limbed continent with a narrow isthmus has chokepoints and stretched supply lines that a fat
+blob does not.
+
+**Outlines only, and this is the load-bearing constraint.** The player chooses the shape of their
+world while learning nothing about its contents — no terrain, no rivals, no start position. The
+picker hands out layer zero; the fog still owns everything above it. The two systems reinforce each
+other instead of competing, which is not how "let the player choose" usually interacts with "let
+the player discover."
+
+**One screen, one decision.** Three continents, any click starts the game, no confirm step, a
+reroll for three more. This screen must never grow into a settings panel with sliders — pregame
+screens accrete options like nothing else in software, and *A Dark Room* is a touchstone precisely
+because it starts instantly with nothing. Picking a world is ritual; configuring one is admin.
+
+The choice **expires gracefully at Space**, where the hex board gives way to a node network and one
+node can be a planet or a galaxy — scale stops being geometric, so the continent stops mattering.
+One piece of sentiment is free there: when Earth becomes a single node, **that node can wear the
+silhouette you picked at minute zero.** The first decision of the run stays visible forty hours in.
+
+#### Seeding: one number is the whole world, coastline included
+
+*(Design owner's delegation, 2026-08-22: "I will let you handle the seeding.")*
+
+**Each candidate continent *is* a seed.** The picker does not choose a shape and then roll a world
+— it shows three seeds wearing their coastlines, and picking one makes it the run seed. Everything
+downstream derives from it: hex packing, terrain, rivals, minors, start position. Reroll draws
+three fresh candidate seeds.
+
+The properties this buys, all of which the project already depends on:
+
+- **One number reproduces the entire run**, coastline included. The seed on the death screen stays
+  sufficient. Sharing a seed shares the world, not a fragment of it.
+- **A typed seed skips the picker** and lands you on exactly that world — which is also how a good
+  world gets pinned for balance work, per §4.
+- **The save stores the seed, not the geometry.** Recipe, not cake, unchanged (§2.3). The frame
+  needs no new persisted field, because the frame is not a separate choice — it is the seed.
+
+**Generation must draw from named sub-streams, never one sequential stream.** Each stage takes its
+own PRNG seeded from the run seed plus a stable label:
+
+```js
+const frameRng   = makeRng(hashStr(seed + ":frame"));
+const packRng    = makeRng(hashStr(seed + ":pack"));
+const terrainRng = makeRng(hashStr(seed + ":terrain"));
+const seatRng    = makeRng(hashStr(seed + ":seats"));
+```
+
+The reason is durability, and it is the kind of thing that is miserable to retrofit. With one
+sequential stream, inserting a new generation step later — "place rivers" before "place rivals" —
+shifts every subsequent draw and silently invalidates every seed ever recorded. Named streams are
+independent: adding a river pass cannot move where the mountains went. `hashStr` already exists in
+`src/map/model.js`.
+
+The existing rule stands untouched: **none of this advances the simulation's dice.** `S.rngState`
+decides whether you get sick; world generation never touches it.
+
+**Integration note:** the prototype generator was built in a separate session and will use
+`Math.random`, which is banned in `src/` by a standing harness check. It gets re-plumbed onto
+`makeRng` before it lands, exactly as the current generator did.
+
+#### Fog: face-down tiles, and the honesty rule
+
+Unrevealed board renders as **unpainted board** — blank prisms in a neutral material, like unpunched
+cardboard or unpainted resin — and the world gets visibly *painted in* as it is discovered. Not a
+dark military shroud: that idiom fights the bright, warm palette and reads as the wrong genre. This
+is the tabletop idiom, face-down tiles flipped as you reach them, and it is available to us
+precisely because we went 3D.
+
+The rule that makes fog honest, and it is short:
+
+> **Fog hides the board. It never hides the pieces.**
+
+Flipping a tile reveals **land** — forest, river, hills — and land is permanent, so a flip can
+never be falsified later. **Who lives on the land is a separate layer** that arrives with the eras.
+In the Stone Age there is no medieval kingdom in that valley; the game is not concealing one, it
+genuinely does not exist yet. A town appearing on ground you scouted a thousand years earlier is
+not a betrayal, it is the world living. At a table, nobody feels cheated when a new piece is placed
+on a tile they flipped an hour ago.
+
+**Revealed board stays revealed, forever. There is no re-fogging** — `interface.md`'s "reveals are
+sticky, nothing flickers away" already demanded this and it applies unchanged to geography.
+
+This reverses §10.8's "probably not," and the old objection is worth answering rather than
+ignoring: fog was rejected for fighting the reading-your-neighbours rule and the Info panel's
+show-everything stance. It does not, because it hides *unvisited country*, never the stats of a
+place you can see. Everything you know stays fully legible; the Info panel is untouched.
+
+#### Terrain drives settlement, which turns the one real objection into a mechanic
+
+The obvious worry — *I scouted an empty hex, the era flipped, now there's a village on it* —
+inverts if **settlement placement correlates with terrain quality**. A player who scouted a fat
+river valley at Stone knows exactly where somebody will be living by Iron. Good land attracts
+people, in the game as in life. Early scouting stops being information that expires and becomes
+information that **matures**, which is a far better property than merely being forgivable.
+
+#### Scouting is promoted: the Stone Age's spatial verb
+
+Directed scouting stops being parked ideation and becomes the reason the map is interactive from
+frame one, instead of inert until Iron. Shape of it:
+
+- **Priced by distance, using `routeCost`, which already ships.** A Stone Age with three settlers
+  can look at the next valley but not the far coast, with no hard range rule and a revealed radius
+  that differs every run. Sending a body to look when everyone eats is a genuinely hard call — the
+  friction pillar reaching a part of the game it currently does not touch.
+- **Its reward is mostly the writing.** Discovery flavor through the Chronicle, which is already
+  built and is the *A Dark Room* channel this game has never used. A scout may occasionally bring
+  something home; keep that **rare and flavor-forward**, because reliable loot turns exploration
+  into a farm.
+- **Its real payoff is positional.** You are choosing where to expand at Iron while looking is
+  still cheap.
+- **Systems stay era-gated.** Seeing a place you cannot yet settle, subdue or trade with is the
+  intended state. The risk here is real and is the one to watch in playtest: *revealed but inert*
+  can read as a taunt rather than a promise.
+
+This also softens the Bronze→Iron cliff that has already burned one live run. Arriving at Iron with
+the map as familiar furniture means only the **verbs** are new, not the entire surface.
+
+#### Islands: in the frame now, playable later
+
+Islands are generated, packed with hexes, and revealed by fog like any other board — **and that is
+all they do for now.** No seats, no settling, no minors on them until a naval unlock exists.
+
+They are worth having early anyway, because under the fog rule an island is **visible land you
+cannot reach**, and water at `routeCost` 3 says *not yet* rather than *never*. That turns boats
+from an economic upgrade into a promise being kept, and hands the mid-game a carrot that has been
+sitting on the table since minute one. The water-crossing guard already in `routeCost` — slow but
+never impossible, so an island cannot deadlock a run — turns out to have been load-bearing for a
+feature that did not exist when it was written.
+
+Two placement guards to build with: **the start never lands on a small island or in a boxed-in
+pocket**, and **minor seats avoid tiny islands**, or you get a naval campaign that pays one hex.
+
+#### The hex budget is a balance number, not an art number
+
+This answers §10.11, which asked for map size per era; the question dissolves, because there is one
+map and it does not resize.
+
+The landmass **is** the designed population budget (the 6d ruling), so hex count sets the population
+ceiling for every hex era in the game. Constraints, which bracket it tightly from both directions:
+
+| Pushing **down** | Pushing **up** |
+|---|---|
+| Props must be legible — a hex too small to carry a readable castle kills the per-era re-dress, which is the marquee era-advance moment | Islands degenerate below a certain resolution into one- and two-hex specks, which makes a naval campaign that pays a single tile |
+| Every ownable hex is a point of population ceiling, and displayed counts are already bending the 3–50 pillar at Iron's 61 | Coherent terrain generation needs room; a 20-tile world has nowhere to put a mountain range |
+| Per-tile work allocation across hundreds of tiles is exactly the sack-counting the king is not supposed to do | The board must outlast Iron — it carries every era through max-Earth |
+
+That brackets roughly **100–200 land hexes**, and the owner's ruling is to start at the low end:
+**target ~120 including islands**, tunable by the generator's hex-size control, revisited when the
+pop ladder past Iron is designed. A 646-hex render exists and is beautiful, and it is the wrong
+board — at that density hexes stop being *structure* and become *texture*, which is cartography
+rather than a board. Catan is nineteen spaces.
+
+**Curate at high density, play at low.** Judging whether a silhouette is a *good* continent is far
+easier at 600 hexes, where clipping does not hide the shape being approximated. Generate and judge
+candidate frames maxed out; drop the resolution for the ones that survive.
+
+Running out of room is **correct**, incidentally, and the owner named the reason: Earth is a finite
+sphere and civilizations do fill it. The board filling up is not a limitation to be engineered
+around — it is the pressure that sends you to Space. Geography becomes the motivation for the
+game's final act.
+
+#### What this breaks, stated plainly: consolidation
+
+§10.3 rejected a persistent map partly *because* of consolidation — twelve holdfasts becoming three
+cities on a board you keep would mean visibly losing nine hexes of hard-won ground, which is the
+invisible-sink mistake this project wrote a rule against. That objection survives the new model and
+must be answered rather than quietly inherited.
+
+**Proposed resolution, needs the post-Iron balance pass to confirm:** on a fixed board, **the board
+is the cap**, so consolidation no longer needs to shrink anything to keep numbers small — geography
+does that job. Past Iron, a consolidation border should **re-denominate what a tile is** (holdfast →
+city → nation) and raise per-tile output, while dominion and tile count stay exactly where they are.
+`applyConsolidation`'s current behaviour of reducing `S.pop` is correct for the Bronze→Iron border
+it was built for, where pop was not yet geographic, and is the thing to re-examine for every border
+after it. **Flagged for the balance pass; do not change it before the pop ladder past Iron is
+designed.**
 
 ---
 
@@ -276,6 +525,13 @@ generator draws from a *derived* stream (e.g. seeded from `hash(S.map.seed)`) ra
 simulation's stream, so generating a world does not advance the dice that decide whether you get
 sick. A world is reproducible from its number, which means bugs are reproducible, balance is
 comparable across runs, and a good map can be pinned.
+
+**Revised by §2.6 (2026-08-22): generation is now two-stage — coastline first, then hexes packed
+inside it.** Everything below still applies to the second stage, which is where terrain, features
+and seats get decided. Two amendments: the "guarantee the landmass is connected" pass now also
+owns *islands*, which are deliberately disconnected and must be recognised as intentional rather
+than reclaimed as orphans; and the whole pipeline draws from **named sub-streams** rather than one
+sequential stream, for the seed-durability reason given in §2.6.
 
 **Be honest about the difficulty gradient here, because it is steep and it is not where you'd
 guess.** Generating a *grid* is trivial — two loops, a radius check, done in twenty lines.
@@ -740,7 +996,10 @@ Honest list. Several of these are not decidable from a desk and should not be fo
 2. **Does Bureau survive the map?** Unchanged from `design.md`'s Open Question 3, with one new
    input: the SVG-filter placeholder (§8) is itself a test of whether paper-and-ink extends to
    geography. Build the placeholder, then look at it, then decide.
-3. ~~**Is the map regenerated per era, or does it persist and extend?**~~ **DECIDED 2026-08-22 —
+3. ~~**Is the map regenerated per era, or does it persist and extend?**~~ **RE-DECIDED the same
+   evening — see §2.6, *One board, forever*. The answer is a candidate (d) that is not in the list
+   below: generate the whole world once at full size and hide most of it behind fog.** It takes
+   (b)'s payoff at (a)'s cost. The first ruling, superseded, was: **DECIDED 2026-08-22 —
    see §2.5, *The tile noun decides everything*.** The answer is candidate (c), plus a rule the
    original framing was missing: it does not happen at *every* border, only at the ones where the
    tile noun changes. The analysis below is kept because the two rejected options each fail for a
@@ -788,9 +1047,13 @@ Honest list. Several of these are not decidable from a desk and should not be fo
    generator places a wall between you and everything else. **Ungated is the safe first build**;
    revisit once distance-scaled costs are in and it's clear whether geography is already doing
    enough work.
-8. **Fog of war?** Probably not. It fights the reading-your-neighbours-is-the-point rule and the
-   Info panel's deliberate show-everything stance. But *terrain visible, occupant unknown* until
-   scouted is cheap, and it would give the Scouting upgrade a job again. Open, low priority.
+8. ~~**Fog of war?**~~ **ANSWERED 2026-08-22 — yes, and it is now structural. See §2.6.** Fog as
+   face-down tabletop tiles: unpainted board that gets painted in as you reach it, never a dark
+   military shroud. The objection recorded here was answered rather than overridden — fog hides
+   *unvisited country*, never the stats of a place you can see, so the reading-your-neighbours rule
+   and the Info panel's show-everything stance are both untouched. And it does far more than "give
+   the Scouting upgrade a job again": scouting becomes the Stone Age's spatial verb and the reason
+   the map is playable two eras before it was going to be.
 9. **Where does the map live in phase 8 — a modal, one panel, or the whole board?** This needs an
    answer to build, and it must not be "the whole board," because that makes phase 8 depend on
    phase 9. **Proposed: a modal**, opened from the Expeditions panel, which costs no grid real
@@ -809,12 +1072,16 @@ Honest list. Several of these are not decidable from a desk and should not be fo
     thousands of polygons. One design interaction worth deciding when it lands: the era `view`
     radius currently hard-filters what renders — under pan/zoom it could instead become a soft
     edge (unexplored country hidden under fog at the map's rim), which pairs naturally
-    with directed scouting. Wants deciding together with map size per era, below.
+    with directed scouting. **Both halves of that since ruled (§2.6): era view radii are retired
+    entirely in favour of fog plus a camera that pulls back per era, and directed scouting is
+    promoted to the Stone Age's spatial verb.** Under 3D this stops being a `viewBox` question and
+    becomes an orbit-rig clamp, which is the same work in a different idiom.
 
-11. **Map size per era.** ~20 / ~150 / a few hundred are sketches. They interact directly with the
-    minor-tier count, which `design.md` already lists as an open implementation-time tunable, and
-    with generation quality (a 20-tile world has no room for coherent noise to look like anything).
-    Tune together, not separately.
+11. ~~**Map size per era.**~~ **DISSOLVED 2026-08-22 (§2.6): there is one map and it does not
+    resize.** The question becomes a single board budget — ~120 land hexes including islands,
+    bracketed 100–200 by prop legibility and the pop ceiling from above and by island viability and
+    terrain coherence from below. It still interacts with the minor-tier count exactly as noted, and
+    they still tune together.
 
 ---
 

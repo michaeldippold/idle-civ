@@ -773,6 +773,24 @@ The design that made this obvious was already written before the map was: Conque
 — numerous weak freeholds, each worth one sworn holdfast, as a designed population budget — *is* a
 description of capturable tiles.
 
+**One board, forever** *(settled 2026-08-22; full treatment in `map.md` §2.6)*. The world is
+generated once, at full size, and never regenerates. Eras change what you can see and what you can
+do; they never change what the world is — **the map is always there, what you can do and see
+changes**. Unreached country sits under fog rendered as unpainted board, flipped as you scout it
+the way a tabletop game flips face-down tiles, and the rule that keeps it honest is that **fog
+hides the board, never the pieces**: a flip reveals *land*, which is permanent and cannot be
+falsified later, while *who lives there* is a separate layer that arrives with the eras. A run
+opens on a pregame screen offering three continents as bare outlines — you choose the shape of your
+world while learning nothing about its contents — and each continent simply *is* a seed, so one
+number still reproduces an entire run, coastline included.
+
+Two consequences reach beyond the map. **Scouting becomes the Stone Age's spatial verb**, which
+makes the map interactive from the first minutes instead of inert until Iron, and softens the
+Bronze→Iron cliff by making only the verbs new rather than the whole surface. And **the board is
+finite on purpose**: Earth is a sphere and civilizations fill it, so running out of room is not a
+limitation to engineer around — it is the pressure that sends you to Space. Geography becomes the
+motivation for the final act.
+
 ---
 
 ## Explicitly Out of Scope

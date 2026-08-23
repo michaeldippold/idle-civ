@@ -27,7 +27,8 @@ harness-green throughout, currently **490 checks**:
   controls with the ask/tell modal-hold (ceremony holds too; Info doesn't).
 - **The map (6a, 6c.1, the flip):** place-graph + seeded blob-growth hex generator on its own
   dice stream; the chart exists from frame one; era-scoped views (Stone one hex → Bronze the
-  ring → Iron a recut country of 61); **the map is the game's main surface** — full-bleed stage,
+  ring → Iron a recut country of 61) — *shipped behaviour, since superseded in design by `map.md`
+  §2.6; Phase 10 removes it*; **the map is the game's main surface** — full-bleed stage,
   floating Bureau panels (People + Chronicle right, Train/Build/Upgrade left as fixed shares,
   Underway bottom), the Expeditions panel dissolved into the Selected Tile panel. Hover previews;
   click opens details where all stats/flavor/actions live — the permanent pattern, node-network
@@ -120,6 +121,47 @@ semantic pixel-checks fall to human review) and `map.md` §8. If it loses, delet
 nothing else was touched.
 
 ### Phase 10 — 3D map integration *(next build phase; sequencing vs the UI talk is the owner's call)*
+
+**Scope grew deliberately on 2026-08-22** — see `map.md` §2.6, *One board, forever*, which settled
+the map's whole era model in one conversation. Phase 10 is no longer "port the renderer"; it is the
+renderer plus the world model that renderer made possible. The additions, in dependency order:
+
+- [ ] **The two-stage generator.** Coastline first (organic closed curve, plus islands), hexes
+      packed inside it, silhouette discarded after packing — it is a generation device, never
+      rendered. A prototype exists from a separate session and must be re-plumbed onto `makeRng`
+      before it enters `src/` (the `Math.random` ban is a harness check).
+- [ ] **Named sub-streams** for every generation stage (`:frame`, `:pack`, `:terrain`, `:seats`),
+      so later stages can be inserted without invalidating recorded seeds.
+- [ ] **The pregame picker.** Three continents as bare outlines, labelled with hex count and island
+      count only; any click starts the run; a reroll draws three more. Each candidate *is* a seed,
+      so picking adopts it as the run seed and no new save field appears. One screen, one decision
+      — it must never become a settings panel.
+- [ ] **Retire era view radii and map regeneration.** `ensureMap()` loses its regenerate-on-
+      `tileNoun`-change branch; the era `view` radius is deleted in favour of fog plus a camera
+      that pulls back per era. Both are shipped behaviours being removed, not new work.
+- [ ] **Fog as face-down tiles.** Unrevealed hexes render as unpainted board (neutral material, the
+      world painted in as it is reached), never a dark shroud. Revealed is permanent — no
+      re-fogging, per the sticky-reveals law.
+- [ ] **Scouting, the Stone Age's spatial verb.** Distance-priced through `routeCost`; reward is
+      primarily Chronicle flavor, with any material payoff kept rare so exploration does not become
+      a farm; systems stay era-gated behind it.
+- [ ] **Per-era re-dress.** Prop-set/palette/light swaps on unchanged ground — the whole revealed
+      board changes clothes during the era ceremony, which is the moment the splash-art budget
+      exists for.
+- [ ] **Terrain-correlated settlement**, so scouted land predicts where rivals appear rather than
+      being falsified by them.
+- [ ] **Islands: frame-only for now.** Generated, packed, fogged like any board; no seats, no
+      settling, no minors until a naval unlock exists. Start placement avoids small islands and
+      boxed-in pockets.
+- [ ] Board budget **~120 land hexes** including islands (bracket 100–200 — see §2.6's table);
+      curate candidate frames at high density, ship them at low.
+
+**Flagged, not scheduled:** `applyConsolidation` reducing `S.pop` is correct for Bronze→Iron and
+wrong for every later border under a fixed board, where the board is already the cap. Post-Iron
+consolidation should re-denominate the tile noun and raise per-tile output while dominion stays
+put. Belongs to the balance pass, after the pop ladder past Iron is designed.
+
+**The original port work follows.**
 Port the map stage from SVG to the spike's renderer, for real:
 - [ ] Move `spike3d/`'s pipeline into `src/render3d/` behind the existing stage seam: `renderMapStage`
       swaps implementations; the SVG stage survives as the 2D debug/fallback view (`?map=2d`).
@@ -143,8 +185,9 @@ Port the map stage from SVG to the spike's renderer, for real:
 2. **The balance pass** the judgment flags feed (upkeep, pacing, routes, pruning).
 3. **6e — priests & the envoy** (the peace path; the annexation ceremony under the modal-hold).
 4. **Phase 7 — the decision queue** (the pause-modal seam is built and waiting).
-5. Parked ideation, logged where it lives: directed scouting (`design.md`/6d notes), pan/zoom
-   (`map.md` §10), the odometer build, the name.
+5. Parked ideation, logged where it lives: pan/zoom (`map.md` §10 — now an orbit-rig clamp
+   rather than a `viewBox` question), the odometer build, the name. *(Directed scouting left this
+   list on 2026-08-22: it is promoted to the Stone Age's spatial verb and specced into Phase 10.)*
 
 ## The phase plan
 
@@ -345,7 +388,8 @@ panels (People + tabbed Train/Build/Upgrade left; Selected Tile + Chronicle righ
 bottom, cards horizontal), the Expeditions panel dissolved into the Selected Tile panel, the Map
 button gone — the map is not a place you go, it is where you are. Rode with it: **era-scoped view
 radii** (Stone shows one hex, Bronze the ring, Iron the country — the world literally grows with
-the ages) and the frame-one chart. Bureau remains as the **interim skin**: structure was adopted
+the ages) and the frame-one chart. *(The radii were retired in design that evening — `map.md` §2.6
+keeps the growing-world effect but delivers it with fog and a camera over one permanent board.)* Bureau remains as the **interim skin**: structure was adopted
 from the Claude Design sketch, palette explicitly was not.
 
 **What remains of phase 9:** executing the reskin, not choosing it. The identity question opened

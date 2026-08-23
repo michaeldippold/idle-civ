@@ -85,6 +85,20 @@ for 61 tiles, with headroom designed for 10,000. What this revises and what it d
   CDN at runtime. (The spike pins CDN URLs; vendoring is an integration-phase task.)
 - **The SVG map stage survives as the 2D debug view** (`render2d` in the guide's terms) and as
   the agent-verification surface — not deleted, demoted.
+
+**World generation, revised the same evening (`map.md` §2.6 — "one board, forever"):** the world is
+generated once at full size and never regenerates, so `ensureMap()`'s regenerate-on-`tileNoun`-change
+branch retires along with the era `view` radii. Two contracts follow that are cheap now and painful
+later:
+
+- **The run seed *is* the continent.** The pregame picker shows three candidate seeds wearing their
+  coastlines; picking one adopts it as the run seed. No separate "which frame" field enters the
+  save — recipe-not-cake is unchanged, and one number still reproduces a whole run.
+- **Generation draws from named sub-streams**, `makeRng(hashStr(seed + ":frame"))` and siblings for
+  `:pack`, `:terrain`, `:seats`. Never one sequential stream: inserting a generation stage later
+  would shift every downstream draw and silently invalidate every recorded seed. Named streams are
+  independent, so a future river pass cannot move the mountains. The simulation's own dice
+  (`S.rngState`) stay untouched by all of it, as today.
 - The Godot rejection and everything else in this section stands.
 
 ## Module Structure

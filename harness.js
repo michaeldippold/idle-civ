@@ -2110,8 +2110,8 @@ console.log("\n--- Phase 10: the renderer port keeps the marks ---");
   check("every work letter is distinct", new Set(letters).size === 4);
 
   delete api.S.map.work[ownedId];
-  check("owned country with nothing assigned wears no mark",
-    api.markFor(P(ownedId)) === null);
+  check("owned country with nothing assigned wears the rest dash (idle's heir)",
+    api.markFor(P(ownedId)).glyph === "—" && api.markFor(P(ownedId)).cls === "rest");
 
   const wild = Object.values(api.world.places)
     .find((x) => !api.isOwned(x.id) && !x.adversary && !x.minor && x.id !== api.world.home

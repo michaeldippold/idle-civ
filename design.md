@@ -379,7 +379,10 @@ burn anything?" Both are the fiction running ahead of the mechanics, which is th
 
 #### Ideation, explicitly NOT canon
 
-Recorded so it is not lost, not because it is decided: **contagion** (plague spreading through
+Recorded so it is not lost, not because it is decided: **rest as fallow** (owner, 2026-08-23:
+"the rest button is interesting if it has other implications" — a resting hex could grow its
+population faster, or restore ground a future fertility/exhaustion mechanic depletes; historically
+real, and it would turn Rest from an absence into a decision); **contagion** (plague spreading through
 `adj`, which would look extraordinary on the diorama); **density attracts plague** (your richest
 province is your most fragile — historically true, and real counter-pressure against loading up your
 best land); **second seats** (provincial capitals that shorten administrative distance — a growth

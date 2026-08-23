@@ -969,6 +969,7 @@ body.dead #mainArea .block { filter: saturate(.25); }
 .map3d-glyph.seat  { color: #ffb4a2; }
 .map3d-glyph.minor { color: #e6dcc6; font-size: 13px; }
 .map3d-glyph.work  { color: #bff29a; }
+.map3d-glyph.rest  { color: #c9bfa8; opacity: 1; }   /* quiet: resting is legal */
 .map3d-label {
   font-family: var(--ui);
   font-size: 11.5px; font-weight: 600; letter-spacing: .04em;

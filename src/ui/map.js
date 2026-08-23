@@ -95,7 +95,7 @@ function mapSVG() {
         `<text class="tile-label" x="${c.x}" y="${c.y + HEX * 0.95}" text-anchor="middle">${adv ? advName(adv) : p.adversary}</text>`;
     } else if (owned) {
       const w = (S.map.work || {})[p.id];
-      marks += `<text class="tile-work" data-work-for="${p.id}" x="${c.x}" y="${c.y + 5}" text-anchor="middle">${w ? WORK_GLYPH[w] || "" : ""}</text>`;
+      marks += `<text class="tile-work" data-work-for="${p.id}" x="${c.x}" y="${c.y + 5}" text-anchor="middle">${w ? WORK_GLYPH[w] || "" : "—"}</text>`;
     } else if (p.minor) {
       // A small mark, no label: minors are numerous, and their names live on
       // hover -- the map stays a map, not a directory.
@@ -266,7 +266,11 @@ export function markFor(p) {
   }
   if (isOwned(p.id)) {
     const w = (S.map.work || {})[p.id];
-    return w ? { glyph: WORK_GLYPH[w] || "", cls: "work" } : null;
+    // A resting hex says so (owner request, 2026-08-23): the old ledger's red
+    // "N idle" died with the jobs system, and unworked ground was invisible
+    // until clicked. The dash is quiet on purpose -- resting is sometimes a
+    // choice, and the starving ledger already carries the alarm.
+    return w ? { glyph: WORK_GLYPH[w] || "", cls: "work" } : { glyph: "—", cls: "rest" };
   }
   // Minors get a mark and no label: they are numerous, and their names live on
   // hover. The map stays a map rather than becoming a directory.

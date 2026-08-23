@@ -18,6 +18,12 @@ export const CONFIG = {
   baseHousing: 3,
   settlerIntervalSeconds: 45,  // a new settler arrives this often while housing has room -- free.
                                // THE growth-pacing dial; first guess, tune in play.
+                               // (Retires in engine-rework E2/E3; logistic hex growth below
+                               // is its successor and both run during E1's observation window.)
+  popGrowthRate: 0.015,   // r in the logistic dP/dt = r*P*(1 - P/cap), per hex per second.
+                          // At 3-of-8 that is a first arrival in ~35s, near the settler
+                          // cadence above; growth visibly slows as a hex fills. The ONE
+                          // growth knob (engine rework E1).
   speeds: [1, 2, 4, 8, 12],    // simulation multipliers the header button cycles through.
                                // Integers only: speed is implemented as N ordinary steps per
                                // tick, not one big one -- see the loop in boot().

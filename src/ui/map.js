@@ -3,7 +3,7 @@ import { S } from "../core/state.js";
 import { capWord } from "../core/derived.js";
 import { save } from "../core/persist.js";
 import { launchSettle, pendingSettle, settlePlan } from "../core/actions.js";
-import { world, isOwned, isCharted } from "../map/map.js";
+import { world, isOwned, isCharted, capOf, hexPop } from "../map/map.js";
 import { hexDistance, hexPoints, toPixel } from "../map/model.js";
 import { campaignPlan, expeditionOut, standingWord } from "../sim/expeditions.js";
 import { attachTip, tipHide, tipMove, tipShow } from "./dom.js";
@@ -119,7 +119,8 @@ function tipFor(p) {
     }
   }
   if (p.id === world.home) {
-    return { title: "Your seat", body: `The ${spec().tileNoun.singular} everything else is measured from.`,
+    return { title: "Your seat", body: `The ${spec().tileNoun.singular} everything else is measured from. `
+      + `${hexPop(p.id)} people of ${capOf(p.id)} the ground supports.`,
       why: tilesEra() ? "Click to set what it works." : null };
   }
   if (!isOwned(p.id) && p.minor && S.map.minors && S.map.minors[p.id]) {
@@ -133,7 +134,8 @@ function tipFor(p) {
     const w = (S.map.work || {})[p.id];
     return {
       title: `Your ${spec().tileNoun.singular} · ${p.terrain}`,
-      body: w ? `Turned to ${w}.` : "Resting — producing nothing.",
+      body: `${w ? `Turned to ${w}.` : "Resting — producing nothing."} `
+        + `${hexPop(p.id)} people of ${capOf(p.id)}.`,
       why: tilesEra() ? "Click to direct it." : null,
     };
   }
@@ -181,6 +183,11 @@ function detailHTML(p) {
   const noun = spec().tileNoun.singular;
   if (p.id === world.home) parts.push(`<b>Your seat.</b> The ${noun} everything else is measured from.`);
   else if (mine) parts.push(`<b>Your ${noun}</b> — ${p.terrain}. ${TERRAIN_FLAVOR[p.terrain] || ""}`);
+  // People live here (engine rework E1): every owned hex reports its
+  // population against what the ground supports. Displayed floored, so this
+  // string -- and therefore the content-diffed re-render -- moves only when a
+  // whole person arrives.
+  if (mine) parts.push(`<span class="tile-pop">People: <b>${hexPop(p.id)}</b> of ${capOf(p.id)} this ${p.terrain === "water" ? "water" : "ground"} supports.</span>`);
   else parts.push(`<b>${capWord(p.terrain)}</b> — ${TERRAIN_FLAVOR[p.terrain] || ""}`);
 
   if (mine && tilesEra()) {

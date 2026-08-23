@@ -1,5 +1,6 @@
 import { active } from "../content/compile.js";
 import { S } from "../core/state.js";
+import { CONFIG } from "../core/config.js";
 import { log } from "../ui/log.js";
 import { generateMap, GEN_VERSION } from "./generate.js";
 import { hexDistance } from "./model.js";
@@ -56,6 +57,7 @@ export function ensureMap() {
     }
   }
   syncDominion();
+  ensurePop();
   syncCharted();
   if (S.seen.needsDefaultWork) {
     delete S.seen.needsDefaultWork;
@@ -132,6 +134,66 @@ export function defaultAssignments() {
   return assigned;
 }
 
+// ---------- Population lives on hexes (engine rework E1) ----------
+// design.md, "Population Lives Somewhere". In E1 this is pure state: it
+// grows, saves, and displays, and NOTHING reads it yet -- steppers still run
+// the economy, so the curve can be watched and tuned live before anything
+// depends on it. Population is a VARIABLE, not a control: no setter is
+// exported to the UI, only to the world (growth here; plague/raids/starvation
+// write to it in later slices).
+
+// Carrying capacity of a hex: terrain x era. Missing terrain (water) is 0.
+export function capOf(id) {
+  const spec = active().map;
+  if (!spec || !spec.popCaps || !world || !world.places[id]) return 0;
+  return spec.popCaps[world.places[id].terrain] || 0;
+}
+
+export function hexPop(id) {
+  return S.map && S.map.pop ? Math.floor(S.map.pop[id] || 0) : 0;
+}
+
+// The odometer: total population is the SUM of real per-hex numbers.
+export function hexPopSum() {
+  if (!S.map || !S.map.pop) return 0;
+  let sum = 0;
+  for (const id of S.map.owned) sum += Math.floor(S.map.pop[id] || 0);
+  return sum;
+}
+
+// Seed population for owned hexes that have none, prune entries for hexes no
+// longer owned. Idempotent, like everything else at this layer. The seat
+// starts at startPop (the three survivors); any other hex enters the books at
+// 2 -- the party that claimed it.
+export function ensurePop() {
+  if (!S.map || !world) return;
+  if (!S.map.pop) S.map.pop = {};
+  for (const id of S.map.owned) {
+    if (!(id in S.map.pop)) S.map.pop[id] = id === world.home ? CONFIG.startPop : 2;
+  }
+  for (const id in S.map.pop) if (!S.map.owned.includes(id)) delete S.map.pop[id];
+}
+
+// Logistic growth toward each hex's cap: dP/dt = r * P * (1 - P/cap).
+// Fractional population is stored; every reader floors for display. Growth
+// only -- this function never lowers a number (loss belongs to the world's
+// events, in later slices), so a hex above a shrunken cap simply holds.
+export function growPopulation(dt) {
+  if (!S.map || !S.map.pop || !world) return;
+  const r = CONFIG.popGrowthRate;
+  for (const id of S.map.owned) {
+    const cap = capOf(id);
+    if (cap <= 0) continue;
+    const p = S.map.pop[id] || 0;
+    if (p <= 0 || p >= cap) continue;
+    const next = p + r * p * (1 - p / cap) * dt;
+    // The logistic APPROACHES its cap and never attains it; snap the last
+    // hundredth so a full hex eventually reads "8 of 8" instead of hovering
+    // at 7 forever. (~7 minutes from the far side of the curve at r=0.015.)
+    S.map.pop[id] = cap - next < 0.01 ? cap : next;
+  }
+}
+
 export function ownedTiles() { return S.map ? S.map.owned : []; }
 export function isOwned(id) { return !!S.map && S.map.owned.includes(id); }
 
@@ -185,6 +247,7 @@ export function captureTile(id, viaSettle) {
   delete S.map.minors[id];
   S.pop += 1;
   S.map.work[id] = "food";   // the designed default: bread first
+  ensurePop();               // the new holding enters the books with its party
   syncCharted();              // taking ground shows you what borders it
   return true;
 }

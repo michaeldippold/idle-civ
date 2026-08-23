@@ -58,6 +58,7 @@ function copyMapSpec(m) {
     terrains: m.terrains.slice(),
     seats: (m.seats || []).slice(),
     works: m.works ? JSON.parse(JSON.stringify(m.works)) : null,
+    popCaps: m.popCaps ? Object.assign({}, m.popCaps) : null,
     minors: m.minors ? JSON.parse(JSON.stringify(m.minors)) : null,
   };
 }
@@ -205,6 +206,13 @@ export function validateManifests(manifests) {
       }
       if (!m.map.tileNoun || !m.map.tileNoun.singular || !m.map.tileNoun.plural) bad("map tileNoun needs singular and plural");
       if (!Array.isArray(m.map.terrains) || !m.map.terrains.length) bad("map declares no terrains");
+      // Engine rework E1: a mapped era must say how many people its ground
+      // holds. Water is exempt (no one lives on open water; absent = 0).
+      if (!m.map.popCaps) bad("map declares no popCaps -- terrain must say how many people it holds");
+      else for (const t of m.map.terrains) {
+        if (t === "water") continue;
+        if (!(m.map.popCaps[t] > 0)) bad(`popCaps missing or non-positive for terrain "${t}"`);
+      }
       const advIds = new Set(m.adversaries.map((a) => a.id));
       for (const seat of m.map.seats) {
         if (!advIds.has(seat)) bad(`map seats unknown adversary "${seat}"`);

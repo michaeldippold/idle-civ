@@ -11,6 +11,32 @@
 
 ---
 
+## 2026-08-23 — Engine rework E1: population exists
+
+**People live on hexes now.** Every owned hex carries a population that grows logistically toward a
+carrying capacity its terrain sets — 8 on plains, 10 on river bottomland, 5 in forest, 3 in the
+hills at Stone scale; three times that at Iron, because caps ARE the era production curve. The
+header's POP is the sum of the hexes — the odometer, real at last — and every owned tile's hover
+and detail print "People: N of CAP this ground supports."
+
+**Nothing reads it yet, on purpose.** E1 is pure state: steppers still run the economy, so the
+growth curve can be watched and tuned live before production flips onto it in E2. One knob
+(`popGrowthRate`, r = 0.015/s), one formula (dP/dt = r·P·(1−P/cap)), fractional storage floored by
+every reader, a snap for the logistic's asymptotic last hundredth so a full hex eventually reads
+"8 of 8" rather than hovering at 7 forever.
+
+Ten new checks (521): seeding, caps, growth, clamping, the odometer-is-the-sum, bit-identical
+determinism, save round-trip, capture seeding, and the era cap curve. Getting them green found two
+real traps worth recording: a mountain of test food is silently clamped to the 50-cap on the first
+tick (so the "immortal" test settlement starved at t=417s exactly), and `save()` rightly refuses a
+dead state — so a dead test run silently loads an EARLIER section's save. The fix was to keep the
+observation settlement alive the way a player would: someone forages.
+
+Live-verified precisely on the curve: at t471 the logistic predicts 5.4 people; the page showed
+5 of 8 with the header matching.
+
+---
+
 ## 2026-08-22 — Phase 10, slice 3a: you can see your own world again
 
 **Zoom fix.** Framing the camera on the charted country had also *capped the

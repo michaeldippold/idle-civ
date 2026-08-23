@@ -51,6 +51,12 @@ export const STONE = {
     tileNoun: { singular: "clearing", plural: "clearings" },
     terrains: ["plains", "forest", "hills", "river", "water"],
     seats: [],
+    // Carrying capacity per terrain (engine rework E1): how many people the
+    // ground supports. Small at Stone ON PURPOSE -- caps are the era
+    // production curve (a ceiling change, never a rate change), and these
+    // numbers keep a 2-3 hex Stone endgame near today's 15-25 people. Water
+    // holds no one and is deliberately absent: a missing terrain means cap 0.
+    popCaps: { plains: 8, river: 10, forest: 5, hills: 3 },
   },
   arrivalLine: "A wanderer joins your settlement.",
 

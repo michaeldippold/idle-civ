@@ -2,6 +2,7 @@ import { active } from "../content/compile.js";
 import { CONFIG } from "../core/config.js";
 import { capWord, caps, housing, idle, ledgerRates } from "../core/derived.js";
 import { S } from "../core/state.js";
+import { hexPopSum } from "../map/map.js";
 import { attachTip, fmt, fmtRate } from "./dom.js";
 
 export function renderPopRow(bar) {
@@ -28,13 +29,21 @@ export function renderPopRow(bar) {
   const idleNow = idle();
   const noun = active().popNoun;
 
+  // Engine rework E1: the POP row reads the SUM OF THE HEXES -- the odometer,
+  // real at last. During the E1 observation window the old economy still runs
+  // on S.pop underneath (upkeep, steppers, the levy), so the two numbers can
+  // diverge; that is expected and temporary, and E2 retires S.pop's side.
+  const shown = hexPopSum();
   const valEl = document.getElementById("val-pop");
-  valEl.innerHTML = conquest ? fmt(S.pop) : `${fmt(S.pop)}<span class="cap"> / ${fmt(cap)}</span>`;
-  valEl.classList.toggle("full", full);
+  // Bare count, no housing cap: the hex sum answers to terrain caps now, and
+  // printing the old housing ceiling beside it would be a lie ("8 / 6").
+  valEl.innerHTML = fmt(shown);
+  // The at-cap red belonged to housing; the odometer answers to terrain caps.
+  valEl.classList.toggle("full", false);
 
   const rateEl = document.getElementById("rate-pop");
-  rateEl.textContent = (conquest || full) ? "" : fmtRate(1 / CONFIG.settlerIntervalSeconds);
-  rateEl.classList.toggle("pos", !conquest && !full);
+  rateEl.textContent = "";
+  rateEl.classList.toggle("pos", false);
 
   const noteEl = document.getElementById("note-pop");
   noteEl.textContent = idleNow > 0 ? `${idleNow} idle` : "";

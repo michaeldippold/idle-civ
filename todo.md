@@ -328,12 +328,16 @@ per era-fact — the odometer comes from the ceiling rising, never from the rate
 
 ### The slices
 
-- [ ] **E1 — population exists** *(additive; nothing reads it yet)*. `S.map.pop` keyed by tile id;
-      caps from terrain × era-fact; logistic growth each tick; the header's POP becomes the sum (the
-      odometer, real at last); the tile detail and hover show each hex's people. Steppers still run
-      production untouched — this slice is pure state, fully save-round-tripped and
-      determinism-checked, so the growth curve can be watched and tuned live before anything
-      depends on it.
+- [x] **E1 — population exists** *(shipped 2026-08-23; additive, nothing reads it yet)*.
+      `S.map.pop` (fractional, floored by every reader) keyed by tile id; `popCaps` per terrain on
+      the Stone (8/10/5/3) and Iron (24/30/15/9) manifests, validator-enforced; logistic growth in
+      `growPopulation()` with a snap-to-cap for the asymptote's last hundredth; the header POP is
+      now `hexPopSum()` — the odometer, real at last — shown bare (the housing cap would be a lie
+      beside it); tile detail and hover print "People: N of CAP". The seat opens at 3, a captured
+      hex enters the books at 2. 10 new checks (521), including bit-identical determinism and save
+      round-trip. Live-verified on the curve: t471 predicted 5.4 people, page showed 5 of 8.
+      *During the E1 window the old economy still runs on `S.pop` underneath (upkeep, steppers,
+      levy), so the header and the old machinery can diverge — expected, temporary, retired in E2.*
 - [ ] **E2 — production flips, steppers die.** `rates()` becomes pop × per-capita × terrain from the
       STONE age; every era declares `allocation: "tiles"`; the base manifest gets the works table
       (minus iron); the seat opens assigned to food; jobs, steppers, `reconcileWorkforce`, and the

@@ -3,6 +3,7 @@ import { completeConstruction } from "./actions.js";
 import { CONFIG, TICK_SECONDS } from "./config.js";
 import { accrueGrowth, caps, rates } from "./derived.js";
 import { S, loopId, saveId } from "./state.js";
+import { growPopulation } from "../map/map.js";
 import { resolveEvents, runConverters } from "../sim/events.js";
 import { resolveExpeditions } from "../sim/expeditions.js";
 import { renderAll } from "../ui/chrome.js";
@@ -58,6 +59,11 @@ export function step() {
 
   // A free settler every N seconds while housing has room.
   accrueGrowth(dt);
+
+  // Population living on hexes grows toward its terrain caps (engine rework
+  // E1). Runs beside the old growth during the observation window; nothing
+  // reads it until E2 flips production onto it.
+  growPopulation(dt);
 
   // Sickness, conflict, windfalls -- whatever the active manifest's slate holds.
   resolveEvents(dt);

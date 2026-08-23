@@ -58,6 +58,10 @@ export const IRON_DELTA = {
     // keep their double specialty; river bottomland out-farms the plains
     // (its flavor already said so). Water works nothing. First-guess
     // numbers, tuned toward too-hard as always.
+    // Iron-scale carrying caps: 3x Stone. "A mountain starts at 20" (owner)
+    // is an Iron-scale instinct -- hills land at 9 here and pass 20 in later
+    // eras as the cap curve keeps climbing.
+    popCaps: { plains: 24, river: 30, forest: 15, hills: 9 },
     works: {
       plains: { food: 1.0, wood: 0.4, stone: 0.3, iron: 0.2 },
       river:  { food: 1.2, wood: 0.3, stone: 0.2, iron: 0.2 },

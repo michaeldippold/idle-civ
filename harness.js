@@ -2088,6 +2088,71 @@ console.log("\n--- Phase 10: the renderer port keeps the marks ---");
   check("known but empty country carries no mark at all", api.markFor(wild) === null);
 }
 
+console.log("\n--- Engine rework E1: population lives on hexes ---");
+{
+  // E1 is pure state: population exists, grows, saves and displays, and
+  // NOTHING reads it -- production still runs on steppers. These checks pin
+  // the state's contract so E2 can flip production onto a number that is
+  // already proven to behave.
+  reset();
+  api.closeModal();
+  api.ensureMap();
+  // Stay alive for the whole window, the way a player would: someone forages.
+  // (A mountain of food does NOT work -- storage clamps it to the 50-cap on
+  // the first tick and upkeep drains that dry at t=417s. Found the hard way.)
+  // save() also refuses a dead state, so a starved run would silently load an
+  // EARLIER section's save.
+  api.S.jobs.forager = 1;
+  api.setRngSource(() => 0.99);  // and hold the event dice -- an hour of ticks
+                                 // makes a lethal raid near-certain on some
+                                 // seeds, and growth itself rolls no dice
+
+  check("the seat opens with the three survivors",
+    api.hexPop(api.world.home) === api.CONFIG.startPop);
+  check("the seat's ground reports a carrying cap",
+    api.capOf(api.world.home) > api.CONFIG.startPop);
+  check("unowned hexes carry no people",
+    Object.keys(api.S.map.pop).every((id) => api.S.map.owned.includes(id)));
+
+  // Growth: logistic toward the cap, floored for every reader.
+  const before = api.S.map.pop[api.world.home];
+  run(120);
+  const after = api.S.map.pop[api.world.home];
+  check("people arrive on their own (logistic growth)", after > before);
+  run(3600);
+  const cap = api.capOf(api.world.home);
+  check("growth stops at what the ground supports (never above cap)",
+    api.S.map.pop[api.world.home] <= cap && api.hexPop(api.world.home) === Math.floor(cap));
+  check("the odometer is the sum of the hexes",
+    api.hexPopSum() === api.S.map.owned.reduce((n, id) => n + api.hexPop(id), 0));
+
+  // Determinism: the growth curve is pure math on fixed ticks -- two runs
+  // from the same reset must land on bit-identical populations.
+  reset(); api.closeModal(); api.ensureMap(); api.S.jobs.forager = 1; run(300);
+  const popsA = JSON.stringify(api.S.map.pop);
+  reset(); api.closeModal(); api.ensureMap(); api.S.jobs.forager = 1; run(300);
+  api.setRngSource(null);
+  check("the curve is deterministic (bit-identical across runs)",
+    JSON.stringify(api.S.map.pop) === popsA);
+
+  // Persistence: fractional population survives the round trip exactly.
+  api.save(); api.load(); api.ensureMap();
+  check("population survives save/load bit-identically",
+    JSON.stringify(api.S.map.pop) === popsA);
+
+  // Capture seeds the new holding with its party.
+  reset(); api.closeModal();
+  api.S.era = "iron"; api.S.seen.levyMigrated = true; api.S.pop = 4;
+  api.initAdversaries(); api.ensureMap();
+  const empty = Object.values(api.world.places).find((x) =>
+    x.terrain !== "water" && !x.adversary && !x.minor && !api.isOwned(x.id));
+  api.captureTile(empty.id);
+  check("a captured hex enters the books with its claiming party",
+    api.hexPop(empty.id) === 2);
+  check("iron ground holds more people than stone ground (caps are the era curve)",
+    api.capOf(api.world.home) >= 24);
+}
+
 console.log("\n--- Phase 10: one board, forever ---");
 {
   // The board is generated once and never rebuilt. Eras re-denominate what a

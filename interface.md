@@ -228,6 +228,50 @@ paper survives as the identity is the open question, to be resolved by a proper 
 the flipped structure as its brief (the same process that produced Bureau). Bureau's *laws* — no
 opacity for state, the three-value semantic channel, legibility over texture — survive any answer.
 
+### The war-table candidate (an input for the design pass, not a decision)
+
+The compact version everywhere else in the docs is one sentence; this is the full argument, written
+so the design pass has something real to accept, mutate, or kill.
+
+**The reframe.** The instinct to ditch paper assumes paper means *clerks* — ledgers, forms, filing.
+But paper has a second lineage, and it is the one this game grew into: **the campaign map**. War
+rooms, plotting tables, general-staff charts marked in grease pencil, pinned dispatches, unit
+markers pushed across an ocean map. A map-centered game does not force abandoning paper; it forces
+choosing *which paper tradition*. Bureau answered "what does an idle administration game look
+like?" The new question is **"what does the lord's table look like?"** — clerk vs commander, not
+paper vs pixels.
+
+**What it looks like, concretely.** The map ground as parchment or drafting linen; hexes as inked
+survey lines; terrain as cartographic washes and hatching (SVG patterns — the same trick the paper
+stocks already use); adversary seats as pinned markers; your dominion bounded in something that
+reads hand-drawn. The floating panels become **papers lying on the table** — field reports, a
+dispatch log (the Chronicle already *is* one), a docket of orders (Underway already *is* one). The
+hard-offset shadow the panels took in the flip is this idea half-arrived: papers on a table cast
+exactly that shadow. The era-tinted desk becomes the table itself.
+
+**Why it fits this game specifically.**
+- *Diegesis*: the player IS the lord at the table — the interface stops representing the game and
+  starts being the thing the character would actually be looking at. That also grounds the
+  flavor-is-load-bearing law: of course everything is prose and paper; it's a table of reports.
+- *Lineage*: it keeps the founding pen test ("the whole game could be drawn in black pen on ruled
+  paper") instead of orphaning it, and every Bureau law and token re-points rather than restarts.
+- *It survives re-denomination*: a valley sketch → a surveyor's plat → an admiralty chart → a
+  naval plotting table → and at the node-map era, the fiction still holds (ops rooms pushed markers
+  across ocean charts; a starmap on a plotting table is a genre staple). The skin scales with the
+  tile ladder the way nothing screen-flavored would.
+- *Art economics*: parchment grounds, a cartographic tile kit, pinned-paper panels are exactly the
+  procedural-friendly commission `map.md` §8 already specs.
+
+**The honest case against, so the fight is real.**
+- *Kitsch risk*: skeuomorphism curdles fast — fake tape, coffee rings, burnt edges. The restraint
+  law must hold with force: no decoration that carries no information.
+- *The name over-weights war*: this is also an economy and (soon) a diplomacy game. If the frame
+  wins but the word grates, the same idea answers to **the chart room**, **the surveyor's table**,
+  or **the campaign desk**.
+- *The genuine rival*: the sketch's dark-slate register — cleaner contrast, reads as a modern
+  strategy game, easier glow/emphasis — at the price of severing the paper lineage entirely. That
+  is a legitimate identity, just a different game's.
+
 *Historical note:* the previous layout was a fixed 2×4 grid of eight panels with span machinery
 (the Chronicle double-height until Expeditions arrived). It, its `updateSpans`, and the Map button
 all died in the flip — the map is not a place you go, it is where you are.

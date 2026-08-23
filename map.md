@@ -762,6 +762,20 @@ promise it's cheap overall (§4 and §8 are where the cost actually is).
 - **Capture writes to the world.** The G2 capture outcome (+1 holdfast, small windfall, a
   Chronicle line naming the place for the last time) gains a fourth effect: the tile turns.
 
+### Observed: the board writes fiction before the rules do
+
+*(Playtest note, 2026-08-22.)* Shown a fresh Stone board, the owner read a defensible position off
+it instantly — three sides mountains, one side water, two adjacent approaches — and wanted to
+figure out how to hold it. **No mechanic supports any of that.** Terrain has no defensive meaning;
+`routeCost` counts owned country, unowned land and water, and knows nothing about hills.
+
+Two things worth taking from it. First, it is evidence the generator is doing its job: coherent
+blob terrain produces *places* that suggest stories, which is the whole reason confetti terrain was
+rejected in §4. Second, it points at the most natural next rule for routes — **terrain-aware
+movement cost** — because the player already assumes it exists. A rule that merely confirms an
+instinct the map already created is much cheaper to learn than one that has to be taught. Not
+scheduled; recorded so it is here when routes are next opened.
+
 ### Deliberately not on this list
 
 Terrain yield modifiers, per-tile buildings, tile-level unit stationing, movement. Each is a

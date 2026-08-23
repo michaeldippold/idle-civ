@@ -8,43 +8,54 @@
 
 ---
 
-## STATUS — design pause point (end of 2026-08-22)
+## STATUS — the map is the game (2026-08-22, evening)
 
-**HOLD HERE.** Feature development is deliberately paused until the next UI conversation — the
-user is taking the flipped, map-primary structure to the Claude Design thread ("how do we juggle
-these panels and info and make everything legible"), and game-design work resumes after that
-verdict. Nothing below this hold is blocked technically; it is waiting on purpose.
+**Three slices of Phase 10 are shipped and verified in a live run to Iron.** The design pause
+point this section used to describe is over: the UI conversation happened, the identity got
+settled (the digital tabletop), and the build resumed the same day.
 
-**What today was.** The single largest day in the project's history: the identity pivot was
-specced in the morning and BUILT by evening. The game stopped being an idle game (contract: *the
-game never punishes you for leaving*, replacing *the game never needs you* — see `design.md`,
-*Time, Presence & Pause*) and became civ-adjacent real-time-with-pause. Shipped same-day, all
-harness-green throughout, currently **490 checks**:
+**Where the game actually is.** A run opens on a start screen and waits for a person. The board is
+a lit 3D diorama you can spin, pitch and zoom — one board, generated once, never rebuilt — with
+the game's panels floating over it. Unreached country sits under fog rendered as unpainted board.
+Your own hexes wear a green rim and the letter of whatever they are working; seats carry a diamond
+and their people's name; minors carry a dot. Click any of it and the Selected Tile panel opens
+with every stat, every line of flavor and every action for that place. Verified end to end through
+the Iron border in a real run.
 
-- **Engine rail (phases 1–5):** 26 ES modules; seeded RNG (every die from `rng()`, seed on the
-  death screen); offline deleted whole (visibility-gated clock, save-on-action, `pagehide`);
-  fixed ticks (`S.tick` master clock, header shows `4h 26m · t79,831`); pause/speed as player
-  controls with the ask/tell modal-hold (ceremony holds too; Info doesn't).
-- **The map (6a, 6c.1, the flip):** place-graph + seeded blob-growth hex generator on its own
-  dice stream; the chart exists from frame one; era-scoped views (Stone one hex → Bronze the
-  ring → Iron a recut country of 61) — *shipped behaviour, since superseded in design by `map.md`
-  §2.6; Phase 10 removes it*; **the map is the game's main surface** — full-bleed stage,
-  floating Bureau panels (People + Chronicle right, Train/Build/Upgrade left as fixed shares,
-  Underway bottom), the Expeditions panel dissolved into the Selected Tile panel. Hover previews;
-  click opens details where all stats/flavor/actions live — the permanent pattern, node-network
-  proof.
-- **Conquest Growth (6b–6d):** growth/levy/outputMult era-facts; Iron conquest-grown, levied
-  (civilians = pop, cap = holdfasts × 2), deep-consolidated (0.25 × 4), housing retired; caps
-  retired at Iron with the storage line; per-hex allocation against terrain rate-tables (soft
-  menus, overpay routes); **pop is tiles** (`syncDominion`); the minor tier seated and named;
-  capture-as-fealty; the settle verb through the queue; supply lines (`routeCost`/`marchFactor`).
-  Borders arrive on bread at 1× (designed defaults, after a live starvation found the cliff).
+**The owner's verdict on seeing it at Iron:** *"oh my god I've (well, we) made a real video game."*
 
-**Docs are current** through all of it — this file, `design.md`, `tech.md`, `map.md`,
-`interface.md`, `CHANGELOG.md` all updated per-phase. `deleteme.md` and `interface-brief.md` are
-gone. Bureau is the interim panel skin; the identity itself is resolved — **the digital
-tabletop** (`design.md` OQ3) — and the design thread's brief is panel legibility against the
-diorama.
+**Two design findings worth keeping**, both from playing rather than planning:
+
+- **The map generates fiction ahead of its mechanics.** Looking at a fresh Stone board the owner
+  immediately read *"what a defensible starting position — three sides mountains, one side water,
+  only two easy approaches, and they are next to each other."* Nothing in the code knows any of
+  that. Terrain has no defensive meaning today. The instinct arrived anyway, which is the
+  strongest argument yet that `routeCost` should eventually care about terrain — the player is
+  already assuming it does. Not scheduled; recorded because the gap runs in the good direction.
+- **Evocative is the word that keeps recurring**, and it is now doing real work as a design test:
+  the board does not need a mechanic to make you want one.
+
+### Phase 10 progress (build order and the full slice list live below)
+
+- [x] **1 — the start screen shell** — the run waits for a person; `preGame` as a fourth
+      independent hold flag. Verified, including a tab-close mid-upgrade resuming bit-identically.
+- [x] **2 — the renderer port** — 3D replaces SVG with nothing downstream of `selectTile`
+      changed; marks are projected DOM text. `?map=2d` keeps the SVG board, `?glcheck=1` makes
+      the canvas readable.
+- [x] **3 — one board, forever** — view radii and map regeneration deleted, fog as unpainted
+      board, the camera framing what is known, dominion that never shrinks.
+- [x] **3a — the zoom fix** — framing on charted country had also capped the zoom to it.
+- [ ] **4–7** — the frame generator, the picker, scouting, the era re-dress. See the build order.
+
+**511 harness checks, green.** Saves remain explicitly disposable until the fundamentals stop
+moving; assume every slice breaks the running save and replay at 12×.
+
+**Held, not forgotten:** the balance pass (now carrying a new item — `removeSettler` is inert in
+tile eras, so sickness and raids need a designed tile-scale effect); the Claude Design panel
+legibility pass, now to be run against the diorama; 6e priests and the envoy; phase 7's decision
+queue. And **the owner has a large proposal in draft** that may touch the map — worth hearing
+before slice 4 decides continent shape.
+
 
 ### The playtest brief (what the user verifies during the hold)
 

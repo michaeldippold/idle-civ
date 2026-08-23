@@ -3,12 +3,13 @@ import { CONFIG } from "./core/config.js";
 import { initAdversaries, load, save } from "./core/persist.js";
 import { S, setLoops } from "./core/state.js";
 import { step } from "./core/step.js";
-import { cycleSpeed, modalHold, paused, renderAll, renderSpeed, setPaused, setSpeed, speed } from "./ui/chrome.js";
+import { cycleSpeed, modalHold, paused, preGame, renderAll, renderSpeed, setPaused, setPreGame, setSpeed, speed } from "./ui/chrome.js";
 import { ensureMap } from "./map/map.js";
 import { initMapStage } from "./ui/map.js";
 import { checkReveals, log } from "./ui/log.js";
 import { closeModal, modalIsOpen, openInfoPanel, openResetModal } from "./ui/modal.js";
 import { setUpgradeTab } from "./ui/panels-buy.js";
+import { initStartScreen, pendingAutostart } from "./ui/start.js";
 
 
 // ---------- Boot --------------------------------------------
@@ -27,6 +28,12 @@ export function boot() {
 
   checkReveals();
   renderAll();
+
+  // The run waits for a person (phase 10, slice 1). One exception: a player who
+  // just chose "New Game" already answered this question, so the reload that
+  // clears their save carries a flag that skips straight into the fresh run.
+  if (pendingAutostart()) setPreGame(false);
+  else initStartScreen(had);
 
   document.getElementById("saveBtn").addEventListener("click", () => {
     if (S.dead) return;
@@ -74,7 +81,7 @@ export function boot() {
   // frame means the world briefly runs slightly slower than 1x, never that
   // a bigger slice of time gets simulated in one gulp.
   const newLoopId = setInterval(() => {
-    if (S.dead || paused || hidden || modalHold) return;
+    if (S.dead || preGame || paused || hidden || modalHold) return;
     for (let i = 0; i < speed; i++) step();
     checkReveals();
     renderAll();

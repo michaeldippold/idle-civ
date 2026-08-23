@@ -55,6 +55,17 @@ export function renderClock() {
 export let modalHold = false;
 export function setModalHold(v) { modalHold = v; }
 
+// The pre-game hold (phase 10). A FOURTH independent flag beside `paused` (the
+// player's intent), `modalHold` (a modal asking something) and the hidden-tab
+// stop -- separate for the same reason those three are: composing independent
+// flags lets each release without clobbering the others. The run is held until
+// the player starts it from the start screen; see `ui/start.js`.
+// It defaults to ON deliberately. A wiring mistake then shows a start screen
+// that was never dismissed, which is visible and obvious; the opposite default
+// would silently run the clock behind whatever failed to appear.
+export let preGame = true;
+export function setPreGame(v) { preGame = v; }
+
 // Set a specific notch (the 1-5 keys); cycleSpeed remains the click path.
 export function setSpeed(n) {
   if (!CONFIG.speeds.includes(n)) return;

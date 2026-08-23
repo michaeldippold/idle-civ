@@ -879,3 +879,59 @@ body.dead #mainArea .block { filter: saturate(.25); }
   .block { max-height: 60vh; margin-bottom: 12px; }
   .res { border-bottom: 1px solid var(--rule); }
 }
+
+/* ---------- Start screen (phase 10, slice 1) ----------
+   Opaque, not a dim overlay: this is a screen you sit down at, and showing the
+   board behind it would both spoil the world and read as a modal. Wears the
+   interim Bureau skin like everything else -- it gets redressed with the rest
+   of the panels when the tabletop identity lands, and the continent picker
+   (slice 5) fills the space between the lead and the actions. */
+#startScreen {
+  position: fixed; inset: 0; z-index: 200;
+  background: var(--paper);
+  display: flex; align-items: center; justify-content: center;
+  padding: 28px;
+}
+#startPanel {
+  width: min(560px, 92vw);
+  background: var(--card);
+  border: 1px solid var(--ink);
+  /* The modal's hard offset -- the one shadow in the game, and this is
+     ceremony by the same argument. */
+  box-shadow: 6px 6px 0 rgba(25, 23, 16, .22);
+  padding: 42px 44px 30px;
+  text-align: center;
+}
+#startTitle {
+  font-family: var(--ui);
+  font-size: 32px; font-weight: 700; letter-spacing: .01em;
+  color: var(--ink);
+  margin: 0 0 16px;
+}
+#startLead {
+  font-family: var(--prose);
+  font-size: 15.5px; line-height: 1.62; color: #2e2a21;
+  margin: 0 auto 26px; max-width: 40ch; text-wrap: pretty;
+}
+#startResume {
+  font-family: var(--mono);
+  font-size: 12.5px; font-weight: 700; letter-spacing: .02em;
+  color: var(--good);
+  border-top: 1px solid var(--hair);
+  padding-top: 18px;
+  margin: 0 0 22px;
+}
+#startActions {
+  display: flex; justify-content: center; gap: 10px;
+  margin-bottom: 26px;
+}
+#startActions .chrome-btn { font-size: 13.5px; padding: 10px 20px; }
+.chrome-btn.primary {
+  background: var(--ink); color: var(--ink-light); border-color: var(--ink);
+}
+.chrome-btn.primary:hover { background: #000000; color: #ffffff; }
+#startSeed {
+  font-family: var(--mono);
+  font-size: 11px; color: #6b6455;
+  margin: 0;
+}

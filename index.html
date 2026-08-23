@@ -132,6 +132,24 @@
     </section>
   </div>
 
+  <!-- The pre-game screen. Covers the board until the player starts the run:
+       the clock is held by `preGame` exactly as a modal holds it. Slice 5 fills
+       the empty middle with the three-continent picker; the boot-flow state
+       machine underneath it is built and verified before that lands. -->
+  <div id="startScreen" class="hidden">
+    <section id="startPanel">
+      <h1 id="startTitle">Idle Civ</h1>
+      <p id="startLead">You start by foraging for food. By the end you are deciding
+        the fate of star systems.</p>
+      <p id="startResume" class="hidden"></p>
+      <div id="startActions">
+        <button id="startContinue" class="chrome-btn primary hidden">Continue</button>
+        <button id="startNew" class="chrome-btn">New Game</button>
+      </div>
+      <p id="startSeed"></p>
+    </section>
+  </div>
+
   <!-- Descriptions live here and nowhere else. Inline descriptions clog the
        board once eight panels are open; hover means they can be MORE verbose,
        not less. The tooltip also carries the refusal reason ("Short 24 wood."),

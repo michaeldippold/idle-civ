@@ -24,6 +24,40 @@ pass → 6e priests & envoy → phase 7 decision queue).
 
 ---
 
+## 2026-08-22 — Phase 10, slice 1: the run waits for a person
+
+**The game no longer starts itself.** Boot now lands on a start screen — title, the one-line pitch,
+Continue or New Game, and the world seed — and the clock does not tick until somebody says so.
+Landing straight into a live clock read as sudden; a board you start is a board you sat down at.
+
+The mechanism is a **fourth independent hold flag**, `preGame`, sitting beside `paused` (the
+player's intent), `modalHold` (a modal asking something) and the hidden-tab stop, and composed the
+same way: the loop steps only when none of them hold, and releasing one never clobbers another.
+It defaults to *on* deliberately — a wiring mistake then shows a start screen nobody dismissed,
+which is obvious, rather than running the clock behind a screen that failed to appear. Like `paused`
+and `speed`, it is deliberately absent from the save: which screen you are looking at is not a
+property of the settlement, so a reload always lands back here with Continue waiting.
+
+A returning run gets a resume line in the era's own vocabulary ("Stone Age · 4h 26m · 6 settlers").
+With no save there is nothing to continue and nothing to wipe, so the screen asks one question with
+one button; the two-button form appears only when the choice is real. **New Game reloads rather than
+rebuilding state in place** — `setS(freshState())` would leave every module-level render cache
+holding the dead run (the map's `world`, `selectedId` and `lastSignature`, the Chronicle's DOM and
+its reveals set, each panel's diff string), and a reload cannot leave any of them stale. A
+sessionStorage flag survives that reload so the fresh run skips the screen instead of asking a
+player who just answered.
+
+Four new checks (494), asserting the composability property rather than the flag's existence:
+pausing does not disturb the hold, a modal does not either, and starting the run releases that flag
+and only that flag. Verified live end-to-end — held at t15 across two seconds with the tab visible
+and unpaused, running again the moment Continue was pressed.
+
+This is slice 1 of seven in the Phase 10 build order (`todo.md`), taken first because it is cheap
+and because it isolates a boot-flow state-machine change while the map is still stable — and
+because slice 5's continent picker is content for this screen rather than a new surface.
+
+---
+
 ## 2026-08-22 — Phase 6d: the growth verbs
 
 **The dominion finally spreads.** Three verbs, one destination — owned, +1 holdfast, turned to

@@ -2026,6 +2026,30 @@ console.log("\n--- Phase 6d: the growth verbs -- minors, settle, routes ---");
     S().map.owned.includes(mtile) && !S().map.minors[mtile]);
 }
 
+console.log("\n--- Phase 10: the run waits for a person ---");
+{
+  // The pre-game hold is a fourth INDEPENDENT flag, not a mode. The property
+  // worth asserting is the one that makes paused/modalHold/hidden safe to
+  // compose at all: setting any one of them never disturbs the others, so each
+  // releases without clobbering a hold somebody else still wants.
+  reset();
+  api.closeModal();
+  api.setPreGame(true);
+  api.setPaused(false);
+  check("the run is held before a person starts it", api.preGame === true);
+
+  api.setPaused(true);
+  check("pausing does not disturb the pre-game hold", api.preGame === true);
+  api.openModal("A Question", "<p>choose</p>");
+  check("a modal does not disturb it either", api.preGame === true);
+  api.closeModal();
+
+  api.setPreGame(false);
+  check("starting the run releases that flag and only that flag",
+    api.preGame === false && api.paused === true && api.modalHold === false);
+  api.setPaused(false);
+}
+
 console.log("\n--- Phase 6b: Conquest Growth G1 -- levy, output, no housing ---");
 {
   // Growth is a verb at iron: the timer does nothing.

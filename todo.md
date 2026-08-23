@@ -122,6 +122,46 @@ nothing else was touched.
 
 ### Phase 10 — 3D map integration *(next build phase; sequencing vs the UI talk is the owner's call)*
 
+**The build order (owner: "organizing implementation entirely to you", 2026-08-22).** One thing
+changes per slice, every slice ends playable, and the riskiest work happens in a slice where
+nothing else is moving — so a failure is diagnosable instead of a hunt. Each slice ends with a
+verified stop and a test brief.
+
+- [x] **1 — The start screen shell** *(shipped 2026-08-22)*. New Game / Continue, press-to-start,
+      no picker yet. Deliberately first: it is cheap, it is the "less sudden" opening the owner
+      asked for, and it isolates a boot-flow state-machine change while the map is still stable.
+      It also builds the room slice 5's picker moves into.
+- [ ] **2 — The renderer port.** 3D replaces SVG. Same world, same 61 hexes, same rules. Acceptance
+      test is the integration fear stated plainly: click the river kingdom, get its popup, press
+      March, watch it work. Nothing else changes, so anything that breaks is the renderer.
+      *(Seam survey done: [ui/map.js](src/ui/map.js) already splits cleanly — `detailHTML`,
+      `titleFor`, `renderTileDetail` and the whole `tileBody` action handler are pure DOM with zero
+      SVG knowledge, and `selectTile` is already the seam. About 90 lines move: `mapSVG()` becomes
+      scene-building, the stage click's `dataset.id` becomes raycast-and-round, `attachTip` becomes
+      raycast hover. `signature()` survives as the chunk-dirty trigger.)*
+- [ ] **3 — Fog and the camera.** Delete era view radii and the regen branch; render the whole board
+      with unpainted-board fog; camera height per era, pulling back as ages pass. Runs on the old
+      blob world on purpose — fog is a system and deserves a stable world under it.
+- [ ] **4 — The frame generator.** Coastline, hex packing, islands, named sub-streams, ~120 hexes.
+      Judged in the renderer built in slice 2 rather than imagined.
+- [ ] **5 — The picker.** Three continents as outlines, filling the shell from slice 1. Outlines are
+      SVG paths, so this needs no 3D at all.
+- [ ] **6 — Scouting**, priced through `routeCost`; Chronicle flavor as the reward, systems still
+      era-gated behind it.
+- [ ] **7 — Re-dress and the ceremony.** Era prop-sets, palette, light, and the camera pull-back —
+      the whole revealed board changing clothes while the player watches.
+
+**Not in the owner's list and easy to lose, so named here:** the camera is a *system*, not a
+setting (it replaces view radii and carries half the era-advance moment); the deletions are real
+work; fog reveal state is a new persisted field; and the small stuff that makes a port drag —
+work glyphs (3D markers or projected DOM labels, a real decision), hover tooltips, vendoring
+three/postprocessing/n8ao off the CDN, the era-fact schema for palette/light/prop-sets across all
+three manifests plus its validator, and keeping `?map=2d` alive as the assertable surface.
+
+**Saves are explicitly disposable** until the fundamentals stop moving (owner, 2026-08-22): assume
+every slice breaks the running save, and replay at 12× rather than writing migrations.
+
+
 **Scope grew deliberately on 2026-08-22** — see `map.md` §2.6, *One board, forever*, which settled
 the map's whole era model in one conversation. Phase 10 is no longer "port the renderer"; it is the
 renderer plus the world model that renderer made possible. The additions, in dependency order:

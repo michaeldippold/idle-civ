@@ -356,6 +356,21 @@ in the interface; allow it.
 good alone; together they may make expansion feel strictly bad. This will present much later as
 "expansion feels bad" and the cause will not be obvious, so it is written down here.
 
+#### Buildings are your capital (the Luthadel rule)
+
+*(Settled in passing, 2026-08-23 — owner and Claude reached it independently, which is usually the
+sign a position is stable.)* People are located; **buildings are not, and the silence is
+load-bearing.** The fiction: your buildings all stand at your seat — you manage all the dominances,
+but everything you build is in Luthadel *(Mistborn, era 1)*. This costs nothing, contradicts
+nothing, and matches the seat-death rule: the capital is the run.
+
+Mechanically placeless, deliberately: "which hex do I build this on" is a decision that must not
+exist until placement *means* something (adjacency, defense — the Civ-districts direction), per the
+structural-answers rule. **Revisit trigger:** when playtesters start assuming placement matters —
+the same trigger as terrain-aware routes. Expect the slice-7 re-dress and E5's hex raids to make
+the question louder: props will draw buildings ON hexes, and burned hexes will invite "did they
+burn anything?" Both are the fiction running ahead of the mechanics, which is the good direction.
+
 #### Ideation, explicitly NOT canon
 
 Recorded so it is not lost, not because it is decided: **contagion** (plague spreading through

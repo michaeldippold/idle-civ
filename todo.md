@@ -82,8 +82,10 @@ gone. Bureau is the interim skin, **formally under review** in the design thread
   predict? (Descriptions are mechanics-bearing text.)
 
 ### Held until the UI conversation (in intended order)
-1. **The design-thread verdict** — panel juggling/legibility now, the skin (Bureau vs successor)
-   whenever it ripens. Structure is settled; this decides its dress.
+1. **The design-thread verdict** — panel juggling/legibility, now joined by the successor skin:
+   paper is RULED OUT as the identity (war-table candidate killed same-day; see `interface.md`),
+   the direction is evocative illustrated tile art with per-era tilesets and an evolving home tile
+   (`map.md` §8). Structure is settled; the thread decides the new dress.
 2. **The balance pass** the judgment flags feed (upkeep, pacing, routes, pruning).
 3. **6e — priests & the envoy** (the peace path; the annexation ceremony under the modal-hold).
 4. **Phase 7 — the decision queue** (the pause-modal seam is built and waiting).

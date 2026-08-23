@@ -586,6 +586,20 @@ capture, the state shape), `mapgen.js` (the generator — seeded, kind-specific,
 
 ## 8. Art strategy
 
+**Direction ruled (2026-08-22): evocative illustrated tile art, not paper.** The war-table/parchment
+candidate is dead (see `interface.md`); the commission target is Civ-adjacent painterly richness —
+as a reference *class*, not a literal — chosen for one stated reason: **the difference between ages
+must be visible on the ground.** Two consequences now part of the spec:
+
+- **Tilesets are per-era.** The same geometry re-dresses at each age; era legibility is a primary
+  goal of the art, extending what the desk tint already does. (The manifest's `map` era-fact is the
+  natural home for a tileset key when art lands.)
+- **The home/settlement tile gets its own evolving art line** — a few huts at Stone through a
+  bustling metropolis in the late game, one hex, zero mechanical change. The geometry/paint
+  separation below was locked for exactly this, and it is the single most evocative expression of
+  the game's premise available at any price.
+
+
 **Geometry and paint are separate layers. This is the one thing that must be locked now**, because
 it is nearly free up front and expensive to retrofit. Art is coming later; it has to drop in
 without a rewrite.

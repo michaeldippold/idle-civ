@@ -808,13 +808,15 @@ rule was aimed at the right danger and pointed at the wrong noun.
    showing the same adversaries is the worse of the two. Only the *timing* is open, and it is gated on
    having a map good enough to deserve it. Until then Bureau's 4×2 grid stands and is not in question,
    and phase 8 must be buildable without answering this.
-3. **Does Bureau survive the map? — NOW THE LIVE QUESTION (opened by the user with the flip).**
-   Bureau was built to make a wireframe legible and did that job; its *laws* (no opacity for state,
-   semantic color, legibility over texture) survive any answer, but paper-as-identity may have
-   outlived the panel game it dressed. Process: a design pass in the Claude Design thread with the
-   flipped structure as the brief — the same commissioning that produced Bureau. Candidate worth
-   weighing there, not decided: the **war table** — campaign maps historically ARE paper, so Bureau
-   could evolve (parchment world, paper panels pinned at its edges) rather than die.
+3. ~~**Does Bureau survive the map?**~~ **RULED (2026-08-22, same day it opened): it does not — paper
+   retires as the identity.** The war-table candidate (paper evolved to the commander's register) was
+   expanded, weighed, and killed by the user within the day — loved as a concept, outbid by what the
+   game actually needs: **era legibility on the map**, delivered by commissioned evocative tile art,
+   including a home tile that visibly grows from huts to a metropolis as pure per-era art on
+   unchanged mechanics. The successor skin comes from the Claude Design thread (with panel
+   legibility, as one brief). **Bureau's laws outlive Bureau** — no opacity for state, the semantic
+   channel, legibility over texture, words-not-meters were never about paper. What remains open is
+   only *what the successor looks like*, not whether there is one.
 4. **What replaces storage caps' friction when they retire?**
 5. **What is the Enlightenment's science mechanic?** The emptiest slot in the age list.
 6. **What are the `soulsPerTile` multipliers per era?** Tuning, not design — but do it deliberately in

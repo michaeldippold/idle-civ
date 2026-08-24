@@ -123,6 +123,29 @@ settlement nouns in and "the Broken Tower" cannot be redressed backwards into th
 - **A camp reports "Known stock: 30 food, 20 wood" before you have ever been near it.** Free
   intelligence, and it should probably be scouting's job (slice 6).
 
+**Parked (owner observation, 2026-08-25): a march and a build advance at the same time, in one
+panel.** Spotted in play — a column marching on the steading at Larkmoor sitting at 65% while an
+Archer built to 25% beside it. Owner's own read: *"thinking about this I am not sure I object, we
+may just need to find a new way to depict campaigns in progress."* Not urgent; recorded before it
+was forgotten.
+
+**The behaviour is correct and deliberate.** `resolveExpeditions(dt)` runs unconditionally in
+`step()`, entirely independent of `buildQueue[0]`. They are two separate single-slot pipelines: one
+campaign out at a time (`expeditionOut`), one building under construction at a time (the queue is
+the scarcity). A column on the road does not occupy your builders, and it should not — the people
+who marched are units, not labour. Nothing to fix in the sim.
+
+**The mismatch is purely in the depiction.** Two independent tracks are rendered as one list under a
+panel whose default title is *Build Queue*, which implies a single pipeline where a march is
+somehow "ahead of" an Archer. Expedition cards already carry their own class (`queue-card
+expedition`, dashed) so the visual language is half there.
+
+*The cheapest fix already exists in the codebase, one era too late:* `iron.js` renames this panel
+via `panelTitles` to **"Underway"** — a neutral word that covers both tracks honestly. Promoting that
+name to the base manifest is a one-line change and probably most of the answer. Beyond that, if the
+two tracks want real separation, the options are a divider inside the panel or giving expeditions
+their own strip above the builds (the renderer already sorts them to the top).
+
 **QA affordances (2026-08-24), so testing a map does not mean playing to it:**
 `?continent=broadwater|longreach|thescatter` forces a continent (standing in for slice 5's
 picker); the header's **Reveal** button toggles the whole board visible and back, as a lens that

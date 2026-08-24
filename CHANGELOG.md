@@ -11,6 +11,34 @@
 
 ---
 
+## 2026-08-24 — Engine rework E4: the frontier starves first
+
+**Starvation is geography now.** An empty larder no longer ends the run in one tick. Unpaid upkeep
+accumulates, and every five food of it kills one person at the peopled hex *furthest from the seat*
+by administrative distance — the second of `map.md` §2.7's two distances, the same Dijkstra as
+`routeCost` but seeded from the seat alone. Each death shrinks the deficit, so a famine converges
+on what the land can actually feed instead of annihilating: the empire is pruned from the rim
+inward to its sustainable size. Distance governs exposure, never efficiency — a far hex is not
+less productive, it is the first to die.
+
+**Land is never lost.** An emptied holding is a ghost — still yours, still ringed — and it
+**rekindles from a fifth of a soul** once the larder is full again, growing back on the same
+logistic curve as everything else. No one is born during a famine. And the run ends only when the
+**seat itself empties**: the capital falling is the ending, not a number crossing zero.
+
+**Escalating claim costs rode along**, per the playtest disposition: each claim beyond the starting
+trio multiplies the era's base cost by 1.18 — the game's own per-copy idiom — so the tenth hex
+costs about three times its era base, with the route still multiplying on top.
+
+The harness earned its keep twice more. The old "starvation still ends the game" regression went
+flaky because famine's long tail repriced what a lucky windfall buys (real time now, not a delayed
+instant); its dice are pinned, because it tests the mechanism, not the weather. And the escalation
+check could be masked on rare maps by its own fixture capturing a neighbour of the target —
+cheapening the route faster than escalation raised the price, which is incidentally a nice proof
+that supply lines work. 522 checks, fifteen consecutive green runs.
+
+---
+
 ## 2026-08-23 — Engine rework E3: expansion is the growth verb
 
 **The free real estate is over.** The E2 bridge's runaway was live-confirmed by the owner — huts

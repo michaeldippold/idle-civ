@@ -193,13 +193,18 @@ export function ensurePop() {
 // events, in later slices), so a hex above a shrunken cap simply holds.
 export function growPopulation(dt) {
   if (!S.map || !S.map.pop || !world) return;
+  // No one is born during a famine: growth waits for the larder.
+  if (S.res.food <= 0) return;
   const r = CONFIG.popGrowthRate;
   const before = hexPopSum();
   for (const id of S.map.owned) {
     const cap = capOf(id);
     if (cap <= 0) continue;
-    const p = S.map.pop[id] || 0;
-    if (p <= 0 || p >= cap) continue;
+    let p = S.map.pop[id] || 0;
+    // A ghost hex rekindles once the settlement is fed again: land is never
+    // lost to famine, only emptied (rule 9), and healing is not migration.
+    if (p <= 0) { p = S.map.pop[id] = 0.2; }
+    if (p >= cap) continue;
     const next = p + r * p * (1 - p / cap) * dt;
     // The logistic APPROACHES its cap and never attains it; snap the last
     // hundredth so a full hex eventually reads "8 of 8" instead of hovering
@@ -219,6 +224,76 @@ export function growPopulation(dt) {
 
 export function ownedTiles() { return S.map ? S.map.owned : []; }
 export function isOwned(id) { return !!S.map && S.map.owned.includes(id); }
+
+// ---------- Administrative distance & the famine drain (E4) ----------
+// Two distances, and conflating them is the trap (map.md 2.7): routeCost()
+// below measures from your NEAREST holding (logistics -- how long is the
+// march); adminDistance() measures from your SEAT (administration -- how well
+// can you hold it). A tendril of hexes is logistically close and
+// administratively terrible, which is exactly what the famine drain punishes.
+export function adminDistance(targetId) {
+  if (!world || !S.map || !world.places[targetId]) return Infinity;
+  const stepInto = (id) => {
+    if (S.map.owned.includes(id)) return 0.5;
+    return world.places[id].terrain === "water" ? 3 : 1;
+  };
+  const dist = {};
+  const queue = [world.home];
+  dist[world.home] = 0;
+  while (queue.length) {
+    let bi = 0;
+    for (let i = 1; i < queue.length; i++) if (dist[queue[i]] < dist[queue[bi]]) bi = i;
+    const id = queue.splice(bi, 1)[0];
+    if (id === targetId) return dist[id];
+    for (const n of world.places[id].adj) {
+      const d = dist[id] + stepInto(n);
+      if (dist[n] === undefined || d < dist[n]) {
+        if (dist[n] === undefined) queue.push(n);
+        dist[n] = d;
+      }
+    }
+  }
+  return dist[targetId] !== undefined ? dist[targetId] : Infinity;
+}
+
+// The famine drain: distance governs EXPOSURE, never efficiency. When the
+// larder is empty, unpaid upkeep accumulates, and every `starveCost` worth of
+// it kills one person at the peopled hex FURTHEST from the seat -- the empire
+// starves from its frontier inward, and dies only when the seat itself
+// empties. Land is never lost (dominion never shrinks): an emptied holding
+// stays yours, a ghost waiting to be fed again.
+let famineAnnounced = false;
+export function starveTick(deficit, dt) {
+  if (!S.map || !S.map.pop || !world) return false;
+  S.map.starve = (S.map.starve || 0) + deficit * dt;
+  if (!famineAnnounced) {
+    famineAnnounced = true;
+    log("Famine. The stores are empty, and the frontier feels it first.", "bad");
+  }
+  while (S.map.starve >= CONFIG.starveCost) {
+    S.map.starve -= CONFIG.starveCost;
+    // The victim: the peopled hex with the greatest administrative distance,
+    // ties broken by id so the order is deterministic.
+    let victim = null, worst = -1;
+    for (const id of S.map.owned) {
+      if ((S.map.pop[id] || 0) < 1) continue;
+      const d = adminDistance(id);
+      if (d > worst || (d === worst && victim !== null && id > victim)) { worst = d; victim = id; }
+    }
+    if (!victim) return true;   // no one left anywhere: the caller ends the run
+    S.map.pop[victim] = Math.max(0, S.map.pop[victim] - 1);
+    if (S.map.pop[victim] < 1) {
+      S.map.pop[victim] = 0;
+      if (victim === world.home) { syncPopMirror(); return true; }   // the seat is empty: the caller ends the run
+      log(`The ${world.places[victim].terrain} at the frontier lies empty. The ground is still yours.`, "bad");
+    }
+  }
+  syncPopMirror();
+  return false;
+}
+
+// Famine ends the moment the books balance again; the next one announces anew.
+export function endFamine() { famineAnnounced = false; if (S.map) S.map.starve = 0; }
 
 // Effective route cost from your dominion to a tile (the supply-route rule,
 // user ruling): multi-source Dijkstra from every owned tile, where marching

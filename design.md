@@ -319,10 +319,11 @@ its keep ratios; the levy and `levyMigrated`; the pop↔dominion lockstep in `sy
 That is most of the remaining complexity in the simulation, replaced by one rule that runs the whole
 game.
 
-*(Progress note, 2026-08-23: E2 and E3 shipped — steppers, jobs, `outputMult`, consolidation,
-the hut, housing, the settler timer and the lockstep are all gone. Growth is local (hexes toward
-their caps) and expansion is a paid claim in every era. `S.pop` survives only as a mirror of the
-real population until E5 re-homes the army and events.)*
+*(Progress note, 2026-08-24: E2, E3 and E4 shipped — steppers, jobs, `outputMult`,
+consolidation, the hut, housing, the settler timer, the lockstep and instant starvation are all
+gone. Growth is local, expansion is a paid claim with escalating costs, and famine drains the
+frontier inward until the seat falls — rules 8 and 9 above are live code. `S.pop` survives only as
+a mirror until E5 re-homes the army and events.)*
 
 #### The four re-homings (the actual work)
 

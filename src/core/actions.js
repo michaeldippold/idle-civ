@@ -1,5 +1,6 @@
 import { buildCost, canAfford, civilians, defById, isCapped, levyCap, levyUsed, pendingCount, playtime, reserved } from "./derived.js";
 import { active } from "../content/compile.js";
+import { CONFIG } from "./config.js";
 import { marchFactor, routeCost, world, captureTile } from "../map/map.js";
 import { S } from "./state.js";
 import { save } from "./persist.js";
@@ -79,8 +80,12 @@ export function settlePlan(tileId) {
   // the first claim must be affordable before wood exists -- and later eras
   // price in their own materials. The route scales everything, as always.
   const spec = (active().map && active().map.claim) || { cost: { food: 40, wood: 25 }, time: 45 };
+  // Escalation (E4, from the owner's first playtest: settling was trivial):
+  // each claim beyond the starting trio costs claimScale more than the last,
+  // the same per-copy idiom buildings use. Distance still multiplies on top.
+  const esc = Math.pow(CONFIG.claimScale, Math.max(0, S.map.owned.length - 3));
   const cost = {};
-  for (const k in spec.cost) cost[k] = Math.round(spec.cost[k] * factor);
+  for (const k in spec.cost) cost[k] = Math.round(spec.cost[k] * factor * esc);
   return {
     tile: tileId,
     cost,

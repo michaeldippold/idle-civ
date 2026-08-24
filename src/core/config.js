@@ -24,6 +24,15 @@ export const CONFIG = {
                           // At 3-of-8 that is a first arrival in ~35s, near the settler
                           // cadence above; growth visibly slows as a hex fills. The ONE
                           // growth knob (engine rework E1).
+  starveCost: 5,          // food-equivalent of one starvation death (E4): while the larder
+                          // is empty, every 5 food of unpaid upkeep kills one person at the
+                          // frontier. Deficit-proportional -- a deep shortfall kills fast, a
+                          // near-balance kills slowly, and each death shrinks the deficit,
+                          // so famine converges on what the land can actually feed.
+  claimScale: 1.18,       // escalating claim costs (E4, owner playtest finding: settling was
+                          // trivial): each claim beyond the starting trio multiplies the
+                          // era's base cost by this much again -- the same per-copy idiom
+                          // buildings already use. The 10th hex costs ~3x its era base.
   speeds: [1, 2, 4, 8, 12],    // simulation multipliers the header button cycles through.
                                // Integers only: speed is implemented as N ordinary steps per
                                // tick, not one big one -- see the loop in boot().

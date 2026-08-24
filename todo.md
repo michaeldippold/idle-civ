@@ -382,9 +382,19 @@ per era-fact — the odometer comes from the ceiling rising, never from the rate
   5. **Do not flatten the 1.0-vs-0.3 terrain gap yet:** it powers the which-terrain decision, and
      escalating claim costs make overpay routes relatively more attractive on their own.
 
-- [ ] **E4 — the frontier starves first.** `adminDistance()` (the `routeCost` Dijkstra seeded from
-      `world.home` alone); when food runs dry the drain walks the frontier inward, narrated;
-      death = the seat emptying. The global instant-death starvation check retires.
+- [x] **E4 — the frontier starves first** *(shipped 2026-08-24)*. `adminDistance()` — the same
+      Dijkstra seeded from the seat alone (the second distance from `map.md` §2.7). An empty
+      larder no longer ends the run: unpaid upkeep accrues, and every `starveCost` (5 food) of it
+      kills one person at the peopled hex FURTHEST from the seat — deficit-proportional, so famine
+      converges on what the land can actually feed. Land is never lost: an emptied holding is a
+      ghost, still yours, that **rekindles from 0.2 souls** once the larder is full again. No one
+      is born during a famine. Death comes when the SEAT empties — the capital falling, not
+      arithmetic. Narrated at famine onset and per hex emptied.
+      **Escalating claim costs rode along** (the playtest disposition): each claim beyond the trio
+      multiplies the era base by `claimScale` 1.18 — the 10th hex costs ~3× — with distance still
+      multiplying on top. Two flaky checks were caught and fixed on the way (the famine's long
+      tail unpriced an old regression; a captured neighbour could mask escalation by cheapening
+      the route). 522 checks, 15/15 consecutive green.
 - [ ] **E5 — the world strikes hexes.** Sickness and raids target a hex (weighted by population),
       roll against its mitigations, and kill people THERE; `removeSettler` retires; the army cap
       re-homes to held hexes (recommendation: cap = hexes × 2, the levy served to the hex);

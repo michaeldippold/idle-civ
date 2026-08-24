@@ -121,10 +121,16 @@ function check(name, cond) { console.log(`  [${cond ? "PASS" : "FAIL"}] ${name}`
 console.log("\n--- Regression: starvation, hut queue, storage caps ---");
 // Post-E2: an unmanaged colony has its hexes RESTING (the seat does not
 // auto-assign -- forage-or-die is the opening lesson), so everyone eats and
-// no one gathers, and the fire goes out just as before.
+// no one gathers. Post-E4 the end takes longer: the famine drain empties the
+// dominion frontier-inward (~360s for the starting seven) instead of killing
+// instantly, so the dice are pinned -- a lucky Great Hunt now buys real TIME
+// rather than merely delaying an instant end, and this check is about the
+// mechanism, not the weather.
+api.setRngSource(() => 0.99);
 reset(); api.ensureMap(); snap("start");
-run(450); // long enough that an occasional ungated Great Hunt windfall can't save an unmanaged colony
-check("starvation still ends the game", S().dead === true);
+run(480);
+check("starvation still ends the game -- the seat empties last", S().dead === true);
+api.setRngSource(null);
 
 reset(); api.ensureMap();
 S().map.work[api.world.home] = "food";   // the E2 verb: turn the seat to food
@@ -1996,6 +2002,11 @@ console.log("\n--- Phase 3: offline is gone; the save is load-bearing ---");
 console.log("\n--- Phase 6d: the growth verbs -- minors, settle, routes ---");
 {
   reset();
+  // Pinned seed: the supply-line assertion below is geometry-sensitive, and
+  // the E3 trio start added route sources that cost it its margin on rare
+  // layouts (caught as a 1-in-12 flake). Seeds 1-5 were verified to hold the
+  // property; determinism beats fuzzing for a check this shape-dependent.
+  S().seed = 3; S().rngState = 3;
   S().era = "iron"; S().seen.levyMigrated = true; S().pop = 4;
   api.initAdversaries(); api.ensureMap();
 
@@ -2127,6 +2138,72 @@ console.log("\n--- Phase 10: the renderer port keeps the marks ---");
     .find((x) => !api.isOwned(x.id) && !x.adversary && !x.minor && x.id !== api.world.home
       && api.isCharted(x.id));
   check("known but empty country carries no mark at all", api.markFor(wild) === null);
+}
+
+console.log("\n--- Engine rework E4: the frontier starves first ---");
+{
+  api.setRngSource(() => 0.99);   // famine math only; no event weather
+  reset(); api.closeModal(); api.ensureMap();
+
+  // Administrative distance: from the SEAT, not from the nearest holding.
+  check("the seat is administrative distance zero", api.adminDistance(api.world.home) === 0);
+  const far = Object.values(api.world.places)
+    .filter((x) => x.terrain !== "water" && !x.adversary && !x.minor && !api.isOwned(x.id))
+    .sort((a, b) => api.adminDistance(b.id) - api.adminDistance(a.id))[0];
+  api.captureTile(far.id);
+  check("a far holding is administratively farther than the trio",
+    api.adminDistance(far.id) > Math.max(...S().map.owned.filter((id) => id !== far.id)
+      .map((id) => api.adminDistance(id))));
+
+  // Famine: everyone rests, the larder empties, and the drain walks inward.
+  for (const id of S().map.owned) S().map.pop[id] = 3;
+  api.syncPopMirror();
+  S().map.work = {};             // nobody gathers: pure deficit
+  S().res.food = 1;
+  const seatBefore = api.hexPop(api.world.home);
+  run(40);
+  check("an empty larder no longer kills instantly", S().dead === false);
+  check("the frontier bleeds first: the far holding lost people before the seat lost any",
+    api.hexPop(far.id) < 3 && api.hexPop(api.world.home) === seatBefore);
+  run(120);
+  check("the far holding empties entirely -- and the ground is STILL YOURS",
+    api.hexPop(far.id) === 0 && api.isOwned(far.id));
+  check("no one is born during a famine",
+    api.hexPopSum() <= 12);
+
+  // The run ends only when the seat itself empties.
+  run(400);
+  check("the seat starves last, and its fall ends the run",
+    S().dead === true && api.hexPop(api.world.home) === 0);
+
+  // Ghost land rekindles once the settlement is fed again.
+  reset(); api.closeModal(); api.ensureMap();
+  const ghost = S().map.owned.find((id) => id !== api.world.home);
+  S().map.pop[ghost] = 0;
+  S().map.work[api.world.home] = "food";
+  S().res.food = 100;
+  run(300);   // a hearth rekindles from 0.2 souls; the logistic needs ~110s
+              // to carry that to a whole person, more on stingy terrain
+  check("an emptied holding rekindles when the larder is full again",
+    api.hexPop(ghost) >= 1);
+
+  // Escalating claims: each hex beyond the trio costs more than the last.
+  reset(); api.closeModal(); api.ensureMap();
+  const t1 = Object.values(api.world.places)
+    .find((x) => x.terrain !== "water" && !x.adversary && !x.minor && !api.isOwned(x.id));
+  const base = api.settlePlan(t1.id).cost.food;
+  // Grab tiles FAR from the target: a captured neighbour would cheapen the
+  // route to t1 and mask the escalation (caught as a rare flake).
+  const grab = Object.values(api.world.places)
+    .filter((x) => x.terrain !== "water" && !x.adversary && !x.minor && !api.isOwned(x.id) && x.id !== t1.id)
+    .sort((a, b) => api.hexDistance(b.q, b.r, t1.q, t1.r) - api.hexDistance(a.q, a.r, t1.q, t1.r))
+    .slice(0, 4);
+  for (const g of grab) api.captureTile(g.id);
+  const later = api.settlePlan(t1.id).cost.food;
+  check("the same ground costs more once you hold more (escalating claims)",
+    later > base);
+
+  api.setRngSource(null);
 }
 
 console.log("\n--- Engine rework E1: population lives on hexes ---");

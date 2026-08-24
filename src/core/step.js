@@ -3,7 +3,7 @@ import { completeConstruction } from "./actions.js";
 import { CONFIG, TICK_SECONDS } from "./config.js";
 import { caps, rates } from "./derived.js";
 import { S, loopId, saveId } from "./state.js";
-import { growPopulation } from "../map/map.js";
+import { endFamine, growPopulation, starveTick } from "../map/map.js";
 import { resolveEvents, runConverters } from "../sim/events.js";
 import { resolveExpeditions } from "../sim/expeditions.js";
 import { renderAll } from "../ui/chrome.js";
@@ -38,11 +38,15 @@ export function step() {
     if (S.res[res.id] > c[res.id]) S.res[res.id] = c[res.id];
   }
 
-  // Starvation: food hits zero while the settlement can't feed itself.
+  // Starvation (E4): an empty larder no longer ends the run outright -- the
+  // empire starves from its frontier inward, hex by hex, and the run ends
+  // only when the SEAT empties. Each death shrinks the deficit, so a famine
+  // converges on what the land can actually feed rather than annihilating.
   if (S.res.food <= 0 && r.foodNet < 0) {
     S.res.food = 0;
-    die("starvation");
-    return;
+    if (starveTick(-r.foodNet, dt)) { die("starvation"); return; }
+  } else if (S.res.food > 0) {
+    endFamine();
   }
   if (S.res.food < 0) S.res.food = 0;
 

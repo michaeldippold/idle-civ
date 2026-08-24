@@ -17,9 +17,9 @@ from three different plans, interleaved — and the owner correctly called it un
 what happens next. The old labels survive below because they are how each item is specced and
 discussed; this section is the only place that says **when**.
 
-### START HERE — ✅ that queue is empty. The next item is **4, the odometer.**
+### START HERE — ✅ next up is **5, the era re-dress** *(set dressing)*.
 
-**Where things stand *(end of session, 2026-08-25)*:** harness green at **675 checks**, working tree
+**Where things stand *(end of session, 2026-08-25)*:** harness green at **691 checks**, working tree
 clean, everything pushed. **All three items the owner queued for this session shipped, plus a
 display pass off his ideation doc and a colour system that was not on any list.** Nothing is
 half-done. There is no fire.
@@ -120,61 +120,23 @@ screen prints the seed; nothing reads one back.
 
 ---
 
-### 4 — NEXT: the odometer, and the noun pass it drags with it
+### 4 — the odometer — ✅ **SHIPPED 2026-08-25**
 
-**RE-SPECCED 2026-08-25 by the owner, and it got both simpler and better.** The old spec bolted a
-second big number onto the board beside POP. It does not: **the odometer REPLACES the topline POP
-number.**
+Iron reads **SUBJECTS 5,800** where it read 29 people. `soulsPerPerson` (Stone 1, Bronze 1, Iron
+200) inherits like `popNoun`; `souls()` multiplies; `fmtSouls()` prints. Rule 1 holds by
+construction — nothing in the engine reads it, so deleting it would change no outcome. Iron's
+`popNoun` is **subject** now, and the compiler **refuses any era whose `popNoun` matches its
+`tileNoun`** rather than trusting the next author to remember. See `CHANGELOG.md`; the sheet is
+`design.md` → *The Noun Table*.
 
-> *"Keep the play numbers small, just make the nouns bigger. Only show the inflated pop as the
-> topline pop number, which is a nice little scaling fiction that makes the game feel big."*
+**One seam left open on purpose, for the owner's eye in play:** the **Your People** panel still shows
+the TRUE count (29) while the ledger shows 5,800. That is defensible — the panel is the roster, and
+its number is load-bearing for training — but it is the one place two scales sit side by side without
+a hover to reconcile them. Worth a verdict once it has been looked at rather than guessed about.
 
-**Why replacing beats adding.** Two population readouts leave "which number matters?" permanently
-unresolved. One resolves it — and the one that survives is the one that is TRUE TO THE FICTION. The
-small number does not vanish, it retreats to the tile, where it is a lever and belongs. It also
-repairs something already broken: the header POP is fiction-false at Iron today, since "300 people"
-while holding 20 fortified holdfasts is showing your working.
-
-**The rules survive intact.** Rule 1 still holds — the odometer is a DISPLAY; every gate
-(`bronzeAge >= 25`, `ironAge >= 50`, the reveal hints) still reads real `S.pop`. Checked: every
-pop-gated predicate lives in Stone or Bronze where the multiplier is 1, and Iron is terminal so it has
-no capstone gate. **The mismatch is free today and must be written down before it isn't:** anything
-that gates on population has to speak the units the player is shown.
-
-**Mixed units on screen are structural, not a bug.** The tile stays in true units because the tile is
-the lever; the header is souls. The NOUNS carry the difference — "3 of 8 people" on a tile, "5,000
-souls" up top — which is precisely why rule 4 gives the odometer its own noun ladder.
-
-#### The noun pass, which is the real work
-
-**`design.md` -> *The Noun Table* is the sheet.** Every ladder in the game in one place, filled where
-authored and blank where undecided. Built 2026-08-25 at the owner's request, to be pondered while
-other work runs.
-
-Three repairs it makes visible:
-
-- **`popNoun` at Iron is `holdfast` — the same word as the tile noun.** Correct when population WAS
-  tiles; wrong since the engine rework made it a real per-hex variable. The POP tooltip currently
-  says *"every holdfast counted here stands on one of your 20 hexes."* This is the collision
-  `design.md` already refereed once and it came back. **Iron needs a person-word.**
-- **Unit names have never been an era-fact.** "3 Horsemen" defending 60,000 souls reads wrong; "3
-  Cavalry" does not. The counts stay small and true — a unit costs one hex-person, so a unit already
-  IS one person's worth of souls, and the arithmetic never needed fixing. Only the word does.
-- **The muster building** (Barracks -> War Camp -> Muster Ground) is a ladder made of separate
-  buildings rather than renames. Owner wants that noun to climb too — **but not every era**, which is
-  the standing rule: a noun changes when the SCOPE changes, not when the age does.
-
-**Multipliers — defaults chosen, veto at any pause.** Stone x1, Bronze x1 (the first border
-consolidates nothing on purpose), Iron **x200** — which makes a holdfast ~3,000 souls and a full
-20-hex realm ~60,000, a plausible iron-age kingdom rather than a randomly generous number. One
-constant; retune against play.
-
-**Deviation from the old spec, deliberately:** it said pick all twelve rungs in one pass. Pick the
-three that EXIST and write down the principle the rest follow from — tuning multipliers for ages
-whose scope is undesigned is guessing with extra steps, and the standing rule bans those ages anyway.
-
-**Already true, so not work:** the POP row has no rate (`rateEl.textContent = ""`), removed in the
-rework for the reason the owner gave — pop is a verb now, so a per-second rate means nothing.
+**Not built, on the owner's ruling:** the other nine rungs of the ladder, and the unit nouns
+(Horseman → Cavalry). The units are a pure noun swap whenever wanted — the arithmetic already works,
+since a unit costs one hex-person and therefore already IS one person's worth of souls.
 
 ### 5 — THEN: the era re-dress *(map arc, slice 7)*
 

@@ -1,6 +1,6 @@
 import { active } from "../content/compile.js";
 import { CONFIG } from "../core/config.js";
-import { capWord, caps, ledgerRates } from "../core/derived.js";
+import { capWord, caps, fmtSouls, ledgerRates, souls, soulsPerPerson } from "../core/derived.js";
 import { S } from "../core/state.js";
 import { atDominionCap, capOf, hexPopSum } from "../map/map.js";
 import { attachTip, fmt, fmtRate } from "./dom.js";
@@ -12,7 +12,7 @@ export function renderPopRow(bar) {
     row.className = "res";
     row.id = "res-pop";
     row.innerHTML =
-      `<span class="res-name">Pop</span>` +
+      `<span class="res-name" id="name-pop">Pop</span>` +
       `<span class="res-val" id="val-pop">0</span>` +
       `<span class="res-rate" id="rate-pop"></span>` +
       `<span class="res-note" id="note-pop"></span>`;
@@ -25,16 +25,27 @@ export function renderPopRow(bar) {
   // the levy base and the workforce -- but its growth is a verb now.
   const noun = active().popNoun;
 
-  // Engine rework E1: the POP row reads the SUM OF THE HEXES -- the odometer,
-  // real at last. During the E1 observation window the old economy still runs
-  // on S.pop underneath (upkeep, steppers, the levy), so the two numbers can
-  // diverge; that is expected and temporary, and E2 retires S.pop's side.
-  const shown = hexPopSum();
+  // THE ODOMETER IS THE TOPLINE NUMBER (owner ruling, 2026-08-25). This row
+  // used to print the raw hex sum -- the sim's own unit -- which is fiction-false
+  // the moment a hex stops being a clearing: "300 people" while holding twenty
+  // fortified holdfasts is showing your working. It prints real beings now,
+  // and the true count retreats to the tile, where it is a lever.
+  //
+  // (An earlier comment here called the raw hex sum "the odometer". It was not;
+  // it was the true count. The two words for one thing are what made this
+  // confusing enough to need a ruling.)
+  // THE LABEL RE-DENOMINATES TOO. It was a hardcoded "Pop" -- the one part of
+  // this row that never climbed, while the noun beside it did. Built once and
+  // updated in place, per the create-once law.
+  const nameEl = document.getElementById("name-pop");
+  if (nameEl) nameEl.textContent = noun.plural;
+
+  const truePop = hexPopSum();
+  const shown = souls();
   const valEl = document.getElementById("val-pop");
-  // Bare count, no housing cap: the hex sum answers to terrain caps now, and
-  // printing the old housing ceiling beside it would be a lie ("8 / 6").
-  valEl.innerHTML = fmt(shown);
-  // The at-cap red belonged to housing; the odometer answers to terrain caps.
+  // Bare count, no cap beside it: a ceiling on the topline would make the
+  // odometer a cap, and rule 1 forbids it appearing in one.
+  valEl.innerHTML = fmtSouls(shown);
   valEl.classList.toggle("full", false);
 
   const rateEl = document.getElementById("rate-pop");
@@ -53,16 +64,28 @@ export function renderPopRow(bar) {
     const owned = S.map && S.map.owned ? S.map.owned : [];
     let ceiling = 0;
     for (const id of owned) ceiling += capOf(id);
-    const room = ceiling - shown;
+    const room = ceiling - truePop;
+    const per = soulsPerPerson();
+    const tile = active().map && active().map.tileNoun;
+    const place = tile ? (owned.length === 1 ? tile.singular : tile.plural) : "hexes";
+    // The tooltip is where the two scales are reconciled, and the ONLY place
+    // they need to be: descriptions live on hover (interface.md), so the board
+    // can show one honest big number and still answer "one what?" on demand.
     return {
       title: capWord(noun.plural),
-      body: `Your ${noun.plural} live on the ground they work, and every ${
-        noun.singular} counted here stands on one of your ${owned.length} ${
-        owned.length === 1 ? "hex" : "hexes"}. They arrive on their own while ` +
-        `that ground has room for them. Everyone eats.`,
-      // The ceiling is the whole story of when to expand, so it is the WHY.
+      body: per > 1
+        ? `Your ${noun.plural} live on the ground they work, across ${owned.length} ${place}. ` +
+          `The board counts that ground in communities -- ${fmt(truePop)} of them, each about ` +
+          `${fmt(per)} ${noun.plural} -- because a ${tile ? tile.singular : "hex"} is far more ` +
+          `than one household now. Everyone eats.`
+        : `Your ${noun.plural} live on the ground they work, and every ${
+            noun.singular} counted here stands on one of your ${owned.length} ${place}. ` +
+          `They arrive on their own while that ground has room for them. Everyone eats.`,
+      // The ceiling is the whole story of when to expand, so it is the WHY --
+      // and it stays in TRUE units, because it is about a cap, and a cap is a
+      // lever the odometer may never enter.
       why: room > 0
-        ? `Room for ${fmt(room)} more on the ground you hold (${fmt(shown)} of ${fmt(ceiling)}).`
+        ? `Room for ${fmt(room)} more on the ground you hold (${fmt(truePop)} of ${fmt(ceiling)}).`
         : atDominionCap()
         ? "Your ground is full, and you may hold no more of it this era. Build, and advance."
         : "Your ground is full. Claim more, and the ceiling rises with it.",

@@ -17,6 +17,47 @@ export function playtime() { return S.tick * TICK_SECONDS; }
 // still Greenhollow when it stops being a clearing and becomes a holdfast.
 // Falls back to the game's own words, which is the common case: naming is
 // optional and skipping it must cost nothing.
+// ---------- The odometer -----------------------------------
+// THE TOPLINE POPULATION NUMBER (owner ruling, 2026-08-25): the count of real
+// beings under your rule, which is hex population times what one unit of it
+// stands for in this age. It REPLACES the true count on screen rather than
+// sitting beside it -- two population readouts leave "which number matters?"
+// permanently unresolved, and the one that should win is the one true to the
+// fiction. The small number does not vanish; it retreats to the tile, where it
+// is a lever and belongs.
+//
+// Rule 1 is intact and is what keeps this flavour rather than a second economy:
+// NOTHING reads this. Every gate, cost, cap and stepper still reads S.pop and
+// the hex sums. Deleting this function would change no outcome in the game --
+// which is the test of whether an odometer is still an odometer.
+//
+// Derived, never stored (rule 2): it cannot drift from the truth, it
+// re-denominates automatically at a border, and it needs no save field.
+export function soulsPerPerson() { return active().soulsPerPerson || 1; }
+export function souls() { return S.pop * soulsPerPerson(); }
+
+// The ONE place the small-numbers pillar is deliberately suspended (design.md:
+// "one formatter for one display, not the pillar being abandoned"). Grouped
+// digits while they can still be read as a quantity, compact once they cannot.
+// Do not let this grow into a general compaction system -- if any OTHER number
+// in this game needs it, that is a design bug, not a display one.
+const SOUL_TIERS = [
+  [1e15, "Qa"], [1e12, "T"], [1e9, "B"], [1e6, "M"],
+];
+export function fmtSouls(n) {
+  n = Math.floor(n);
+  for (const [size, suffix] of SOUL_TIERS) {
+    if (n >= size) {
+      const v = n / size;
+      // Three significant figures, so the number still MOVES visibly at every
+      // scale -- 1.23T ticking to 1.24T reads as growth; 1T sitting at 1T does
+      // not, and the jumps are the whole point (rule 3).
+      return (v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v.toFixed(2)) + suffix;
+    }
+  }
+  return n.toLocaleString("en-US");
+}
+
 export function seatName() {
   const n = (S.seatName || "").trim();
   return n || "Your Seat";

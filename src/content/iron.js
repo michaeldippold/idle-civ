@@ -16,7 +16,19 @@ export const IRON_DELTA = {
   // "Underway": once the world opens, the queue panel tracks more than
   // builds -- marching columns and caravans render there too (see renderQueue).
   panelTitles: { "panel-holdings": "Town", "panel-queue": "Underway" },
-  popNoun: { singular: "holdfast", plural: "holdfasts" },
+  // A PERSON-WORD AGAIN (2026-08-25). This said "holdfast" -- the same word as
+  // the tile noun below -- which was correct while population WAS tiles and
+  // wrong from the moment the engine rework made population a real per-hex
+  // variable. The POP tooltip rendered "every holdfast counted here stands on
+  // one of your 20 hexes". The compiler now refuses the collision outright.
+  popNoun: { singular: "subject", plural: "subjects" },
+  // THE ODOMETER TURNS ON HERE. A hex is a holdfast now, and one unit of hex
+  // population is a whole community rather than a person -- so a 20-hex realm
+  // reads as roughly 60,000 subjects instead of 300 people. That is a plausible
+  // iron-age kingdom, and it is the first age where the topline number and the
+  // ground truth are allowed to disagree. Play numbers stay small; the noun and
+  // the scale get big. One constant -- retune against play.
+  soulsPerPerson: 200,
   // Conquest Growth (design.md, settled): no one arrives unbidden from here
   // on. Growth is an ACTIVE verb -- campaigns and, in time, envoys.
   // Units are levied, not consumed: army capacity = holdfasts x levy. The

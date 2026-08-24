@@ -101,6 +101,13 @@ export function compileBase(raw) {
     // What this age can DO about its neighbours, either direction. "none"
     // means no one exists who could send or receive a war -- see stone.js.
     contact: raw.contact || "none",
+    // THE ODOMETER (design.md, The Noun Table): how many real beings one unit
+    // of hex population stands for in this age. It scales the TOPLINE number
+    // only -- never a cost, cap, rate, requirement or stepper, which is rule 1
+    // and the thing that keeps this flavour rather than a second economy.
+    // Inherits, like popNoun: an age that does not re-denominate keeps its
+    // parent's scale.
+    soulsPerPerson: raw.soulsPerPerson != null ? raw.soulsPerPerson : 1,
     // The building a column gathers at, and how many it can carry.
     muster: raw.muster ? Object.assign({}, raw.muster) : null,
     // The map spec INHERITS, like popNoun -- deliberately, because the map
@@ -133,6 +140,7 @@ export function extendEra(parent, delta) {
     consolidate: delta.consolidate ? Object.assign({}, delta.consolidate) : null,
     adversaries: (delta.adversaries || []).map((a) => Object.assign({}, a)),
     contact: delta.contact || parent.contact,
+    soulsPerPerson: delta.soulsPerPerson != null ? delta.soulsPerPerson : parent.soulsPerPerson,
     muster: delta.muster !== undefined
       ? (delta.muster ? Object.assign({}, delta.muster) : null)
       : (parent.muster ? Object.assign({}, parent.muster) : null),
@@ -360,6 +368,18 @@ export function validateManifests(manifests) {
         bad(`migration targets unknown bucket "${ins.bucket}"`);
       }
       if (!ins.vanish && !ins.convertTo && !ins.fn) bad(`migration for ${ins.id} has no primitive (vanish/convertTo/fn)`);
+    }
+    if (!(typeof m.soulsPerPerson === "number" && m.soulsPerPerson >= 1)) {
+      bad(`soulsPerPerson must be a number >= 1 (got ${m.soulsPerPerson})`);
+    }
+    // The person-noun and the tile-noun must never be the same word. They were
+    // at Iron -- both "holdfast" -- which is how the POP tooltip came to read
+    // "every holdfast counted here stands on one of your 20 hexes". design.md
+    // refereed this fight once already (Scale: The Tile Ladder); a validator is
+    // cheaper than refereeing it again.
+    if (m.map && m.map.tileNoun && m.popNoun &&
+        m.popNoun.singular === m.map.tileNoun.singular) {
+      bad(`popNoun and tileNoun are the same word ("${m.popNoun.singular}") -- one names a mass of people, the other a place`);
     }
     if (!m.popNoun || typeof m.popNoun.singular !== "string" || typeof m.popNoun.plural !== "string") {
       bad(`missing or malformed popNoun`);

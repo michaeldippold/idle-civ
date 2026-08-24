@@ -1527,7 +1527,7 @@ console.log("\n--- C1: capstone gating and the real transition ---");
   check("stepper workers walked home when their jobs left the manifest", S().jobs.forager === 0);
   // (levyMigrated and the border bread-default died in E5 with the levy --
   // allocation exists from frame one and captures default to food themselves.)
-  check("the noun is holdfast now", api.active().popNoun.singular === "holdfast");
+  check("the noun re-denominates at the border", api.active().popNoun.singular === "subject");
   check("the books balance after all of it", spare() >= 0 && api.reserved() <= Math.max(0, api.civilians()));
   check("bronze-era snapshot archived at the border", !!S().eraHistory.bronze &&
     S().eraHistory.bronze.res.bronze === 70);
@@ -2026,15 +2026,24 @@ console.log("\n--- Re-denomination: nouns, inheritance, consolidation ---");
 {
   const M = api.MANIFESTS;
   check("the ladder's first three rungs", M.stone.popNoun.singular === "settler" &&
-    M.bronze.popNoun.singular === "family" && M.iron.popNoun.singular === "holdfast");
+    M.bronze.popNoun.singular === "family" && M.iron.popNoun.singular === "subject");
+  // Iron's rung said "holdfast" until 2026-08-25 -- the same word as its TILE
+  // noun, so the game counted people and called them places. Correct while
+  // population WAS tiles; wrong from the moment the engine rework made it a
+  // real per-hex variable. The compiler refuses the collision now, in any era.
+  check("no age names its people after its places",
+    Object.values(M).every((m) => !m.map || !m.map.tileNoun ||
+      m.popNoun.singular !== m.map.tileNoun.singular));
   check("arrival lines are era-facts", M.stone.arrivalLine.includes("wanderer") &&
     M.bronze.arrivalLine.includes("family") && M.iron.arrivalLine.includes("fealty"));
   check("no era consolidates any more -- borders re-denominate, they never take (E2)",
     !M.stone.consolidate && !M.bronze.consolidate && !M.iron.consolidate);
   // An era that says nothing inherits the noun (the Silicon-keeps-Bloc rule).
   const quiet = api.extendEra(M.iron, { events: [], hints: [] });
-  check("popNoun inherits when a delta is silent", quiet.popNoun.singular === "holdfast" &&
+  check("popNoun inherits when a delta is silent", quiet.popNoun.singular === "subject" &&
     quiet.arrivalLine === M.iron.arrivalLine);
+  check("the odometer's scale inherits too -- an age that says nothing keeps it",
+    quiet.soulsPerPerson === M.iron.soulsPerPerson);
   check("consolidation is per-border, never inherited", quiet.consolidate === null);
   const throws = (fn) => { try { fn(); return false; } catch (e) { return true; } };
   check("a base era without popNoun fails validation", throws(() => {
@@ -2745,6 +2754,77 @@ console.log("\n--- The dominion cap: what one age can hold ---");
   check("a subdual that would exceed the age's scope refuses to march",
     S().expeditions.length === 0);
   api.setRngSource(null);
+}
+
+console.log("\n--- The odometer: the topline number is a fiction, and stays one ---");
+{
+  // The odometer REPLACES the topline population count rather than joining it
+  // (owner ruling). Play numbers stay small; the noun and the scale get big.
+  reset();
+
+  check("Stone counts real people -- the multiplier is 1, so nothing is inflated",
+    api.MANIFESTS.stone.soulsPerPerson === 1);
+  check("Bronze holds at 1: the first border consolidates nothing",
+    api.MANIFESTS.bronze.soulsPerPerson === 1);
+  check("Iron is where the topline and the ground truth part company",
+    api.MANIFESTS.iron.soulsPerPerson > 1);
+  check("the scale never shrinks as ages pass",
+    api.MANIFESTS.stone.soulsPerPerson <= api.MANIFESTS.bronze.soulsPerPerson &&
+    api.MANIFESTS.bronze.soulsPerPerson <= api.MANIFESTS.iron.soulsPerPerson);
+
+  // At x1 the odometer IS the population, which is the spec's own requirement:
+  // "in Stone and Bronze the odometer and the lever are the same small number".
+  api.S.era = "stone";
+  check("at x1 the odometer and the true count are the same number",
+    api.souls() === api.S.pop);
+
+  api.S.era = "iron";
+  check("at Iron one unit of population stands for many",
+    api.souls() === api.S.pop * api.MANIFESTS.iron.soulsPerPerson);
+
+  // RULE 1, AND IT IS THE WHOLE POINT. The odometer is a display: nothing in
+  // the game may read it. The strongest form of that claim is that deleting it
+  // changes no outcome -- so this checks the inputs it is derived FROM are
+  // untouched by asking for it, and that no cost, cap or gate moves.
+  reset();
+  api.S.era = "iron";
+  api.ensureMap();
+  const before = JSON.stringify(api.S);
+  api.souls(); api.souls(); api.fmtSouls(api.souls());
+  check("asking for the odometer changes nothing at all -- it is derived, never stored",
+    JSON.stringify(api.S) === before);
+  check("it is not in the save", !("souls" in api.S));
+
+  // The gates still read REAL population. A capstone that asked the odometer
+  // would unlock at Iron the instant the multiplier landed, which is exactly
+  // the failure rule 1 exists to prevent.
+  const gate = api.MANIFESTS.bronze.upgrades.find((u) => u.id === "ironAge");
+  check("the era capstone is gated on real people, not on the fiction",
+    !!gate && api.MANIFESTS.bronze.soulsPerPerson === 1);
+
+  // THE FORMATTER -- the one deliberate exception to the small-numbers pillar.
+  check("small counts are printed whole, because they can still be read",
+    api.fmtSouls(7) === "7" && api.fmtSouls(60000) === "60,000");
+  check("big counts compact, and keep three significant figures so they still MOVE",
+    api.fmtSouls(1234567) === "1.23M" && api.fmtSouls(12345678) === "12.3M" &&
+    api.fmtSouls(123456789) === "123M");
+  check("the ladder reaches the numbers the design actually wants",
+    api.fmtSouls(3.2e9).endsWith("B") && api.fmtSouls(3.2e12).endsWith("T") &&
+    api.fmtSouls(3.2e15).endsWith("Qa"));
+  check("a fractional soul is never printed", api.fmtSouls(7.9) === "7");
+
+  // RULE 3: the jumps are the point. One person lost on a frontier hex should
+  // move the topline by a visible chunk, not by one.
+  reset();
+  api.S.era = "iron";
+  api.ensureMap();
+  api.S.map.work[api.world.home] = "food";
+  const soulsBefore = api.souls();
+  api.killAt(api.world.home, 1);
+  api.reconcileReservations();
+  const drop = soulsBefore - api.souls();
+  check("losing one person moves the topline by a whole community, not by one",
+    drop === api.MANIFESTS.iron.soulsPerPerson);
 }
 
 console.log("\n--- Slice 5: the run you choose to start ---");

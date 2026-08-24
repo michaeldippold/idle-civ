@@ -603,6 +603,10 @@ A sequencing question this opens, and it needs answering before either phase sta
 
 **Semantics sharpened by `active()`** (all unreachable in normal play, now uniform by construction): `stealResources()` only touches this era's resources; `releaseOrder()`/`jobsUsed()` cover exactly this era's jobs; combat iterates this era's units. A unit type with a nonzero count but no manifest entry neither fights nor dies — inert state, per invariant 4.
 
+**`soulsPerPerson` — the odometer's era-fact.** How many real beings one unit of hex population stands for in this age (Stone 1, Bronze 1, Iron 200). It inherits like `popNoun`, and it scales the **topline display only**. Rule 1 is enforced by construction rather than by convention: nothing in the engine reads `souls()`, so deleting the function would change no outcome in the game — which is the actual test of whether an odometer is still an odometer. Every gate, cost, cap and stepper still reads real `S.pop` and the hex sums. A harness check round-trips `S` across repeated `souls()` calls to prove it is derived, never stored.
+
+**The validator refuses `popNoun === tileNoun`.** Iron shipped with both as *holdfast*, so the game counted people and called them places, and the POP tooltip read "every holdfast counted here stands on one of your 20 hexes". Correct while population *was* tiles; wrong since the engine rework. `design.md` had already refereed this exact collision once for the tile ladder, which is why the fix is a validator and not a value change.
+
 ### The settled invariants
 
 **Status: in force. Every future era must honor these.** Rationale in `design.md`.

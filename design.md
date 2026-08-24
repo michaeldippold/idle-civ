@@ -806,33 +806,43 @@ backlog.
 
 #### 1. The scale ladder — the three nouns that carry the whole fiction
 
-| Age | A tile is a… | A person is a… | The odometer counts… | ×souls |
-|---|---|---|---|---|
-| **Stone** | clearing | settler | | ×1 |
-| **Bronze** | clearing | family | | ×1 |
-| **Iron** | holdfast | ⚠️ *holdfast* | | |
-| Enlightenment | city | | | |
-| Gunpowder | colony | | | |
-| Industrial | territory | | | |
-| Mechanized | nation | | | |
-| Global | bloc | | | |
-| Silicon | bloc *(held)* | | | |
-| Space | settlement | | | |
-| Galactic | world | | | |
-| Kardashev | system | | | |
+**Two columns collapsed into one when this shipped.** The table originally had *a person is a…*
+and *the odometer counts…* as separate rows to fill. They are the same noun: `popNoun` **is** the
+odometer's noun, because the odometer is the topline population number. There was never a second
+ladder to author.
 
-> ⚠️ **The live collision.** `popNoun` at Iron is **holdfast** — the same word as the tile noun. That
-> was correct when population *was* tiles; the engine rework made population a real per-hex variable
-> again, so the game now counts PEOPLE and calls them PLACES. The POP tooltip currently renders
-> *"Your holdfasts live on the ground they work, and every holdfast counted here stands on one of your
-> 20 hexes."* This is exactly the fight this document already refereed once, in *Scale: The Tile
-> Ladder* — *"a name you have to defend is a name two concepts are fighting over"* — resurrected by
-> the rework. **Iron's `popNoun` needs a person-word again.**
+| Age | A tile is a… | A person is a… *(and what the topline counts)* | ×souls |
+|---|---|---|---|
+| **Stone** | clearing | settler | ×1 |
+| **Bronze** | clearing | family | ×1 |
+| **Iron** | holdfast | **subject** | **×200** |
+| Enlightenment | city | | |
+| Gunpowder | colony | | |
+| Industrial | territory | | |
+| Mechanized | nation | | |
+| Global | bloc | | |
+| Silicon | bloc *(held)* | | |
+| Space | settlement | | |
+| Galactic | world | | |
+| Kardashev | system | | |
 
-**The odometer column is the topline POP number** (owner ruling, 2026-08-25): the inflated,
-fiction-true count shown at the top of the screen, `people × ×souls`. The small true number never
+> ✅ **The collision is closed, and the compiler now refuses it.** Iron's `popNoun` was **holdfast** —
+> the same word as its tile noun — so the game counted PEOPLE and called them PLACES, and the POP
+> tooltip read *"every holdfast counted here stands on one of your 20 hexes."* Correct while
+> population *was* tiles; wrong from the moment the engine rework made it a real per-hex variable.
+> This is the fight this document already refereed once (*"a name you have to defend is a name two
+> concepts are fighting over"*), so rather than just fixing the value, **`validateManifests` now
+> rejects any era whose `popNoun` matches its `tileNoun`.** A validator is cheaper than refereeing it
+> a third time.
+
+**The ×souls column is the topline POP number** (owner ruling, 2026-08-25, shipped same day): the
+inflated, fiction-true count at the top of the screen, `people × ×souls`. The small true number never
 appears there — it lives on the tile, where it is a lever. Stone and Bronze are ×1, so the two are
-the same number and nothing changes until Iron.
+the same number and nothing changes until Iron, where a 20-hex realm reads as roughly **60,000
+subjects** instead of 300 people.
+
+**The ledger label re-denominates with it** — the row reads SETTLERS, then FAMILIES, then SUBJECTS.
+It was a hardcoded "Pop", the one part of that row that never climbed while the noun beside it did.
 
 #### 2. The military ladder — small counts, bigger words
 

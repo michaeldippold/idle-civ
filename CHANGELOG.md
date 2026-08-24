@@ -11,6 +11,51 @@
 
 ---
 
+## 2026-08-25 — SUBJECTS 5,800
+
+**The odometer ships, and it replaces the topline population count rather than joining it.** Iron now
+reads **SUBJECTS 5,800** where it read 29 people, because a holdfast is a community and counting it
+as one person was the sim showing its working.
+
+**The whole change is a display and one era-fact.** `soulsPerPerson` (Stone 1, Bronze 1, Iron 200)
+inherits like `popNoun`; `souls()` multiplies; `fmtSouls()` prints. Rule 1 holds **by construction,
+not by convention**: nothing in the engine reads `souls()`, so deleting it would change no outcome —
+which is the real test of whether an odometer is still an odometer. Every gate, cost, cap and stepper
+still reads real `S.pop`. A check round-trips the entire state across repeated `souls()` calls to
+prove it is derived and never stored.
+
+**Iron's population noun was broken, and the fix is a validator rather than a value.** `popNoun` at
+Iron was *holdfast* — the same word as its tile noun — so the game counted PEOPLE and called them
+PLACES, and the POP tooltip rendered *"every holdfast counted here stands on one of your 20 hexes."*
+Correct while population *was* tiles; wrong from the moment the engine rework made it a real per-hex
+variable. `design.md` had already refereed this exact fight once for the tile ladder — *"a name you
+have to defend is a name two concepts are fighting over"* — so `validateManifests` now **rejects any
+era whose `popNoun` matches its `tileNoun`**, and the collision fails at load with a readable message
+instead of shipping. Iron's people are **subjects**.
+
+**Two scales, reconciled exactly once, on hover.** The tile keeps true units because the tile is a
+lever and rule 1 bars the odometer from a cap; the topline is souls. The POP tooltip is the single
+place the relationship is stated — *"27 communities, each about 200 subjects, because a holdfast is
+far more than one household now"* — which is what the descriptions-live-on-hover law is for. The
+tooltip's WHY line stays in true units deliberately: it is about a ceiling.
+
+**The ledger label re-denominates too.** SETTLERS -> FAMILIES -> SUBJECTS. It was a hardcoded "Pop",
+the one part of that row that never climbed while the noun beside it did.
+
+**The formatter is the one deliberate suspension of the small-numbers pillar** — grouped digits while
+a number can still be read as a quantity, compact past that, always three significant figures so it
+still *moves*. 1.23M ticking to 1.24M reads as growth; 1M sitting at 1M does not, and the jumps are
+the point.
+
+Not built, on the owner's own ruling: the other nine rungs. *"When we add a new era, we'll find new
+nouns if needed."*
+
+675 -> 691 checks. Mutation-tested: reinstating the noun collision fails manifest validation
+outright, and making `souls()` stop multiplying fails both the Iron scale check and the one that says
+losing a person moves the topline by a whole community.
+
+---
+
 ## 2026-08-25 — Purple by default
 
 Owner ruling, and the reasoning is the whole entry: *"it is my game and I am the only player right

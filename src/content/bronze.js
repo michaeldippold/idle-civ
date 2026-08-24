@@ -12,6 +12,9 @@ export const BRONZE_DELTA = {
   // The first re-denomination is a pure 1:1 relabel: your settlers started
   // families. Counts, thresholds and balance are untouched -- only the words.
   popNoun: { singular: "family", plural: "families" },
+  // Still 1, deliberately: the first border consolidates nothing (design.md),
+  // Bronze keeps the clearing, and the topline should agree.
+  soulsPerPerson: 1,
   arrivalLine: "A family seeks shelter here, and stays.",
   // Bronze redeclares the map wholesale (map specs copy, never merge) to
   // put the ores on the ground: hills carry copper and tin -- tin at the

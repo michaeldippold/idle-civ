@@ -2145,6 +2145,82 @@ console.log("\n--- Phase 10: the renderer port keeps the marks ---");
   check("known but empty country carries no mark at all", api.markFor(wild) === null);
 }
 
+console.log("\n--- Slice 4b: sight across water ---");
+{
+  api.setRngSource(() => 0.99);
+  reset(); api.closeModal();
+  api.S.seed = 7; api.S.rngState = 7;
+  api.S.map = null;
+  api.ensureMap();
+
+  const wet = (id) => { const p = api.world.places[id]; return !p || p.ocean || p.terrain === "water"; };
+
+  // Chart the whole MAINLAND -- and only the mainland, or there would be no
+  // island left to sight (the first version of this fixture owned every land
+  // tile in the world, islands included, and duly found nothing across the
+  // water). Then ask what the sea gave back.
+  const diag0 = api.frameDiagnostics(api.world);
+  const islandTiles = new Set(diag0.islands.flatMap((i) => i.tiles));
+  const mainland = Object.keys(api.world.places).filter((id) => !wet(id) && !islandTiles.has(id));
+  api.S.map.owned = mainland.slice();
+  api.syncCharted();
+
+  const sighted = api.S.map.sighted || [];
+  check("sight reaches the sea from a charted coast", sighted.some((id) => wet(id)));
+  check("and finds land across it", sighted.some((id) => !wet(id) && !api.isCharted(id)));
+
+  // THE RANGE: nothing sighted lies further than SIGHT_RANGE water steps from
+  // charted land. This is the rule the renderer and the island law share.
+  let worst = 0;
+  for (const id of sighted) {
+    // water distance from any charted land
+    let best = Infinity;
+    const seen = new Set([id]);
+    let frontier = [[id, 0]];
+    while (frontier.length && best === Infinity) {
+      const next = [];
+      for (const [cur, d] of frontier) {
+        for (const n of api.world.places[cur].adj) {
+          if (api.isCharted(n) && !wet(n)) { best = Math.min(best, d); continue; }
+          if (seen.has(n) || !wet(n)) continue;
+          seen.add(n); next.push([n, d + 1]);
+        }
+      }
+      frontier = next;
+    }
+    if (Number.isFinite(best)) worst = Math.max(worst, best);
+  }
+  check("nothing is sighted beyond the range the rule allows",
+    worst <= api.SIGHT_RANGE);
+
+  // Sight reveals the BOARD, never the PIECES. Note the raw `sighted` set
+  // legitimately contains charted coast too -- it is sticky, and ground you
+  // once saw across a bay does not un-see itself when you settle it. The
+  // CLASSIFICATION is what matters, and isSighted() is where it lives.
+  const seenLand = sighted.filter((id) => !wet(id) && !api.isCharted(id));
+  check("land across the water is drawn", seenLand.length > 0 && seenLand.every((id) => api.isVisible(id)));
+  check("...but is NOT charted -- no props, no marks, no interaction",
+    seenLand.every((id) => api.isSighted(id) && !api.isCharted(id)));
+  check("sighted ground carries no mark", seenLand.every((id) => api.markFor(api.world.places[id]) === null));
+
+  // Seeing is not knowing: a full coast's worth of rays charts nothing and
+  // claims nothing. (An earlier version of this block asserted that an island
+  // "keeps its size secret" -- untrue for a small island ringed by charted
+  // coast, which is genuinely seen from several angles at once. The honest
+  // invariant is that sight never CHARTS.)
+  const ownedBefore = api.S.map.owned.length;
+  const chartedBefore = api.S.map.revealed.length;
+  api.syncSighted();
+  check("sight never charts and never claims",
+    api.S.map.owned.length === ownedBefore && api.S.map.revealed.length === chartedBefore);
+
+  // Sticky, like charting.
+  const before = sighted.length;
+  api.syncCharted();
+  check("sight is sticky and additive", (api.S.map.sighted || []).length >= before);
+  api.setRngSource(null);
+}
+
 console.log("\n--- Slice 4: the authored continents ---");
 {
   // The frames are CONTENT, and this is their validator. Each continent is

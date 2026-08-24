@@ -11,6 +11,37 @@
 
 ---
 
+## 2026-08-24 — Slice 4b: sight across water
+
+**The islands started calling.** A ray now leaves every charted coastal hex, travels through water
+only, up to three steps, and is stopped by the first land it touches. What it reaches is *sighted*:
+drawn with its true terrain — if you can genuinely see it, showing anything else would be a lie —
+and carrying no props, no marks, no hover and no selection. **Sight reveals the board, never the
+pieces**, which is the charted honesty rule turned inside out, and it is also just true: you cannot
+make out dwellings at that distance. Charted against sighted reads as inhabited against silhouette.
+
+Three predicates where there were two: `isCharted` (props, marks, interaction), `isSighted`, and
+`isVisible` (drawn at all). Sight is sticky like charting, and the Chronicle marks the moment —
+*"From the shore, your people make out land across the water."*
+
+Verified live, and it fires on its own: a starting trio on The Scatter sights five hexes of sea and
+thirteen hexes of far land within seconds of the first frame, with the Chronicle announcing it
+unprompted. Coastlines are now worth reaching for the vision alone, exactly as the design wanted.
+
+Eight new checks (554), including that nothing is ever sighted beyond the range the rule allows and
+that **sight never charts and never claims**. Two of them started life as bad assertions and were
+rewritten rather than coerced: the raw sighted set legitimately contains charted coast (it is
+sticky — ground seen across a bay does not un-see itself when you settle it), and a small island
+ringed by charted coastline genuinely *is* visible in full, because rays reach it from several
+angles at once. The honest invariant is not that an island keeps its size secret; it is that
+seeing is never knowing.
+
+Also fixed in passing, from a playtest screenshot: *"The plains at the frontier lies empty"* — a
+grammar accident waiting on every plural-looking terrain. Famine now names the era's tile noun
+instead: *"The furthest clearing lies empty. The ground is still yours."*
+
+---
+
 ## 2026-08-24 — Slice 4a: the continents are authored
 
 **The board is a country now.** `src/map/continents.js` holds a small pool of hand-authored

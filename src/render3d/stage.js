@@ -39,7 +39,8 @@ let elev = {};
 let selectedId = null;
 let hoveredId = null;
 let lastRevealed = -1;          // re-frame only when the KNOWN world changes size
-let isRevealed = () => true;
+let isVisible = () => true;     // drawn at all: charted, or seen across water
+let isCharted = () => true;     // KNOWN: props, marks and interaction
 let lastEra = null;
 let userMoved = false;          // once the player takes the camera, it is theirs
 let panBounds = null;
@@ -208,11 +209,16 @@ export function setWorld(list, opts) {
   }
   worldGroup = new THREE.Group();
 
-  isRevealed = o.isRevealed || (() => true);
-  const built = buildTerrain(list, o.isOwned || (() => false), isRevealed);
+  // Two predicates, because sight and knowledge are different things: the
+  // TERRAIN is drawn for anything the eye can reach, but props, marks, rings
+  // and interaction belong only to ground you have actually charted. Sight
+  // reveals the board, never the pieces.
+  isVisible = o.isVisible || (() => true);
+  isCharted = o.isCharted || isVisible;
+  const built = buildTerrain(list, o.isOwned || (() => false), isVisible);
   elev = built.elev;
   worldGroup.add(built.landMesh, built.wetMesh, built.ringMesh);
-  worldGroup.add(buildProps(list, elev, o.homeId, isRevealed));
+  worldGroup.add(buildProps(list, elev, o.homeId, isCharted));
   scene.add(worldGroup);
 
   // The camera frames what the player KNOWS, not the whole board -- so Stone
@@ -220,7 +226,7 @@ export function setWorld(list, opts) {
   // the edges, and the view pulls back on its own as the fog retreats. That is
   // the era zoom-out arc without a single per-era camera number: it follows
   // discovery, which is what it was always really about.
-  const known = list.filter((p) => isRevealed(p.id));
+  const known = list.filter((p) => isVisible(p.id));
   const eraTurned = o.era !== undefined && o.era !== lastEra;
   if (eraTurned) { lastEra = o.era; userMoved = false; }
   // Reframe while the camera is still the stage's to move, and again whenever
@@ -372,10 +378,11 @@ function pickAt(clientX, clientY) {
   if (!raycaster.ray.intersectPlane(groundPlane, hit)) return null;
   const { q, r: rr } = worldToAxialRounded(hit.x, hit.z);
   const p = byId[q + "," + rr];
-  // Unpainted board is not a place yet: it has no stats, no flavor and no
-  // actions, so it takes no hover ring and no selection. There is nothing
-  // dishonest here -- the player can see plainly that it is unknown.
-  return p && isRevealed(p.id) ? p : null;
+  // Sighted ground is not a place yet: seen across the water, but with no
+  // stats, no flavor and no actions to give. It takes no hover ring and no
+  // selection -- and nothing is hidden by that, because the player can see
+  // exactly as much as their people can.
+  return p && isCharted(p.id) ? p : null;
 }
 
 function wirePointer(canvas) {

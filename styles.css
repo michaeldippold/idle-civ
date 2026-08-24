@@ -988,3 +988,6 @@ body.dead #mainArea .block { filter: saturate(.25); }
    without playing out to it. Not a game surface -- the 3D board draws
    nothing it does not know. */
 .tile-uncharted { stroke: rgba(25, 23, 16, .10); }
+/* Sighted: real terrain, seen from a shore. A dashed edge marks "seen, not
+   held" in the debug view; the 3D board says it by having no props at all. */
+.tile-sighted { stroke: rgba(25, 23, 16, .38); stroke-dasharray: 3 3; }

@@ -3,7 +3,7 @@ import { S } from "../core/state.js";
 import { CONFIG } from "../core/config.js";
 import { rng } from "../core/rng.js";
 import { log } from "../ui/log.js";
-import { CONTINENTS } from "./continents.js";
+import { CONTINENTS, SIGHT_RANGE } from "./continents.js";
 import { generateMap, GEN_VERSION, pickContinent } from "./generate.js";
 import { hexDistance } from "./model.js";
 import { hashStr } from "./model.js";
@@ -132,6 +132,7 @@ export function syncPopMirror() {
 // verb is for (slice 6). Fog hides the BOARD, never the pieces: an unrevealed
 // tile shows as unpainted board, and what it turns out to be is honest ground
 // that was always there.
+// Charting new ground can put new sea -- and new shores -- in view.
 export function syncCharted() {
   if (!world || !S.map) return;
   if (!S.map.revealed) S.map.revealed = [];
@@ -142,6 +143,13 @@ export function syncCharted() {
     if (p) for (const n of p.adj) seen.add(n);
   }
   S.map.revealed = Array.from(seen);
+  const sightedLand = syncSighted();
+  if (sightedLand > 0 && S.seen.mapCharted) {
+    log(sightedLand === 1
+      ? "From the shore, your people make out land across the water."
+      : "From the shore, your people make out land across the water — more of it than they expected.",
+      "good");
+  }
 }
 
 // QA ONLY (owner request, 2026-08-24): show the whole board, on demand, so a
@@ -156,6 +164,74 @@ export function setRevealAll(v) { revealAll = v; }
 export function isCharted(id) {
   if (revealAll) return true;
   return !!S.map && !!S.map.revealed && S.map.revealed.includes(id);
+}
+
+// ---------- Sight across water (map.md 2.6, slice 4b) ----------
+// Standing on a charted coast you can see out to sea, and you can see THAT
+// there is land across it -- never what is on that land. A ray leaves every
+// charted coastal hex, travels through WATER ONLY up to SIGHT_RANGE steps,
+// and is STOPPED by the first land it touches: you see an island's near
+// shore, never behind it, so even a sighted island keeps its size secret.
+//
+// Sight reveals the BOARD, never the PIECES -- the charted honesty rule,
+// inverted. Sighted ground draws its true terrain (if you can genuinely see
+// it, showing anything else would be a lie) and carries no props, no marks
+// and no interaction. Charted-versus-sighted reads as inhabited-versus-
+// silhouette, which is also just true: you cannot make out dwellings at that
+// distance.
+//
+// Sticky and additive, like charting. Returns how many new LAND hexes came
+// into view, so the Chronicle can mark the moment.
+export function syncSighted() {
+  if (!world || !S.map) return 0;
+  if (!S.map.sighted) S.map.sighted = [];
+  const wet = (p) => !p || p.ocean || p.terrain === "water";
+  const seen = new Set(S.map.sighted);
+  let newLand = 0;
+
+  for (const id of (S.map.revealed || [])) {
+    const from = world.places[id];
+    if (!from || wet(from)) continue;          // rays leave dry, charted ground
+    const dist = {};
+    let frontier = [];
+    for (const n of from.adj) {
+      if (!wet(world.places[n]) || dist[n] !== undefined) continue;
+      dist[n] = 1; frontier.push(n);
+    }
+    while (frontier.length) {
+      const next = [];
+      for (const w of frontier) {
+        seen.add(w);                            // the sea itself is seen
+        for (const n of world.places[w].adj) {
+          const q = world.places[n];
+          if (!wet(q)) {                        // land stops the ray
+            if (!seen.has(n) && !isCharted(n)) newLand += 1;
+            seen.add(n);
+            continue;
+          }
+          if (dist[n] !== undefined) continue;
+          if (dist[w] >= SIGHT_RANGE) continue; // no further open water
+          dist[n] = dist[w] + 1;
+          next.push(n);
+        }
+      }
+      frontier = next;
+    }
+  }
+
+  S.map.sighted = Array.from(seen);
+  return newLand;
+}
+
+// Seen from afar but not charted: drawn, never touched.
+export function isSighted(id) {
+  if (revealAll) return false;                  // the lens charts everything
+  return !!S.map && !!S.map.sighted && S.map.sighted.includes(id) && !isCharted(id);
+}
+
+// Drawn at all: charted ground, or ground the eye can reach.
+export function isVisible(id) {
+  return isCharted(id) || isSighted(id);
 }
 
 // The designed default for the allocation choice (design.md: any choice
@@ -363,7 +439,10 @@ export function starveTick(deficit, dt) {
     if (S.map.pop[victim] < 1) {
       S.map.pop[victim] = 0;
       if (victim === world.home) { syncPopMirror(); return true; }   // the seat is empty: the caller ends the run
-      log(`The ${world.places[victim].terrain} at the frontier lies empty. The ground is still yours.`, "bad");
+      // The era's noun, not the terrain: "The plains ... lies empty" is a
+      // grammar accident waiting on every plural-looking terrain.
+      const noun = (active().map && active().map.tileNoun.singular) || "holding";
+      log(`The furthest ${noun} lies empty. The ground is still yours.`, "bad");
     }
   }
   syncPopMirror();

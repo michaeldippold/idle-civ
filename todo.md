@@ -245,6 +245,16 @@ verified stop and a test brief.
         Named sub-streams throughout (`:terrain`, `:start`, `:seats`, `:minors`). `radius` retires
         as an era-fact — the frame decides extent. 20 new checks (545), including the island law
         run over 75 continent-seeds.
+      - [x] **4b — sight across water** *(shipped 2026-08-24)*. `syncSighted()` casts a ray from
+        every charted coastal hex through WATER ONLY, up to `SIGHT_RANGE` (3) steps, stopped by
+        the first land it touches. Sighted ground draws its TRUE terrain and carries no props, no
+        marks, no hover and no selection — the honesty rule inverted: **sight reveals the board,
+        never the pieces**. Charted-vs-sighted reads as inhabited-vs-silhouette. Sticky like
+        charting; the Chronicle marks the moment ("From the shore, your people make out land
+        across the water"). Three predicates now: `isCharted` (props, marks, interaction),
+        `isSighted`, `isVisible` (drawn at all). 8 new checks (554). Verified live: a trio start
+        on The Scatter sights 5 sea hexes and 13 hexes of far land, unprompted, in the first
+        seconds. *Original spec follows.*
       - **The SIGHTED fog state** *(refined by owner, 2026-08-24)*: LINE OF SIGHT, not radius —
         sight propagates from a charted coastal hex through WATER only, up to 3 steps, and the
         first land it touches becomes sighted and stops the ray. You see the island's near shore,

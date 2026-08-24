@@ -3,7 +3,7 @@ import { S } from "../core/state.js";
 import { capWord } from "../core/derived.js";
 import { save } from "../core/persist.js";
 import { launchSettle, pendingSettle, settlePlan } from "../core/actions.js";
-import { world, isOwned, isCharted, capOf, hexPop, atDominionCap, dominionCap, holdsUsed } from "../map/map.js";
+import { world, isOwned, isCharted, isVisible, capOf, hexPop, atDominionCap, dominionCap, holdsUsed } from "../map/map.js";
 import { hexDistance, hexPoints, toPixel } from "../map/model.js";
 import { campaignPlan, expeditionOut, standingWord } from "../sim/expeditions.js";
 import { attachTip, tipHide, tipMove, tipShow } from "./dom.js";
@@ -83,11 +83,12 @@ function mapSVG() {
     // be judged without playing all the way out to them. The 3D board -- the
     // game -- still draws nothing it does not know.
     const lit = isCharted(p.id);
+    const sighted = !lit && isVisible(p.id);
     const owned = lit && isOwned(p.id);
     // Fogged tiles keep their geometry and lose everything else, including
     // their terrain class -- the 2D view is the debug surface, and a debug
     // surface that leaks what the real one hides is worse than useless.
-    cells += `<polygon class="tile t-${p.terrain}${lit ? "" : " tile-uncharted"}${owned ? " tile-owned" : ""}${lit && p.adversary ? " tile-seat" : ""}${p.id === selectedId ? " selected" : ""}"
+    cells += `<polygon class="tile t-${p.terrain}${lit ? "" : (sighted ? " tile-sighted" : " tile-uncharted")}${owned ? " tile-owned" : ""}${lit && p.adversary ? " tile-seat" : ""}${p.id === selectedId ? " selected" : ""}"
       points="${hexPoints(c.x, c.y, HEX - 1)}"${lit ? ` data-id="${p.id}"` : ""}></polygon>`;
     if (!lit) {
       // nothing else to draw: unpainted board
@@ -260,6 +261,7 @@ function signature() {
   if (!world) return "none";
   return [S.era, ((S.map && S.map.owned) || []).join("|"),
     ((S.map && S.map.revealed) || []).length,
+    ((S.map && S.map.sighted) || []).length,
     JSON.stringify((S.map && S.map.work) || {}), selectedId].join("~");
 }
 
@@ -304,7 +306,7 @@ export function renderMapStage() {
 
   if (mode === "3d") {
     stage3d.setWorld(visiblePlaces(),
-      { isOwned, isRevealed: isCharted, homeId: world.home, era: S.era });
+      { isOwned, isVisible, isCharted, homeId: world.home, era: S.era });
     stage3d.setSelected(selectedId);
     return;
   }

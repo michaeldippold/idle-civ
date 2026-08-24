@@ -11,6 +11,34 @@
 
 ---
 
+## 2026-08-24 — Larders that grow and refill, and grudges that do not
+
+**An adversary's stock is a drainable larder, and a fixed one was quietly broken by an asymmetry:**
+your economy compounds while theirs is frozen, so a neighbour is looted dry once and is thereafter
+a nuisance with nothing left to offer. Stock now **grows with each age and refills at every era
+flip**, as long as its owner is alive — a fake economy that behaves like a real one, with no engine
+to run and nothing to tune but numbers on a page.
+
+Depletion persists WITHIN an age: plunder a larder and it stays plundered, breach a wall and it
+stays breached. Across an age it does not, because an age is centuries — you burned their granary,
+and then eighty years passed and their grandchildren rebuilt it. **Standing is the exception, and
+deliberately so: grudges outlive granaries.** A people you wronged in the Bronze Age still
+remembers it at Iron, however full their storehouses are.
+
+**This also repaired a real regression from yesterday's roster move.** `initAdversaries` only
+seeded state when it was absent, which was correct while adversaries first appeared at Iron and
+wrong the moment they first appeared at Stone. Every Iron major was standing unwalled behind a
+stone-age larder — the River Kingdom holding 45 food and 25 wood instead of 250 food, 25 steel and
+240 gold, with walls of 0 instead of 26. No gold existed anywhere in the world, so every caravan
+read "traded dry" the instant it launched and the entire Iron trade economy was inert. It surfaced
+from an owner question about whether per-resource stocks were needed at all, not from a check.
+
+Nine new checks (582). The one that matters most asserts the half that would fail silently: that a
+plundered larder stays plundered *within* an age. Drop the era stamp and the state re-seeds on
+every `ensureMap`, so a raid would undo itself on the next frame with nothing to report it.
+
+---
+
 ## 2026-08-24 — The world is inhabited from the first minute
 
 **Generation answers where and who; era answers what they are now.** Every people on the board is

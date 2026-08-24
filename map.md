@@ -752,6 +752,32 @@ Two consequences fall out without needing rules of their own:
 **Majors always outrank minors within an age**, or the two words describe nothing. The compiler
 throws at load if any major's strength falls inside its era's minor band.
 
+#### Stocks grow and refill per age — a fake economy with no engine
+
+*(Owner ruling, 2026-08-24.)* An adversary's stock is a **drainable larder**, not a simulation:
+nothing produces, nothing ticks it upward, it only empties. That was fine when it was authored per
+era and read once. It stopped being fine the moment the roster became permanent, and the reason is
+an **asymmetry**: your economy compounds while theirs is frozen, so a neighbour is looted dry once
+and is thereafter a nuisance with nothing left to offer. In the owner's words — *"if they only
+ever have 50 gold you could exhaust their gold stock early, and then have no reason to interact
+with them again other than fending them off."*
+
+So the larder **grows with each age and refills at every era flip**, as long as its owner is alive.
+That is a fake economy that behaves like a real one, with no engine to run and nothing to tune but
+numbers on a page.
+
+**Within an age, depletion persists.** Plunder a larder and it stays plundered; breach a wall and
+it stays breached. **Across an age it does not**, because an age is centuries: you burned their
+granary, and then eighty years passed and their grandchildren rebuilt it. The same logic that makes
+them stronger makes them solvent again.
+
+**Standing is the exception, deliberately.** Grudges outlive granaries. `standing` is never
+re-seeded, so a people you wronged in the Bronze Age still remembers it in the Iron Age, however
+full their storehouses are.
+
+Growth is asserted as a stock TOTAL rather than per resource, because the resources themselves turn
+over between ages — wood gives way to bronze gives way to iron and gold.
+
 #### Contact: what an age can do about its neighbours
 
 | era | contact | what it means |

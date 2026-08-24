@@ -100,11 +100,11 @@ places with the era supplying the noun (camp / steading / freehold), because the
 settlement nouns in and "the Broken Tower" cannot be redressed backwards into the Stone Age.
 
 *Still open on this arc:*
-- **Slice 2 — era-scaled strength as a derived number, plus persistent damage.** Strength is
-  currently a static per-era field on each def, which is already era-scaled and already correct
-  for majors. What is NOT built: bloodying a minor and withdrawing should persist across an era
-  flip. `S.map.minors[id]` already stores walls and stock per hex, so damage has somewhere to live;
-  the shape is likely era-baseline x tier, with damage layered on rather than baked in.
+- [x] **Slice 2 — larders that grow and refill per age** *(shipped 2026-08-24)*. Stock and
+  walls now follow the age: they refill at every era flip and are larger each time, while `standing`
+  is never re-seeded. Depletion persists WITHIN an age and not across one. This also repaired a
+  regression the roster move introduced — seeding-once meant every Iron major stood unwalled with a
+  stone-age larder and no gold at all, so caravans read "traded dry" the instant they launched.
 - **Slice 3 — Bronze's war party.** Bronze has `contact: "open"` and no scaled-down campaign
   to go with it yet; it currently inherits the Iron machinery. A Bronze party should be a handful
   of fighters with short reach, AoE-style but abstracted from individual units (owner framing).

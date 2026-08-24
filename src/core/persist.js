@@ -56,13 +56,42 @@ export function load() {
 // Give every adversary of the ACTIVE era its living state entry if it doesn't
 // have one yet -- called at boot and on era entry. Never re-initializes: a
 // half-plundered stock stays half-plundered across save/load.
+// STOCKS GROW AND REFILL PER AGE, as long as their owners are alive (owner
+// ruling, 2026-08-24). A fixed stock makes their economy static while YOURS
+// compounds, so a neighbour is looted dry once and then has nothing left to
+// offer but nuisance -- "if they only ever have 50 gold you could exhaust
+// their gold stock early, and then have no reason to interact with them again
+// other than fending them off." Growing-and-refilling is a fake economy that
+// behaves like a real one, with no engine to run.
+//
+// So an era flip re-stocks. Within an age, depletion PERSISTS: plunder a
+// larder and it stays plundered, breach a wall and it stays breached. Across
+// an age it does not, because an age is centuries -- you burned their
+// granary, then eighty years passed and their grandchildren rebuilt it.
+//
+// STANDING is the exception, and deliberately so: grudges outlive granaries.
+// They remember what your people did, however long ago it was.
+//
+// This also repairs a real regression. Adversaries used to first appear at
+// Iron, so their state was seeded with Iron's numbers. Since the roster moved
+// to the Stone Age they are first seen there, and seeding-once meant every
+// Iron major stood unwalled with a stone-age larder: no gold anywhere, every
+// caravan "traded dry" the instant it launched, sieges trivial.
 export function initAdversaries() {
   for (const adv of active().adversaries) {
-    if (!S.adversaries[adv.id]) {
-      S.adversaries[adv.id] = { stock: Object.assign({}, adv.stock), standing: 0, walls: adv.walls || 0 };
-    } else if (S.adversaries[adv.id].walls === undefined) {
+    const st = S.adversaries[adv.id];
+    if (!st) {
+      S.adversaries[adv.id] = {
+        stock: Object.assign({}, adv.stock), standing: 0,
+        walls: adv.walls || 0, era: S.era,
+      };
+    } else if (st.era !== S.era) {
+      st.stock = Object.assign({}, adv.stock);   // a new age, a full larder
+      st.walls = adv.walls || 0;                 // and the walls rebuilt taller
+      st.era = S.era;                            // standing is NOT touched
+    } else if (st.walls === undefined) {
       // Saves from before fortifications existed get their walls raised once.
-      S.adversaries[adv.id].walls = adv.walls || 0;
+      st.walls = adv.walls || 0;
     }
   }
 }

@@ -1595,6 +1595,26 @@ console.log("\n--- C2: adversaries in the manifest, validated ---");
   check("contact opens at bronze -- stone has no one who could send an army",
     api.MANIFESTS.stone.contact === "none" &&
     api.MANIFESTS.bronze.contact === "open" && api.MANIFESTS.iron.contact === "open");
+
+  // STOCKS GROW AND REFILL PER AGE (owner ruling, 2026-08-24). The reasoning
+  // is the asymmetry: your economy compounds and theirs does not, so a fixed
+  // stock means a neighbour is looted dry once and is thereafter a nuisance
+  // with nothing to offer. Growth is asserted as a TOTAL rather than per
+  // resource, because the resources themselves turn over between ages -- wood
+  // gives way to bronze gives way to iron and gold.
+  check("a people's larder grows with every age it survives",
+    ["hillClans", "riverKingdom", "saltNomads"].every((id) => {
+      const tot = (e) => {
+        const a = api.MANIFESTS[e].adversaries.find((x) => x.id === id);
+        return Object.values(a.stock).reduce((x, y) => x + y, 0);
+      };
+      return tot("stone") < tot("bronze") && tot("bronze") < tot("iron");
+    }));
+  check("and so does a steading's, band by band",
+    ["stone", "bronze", "iron"].map((e) => {
+      const m = api.MANIFESTS[e].map.minors.stock;
+      return Object.values(m).reduce((x, r) => x + r[1], 0);
+    }).every((v, i, a) => i === 0 || a[i - 1] < v));
   check("only peaceful adversaries trade",
     advs.every(a => !a.buys || a.disposition === "peaceful"));
   const throws = (fn) => { try { fn(); return false; } catch (e) { return true; } };
@@ -1618,6 +1638,48 @@ console.log("\n--- C2: adversaries in the manifest, validated ---");
     throws(() => tryAdv(Object.assign({}, ok, { disposition: "warlike" }))));
   check("a malformed exchange is caught",
     throws(() => tryAdv(Object.assign({}, ok, { buys: { res: "gold", amount: 0, pays: 1 } }))));
+}
+
+console.log("\n--- C2: larders refill per age, grudges do not ---");
+{
+  reset();
+  api.initAdversaries(); api.ensureMap();
+  const minorId = Object.values(api.world.places).find((p) => p.minor).id;
+  const river = () => api.S.adversaries.riverKingdom;
+  const steading = () => api.S.map.minors[minorId];
+
+  const stoneFood = river().stock.food;
+  // Plunder them, and give them a reason to remember it.
+  river().stock.food = 1; river().walls = 0; river().standing = -4;
+  steading().stock.food = 0; steading().walls = 0;
+
+  // WITHIN an age, nothing refills. This is the half that would break silently
+  // if the era stamp were dropped: the state would re-seed on every ensureMap
+  // and a plundered larder would be full again on the next frame.
+  api.initAdversaries(); api.ensureMap();
+  check("within one age, a plundered larder STAYS plundered",
+    river().stock.food === 1 && steading().stock.food === 0);
+  check("...and a breached wall stays breached",
+    river().walls === 0 && steading().walls === 0);
+
+  api.S.era = "bronze";
+  api.initAdversaries(); api.ensureMap();
+  check("an age turns and the larder refills, larger than it was",
+    river().stock.food > stoneFood && steading().stock.food > 0);
+  check("...and the walls come back taller than they were",
+    river().walls > 0 && steading().walls >= 0);
+  check("but the grudge outlives the granary -- standing is never re-seeded",
+    river().standing === -4);
+
+  api.S.era = "iron";
+  api.initAdversaries(); api.ensureMap();
+  check("a people that survives to Iron is richer again, and remembers still",
+    Object.values(river().stock).reduce((a, b) => a + b, 0) > 400 &&
+    river().walls === 26 && river().standing === -4);
+  // Gold is the one that broke: seeding-once left every Iron major with a
+  // stone-age larder, so caravans read "traded dry" the instant they launched.
+  check("and has the gold that makes trade possible at all",
+    (river().stock.gold || 0) > 0);
 }
 
 console.log("\n--- C2: living adversary state ---");

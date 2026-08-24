@@ -81,13 +81,25 @@ export function ensureMap() {
   }
   if (!S.map.work) S.map.work = {};     // 6a saves predate assignments
   if (!S.map.minors) S.map.minors = {}; // the minors' living remnants
-  // Reconcile the minor remnants, initAdversaries-style: a seat without
-  // state gets one seeded from the world def; a CAPTURED seat (owned) needs
-  // none -- ownership trumps the minor def on every read.
+  // Reconcile the minor remnants, initAdversaries-style: a seat without state
+  // gets one seeded from the world def; a CAPTURED seat (owned) needs none --
+  // ownership trumps the minor def on every read. And an age that has turned
+  // re-stocks it, on exactly the terms initAdversaries spells out: larders
+  // refill and walls rebuild across an era, never within one.
+  //
+  // `p.minor` is already era-correct without any work here, because the world
+  // is regenerated from the CURRENT era's spec on every ensureMap -- the roll
+  // ranges climb by age, so the same steading is simply richer than it was.
   for (const id in world.places) {
     const p = world.places[id];
-    if (p.minor && !S.map.owned.includes(id) && !S.map.minors[id]) {
-      S.map.minors[id] = { walls: p.minor.wallsMax, stock: Object.assign({}, p.minor.stock) };
+    if (!p.minor || S.map.owned.includes(id)) continue;
+    const st = S.map.minors[id];
+    if (!st || st.era !== S.era) {
+      S.map.minors[id] = {
+        walls: p.minor.wallsMax,
+        stock: Object.assign({}, p.minor.stock),
+        era: S.era,
+      };
     }
   }
   syncDominion();

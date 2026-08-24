@@ -796,6 +796,14 @@ single age is a row that is probably being changed out of tidiness rather than m
 **Filled cells are authored and live in the manifests. Blank cells are undecided.** Nothing here is
 implied by anything else — if a cell is empty, the game has no answer yet.
 
+**STANDING RULE (owner, 2026-08-25): decide a noun at the era that exists, never in advance.** This
+document used to say pick the whole ladder in one pass, and the owner retired that himself —
+*"definitely also an artifact from a simpler game where I thought we'd be doing space stuff by now.
+When we add a new era, we'll find new nouns if needed."* Filling twelve rows for ages whose scope is
+undesigned is guessing with extra steps, and it manufactures exactly the kind of commitment the
+standing no-more-eras rule exists to avoid. The blank cells below are the correct state, not a
+backlog.
+
 #### 1. The scale ladder — the three nouns that carry the whole fiction
 
 | Age | A tile is a… | A person is a… | The odometer counts… | ×souls |

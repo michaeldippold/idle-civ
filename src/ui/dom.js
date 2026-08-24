@@ -32,6 +32,14 @@ export function tipShow(el, ev) {
   tipEl = tipEl || document.getElementById("tooltip");
   if (!tipEl) return;
   document.getElementById("tipTitle").textContent = t.title;
+  // The stat line: one headline number, promoted above the prose (owner
+  // request 2026-08-24 -- pop/cap was buried behind the work sentence and
+  // read as description text).
+  const stat = document.getElementById("tipStat");
+  if (stat) {
+    stat.textContent = t.stat || "";
+    stat.classList.toggle("hidden", !t.stat);
+  }
   document.getElementById("tipBody").textContent = t.body || "";
   const why = document.getElementById("tipWhy");
   why.textContent = t.why || "";

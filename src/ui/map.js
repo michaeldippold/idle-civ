@@ -119,8 +119,9 @@ function tipFor(p) {
     }
   }
   if (p.id === world.home) {
-    return { title: "Your seat", body: `The ${spec().tileNoun.singular} everything else is measured from. `
-      + `${hexPop(p.id)} people of ${capOf(p.id)} the ground supports.`,
+    return { title: "Your seat",
+      stat: `${hexPop(p.id)} of ${capOf(p.id)} people`,
+      body: `The ${spec().tileNoun.singular} everything else is measured from.`,
       why: tilesEra() ? "Click to set what it works." : null };
   }
   if (!isOwned(p.id) && p.minor && S.map.minors && S.map.minors[p.id]) {
@@ -134,8 +135,8 @@ function tipFor(p) {
     const w = (S.map.work || {})[p.id];
     return {
       title: `Your ${spec().tileNoun.singular} · ${p.terrain}`,
-      body: `${w ? `Turned to ${w}.` : "Resting — producing nothing."} `
-        + `${hexPop(p.id)} people of ${capOf(p.id)}.`,
+      stat: `${hexPop(p.id)} of ${capOf(p.id)} people`,
+      body: w ? `Turned to ${w}.` : "Resting — producing nothing.",
       why: tilesEra() ? "Click to direct it." : null,
     };
   }

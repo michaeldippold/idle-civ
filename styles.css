@@ -738,6 +738,10 @@ button { font-family: inherit; cursor: pointer; }
   pointer-events: none;
 }
 #tipTitle { font-size: 12.5px; font-weight: 700; letter-spacing: .02em; margin-bottom: 4px; }
+#tipStat {
+  font-family: var(--mono); font-size: 13.5px; font-weight: 700;
+  color: var(--good); margin-bottom: 5px;
+}
 #tipBody { font-size: 13px; line-height: 1.5; color: #2e2a21; text-wrap: pretty; }
 #tipWhy { font-family: var(--mono); font-size: 11.5px; font-weight: 700; color: var(--danger); margin-top: 6px; }
 

@@ -364,6 +364,14 @@ unpainted-board idea below is superseded but kept, because its honesty rule surv
 One consequence to design around later: the continent picker's silhouette promise (§2.6) and
 "visible land you cannot reach" (islands) now need the *charted* frontier to do their work — you
 see what you've charted, not what exists. Scouting becomes the way the world's extent is bought.
+**Resolved same day (owner discussion): the SIGHTED state.** Charting a coastal hex grants sight
+a few rings seaward, and sighted land renders as blank silhouette prisms — the unpainted-board
+rendering rehired for exactly this job, so all three fog looks serve: invisible for the unknown,
+blank prisms for the sighted, painted terrain for the charted. An authoring law rides with it:
+every island must lie within sighted range of the nearest mainland coast. The frame itself
+survived the fog debate on two grounds: islands are a GLOBAL property local randomness cannot
+guarantee, and a small pool of authored continents yields recognition drama across runs — knowing
+the map while not knowing where on it you are.
 The 2D debug view keeps fog visible: a debug surface sees everything.
 
 *(Superseded original, kept for the trail:)* Unrevealed board renders as **unpainted board** —

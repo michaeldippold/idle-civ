@@ -217,10 +217,32 @@ verified stop and a test brief.
       *Flagged for the balance pass:* `removeSettler` is now inert in tile eras, since taking a hex
       for a fever is the land-loss the ruling forbids. Sickness and raids need a designed tile-scale
       effect instead of a population number.
-- [ ] **4 — The frame generator.** Coastline, hex packing, islands, named sub-streams, ~120 hexes.
-      Judged in the renderer built in slice 2 rather than imagined.
-- [ ] **5 — The picker.** Three continents as outlines, filling the shell from slice 1. Outlines are
-      SVG paths, so this needs no 3D at all.
+- [ ] **4 — The frame generator** *(RE-SPECCED 2026-08-24 after the invisible-fog ruling forced a
+      re-examination; owner discussion, landed)*. The frame SURVIVES, on three grounds the debate
+      sharpened: islands are a GLOBAL property local randomness cannot guarantee (enclosure is
+      intent, not luck — and 150 unframed tiles is just a shape-dead disk); a small pool of
+      authored continents gives Zomboid-style recognition drama across runs ("am I on the narrow
+      stretch?") that pure randomization can never produce; and the frame's job divides cleanly —
+      the frame decides where land ENDS (ocean, islands), the dice decide what land IS (terrain
+      blobs, lakes, rivers, start, adversaries). Deliverables:
+      - The authored-frame pool + hex packing + named sub-streams, ~120-150 land hexes. Ocean
+        (outside the coastline) is unsettleable; interior water stays the random lakes/rivers it
+        is today.
+      - **The SIGHTED fog state**: charting a COASTAL hex grants sight ~3 rings seaward; sighted
+        hexes render as blank silhouette prisms (the tan unpainted-board rendering, rehired for
+        exactly this). You see THAT land is there, never what it is. Coastlines become
+        intrinsically worth reaching — vision is a resource.
+      - **Authoring law, validator-enforced: every island lies within sighted range of the
+        nearest mainland coast.** No island may exist that cannot be yearned for.
+      - **Adversary placement goes density-based** (owner ruling): each eligible hex rolls a
+        seeded per-hex chance (hash of hex + era, never the live dice), identity still drawn from
+        the hand-authored pool — placement was always procedural; now it scales with the world.
+        The spawn-on-charting-vs-at-generation fork (populate-on-discovery: chart at Iron, find
+        walled steadings) is decided at build time.
+- [ ] **5 — The picker: DEFERRED, not dead.** With a curated continent pool, run identity can come
+      from the seed choosing a NAMED continent (recognition builds: "Broadwater again") or from
+      the player choosing. Owner decides when slice 4's frames exist to look at; nothing blocks
+      on it, and the start screen stays as-is meanwhile.
 - [ ] **6 — Scouting**, priced through `routeCost`; Chronicle flavor as the reward, systems still
       era-gated behind it. **Design constraint found in play (2026-08-24): scouting must not
       delete the settle-blind gamble.** The owner reported genuine tension from settling toward

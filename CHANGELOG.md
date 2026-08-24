@@ -11,6 +11,42 @@
 
 ---
 
+## 2026-08-25 — A coin flip wearing an assertion's clothes
+
+**The harness had a check that failed one run in eight, and it had been passing for the wrong
+reason.** Caught by accident: a run went red immediately after the vestigial-code sweep, and the
+project's own standing rule — *record a non-reproducing failure verbatim rather than re-running it
+away* — turned what looked like collateral damage into a real find. Forty runs pinned it at 5
+failures; twenty-five runs against the parent commit produced 4, so it predated the sweep entirely.
+
+**The check was wrong by design, and the comment directly above it said so.**
+
+```
+check("a longer route feeds the same column at a higher price",
+  plan.provisionPerUnit >= CONFIG.campaignFoodPerUnit);
+```
+
+`marchFactor` clamps to **0.6x–2x**. A steading reachable through your own country legitimately
+prices *below* par — that is the supply-line rule working, not failing. So the assertion held only
+when generation happened to drop the nearest minor at least three route-steps out. The harness mints
+a fresh world seed per run and the check sampled it with `.find()`, so whether it passed was decided
+by the dice.
+
+**It also never tested its own name.** "A longer route feeds the same column at a higher price" is a
+comparison between two routes; the assertion compared one route against a constant. Now it finds the
+cheapest and dearest reachable tiles on the actual board and compares them — deterministic on any
+real map, because your seat is always at route 0 and the far shore never is. Two checks came free
+alongside: the 0.6x–2x clamp asserted across every reachable tile, and the wiring that the plan
+prices its own target at par times that target's route.
+
+0 failures in 60 consecutive runs, from ~12%. 614 -> 616 checks.
+
+**The lesson is the one phase 2 already wrote down and this is the second instance of:** a check that
+samples an unseeded world is not testing the rule, it is polling it. The tell is `.find()` or `[0]`
+over generated geometry.
+
+---
+
 ## 2026-08-25 — Three fields that outlived their systems
 
 **A sweep, not a fix — nothing here was broken, which is exactly the problem.** `housingPerHut()`,

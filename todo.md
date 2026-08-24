@@ -22,7 +22,7 @@ discussed; this section is the only place that says **when**.
 The owner set this sequence explicitly on pausing. It reorders the tiers below: tech debt first
 because *"tech debt is real"*, then the unsexy-but-unfinished thing, then the map picker.
 
-**Where things stand *(updated 2026-08-25, mid-session)*:** harness green at **614 checks**, working
+**Where things stand *(updated 2026-08-25, mid-session)*:** harness green at **616 checks**, working
 tree clean, everything pushed. Item 1 below is done; **item 2 is the live one, item 3 is the stop
 sign.** The session before shipped the adversary arc (roster from the Stone Age, larders that refill
 per age, provisions per fighter), fixed four bugs found in play, and caught the docs up to two weeks
@@ -34,7 +34,7 @@ of work. Nothing is half-done. There is no fire.
 stale hut-upgrade comment above the accessor and a dangling cross-reference in `popGrowthRate`'s
 comment to "the settler cadence above." Six harness fixtures dropped their inert `housingPerHut: 1`,
 and the E3 tombstone block now pins all three deaths beside `accrueGrowth()` and `housing()`.
-611 → 614 checks. See `CHANGELOG.md`.
+611 → 616 checks (a 12%-flaky check was found and fixed on the way). See `CHANGELOG.md`.
 
 **Worth keeping from it, because the pattern will recur.** The two failures were opposite and both
 invisible to a grep. `housingPerHut()` had a live caller chain and a dead *era-fact* — it ran,
@@ -695,6 +695,14 @@ failure that cannot be re-run, cannot be bisected, and cannot be reported as any
 than "it happened once." The project's own status notes have been quoting "20/20 consecutive runs"
 for months, which is a statement about flake *rate*, not about correctness. Until phase 2 lands, any
 harness failure that doesn't reproduce should be recorded verbatim rather than re-run away.
+*(A SECOND instance, 2026-08-25: "a longer route feeds the same column at a higher price" failed 5
+runs in 40 — and 4 in 25 against the commit before it, so it was not new. It asserted
+`provisionPerUnit >= campaignFoodPerUnit` when `marchFactor` clamps to 0.6x–2x, so a nearby steading
+legitimately priced below par; the harness mints a fresh world per run and the check sampled it with
+`.find()`. **The generalisable tell: `.find()` or `[0]` over generated geometry inside an
+assertion.** That is polling the dice, not testing a rule. Fixed by comparing the cheapest and
+dearest reachable tiles, which is what the check's own name always claimed.)*
+
 *(Solved later the same day: it reproduced during the identity-purge docs pass and was captured —
 "the party raises a hall", the 6d settle-completion check. The ~90 sim-seconds it runs left the
 world's event dice live, and a rare sickness/raid shifted `pop` out from under `popBefore + 1`.

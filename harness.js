@@ -1740,8 +1740,29 @@ console.log("\n--- C2: you march on what you can feed ---");
   // Distance multiplies BOTH halves -- the supply-line rule doing its usual
   // work, so a long march with a big army is the costliest thing an era can
   // attempt. A route through your own country stays cheap.
+  //
+  // THIS CHECK USED TO READ `plan.provisionPerUnit >= CONFIG.campaignFoodPerUnit`
+  // and failed on roughly one run in eight. It was wrong BY DESIGN, and the
+  // sentence right above it says why: marchFactor clamps to [0.6, 2.0], so a
+  // steading reachable through your own country legitimately prices BELOW par.
+  // Whether it did depended on where generation happened to drop the nearest
+  // minor -- an unseeded world sampled by `.find()`, which is a coin flip
+  // wearing an assertion's clothes. Compare two routes instead, which is what
+  // the check always claimed to do.
+  const reachable = Object.values(api.world.places)
+    .filter((p) => Number.isFinite(api.routeCost(p.id)));
+  const cheapest = reachable.reduce((a, b) => (api.routeCost(a.id) <= api.routeCost(b.id) ? a : b));
+  const dearest  = reachable.reduce((a, b) => (api.routeCost(a.id) >= api.routeCost(b.id) ? a : b));
+  const perUnitAt = (id) => api.CONFIG.campaignFoodPerUnit * api.marchFactor(id);
   check("a longer route feeds the same column at a higher price",
-    plan.provisionPerUnit >= api.CONFIG.campaignFoodPerUnit);
+    perUnitAt(dearest.id) > perUnitAt(cheapest.id));
+  check("...and the bend stays inside the designed 0.6x-2x band",
+    reachable.every((p) => {
+      const f = api.marchFactor(p.id);
+      return f >= 0.6 && f <= 2;
+    }));
+  check("the plan prices its own target at par x that target's route",
+    Math.abs(plan.provisionPerUnit - perUnitAt(target.id)) < 1e-9);
 
   // Starve the larder to exactly one fighter's worth and the big column is
   // refused -- not by a cap, by arithmetic.

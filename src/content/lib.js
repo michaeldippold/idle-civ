@@ -2,7 +2,8 @@ import { CONFIG } from "../core/config.js";
 import { rng } from "../core/rng.js";
 import { caps, totalUnits } from "../core/derived.js";
 import { S } from "../core/state.js";
-import { CONFLICT_FLAVOR, armorFactor, counterCoverage, militaryStrength, pick, removeRandomUnit, removeSettler, rollRaidSize, rollRaidType, stealResources } from "../sim/combat.js";
+import { CONFLICT_FLAVOR, armorFactor, counterCoverage, militaryStrength, pick, removeRandomUnit, reconcileReservations, rollRaidSize, rollRaidType, stealResources } from "../sim/combat.js";
+import { hexPop, killAt, strikeHex, world } from "../map/map.js";
 import { hostilityMultiplier } from "../sim/expeditions.js";
 import { log } from "../ui/log.js";
 
@@ -54,7 +55,21 @@ export const EVENT_LIB = {
     condition: (S) => S.pop >= 4,
     chancePerSecond: 0.0015,                        // ~11 real minutes average, unmitigated
     counter: { building: "infirmary", reducePerUnit: (S) => S.upgrades.herbalMedicine ? 0.35 : 0.2 },
-    effect: (S) => removeSettler(),
+    // E5: the fever breaks out SOMEWHERE -- a hex chosen person-weighted, so
+    // your dense river valley hosts more outbreaks than a hill camp. It takes
+    // a fifth of the hex (min one), which is what makes sickness matter at a
+    // hundred souls without mattering MORE than a hundred souls can absorb.
+    effect: (S) => {
+      const at = strikeHex("sickness");
+      if (!at) return;
+      const toll = Math.max(1, Math.floor(hexPop(at) * 0.2));
+      const died = killAt(at, toll);
+      reconcileReservations();
+      if (!died) return;
+      return died === 1
+        ? `A fever sweeps the ${world.places[at].terrain}. One of your people does not recover.`
+        : `A fever sweeps the ${world.places[at].terrain} — ${died} of your people do not recover.`;
+    },
     flavor: {
       hit: [
         "A fever sweeps through the camp. One of your people does not recover.",
@@ -100,8 +115,14 @@ export const EVENT_LIB = {
         stealResources(raidSize);
         say(CONFLICT_FLAVOR.raidSucceeds, "bad");
         if (defense === 0 || defense < raidSize / 2) {
-          removeSettler(true);   // conflict, unlike sickness, is allowed to zero out population
-          say(CONFLICT_FLAVOR.civilianLost, "bad");
+          // E5: the raid lands SOMEWHERE -- exposure-weighted, so the frontier
+          // burns first. Bigger warbands take more people with them.
+          const at = strikeHex("raid");
+          if (at) {
+            const died = killAt(at, 1 + Math.floor(raidSize / 8));
+            reconcileReservations();
+            if (died) log(`Raiders put the ${world.places[at].terrain} to the torch — ${died === 1 ? "a soul is" : died + " souls are"} lost.`, "bad");
+          }
         }
       }
     },

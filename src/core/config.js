@@ -29,6 +29,10 @@ export const CONFIG = {
                           // frontier. Deficit-proportional -- a deep shortfall kills fast, a
                           // near-balance kills slowly, and each death shrinks the deficit,
                           // so famine converges on what the land can actually feed.
+  armyPerHex: 2,          // the army cap (E5): each held hex supports this many standing
+                          // units, in every era -- the levy re-homed to the land, per the
+                          // owner's ruling ("make it serve the hex"). Territory is what
+                          // lets you fight.
   claimScale: 1.18,       // escalating claim costs (E4, owner playtest finding: settling was
                           // trivial): each claim beyond the starting trio multiplies the
                           // era's base cost by this much again -- the same per-copy idiom

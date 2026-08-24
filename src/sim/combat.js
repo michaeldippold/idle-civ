@@ -1,5 +1,5 @@
 import { active } from "../content/compile.js";
-import { syncDominion } from "../map/map.js";
+import { syncDominion, syncPopMirror } from "../map/map.js";
 import { rng } from "../core/rng.js";
 import { dropQueueItem } from "../core/actions.js";
 import { CONFIG } from "../core/config.js";
@@ -123,31 +123,9 @@ export function negateChance(ev) {
 // food, so a starving settlement's last forager is the last to go). Sickness
 // floors at 1 survivor; Conflict passes allowZero=true, since it's the one
 // hazard allowed to end a run outright (see design.md, Failure).
-export function removeSettler(allowZero) {
-  const floor = allowZero ? 0 : 1;
-  if (S.pop <= floor) return;
-  // Only civilians can be lost this way -- a settlement of nothing but trained
-  // units has no one left for this to take. Without this guard S.pop could be
-  // pushed below totalUnits(), making civilians() negative.
-  if (civilians() <= 0) return;
-  S.pop -= 1;
-  reconcileReservations();
-  syncDominion();   // under tile allocation, losing a holdfast loses its hex
-}
+// removeSettler() died in E5: nobody dies "nowhere" any more. Deaths land on
+// a hex (strikeHex/killAt in map/map.js) and the pop mirror keeps the books.
 
-// After any loss of civilians, make sure nobody is still committed to work
-// that no longer has a person behind it.
-//
-// The subtle part -- and the source of a real bug found in play, where `idle`
-// displayed -1 -- is that a civilian can be spoken for in TWO ways: assigned to
-// a job, or reserved by a queued unit order. An earlier version only balanced
-// against jobsUsed(), so a death while a Soldier was queued left the books
-// short by exactly the reserved worker.
-// reconcileWorkforce() died in E2 with the jobs ledger it reconciled -- but
-// one of its duties was never about jobs and survives it: when deaths outrun
-// the living, queued unit orders reserving people who no longer exist must be
-// abandoned (refunded), or the order completes anyway and drives civilians()
-// negative. Newest orders abandoned first; the dead are not re-trained.
 export function reconcileReservations() {
   let over = reserved() - Math.max(0, civilians());
   if (over <= 0) return;
@@ -179,8 +157,7 @@ export function removeRandomUnit() {
     const w = weightOf(def);
     if (roll < w) {
       S.units[def.id] -= 1;
-      // A levied band's death does not erase the holdfast that raised it.
-      if (!active().levy) S.pop -= 1;
+      syncPopMirror();   // the mirror counts the army; the land is untouched
       return def.name;
     }
     roll -= w;
@@ -190,7 +167,7 @@ export function removeRandomUnit() {
   for (let i = units.length - 1; i >= 0; i--) {
     if (availableUnits(units[i].id) > 0) {
       S.units[units[i].id] -= 1;
-      if (!active().levy) S.pop -= 1;
+      syncPopMirror();
       return units[i].name;
     }
   }

@@ -146,9 +146,7 @@ export function openEraModal(era, before) {
     changes.push(`You count your people in ${m.popNoun.plural} now.`);
   }
   // (the housing-rises line died in E3 with housing itself)
-  if (prevM && prevM.growth === "timer" && m.growth === "conquest") {
-    changes.push("No one will arrive unbidden again — your people grow by conquest and fealty now.");
-  }
+  // (the growth-mode ceremony line died in E5 -- growth is local everywhere)
   if (prevM) {
     for (const panelId in m.panelTitles) {
       if (prevM.panelTitles[panelId] && prevM.panelTitles[panelId] !== m.panelTitles[panelId]) {

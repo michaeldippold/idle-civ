@@ -21,12 +21,17 @@ export function totalUnits() { return Object.values(S.units).reduce((a, b) => a 
 // containing it: every holdfast stays in the assignable pool, and the war
 // bands stand apart. Stone/Bronze keep the old fiction -- a person who
 // becomes a soldier leaves the fields for good.
-export function civilians() { return active().levy ? S.pop : S.pop - totalUnits(); }
+export function civilians() { return S.pop - totalUnits(); }   // the levy died in E5
 
 // Army capacity under a levy: holdfasts x rate. Queued training counts
 // against it the moment it's queued, same instant-reservation rule popCost
 // always had.
-export function levyCap() { return active().levy ? S.pop * active().levy : Infinity; }
+// The army cap (E5): each held hex supports armyPerHex standing units, in
+// every era -- the levy re-homed to the land. Territory is what lets you
+// fight. (No map -- harness fixtures -- means no cap.)
+export function levyCap() {
+  return S.map ? S.map.owned.length * CONFIG.armyPerHex : Infinity;
+}
 export function levyUsed() {
   return totalUnits() + S.buildQueue.filter((q) => q.kind === "unit").length;
 }
@@ -108,7 +113,10 @@ export function rates() {
   // Upkeep is charged on the people who actually exist -- the hex sum -- plus
   // the war bands, who live outside the population under a levy. Per-capita
   // on both sides, so the feed ratio survives any scale.
-  const mouths = hexPopSum() + (active().levy ? totalUnits() : 0);
+  // Armies eat in EVERY era now: units live outside the hex populations, so
+  // they are always extra mouths. (They were free at Stone/Bronze during the
+  // E2-E4 window, which was a known quirk, not a design.)
+  const mouths = hexPopSum() + totalUnits();
   const upkeep = mouths * CONFIG.upkeep * (S.upgrades.fireMastery ? 0.85 : 1);
   return Object.assign(prod, { upkeep, foodNet: prod.food - upkeep });
 }

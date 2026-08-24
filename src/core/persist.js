@@ -42,20 +42,9 @@ export function load() {
   // One-time back-compat (phase 6b): saves from before the levy carried
   // their units INSIDE S.pop. Subtract them out once, narrated. The flag is
   // also set by applyConsolidation, so fresh runs never hit this.
-  if (active().levy && !S.seen.levyMigrated) {
-    S.seen.levyMigrated = true;
-    const units = Object.values(S.units).reduce((a, b) => a + b, 0);
-    if (units > 0) {
-      S.pop = Math.max(1, S.pop - units);
-      log("The muster rolls are redrawn — the fighting bands stand apart from the holdfasts that raise them.");
-    }
-    // The allocation default rides the same one-time flag: an old save
-    // arriving in the tile era gets its holdings turned to food rather than
-    // a silently zeroed economy. (ensureMap runs after load in boot, so the
-    // dominion may not exist yet -- boot's ensureMap+sync fills owned, and
-    // the harness covers the ordering.)
-    S.seen.needsDefaultWork = true;
-  }
+  // (The levy back-compat block died in E5 with the levy itself; saves are
+  // disposable during the rework by standing ruling.)
+
   // Saves from before the tick clock counted seconds in S.playtime. One-time
   // conversion; the old field rides along inert, per the state invariant.
   if (data.tick === undefined && typeof data.playtime === "number") {

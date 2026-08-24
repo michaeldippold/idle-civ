@@ -247,14 +247,17 @@ export function renderTraining() {
 
     const cost = buildCost(def);
     const parts = costPartsFor(def);
-    const levied = !!active().levy;
-    const levyFull = levied && levyUsed() + 1 > levyCap();
-    if (def.popCost && !levied) {
+    // E5: the army answers to the LAND in every era -- the muster line shows
+    // held-hex capacity, and the popCost gate always applies (the recruit is
+    // a real person drawn from the seat).
+    const levyFull = Number.isFinite(levyCap()) && levyUsed() + 1 > levyCap();
+    if (def.popCost) {
       const noun = def.popCost > 1 ? active().popNoun.plural : active().popNoun.singular;
       parts.push({ text: `${def.popCost} ${noun}`, short: civilians() - reserved() < def.popCost });
-    } else if (levied) {
-      // The levy line: how much of the muster this order would occupy.
-      parts.push({ text: `levy ${levyUsed()}/${levyCap()}`, short: levyFull });
+    }
+    // The muster line: how full the land's capacity for soldiers is.
+    if (Number.isFinite(levyCap())) {
+      parts.push({ text: `muster ${levyUsed()}/${levyCap()}`, short: levyFull });
     }
     const skel = cardSkeleton(card);
     setText(skel.name, def.name);
@@ -262,7 +265,7 @@ export function renderTraining() {
     setPending(skel, pendingCount(def.id));
     setCostParts(skel, parts);
     setText(skel.time, `${def.buildTime}s`);
-    card.disabled = S.dead || !canAfford(cost) || (!levied && def.popCost && civilians() - reserved() < def.popCost) || levyFull;
+    card.disabled = S.dead || !canAfford(cost) || (def.popCost && civilians() - reserved() < def.popCost) || levyFull;
     attachTip(card, () => ({
       title: def.name,
       body: def.desc,
@@ -270,7 +273,7 @@ export function renderTraining() {
       // easier to miss -- you can be rich in wood and still have nobody spare.
       why: levyFull
         ? `Your ${active().popNoun.plural} can levy no more. Grow your dominion, and the muster grows with it.`
-        : (!levied && def.popCost && civilians() - reserved() < def.popCost)
+        : (def.popCost && civilians() - reserved() < def.popCost)
         ? `No one is free to train. A ${active().popNoun.singular} must be idle first.`
         : shortfallLine(cost),
     }));

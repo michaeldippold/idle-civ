@@ -8,73 +8,61 @@
 
 ---
 
-## STATUS — night pause, mid-engine-rework (end of 2026-08-23)
+## STATUS — the engine rework is COMPLETE; test it, then back to the map (2026-08-24)
 
-**READ THIS FIRST on a cold start.** The owner went to sleep after the largest two-day stretch in
-the project's history. The state is clean — all committed, all pushed, 513 harness checks green —
-but it is a *specific* moment: three slices into a six-slice engine rework, with the newest slice
-**not yet playtested by the owner**.
+**READ THIS FIRST on a cold start.** All six engine-rework slices (E1–E6) are shipped, green (520
+checks), committed and pushed. The owner tested through E3; **E4 and E5 are untested** — the next
+session opens with the combined test brief below, then the map arc resumes at slice 4 (the frame
+generator), finally with a known economy to size the board against.
 
-### START HERE next session
+### The E4+E5 test brief (owner, start here)
 
-1. **The owner playtests E3** (shipped last night, untested). The brief:
-   - New Game. The start is the **3-hex trio** (seat + two neighbours). Turn the seat to food.
-   - **The early loop is now: work your hexes → save 25 food → claim a neighbour** (click an
-     adjacent unowned hex → Settle → it runs through the Underway queue). Does that loop have a
-     pulse? This is THE feel question of the whole rework.
-   - Let it idle at 12×: you should **never** gain a hex you didn't pay for (the free-real-estate
-     runaway from the E2 bridge is dead — huts no longer exist at all).
-   - Claim prices should rise with distance. Bronze claims should also want timber.
-   - The Bronze capstone now wants **25 real people**, which effectively requires claiming ~4-6
-     hexes. Does reaching it feel earned?
-   - Known quirks, deliberately unfixed until E5: sickness/raids kill no one (inert), and the army
-     eats nothing at Bronze.
-2. **Then E4 — the frontier starves first** (administrative distance from the seat, ordered drain,
-   death = the seat emptying). Specced in *The engine rework — phase plan* below.
-3. Then E5 (events strike hexes, army re-homed), E6 (harness settling), and **back to the map arc
-   at slice 4** — the frame generator, at last with a known economy to size the board against.
+1. **Famine is geography now.** Overextend on purpose: claim past what your food supports, let the
+   larder empty. You should see "Famine. The stores are empty, and the frontier feels it first," and
+   your FURTHEST hex bleeding people while the seat holds. Each hex that empties is narrated — and
+   the ground stays yours (ghost hexes, still ringed). Refill food: ghost hexes quietly rekindle.
+   The run ends only if the SEAT empties.
+2. **No one is born during a famine** — hex counts freeze while food is zero.
+3. **Claims escalate.** Each hex beyond the trio costs ~1.18× the last (the 10th ≈ 3× base).
+   Combined with distance scaling — does expansion pacing feel better than "trivial" now?
+4. **Sickness and raids are real again.** A fever names the terrain it struck and takes a fifth of
+   that hex; a failed defense torches a FRONTIER hex. Click the struck hex — its people count
+   actually dropped. Infirmaries still negate globally.
+5. **The muster is the land**: army cap = hexes × 2, every era (unit cards show "muster N/cap").
+   Training draws a real person from your seat — watch the seat's count drop when a soldier
+   completes. Armies eat now, Stone included.
+6. **Judgment calls to bring back:** does the frontier-first famine read fairly? Is 1.18 claim
+   escalation right? Is a fifth-per-fever too spiky or too soft? Iron-era prices are KNOWN to be
+   trivial against the new economy — deliberately untouched for you to tune against play.
 
-### Where the project actually stands
+### What the rework was, in one paragraph
 
-**Two arcs are interleaved, on purpose.** The 3D map arc (phase 10) shipped three slices — start
-screen, the lit 3D board, one-board-forever with fog — and was then deliberately **interrupted**
-by the engine rework when the owner realized the game was teaching an economy it would retire
-fifteen minutes in. The owner's verdict on that interruption, end of night: *"it's clear it was
-right to do this first."* The map slices that remain (frame generator, continent picker, scouting,
-era re-dress) all depend on what a hex is worth, and now a hex is worth something.
+Population lives on hexes and is a variable the world writes to; production is people × per-capita
+rate × terrain from the first minute; expansion is a paid, escalating claim; famine drains the
+frontier inward toward the seat; sickness and raids strike hexes; the army answers to the land and
+recruits from the capital. Deleted whole: steppers, jobs, housing, the hut, the settler timer, the
+lockstep, consolidation, the levy, `outputMult`, `allocation`, `growth`, instant starvation, and
+`removeSettler`. `S.pop` survives only as a mirror (hex sum + army). Canon: `design.md` →
+*Population Lives Somewhere*; spatial half in `map.md` §2.7; numbers in the phase plan below.
 
-**The engine rework, three of six slices in:**
+### The order from here
 
-- **E1 — population exists** ✅: people live on hexes, grow logistically toward terrain caps
-  (8/10/5/3 at Stone, 3× at Iron), the header POP is their sum, tiles read "People: N of CAP."
-- **E2 — production flips, steppers die** ✅: output = people × per-capita rate × terrain, one
-  formula from frame one. Jobs, steppers, `idle()`, `allocation`, `outputMult` all deleted.
-  Consolidation died ahead of schedule (collided with dominion-never-shrinks). The seat opens
-  RESTING — forage-or-die survives as the first lesson.
-- **E3 — expansion is the growth verb** ✅ *(untested by owner)*: the hut, housing, the settler
-  timer and the pop↔tiles lockstep are all dead. Claims are era-priced (`map.claim` era-fact;
-  Stone: 25 food + 30s, food-only). The trio start is explicit. `S.pop` is a mirror of real
-  people + army. The reveal spine moved from the hut to the claim; capstones re-priced (25/50
-  real souls).
-- **E4 — frontier starvation**: next. **E5 — events strike hexes, army re-homed**: after.
-  **E6 — harness settling**: last.
-
-**Design canon that landed this session** (all in `design.md` / `map.md` §2.6-2.7 / plan below):
-Population Lives Somewhere (the ten rules); per-capita as law; fungibility-not-assignment as the
-stepper lesson; one board forever + the continent picker + fog as face-down tiles; two distances
-(exposure, never efficiency); the Luthadel rule (buildings are the capital); the 3-hex start;
-rest-as-fallow ideation; the tech tree parked (resources, not points).
+1. **Owner tests E4+E5** (brief above); feel-tuning knobs: `starveCost` 5, `claimScale` 1.18,
+   sickness fifth, `armyPerHex` 2.
+2. **Map arc slice 4 — the frame generator** (coastline → hex packing → islands → named
+   sub-streams, ~120 land hexes). Then 5 (the picker), 6 (scouting-as-intelligence — the claiming
+   half already shipped in E3), 7 (the era re-dress).
+3. Behind those: the balance pass (iron re-pricing, the E3/E4/E5 judgment flags, stone-age minors
+   as expansion's long-term cost), the tech tree (parked, specced), 6e priests & envoy, phase 7
+   decision queue, and the Claude Design panel pass against the diorama.
 
 ### Standing notes
 
-**Saves are disposable** until the fundamentals stop moving. Assume every slice breaks the running
-save; replay at 12×. **The owner has not seen E3 run** — expect the first minutes of next session
-to surface feel notes (claim pricing, capstone pacing, Chronicle cadence) that should be tuned
-before E4 code.
-
-**The pane cannot screenshot and background tabs throttle the sim** — verify with readPixels,
-DOM checks and the harness; owner-eye QA for aesthetics. **Long owner messages land on their later
-position, not their opening** (see memory).
+**Saves are disposable** until the fundamentals stop moving — and with the rework complete, they
+are now close to stopping. **The pane cannot screenshot and background tabs throttle the sim**;
+verify via harness and DOM, owner-eye QA for aesthetics. **Long owner messages land on their later
+position** (see memory). The two arcs interleaved on purpose; the owner's verdict on interrupting
+the map for the engine: *"it's clear it was right to do this first."*
 
 
 ### The playtest brief (what the user verifies during the hold)
@@ -395,16 +383,21 @@ per era-fact — the odometer comes from the ceiling rising, never from the rate
       multiplying on top. Two flaky checks were caught and fixed on the way (the famine's long
       tail unpriced an old regression; a captured neighbour could mask escalation by cheapening
       the route). 522 checks, 15/15 consecutive green.
-- [ ] **E5 — the world strikes hexes.** Sickness and raids target a hex (weighted by population),
-      roll against its mitigations, and kill people THERE; `removeSettler` retires; the army cap
-      re-homes to held hexes (recommendation: cap = hexes × 2, the levy served to the hex);
-      training draws its person from the seat (recommendation — no source micromanagement); the
-      levy and `levyMigrated` machinery deleted. Iron manifest re-priced against Iron-era
-      population. *(Consolidation already died in E2 — the harness caught it colliding with
-      dominion-never-shrinks; borders are pure re-denomination as of E2.)*
-- [ ] **E6 — the harness overhaul settles.** Not really a slice — E2 and E5 each rewrite their
-      checks as they land — but a closing pass: the regression suite's stepper fixtures replaced
-      with hex fixtures, the count re-baselined, and a determinism run over the whole new economy.
+- [x] **E5 — the world strikes hexes** *(shipped 2026-08-24)*. `strikeHex(kind)`: sickness picks
+      its hex person-weighted (dense hexes host more fevers) and takes a fifth of it, min one;
+      raids pick exposure-weighted (population × administrative distance — the frontier burns
+      first) and take 1 + raidSize/8. Both narrate the terrain they struck. `removeSettler` is
+      gone — nobody dies nowhere. **The levy is gone**: the army cap is `hexes × armyPerHex` (2)
+      in every era — the muster is the land, from frame one — and every recruit costs a real
+      person **drawn from the seat** on completion (the capital musters; the largest holding
+      stands in if the seat is empty). Armies eat in every era. `applyConsolidation`,
+      `levyMigrated`, the levy back-compat, the border bread-default and the `growth` era-fact all
+      deleted. *Iron re-pricing deliberately deferred to the balance pass — the owner tunes
+      against play, not against my guesses.* 520 checks, 10/10 green.
+- [x] **E6 — the harness settles** *(closed inline, 2026-08-24)*. Exactly as the plan predicted:
+      E2–E5 each rewrote their checks as they landed, so the closing pass had nothing left to do.
+      The stepper fixtures are hex fixtures, the tombstone blocks pin every dead export, the
+      determinism and save round-trips cover the new economy, and the count re-baselined at 520.
 
 **Then the map arc resumes at slice 4** (the frame generator), now able to choose a hex budget with
 the economy known. Slice 6 (scouting) inherits only its *intelligence* half — the claiming half

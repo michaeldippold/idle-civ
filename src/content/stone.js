@@ -31,7 +31,6 @@ export const STONE = {
   // How population grows (phase 6b): "timer" = free arrivals while housing
   // has room; "conquest" = only by taking or winning places (Iron onward).
   // The first core verb to re-denominate rather than merely reflavor.
-  growth: "timer",
   // The chart exists from the first frame (user ruling, 2026-08-22): the map
   // walks back to Stone as a purely visual surface, so there is ONE layout
   // for the whole game and the transition from "neat map" to "main game

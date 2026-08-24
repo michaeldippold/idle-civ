@@ -3,7 +3,7 @@ import { rng } from "../core/rng.js";
 import { CONFIG } from "../core/config.js";
 import { availableUnits } from "../core/derived.js";
 import { save } from "../core/persist.js";
-import { captureTile, marchFactor, routeCost, seatOf, world } from "../map/map.js";
+import { captureTile, marchFactor, routeCost, seatOf, syncPopMirror, world } from "../map/map.js";
 import { S } from "../core/state.js";
 import { armorFactor, weaponMultiplier } from "./combat.js";
 import { renderAll } from "../ui/chrome.js";
@@ -184,7 +184,7 @@ export function removeDeployedUnit(ex) {
       ex.units[uid] -= 1;
       S.units[uid] -= 1;
       // Same levy rule as removeRandomUnit: the holdfast survives its band.
-      if (!active().levy) S.pop -= 1;
+      syncPopMirror();   // the mirror counts the army (E5)
       const def = active().units.find((u) => u.id === uid);
       return def ? def.name : uid;
     }

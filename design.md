@@ -319,6 +319,9 @@ its keep ratios; the levy and `levyMigrated`; the pop↔dominion lockstep in `sy
 That is most of the remaining complexity in the simulation, replaced by one rule that runs the whole
 game.
 
+*(Progress note, 2026-08-24 final: ALL SIX SLICES SHIPPED — the rework is complete. Original
+running note kept below.)*
+
 *(Progress note, 2026-08-24: E2, E3 and E4 shipped — steppers, jobs, `outputMult`,
 consolidation, the hut, housing, the settler timer, the lockstep and instant starvation are all
 gone. Growth is local, expansion is a paid claim with escalating costs, and famine drains the
@@ -554,10 +557,13 @@ some future age, that's a sign the age needs its own mechanic, not a forced fit.
 
 ### Failure
 
-> **Amended 2026-08-23 (*Population Lives Somewhere*).** Starvation is no longer a single global
-> stop: the empire drains from its frontier inward, hex by hex, and the run ends when your **seat**
-> empties. Land is never lost — an emptied holding stays yours and can be repopulated. The
-> Sickness/Conflict asymmetry below stands, now expressed per hex.
+> **Amended 2026-08-23/24 (*Population Lives Somewhere*, shipped E4+E5).** Starvation drains the
+> empire from its frontier inward, hex by hex; the run ends when the **seat** empties. Land is
+> never lost — an emptied holding is a ghost that rekindles when fed. The Sickness/Conflict
+> asymmetry survives in per-hex form: a fever takes a fifth of ONE hex (min one) and can never
+> wipe a run in a blow; conflict can still overrun outright. Sickness strikes person-weighted
+> (dense hexes host more fevers), raids exposure-weighted (the frontier burns first) — the two
+> weightings ARE the two mitigation tracks.
 
 Two ways to lose. **Starvation** is a hard stop. **Conflict** is allowed to be lethal in the worst
 case — unlike Sickness, which floors at one survivor by design. That asymmetry is what gives a

@@ -1,7 +1,7 @@
 import { buildCost, canAfford, civilians, defById, isCapped, levyCap, levyUsed, pendingCount, playtime, reserved } from "./derived.js";
 import { active } from "../content/compile.js";
 import { CONFIG } from "./config.js";
-import { marchFactor, routeCost, world, captureTile } from "../map/map.js";
+import { marchFactor, routeCost, world, captureTile, syncPopMirror } from "../map/map.js";
 import { S } from "./state.js";
 import { save } from "./persist.js";
 import { advanceEra } from "../sim/era.js";
@@ -18,9 +18,11 @@ export function build(def) {
   if (isCapped(def)) return;
   const cost = buildCost(def);
   if (!canAfford(cost)) return;
-  if (def.kind === "unit" && active().levy) {
-    // Levied, not consumed: capacity is the constraint, not spare people.
+  if (def.kind === "unit") {
+    // One training rule in every era (E5): the army is capped by the LAND
+    // (hexes x armyPerHex), and the recruit is a real person with a home.
     if (levyUsed() + 1 > levyCap()) return;
+    if (def.popCost && civilians() - reserved() < def.popCost) return;
   } else if (def.popCost && civilians() - reserved() < def.popCost) return;
   for (const k in cost) S.res[k] -= cost[k];
   const wasEmpty = S.buildQueue.length === 0;
@@ -125,7 +127,23 @@ export function completeConstruction(site) {
   }
   const def = defById(site.id);
   if (def.kind === "upgrade") S.upgrades[def.id] = true;
-  else if (def.kind === "unit") S.units[def.id] = (S.units[def.id] || 0) + 1;
+  else if (def.kind === "unit") {
+    // The recruit is drawn from the SEAT (owner ruling: no source
+    // micromanagement -- the capital musters). If the seat is empty, the
+    // largest holding sends its own; the person is real either way.
+    if (def.popCost && S.map && S.map.pop && world) {
+      let from = (S.map.pop[world.home] || 0) >= def.popCost ? world.home : null;
+      if (!from) {
+        let best = 0;
+        for (const id of S.map.owned) {
+          if ((S.map.pop[id] || 0) > best) { best = S.map.pop[id]; from = id; }
+        }
+      }
+      if (from) S.map.pop[from] = Math.max(0, S.map.pop[from] - def.popCost);
+      syncPopMirror();
+    }
+    S.units[def.id] = (S.units[def.id] || 0) + 1;
+  }
   else S.builds[def.id] = (S.builds[def.id] || 0) + 1;
   onComplete(def);
 }

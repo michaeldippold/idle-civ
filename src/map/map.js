@@ -1,6 +1,7 @@
 import { active } from "../content/compile.js";
 import { S } from "../core/state.js";
 import { CONFIG } from "../core/config.js";
+import { rng } from "../core/rng.js";
 import { log } from "../ui/log.js";
 import { generateMap, GEN_VERSION } from "./generate.js";
 import { hexDistance } from "./model.js";
@@ -224,6 +225,43 @@ export function growPopulation(dt) {
 
 export function ownedTiles() { return S.map ? S.map.owned : []; }
 export function isOwned(id) { return !!S.map && S.map.owned.includes(id); }
+
+// ---------- The world strikes hexes (E5) ----------
+// Sickness and raids stopped killing "someone, nowhere" -- they strike a HEX
+// and kill people there. The two weightings are the two mitigation tracks:
+// sickness is person-weighted (every soul equally at risk, so dense hexes
+// host more fevers), raids are exposure-weighted (population x administrative
+// distance -- the frontier is where the torches come).
+export function strikeHex(kind) {
+  if (!S.map || !S.map.pop || !world) return null;
+  const weights = [];
+  let total = 0;
+  for (const id of S.map.owned) {
+    const p = Math.floor(S.map.pop[id] || 0);
+    if (p < 1) continue;
+    const w = kind === "raid" ? p * (1 + adminDistance(id)) : p;
+    weights.push([id, w]);
+    total += w;
+  }
+  if (!total) return null;
+  let roll = rng() * total;
+  for (const [id, w] of weights) {
+    if (roll < w) return id;
+    roll -= w;
+  }
+  return weights[weights.length - 1][0];
+}
+
+// Kill n people at a hex. Returns how many actually died. Land is never
+// lost; the mirror and the reservation books are settled immediately.
+export function killAt(id, n) {
+  if (!S.map || !S.map.pop || !(id in S.map.pop)) return 0;
+  const before = Math.floor(S.map.pop[id]);
+  const killed = Math.min(before, Math.max(0, Math.floor(n)));
+  S.map.pop[id] = Math.max(0, S.map.pop[id] - killed);
+  syncPopMirror();
+  return killed;
+}
 
 // ---------- Administrative distance & the famine drain (E4) ----------
 // Two distances, and conflating them is the trap (map.md 2.7): routeCost()

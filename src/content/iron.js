@@ -18,10 +18,8 @@ export const IRON_DELTA = {
   popNoun: { singular: "holdfast", plural: "holdfasts" },
   // Conquest Growth (design.md, settled): no one arrives unbidden from here
   // on. Growth is an ACTIVE verb -- campaigns and, in time, envoys.
-  growth: "conquest",
   // Units are levied, not consumed: army capacity = holdfasts x levy. The
   // holdfasts that raise the war bands stay in the fields.
-  levy: 2,
   // `allocation: "tiles"` and `outputMult: 4` both lived here until E2
   // (2026-08-23). Allocation is universal now, and outputMult existed to make
   // tile-count impersonate population -- population is real, so it retired.

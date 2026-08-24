@@ -73,11 +73,9 @@ export function compileBase(raw) {
     arrivalLine: raw.arrivalLine,
     // Growth-model era-facts (phase 6b). All three inherit, like popNoun:
     // an era that says nothing keeps its parent's model.
-    growth: raw.growth || "timer",
     // `allocation` retired 2026-08-23 (engine rework E2): every era allocates
     // hexes. `outputMult` retired with it -- it existed to compensate
     // tile-count-as-population, and population is real now.
-    levy: raw.levy || null,
 
     raidTypes: raw.raidTypes.slice(),
     migrations: [],   // a base era is never entered FROM anywhere
@@ -104,9 +102,7 @@ export function extendEra(parent, delta) {
     // re-denominates simply declares a new one.
     popNoun: delta.popNoun ? Object.assign({}, delta.popNoun) : parent.popNoun,
     arrivalLine: delta.arrivalLine || parent.arrivalLine,
-    growth: delta.growth || parent.growth,
 
-    levy: delta.levy != null ? delta.levy : parent.levy,
 
     raidTypes: delta.raidTypes ? delta.raidTypes.slice() : parent.raidTypes,
     // Explicit state-migration instructions, run once when this era is
@@ -187,13 +183,10 @@ export function validateManifests(manifests) {
     const raidIds = new Set(m.raidTypes.map((r) => r.id));
     const bad = (msg) => problems.push(`[${era}] ${msg}`);
 
-    if (m.growth !== "timer" && m.growth !== "conquest") bad(`unknown growth mode "${m.growth}"`);
     // Every era allocates hexes (E2), so every mapped era must say what its
     // terrains can be turned to.
     if (m.map && !m.map.works) bad("a mapped era needs map.works (what each terrain can be turned to)");
-    if (m.levy != null && !(m.levy > 0)) bad(`levy must be positive, got ${m.levy}`);
 
-    if (m.growth === "conquest" && m.levy == null) bad("a conquest era needs a levy rate -- without one, training has no cap at all");
 
     if (m.map) {
       if (!(m.map.radius >= 2)) bad(`map radius ${m.map.radius} is too small to mean anything`);

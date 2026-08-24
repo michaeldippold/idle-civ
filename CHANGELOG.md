@@ -11,6 +11,37 @@
 
 ---
 
+## 2026-08-24 — Engine rework E5+E6: the world strikes hexes, and the rework is COMPLETE
+
+**Nobody dies nowhere any more.** `strikeHex(kind)` picks the victim: sickness person-weighted, so
+your dense river valley hosts more outbreaks than a hill camp, taking a fifth of the struck hex
+(min one) and naming the terrain in the Chronicle; raids exposure-weighted by population ×
+administrative distance, so the frontier burns first, taking 1 + raidSize/8 souls where they land.
+`removeSettler` — the function that killed "someone, somewhere" — is deleted, and the old
+sickness-floors-at-one asymmetry survives in per-hex form: a fever can never wipe a run in a blow;
+an overrun still can.
+
+**The levy is gone, and the muster is the land.** Army cap = held hexes × 2, in every era — the
+owner's "make it serve the hex," served. Every recruit costs a real person, drawn from the SEAT on
+completion (the capital musters; the largest holding stands in if the seat is empty — no source
+micromanagement). Armies eat in every era: the Bronze free-lunch window quirk is closed. Deleted
+with the levy: `applyConsolidation` (dead since E2), `levyMigrated` and its load-time back-compat,
+the border bread-default (nothing "arrives" at a border any more — every hex was claimed or
+captured), and the `growth` era-fact (growth has been local since E3).
+
+**Iron re-pricing is deliberately deferred** to the balance pass: the owner tunes against play,
+not against guesses made at midnight.
+
+**E6 closed itself**, exactly as the plan predicted: each slice rewrote its checks as it landed, so
+the closing pass found nothing left. The suite re-baselined at 520 — stepper fixtures now hex
+fixtures, tombstone blocks pinning every dead export, ten consecutive green runs.
+
+The engine rework is complete: six slices in two days, from "the game teaches an economy it
+retires fifteen minutes in" to one economy that runs from the first minute to the last. The map
+arc resumes at slice 4, with the board finally priceable.
+
+---
+
 ## 2026-08-24 — Engine rework E4: the frontier starves first
 
 **Starvation is geography now.** An empty larder no longer ends the run in one tick. Unpaid upkeep

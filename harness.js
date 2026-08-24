@@ -203,13 +203,15 @@ check("spare restored after cancelling", spare() === spareBefore);
 check("no soldier was created", S().units.soldier === 0);
 
 // ---- A dying unit drops both its own count and S.pop ----
-console.log("\n--- removeRandomUnit: no job reassignment needed, pop drops with it ---");
-reset();
-S().pop = 5; S().units.soldier = 2;
+console.log("\n--- removeRandomUnit: the roster lightens, the land is untouched ---");
+reset(); api.ensureMap();
+S().units.soldier = 2; api.syncPopMirror();
+const landBefore0 = api.hexPopSum();
 const popBefore = S().pop;
 api.removeRandomUnit();
 check("units.soldier dropped by 1", S().units.soldier === 1);
-check("total pop dropped by 1 too -- the person is gone, not reassigned", S().pop === popBefore - 1);
+check("the mirror counts one fewer; the hexes keep their people",
+  S().pop === popBefore - 1 && api.hexPopSum() === landBefore0);
 
 // ---- Weapon/armor upgrades affect military math ----
 console.log("\n--- Weapon/armor upgrades ---");
@@ -240,20 +242,23 @@ const conflictEv = findEv("conflict");
 
 // ---- Conflict: zero defense always loses the repel check ----
 console.log("\n--- Conflict: zero soldiers -> raid always succeeds, resources stolen ---");
-reset();
-S().pop = 5; S().units.soldier = 0;
+reset(); api.ensureMap();
+S().units.soldier = 0; api.syncPopMirror();
 S().res.food = 40; S().res.wood = 40;
 check("repelChance is exactly 0 with no soldiers", 0 / (0 + 2) === 0);
 {
+  const landBefore = api.hexPopSum();
   let calls = 0;
   // call1: trigger fires. call2: rollRaidSize -> 0 lands in the first (smallest) tier.
   // call3: repel check -- with defense 0, ANY value fails to repel (0 < 0 is always false).
+  // Later calls (0.99): strikeHex's weighted pick still lands on SOME hex.
   api.setRngSource(() => { calls++; return calls <= 2 ? 0 : 0.99; });
   conflictEv.resolve(S(), 1);
   api.setRngSource(null);
-  console.log(`  after forced raid: pop=${S().pop} food=${S().res.food} wood=${S().res.wood}`);
+  console.log(`  after forced raid: land=${api.hexPopSum()} food=${S().res.food} wood=${S().res.wood}`);
   check("resources were stolen", S().res.food < 40 && S().res.wood < 40);
-  check("civilian lost too -- defense was 0", S().pop === 4);
+  check("the civilian died ON a hex -- the land count dropped (E5)",
+    api.hexPopSum() < landBefore);
 }
 
 // ---- Conflict: strong defense can repel cleanly ----
@@ -289,14 +294,20 @@ S().pop = 30; S().units.soldier = 20;
   check("still just attrition, not a wipe", S().dead === false);
 }
 
-// ---- Conflict: allowed to zero out population (unlike sickness) ----
-console.log("\n--- Conflict: can wipe the settlement, sickness cannot ---");
-reset();
-S().pop = 1;
-api.removeSettler();               // sickness-style call -- floors at 1
-check("removeSettler() floors at 1 by default", S().pop === 1);
-api.removeSettler(true);           // conflict-style call -- allowed to zero out
-check("removeSettler(true) can reach 0", S().pop === 0);
+// ---- E5: deaths land on hexes ----
+console.log("\n--- E5: the world strikes hexes, not a number ---");
+reset(); api.ensureMap();
+check("removeSettler() is gone -- nobody dies nowhere", api.removeSettler === undefined);
+{
+  const struck = api.strikeHex("sickness");
+  check("a strike picks a peopled, owned hex", struck !== null && api.isOwned(struck) && api.hexPop(struck) >= 1);
+  const before = api.hexPop(struck);
+  const died = api.killAt(struck, 2);
+  check("killAt kills there, and only there", api.hexPop(struck) === Math.max(0, before - died));
+  check("killAt never overdraws a hex", api.killAt(struck, 999) === Math.max(0, before - died));
+  check("an emptied dominion cannot be struck",
+    (S().map.owned.forEach((id) => api.killAt(id, 999)), api.strikeHex("raid") === null));
+}
 
 // ---- v7: Herbal Medicine boosts Infirmary's negate chance ----
 console.log("\n--- v7: Herbal Medicine ---");
@@ -947,16 +958,16 @@ S().era = "bronze";
 }
 
 console.log("\n--- P3: casualties can take any unit type ---");
-reset();
+reset(); api.ensureMap();
 S().era = "bronze";
 {
-  S().pop = 9;
   S().units = { soldier: 3, archer: 3, horseman: 3 };
-  const popBefore = S().pop;
+  api.syncPopMirror();
+  const popBefore9 = S().pop;
   const lost = api.removeRandomUnit();
   check("a unit was removed and named", typeof lost === "string" && lost.length > 0);
   check("total units dropped by one", api.totalUnits() === 8);
-  check("population dropped with it", S().pop === popBefore - 1);
+  check("the mirror dropped with it (the land untouched)", S().pop === popBefore9 - 1);
 
   // Drain the whole army: must never go negative or desync from pop.
   let guard = 0;
@@ -1089,38 +1100,46 @@ console.log("\n--- P3: end-to-end raid with composition ---");
 // civilians() negative -- the E2 rewrite briefly reintroduced exactly that.
 console.log("\n--- BUG: reservations must never outrun the living ---");
 {
-  reset();
+  reset(); api.ensureMap();
   S().era = "bronze";
-  S().pop = 10; S().builds.barracks = 1; S().res.wood = 500;
+  S().builds.barracks = 1; S().res.wood = 500;
+  api.syncPopMirror();
   api.build(findT("soldier"));            // reserves one civilian
   check("one order queued", api.reserved() === 1);
-  api.removeSettler();                    // sickness kills someone
+  api.killAt(api.world.home, 1);          // sickness kills someone, somewhere real
+  api.reconcileReservations();
   check("a single death leaves the reservation fillable", api.reserved() <= api.civilians());
   check("spare civilians never negative", spare() >= 0);
 }
 {
-  // Harsher: more orders queued than survivors.
-  reset();
+  // Harsher: a raid guts the settlement with more orders queued than
+  // survivors. Deaths are hex deaths now; the invariant is eternal.
+  reset(); api.ensureMap();
   S().era = "bronze";
-  S().pop = 6; S().builds.barracks = 1; S().res.wood = 500;
+  S().builds.barracks = 1; S().res.wood = 500;
+  for (const id of S().map.owned) S().map.pop[id] = 2;
+  api.syncPopMirror();                     // 6 civilians
   api.build(findT("soldier"));
   api.build(findT("soldier"));
   api.build(findT("soldier"));
   api.build(findT("soldier"));
   check("four orders queued", api.reserved() === 4);
   const woodAfterOrders = S().res.wood;
-  for (let i = 0; i < 4; i++) api.removeSettler(true);   // a raid guts the settlement
-  console.log(`  after 4 deaths: civ=${api.civilians()} reserved=${api.reserved()} queue=${S().buildQueue.length}`);
-  check("orders with nobody left to train were abandoned", api.reserved() <= api.civilians());
+  for (const id of S().map.owned) api.killAt(id, 2);
+  api.reconcileReservations();
+  console.log(`  after the massacre: civ=${api.civilians()} reserved=${api.reserved()} queue=${S().buildQueue.length}`);
+  check("orders with nobody left to train were abandoned", api.reserved() <= Math.max(0, api.civilians()));
   check("abandoned orders were refunded", S().res.wood > woodAfterOrders);
 }
 {
-  // A settlement of nothing but trained units has no civilian left to kill.
-  reset();
-  S().pop = 3; S().units = { soldier: 3, archer: 0, horseman: 0 };
+  // A dominion of nothing but trained units has no one for the world to
+  // strike: every hex is empty, so strikes find no target.
+  reset(); api.ensureMap();
+  for (const id of S().map.owned) S().map.pop[id] = 0;
+  S().units = { soldier: 3, archer: 0, horseman: 0 };
+  api.syncPopMirror();
   check("no civilians to begin with", api.civilians() === 0);
-  api.removeSettler(true);
-  check("civilian death is a no-op when only units remain", api.civilians() >= 0);
+  check("the world cannot strike an empty dominion", api.strikeHex("sickness") === null);
   check("population never drops below the units it contains", S().pop >= api.totalUnits());
 }
 {
@@ -1136,7 +1155,7 @@ console.log("\n--- BUG: reservations must never outrun the living ---");
       api.build(pickOne([findT("soldier"), findT("archer"), findT("horseman")]));
     }
     for (let d = 0; d < 1 + Math.floor(Math.random() * 6); d++) {
-      if (Math.random() < 0.5) api.removeSettler(true); else api.removeRandomUnit();
+      api.removeRandomUnit();   // civilian deaths land on hexes now (E5)
     }
     worstIdle = Math.min(worstIdle, spare());
     worstCiv = Math.min(worstCiv, api.civilians());
@@ -1374,8 +1393,8 @@ console.log("\n--- C1: the iron manifest ---");
     m.allocation === undefined && m.outputMult === undefined);
   check("housing retired at Iron: the hut line is gone entirely (6b)",
     !m.buildings.some(b => b.id === "hut"));
-  check("iron is a conquest era: growth mode and levy declared",
-    m.growth === "conquest" && m.levy === 2);
+  check("growth and levy are not era-facts any more (E5: growth is local, the muster is the land)",
+    m.growth === undefined && m.levy === undefined);
   check("consolidation is gone from the iron manifest (died in E2)",
     m.consolidate == null);
   check("the Village is now a Town", m.panelTitles["panel-holdings"] === "Town");
@@ -1447,9 +1466,8 @@ console.log("\n--- C1: capstone gating and the real transition ---");
   check("the fighting bands carry whole across a levy border",
     S().units.soldier === 2 && S().units.archer === 1 && S().units.horseman === 1);
   check("stepper workers walked home when their jobs left the manifest", S().jobs.forager === 0);
-  check("the levy back-compat flag is set by the border itself", S().seen.levyMigrated === true);
-  check("the border ships the allocation default: every holding turns to food",
-    S().map.owned.length > 0 && S().map.owned.every((t) => S().map.work[t] === "food"));
+  // (levyMigrated and the border bread-default died in E5 with the levy --
+  // allocation exists from frame one and captures default to food themselves.)
   check("the noun is holdfast now", api.active().popNoun.singular === "holdfast");
   check("the books balance after all of it", spare() >= 0 && api.reserved() <= Math.max(0, api.civilians()));
   check("bronze-era snapshot archived at the border", !!S().eraHistory.bronze &&
@@ -1567,8 +1585,8 @@ console.log("\n--- C2: deployment thins home defense ---");
     units: { soldier: 3, archer: 1 }, total: 90, remaining: 90 });
   check("deployed units are counted", api.deployedCount("soldier") === 3 && api.availableUnits("soldier") === 1);
   check("home strength drops while the column is out", api.militaryStrength() < homeBefore);
-  check("civilians/pop unchanged -- they're alive, just not home (and under a levy, civilians = pop)",
-    api.civilians() === 12 && S().pop === 12);
+  check("pop unchanged -- they're alive, just not home (civilians = pop minus ALL units, E5)",
+    api.civilians() === 6 && S().pop === 12);
   // Home casualties can only take who's home: deploy EVERYONE, then ask.
   S().expeditions[0].units = { soldier: 4, archer: 2 };
   check("with everyone deployed, home casualties find no one", api.removeRandomUnit() === null);
@@ -1751,29 +1769,8 @@ console.log("\n--- Re-denomination: nouns, inheritance, consolidation ---");
     api.validateManifests({ test: api.compileBase(raw) });
   }));
 
-  // Consolidation math directly: floors, sum-consistency, deployed guard.
-  reset();
-  S().era = "iron";
-  api.initAdversaries();
-  S().pop = 20; S().units = { soldier: 4, archer: 2, horseman: 0, siegeEngine: 0 };
-  S().jobs.forager = 5; S().jobs.ironMiner = 3;
-  api.applyConsolidation({ keep: 0.7 });
-  check("at a levy border units carry whole (4, 2)", S().units.soldier === 4 && S().units.archer === 2);
-  check("the border separates units out, then floors (floor((20-6)x0.7))", S().pop === 9);
-  check("under a levy, civilians IS pop", api.civilians() === 9);
-  check("jobs floor alongside (5->3, 3->2)", S().jobs.forager === 3 && S().jobs.ironMiner === 2);
-
-  // A column abroad cannot be consolidated out from under its expedition.
-  reset();
-  S().era = "iron";
-  api.initAdversaries();
-  S().pop = 10; S().units = { soldier: 4, archer: 0, horseman: 0, siegeEngine: 0 };
-  S().expeditions.push({ uid: 1, type: "campaign", adversary: "hillClans",
-    units: { soldier: 4 }, total: 90, remaining: 50 });
-  api.applyConsolidation({ keep: 0.5 });
-  check("deployed or home, units carry whole at a levy border", S().units.soldier === 4);
-  check("the books still balance around them (10 - 4 deployed-band members, halved)", S().pop === Math.max(1, Math.floor(6 * 0.5)));
-  S().expeditions.length = 0;
+  // applyConsolidation() died in E5 (dead code since E2): borders take nothing.
+  check("applyConsolidation is gone", api.applyConsolidation === undefined);
 }
 
 console.log("\n--- Siege: the machinery of the engine itself ---");
@@ -2140,6 +2137,38 @@ console.log("\n--- Phase 10: the renderer port keeps the marks ---");
   check("known but empty country carries no mark at all", api.markFor(wild) === null);
 }
 
+console.log("\n--- Engine rework E5: the world strikes hexes ---");
+{
+  api.setRngSource(() => 0.5);
+  reset(); api.closeModal(); api.ensureMap();
+
+  // Armies eat in EVERY era now -- the free-lunch window quirk is closed.
+  const upkeepBefore = api.rates().upkeep;
+  S().units.soldier = 2; api.syncPopMirror();
+  check("a stone-age soldier is two more mouths at the fire",
+    Math.abs(api.rates().upkeep - (upkeepBefore + 2 * api.CONFIG.upkeep)) < 1e-9);
+  S().units.soldier = 0; api.syncPopMirror();
+
+  // The muster answers to the land from frame one: trio = cap 6.
+  check("the muster is the land, in every era (3 hexes x 2)", api.levyCap() === 6);
+
+  // Sickness strikes ONE hex and takes a fifth of it (min 1) -- big hexes
+  // host worse outbreaks, small ones lose one soul.
+  for (const id of S().map.owned) S().map.pop[id] = 10;
+  api.syncPopMirror();
+  const sicknessEv2 = api.MANIFESTS.stone.events.find((e) => e.id === "sickness");
+  const popsBefore = S().map.owned.map((id) => api.hexPop(id));
+  const line = sicknessEv2.effect(S());
+  const popsAfter = S().map.owned.map((id) => api.hexPop(id));
+  const losses = popsBefore.map((v, i) => v - popsAfter[i]).filter((d) => d > 0);
+  check("the fever broke out at exactly one hex", losses.length === 1);
+  check("it took a fifth of that hex (10 -> 8)", losses[0] === 2);
+  check("the Chronicle names the ground it struck",
+    typeof line === "string" && line.includes("fever"));
+
+  api.setRngSource(null);
+}
+
 console.log("\n--- Engine rework E4: the frontier starves first ---");
 {
   api.setRngSource(() => 0.99);   // famine math only; no event weather
@@ -2297,19 +2326,13 @@ console.log("\n--- Phase 10: one board, forever ---");
   check("terrain is untouched by the era change -- you can re-dress it",
     Object.values(api.world.places).map((p) => p.id + ":" + p.terrain).sort().join("|") === stoneTerrain);
 
-  // Dominion never shrinks: a border may change what a tile means, never how
-  // many you hold or which. This is what lets one fixed board resolve scale.
+  // Dominion never shrinks -- and since E5 there is no machinery left that
+  // even could: consolidation is deleted, borders re-denominate only.
   api.syncDominion();
   const held = api.S.map.owned.slice().sort().join("|");
-  const heldCount = api.S.map.owned.length;
-  api.applyConsolidation({ keep: 0.25 });
-  api.syncDominion();
-  check("consolidation takes no land -- same count",
-    api.S.map.owned.length === heldCount);
-  check("consolidation takes no land -- the SAME tiles",
+  api.S.era = "iron"; api.initAdversaries(); api.ensureMap(); api.syncDominion();
+  check("a border takes no land -- the SAME tiles cross it",
     api.S.map.owned.slice().sort().join("|") === held);
-  check("population never falls below the land it holds",
-    api.S.pop >= api.S.map.owned.length);
 
   // Reveal is sticky and additive, per the interface's reveals-never-flicker
   // law applied to geography. Ground is TAKEN now, never granted (E3).
@@ -2372,39 +2395,44 @@ console.log("\n--- Phase 6b: Conquest Growth G1 -- levy, output, no housing ---"
   check("upkeep charges the people who exist AND the levied bands ((4+2) x 0.04)",
     Math.abs(r.upkeep - 6 * 0.04) < 1e-9);
 
-  // The levy cap: capacity, not spare people.
-  S().pop = 3; S().units = { soldier: 5, archer: 0, horseman: 0, siegeEngine: 0 };
+  // The army cap answers to the LAND now (E5): hexes x armyPerHex, every era.
+  S().map = { seed: 1, gen: 1, tileNoun: "holdfast", owned: ["f1", "f2", "f3"],
+    work: {}, pop: { "f1": 4, "f2": 3, "f3": 3 } };
+  api.syncPopMirror();
+  S().units = { soldier: 5, archer: 0, horseman: 0, siegeEngine: 0 };
+  api.syncPopMirror();
   S().builds.barracks = 1; S().res.wood = 500; S().res.iron = 500; S().res.food = 500;
   const soldierDef = api.defById("soldier");
   api.build(soldierDef);
-  check("training refuses past the levy cap (5 of 6 used +1 queued would be 7)",
+  check("training refuses past the land's muster (3 hexes = cap 6; 5 + 1 queued fills it)",
     S().buildQueue.length === 1 && api.levyUsed() === 6);
   api.build(soldierDef);
-  check("the queue counts against the levy the instant it is queued", S().buildQueue.length === 1);
-  S().pop = 4;   // dominion grows -> cap 8 -> room again
+  check("the queue counts against the muster the instant it is queued", S().buildQueue.length === 1);
+  S().map.owned.push("f4"); S().map.pop.f4 = 2; api.syncPopMirror();
   api.build(soldierDef);
-  check("a grown dominion raises the muster", S().buildQueue.length === 2);
+  check("a grown dominion raises the muster (4 hexes = cap 8)", S().buildQueue.length === 2);
   S().buildQueue.length = 0;
 
-  // Unit deaths do not erase holdfasts under a levy; they do erase people before it.
-  S().pop = 6; S().units = { soldier: 3, archer: 0, horseman: 0, siegeEngine: 0 };
+  // A unit's death lightens the roster, never the land: the hexes keep their
+  // people, and the mirror drops by exactly the fallen soldier.
+  api.syncPopMirror();
+  const landBefore = api.hexPopSum();
+  const mirrorBefore = S().pop;
   api.removeRandomUnit();
-  check("a levied band's death leaves the holdfast standing", S().pop === 6 && api.totalUnits() === 2);
-  reset();
-  S().pop = 6; S().units = { soldier: 3, archer: 0, horseman: 0, siegeEngine: 0 };
-  api.removeRandomUnit();
-  check("before the levy, a soldier's death is a person's death", S().pop === 5);
+  check("a soldier's death leaves the land untouched", api.hexPopSum() === landBefore);
+  check("...and the mirror counts one fewer", S().pop === mirrorBefore - 1);
 
-  // Load-time back-compat: an old iron save carried units inside pop.
-  reset();
-  S().era = "iron"; api.initAdversaries();
-  S().pop = 12; S().units = { soldier: 3, archer: 1, horseman: 0, siegeEngine: 0 };
-  delete S().seen.levyMigrated;
-  api.save(); api.load();
-  check("a pre-levy iron save separates its units out once, at load",
-    S().pop === 8 && S().seen.levyMigrated === true);
-  api.save(); api.load();
-  check("the separation never re-fires", S().pop === 8);
+  // The recruit is drawn from the SEAT on completion (owner ruling).
+  reset(); api.closeModal(); api.ensureMap();
+  S().era = "iron"; api.initAdversaries(); api.ensureMap();
+  S().builds.barracks = 1; S().res.wood = 500; S().res.food = 500; S().res.iron = 500;
+  for (const id of S().map.owned) S().map.pop[id] = 30;   // above cap, so growth
+  api.syncPopMirror();                                     // cannot refill the draw
+  const seatBefore = api.hexPop(api.world.home);
+  api.build(api.defById("soldier"));
+  run(20);
+  check("the capital musters: the recruit walked out of the seat",
+    S().units.soldier >= 1 && api.hexPop(api.world.home) === seatBefore - 1);
 }
 
 console.log("\n--- Phase 6a: the map exists ---");

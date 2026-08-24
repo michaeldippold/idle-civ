@@ -28,20 +28,15 @@ export function advanceEra(era) {
   // grant a block sized from the OLD population and then be unable to give it
   // back. Population is decided first; the ground is matched to it second.
   if (toM.consolidate) applyConsolidation(toM.consolidate);
-  // Crossing INTO the first levy era marks the books separated (units stand
-  // apart from population) -- this rode on consolidation until E2 removed
-  // consolidation from every manifest.
-  if (!fromM.levy && toM.levy) S.seen.levyMigrated = true;
   ensureMap();
   runEraMigrations(fromM, toM, S.eraHistory[fromEra]);
   syncDominion();   // the carried dominion block: owned tiles match the consolidated count
   // The one-time allocation default: the FIRST levy border turns the arriving
   // dominion to bread (allocation itself is universal since E2, so the old
   // jobs->tiles trigger is now "the first border where the levy begins").
-  if (!fromM.levy && toM.levy) {
-    defaultAssignments();
-    log("Your holdfasts see to their own bread first — every holding turns to food. Direct them as you see fit.");
-  }
+  // (The border bread-default died in E5 with the levy: nothing arrives at a
+  // border any more -- every hex was claimed or captured, and captures default
+  // to food on their own.)
   purgeDom(fromM, toM);
 
   // A new age begins at 1x (user ruling, after a 12x border starved a run
@@ -90,46 +85,8 @@ export function runEraMigrations(fromM, toM, snapshot) {
 // can't be consolidated out from under its own expedition), pop is rebuilt
 // as their sum so the books can't desync, and job assignments floor along
 // with them; advanceEra's reconcileWorkforce() sweeps up any remainder.
-export function applyConsolidation(spec) {
-  const civBefore = civilians();
-  if (active().levy) {
-    // A levy border: the fighting bands carry WHOLE -- they are no longer
-    // part of the population, so the keep ratio has nothing to say about
-    // them. If they overflow the new, smaller levy cap, training simply
-    // refuses until the dominion grows into them; existing state is never
-    // destroyed by a cap (the standing invariant).
-    //
-    // Crossing FROM a timer era, the incoming pop still counts its units
-    // (the old containment model) -- the border itself does the separation,
-    // exactly once. levyMigrated marks it done, so a future levy->levy
-    // border consolidates an already-separated population untouched.
-    const civ = S.seen.levyMigrated ? S.pop : Math.max(1, S.pop - totalUnits());
-    // **A tile-era border never takes land** (owner ruling, 2026-08-22). Once
-    // population IS tiles, consolidating would mean deleting hexes the player
-    // conquered -- the invisible-sink mistake this project wrote a rule
-    // against, and the exact objection that once ruled out a persistent map.
-    // On a fixed board it simply is not needed: the board is already the cap
-    // that keeps numbers small, so a later border re-denominates what a tile
-    // is (holdfast -> city -> nation) and raises per-tile output instead.
-    // The FIRST levy border still consolidates, because it is the moment
-    // population stops being people and becomes places.
-    // Only the FIRST levy border consolidates -- the moment population stops
-    // being people and becomes places. Every later border leaves S.pop alone
-    // (dominion never shrinks; allocation is universal since E2, so
-    // levyMigrated alone is the test).
-    S.pop = S.seen.levyMigrated ? S.pop : Math.max(1, Math.floor(civ * spec.keep));
-    S.seen.levyMigrated = true;   // also gates the load-time back-compat
-  } else {
-    let unitTotal = 0;
-    for (const id in S.units) {
-      S.units[id] = Math.max(deployedCount(id), Math.floor((S.units[id] || 0) * spec.keep));
-      unitTotal += S.units[id];
-    }
-    S.pop = Math.max(1, Math.floor(civBefore * spec.keep)) + unitTotal;
-  }
-  for (const j in S.jobs) S.jobs[j] = Math.floor((S.jobs[j] || 0) * spec.keep);
-  if (spec.narrate) log(spec.narrate);
-}
+// applyConsolidation() died in E5 (dead code since E2, when consolidation
+// left every manifest): borders re-denominate, they never take.
 
 // Remove the DOM nodes of every id that didn't survive the era hop -- cards,
 // holdings tiles, person tiles, job rows, resource rows. Renderers only ever

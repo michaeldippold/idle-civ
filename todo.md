@@ -228,10 +228,15 @@ verified stop and a test brief.
       - The authored-frame pool + hex packing + named sub-streams, ~120-150 land hexes. Ocean
         (outside the coastline) is unsettleable; interior water stays the random lakes/rivers it
         is today.
-      - **The SIGHTED fog state**: charting a COASTAL hex grants sight ~3 rings seaward; sighted
-        hexes render as blank silhouette prisms (the tan unpainted-board rendering, rehired for
-        exactly this). You see THAT land is there, never what it is. Coastlines become
-        intrinsically worth reaching — vision is a resource.
+      - **The SIGHTED fog state** *(refined by owner, 2026-08-24)*: LINE OF SIGHT, not radius —
+        sight propagates from a charted coastal hex through WATER only, up to 3 steps, and the
+        first land it touches becomes sighted and stops the ray. You see the island's near shore,
+        never behind it; even a sighted island keeps its true size secret. **Sighted renders TRUE
+        terrain** (if you can genuinely see it, show what's genuinely there) but carries no
+        props, no marks, no interaction — the honesty rule inverted: sight reveals the BOARD,
+        never the PIECES. Charted-vs-sighted reads as inhabited-vs-silhouette. The tan
+        unpainted-board rendering retires completely. Coastlines stay intrinsically worth
+        reaching — vision is a resource.
       - **Authoring law, validator-enforced: every island lies within sighted range of the
         nearest mainland coast.** No island may exist that cannot be yearned for.
       - **Adversary placement goes density-based** (owner ruling): each eligible hex rolls a
@@ -239,10 +244,12 @@ verified stop and a test brief.
         the hand-authored pool — placement was always procedural; now it scales with the world.
         The spawn-on-charting-vs-at-generation fork (populate-on-discovery: chart at Iron, find
         walled steadings) is decided at build time.
-- [ ] **5 — The picker: DEFERRED, not dead.** With a curated continent pool, run identity can come
-      from the seed choosing a NAMED continent (recognition builds: "Broadwater again") or from
-      the player choosing. Owner decides when slice 4's frames exist to look at; nothing blocks
-      on it, and the start screen stays as-is meanwhile.
+- [ ] **5 — The picker: BOTH, with Random (owner ruling, 2026-08-24).** Named continents you can
+      choose, plus a Random option — know-then-not-know: new players learn the maps by choosing
+      them, veterans roll Random for the where-am-I drama. Seeding survives intact: the save
+      stores {continent, seed}; picking Random draws the continent FROM the seed, so a bare seed
+      number fully reproduces a random run, and a picked run reproduces as "Broadwater · 12345"
+      (the death screen prints both). Built after slice 4's frames exist to look at.
 - [ ] **6 — Scouting**, priced through `routeCost`; Chronicle flavor as the reward, systems still
       era-gated behind it. **Design constraint found in play (2026-08-24): scouting must not
       delete the settle-blind gamble.** The owner reported genuine tension from settling toward

@@ -100,7 +100,37 @@ Prop-sets, palette, light and the camera pull-back — the revealed board changi
 player watches. **The owner has ideas here too.** Wants it sooner rather than later, but behind
 everything above.
 
-### 6 — HELD, DELIBERATELY, AND NOT TO BE LOST
+### 6 — THE INTERFACE REDESIGN *(owner, 2026-08-25)*
+
+**Go back to Claude Design, because the game it was last designed for no longer exists.** This is
+the promotion of the item that has been sitting at the top of *Held until the UI conversation* since
+before the 3D board shipped — it is no longer waiting on a decision, it is waiting on a turn.
+
+**What changed under the panels since that thread was written:**
+
+- **The board is 3D and full-bleed.** The 4x2 grid died in the flip; panels float over a lit
+  diorama now. Every legibility question the old thread deferred is live: contrast over a bright
+  board, over dark water, over both at once as the camera moves.
+- **The theme moved with it.** The identity is settled as the **digital tabletop**, and the owner is
+  leaning further into the board-game read. The panels have not followed.
+- **The engine rework changed what a panel must SAY.** No steppers, no jobs, no housing. Population
+  is per-hex and the interesting numbers moved onto the tile panel. Some panels are now showing the
+  residue of a game that is gone.
+- **The panels are still wearing Bureau,** described in `interface.md` as the interim skin from the
+  panel-game era, "until the tabletop reskin". That reskin is this item.
+
+**Why it should not slide behind the tech tree** *(owner's reasoning, and it is the deciding one)*:
+the tech tree **replaces the Upgrades panel** and wants to be a window rather than a floating card.
+Designing a tree against Bureau means designing it twice — once for the skin it will not keep, and
+again for the one it will. The panel system is the surface the tree is built ON.
+
+**Sequenced after the era re-dress on purpose.** Panels want designing against the board's finished
+look, not its current one, and the re-dress changes palette and light in every era.
+
+**Practical note:** Claude Design reads the repo from GitHub, so push before that session and make
+sure `interface.md` and `design.md` are current — they are, as of the 2026-08-25 docs pass.
+
+### 7 — HELD, DELIBERATELY, AND NOT TO BE LOST
 
 - **The decision queue** *(phase 7)*. Held until wanted; the spec is complete and the pause-on-ask
   seam is already built. Confirmed 2026-08-25 that this is exactly what it sounds like — the world
@@ -109,14 +139,14 @@ everything above.
 - **Scouting** *(map arc, slice 6)*. Back seat: still needs addressing, not urgent. Carries a live
   constraint found in play — it must not delete the settle-blind gamble.
 
-### 7 — THE BIG ONE, GATED ON PURPOSE: the tech tree
+### 8 — THE BIG ONE, GATED ON PURPOSE: the tech tree
 
 **What the owner is most excited about, and deliberately not next.** It is a major change, and the
 gate is that the open threads above should close first. Also the reason not to touch the dominion
 cap yet: a tree is a large new resource sink by design, and whether expansion self-limits is exactly
 what a new sink changes.
 
-### 8 — THE BACK SEAT, EXPLICITLY
+### 9 — THE BACK SEAT, EXPLICITLY
 
 - **Priests and the envoy** *(6e)*, and anything else Enlightenment-shaped.
 - **STANDING RULE (owner, 2026-08-25): no more eras, and no more era-scale features, until the core
@@ -402,7 +432,8 @@ Port the map stage from SVG to the spike's renderer, for real:
 > **Superseded as an ORDERING by THE WORKING ORDER at the top of this file (2026-08-25).**
 > Kept for the reasoning; it no longer says what happens next.
 
-1. **The design-thread verdict** — panel juggling/legibility against the diorama. The identity
+1. **The design-thread verdict** — **PROMOTED 2026-08-25 to tier 6 of THE WORKING ORDER as
+   the interface redesign; see the top of this file.** The context below still stands. — panel juggling/legibility against the diorama. The identity
    itself is no longer on the table: paper is out (war-table candidate killed same-day; see
    `interface.md`) and the successor is ruled — **the digital tabletop**, the lit 3D board
    (`design.md` OQ3, `map.md` §8 Route B). Structure is settled; the thread designs how the

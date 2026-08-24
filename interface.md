@@ -1,5 +1,12 @@
 # Idle Civ — Interface
 
+> **The tabletop reskin is now queued** — tier 6 of THE WORKING ORDER in `todo.md`, sequenced after
+> the era re-dress so panels are designed against the board's finished look. Bureau is still the
+> shipped skin and everything below describes it accurately. The deciding argument for not letting
+> it slide further: **the tech tree replaces the Upgrades panel**, so designing the tree against
+> Bureau means designing it twice.
+
+
 **What this file is.** The reference for the game's interface *as a system*: the constraints it has
 to express, the shipped visual language (**Bureau**), the layout, the reusable components, the
 presentation rules and the reasons behind them. It is not a brief — the design pass it descends from

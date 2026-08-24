@@ -72,7 +72,7 @@ outward verb now lives on the selected tile.)*
 
 The board is **whole from the first frame** — every panel the current age can fill is on screen,
 named, empty and waiting; what unravels is what goes *inside* them. The panels currently wear
-**Bureau**, the interim skin from the panel-game era, until the tabletop reskin. Two of its laws
+**Bureau**, the interim skin from the panel-game era; the tabletop reskin is queued (`todo.md`). Two of its laws
 are permanent regardless of skin: **opacity is never used to convey state** (a card you can't
 afford stays fully readable, because reading it is how you plan), and **descriptions live on
 hover**, along with the reason a purchase is refused.

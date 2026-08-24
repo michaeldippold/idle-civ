@@ -34,22 +34,31 @@ import { S } from "./state.js";
 // forward. It also survives the pale colours, which have no room to go
 // brighter but plenty to go quieter.
 
-// Authored, not computed. Seven hand-tuned triples beat an HSL transform that
-// has to be right for both #1b1f27 and #ff8cc0 -- the same reason the
-// continents are authored ASCII rather than noise. `glyph` is the house mark
-// and needs to survive a bright hilltop; `halo` flips the text shadow for the
-// one colour that is darker than everything it sits on.
+// Authored, not computed. Seven hand-tuned sets beat an HSL transform that has
+// to be right for both #1b1f27 and #ff8cc0 -- the same reason the continents
+// are authored ASCII rather than noise.
+//
+// THE RIM LADDER IS ATTENTION, and it is three steps of one colour: `ring` is
+// ground you merely hold, `hover` is the tile under your cursor, `focus` is the
+// tile whose panel is open. Every rim on the board is now the same width, the
+// same position and fully opaque (terrain3d.js), so BRIGHTNESS IS THE ONLY
+// THING left telling them apart -- which is exactly why the middle step had to
+// exist. Before it, hover and selection were both `focus` and became
+// indistinguishable the moment the widths matched.
+//
+// `glyph` is the house mark and needs to survive a bright hilltop; `halo` flips
+// the text shadow for the one colour darker than everything it sits on.
 export const PLAYER_COLORS = [
-  { id: "green",  name: "Green",  ring: "#6fbf47", focus: "#a6ec72", glyph: "#b6f27f" },
-  { id: "teal",   name: "Teal",   ring: "#2fae9e", focus: "#5fe6d2", glyph: "#74efd9" },
-  { id: "blue",   name: "Blue",   ring: "#4f7fe0", focus: "#7fa9ff", glyph: "#93b8ff" },
-  { id: "purple", name: "Purple", ring: "#8a5fd0", focus: "#b48cf5", glyph: "#c3a3ff" },
-  { id: "pink",   name: "Pink",   ring: "#e05f9e", focus: "#ff8cc0", glyph: "#ff9ecb" },
-  { id: "brown",  name: "Brown",  ring: "#a06a3c", focus: "#d69a63", glyph: "#e0a973" },
+  { id: "green",  name: "Green",  ring: "#6fbf47", hover: "#8ad45c", focus: "#a6ec72", glyph: "#b6f27f" },
+  { id: "teal",   name: "Teal",   ring: "#2fae9e", hover: "#46cab8", focus: "#5fe6d2", glyph: "#74efd9" },
+  { id: "blue",   name: "Blue",   ring: "#4f7fe0", hover: "#6794f0", focus: "#7fa9ff", glyph: "#93b8ff" },
+  { id: "purple", name: "Purple", ring: "#8a5fd0", hover: "#9f76e3", focus: "#b48cf5", glyph: "#c3a3ff" },
+  { id: "pink",   name: "Pink",   ring: "#e05f9e", hover: "#f076af", focus: "#ff8cc0", glyph: "#ff9ecb" },
+  { id: "brown",  name: "Brown",  ring: "#a06a3c", hover: "#bb8250", focus: "#d69a63", glyph: "#e0a973" },
   // The one colour darker than the board it sits on. The rim is fine -- it
   // lies on a lit hex top, never against the void -- but the house mark needs
   // its shadow inverted or it disappears into its own outline.
-  { id: "black",  name: "Black",  ring: "#1b1f27", focus: "#5a6474", glyph: "#23272f", halo: "light" },
+  { id: "black",  name: "Black",  ring: "#1b1f27", hover: "#39414e", focus: "#5a6474", glyph: "#23272f", halo: "light" },
 ];
 
 export const DEFAULT_COLOR = "green";

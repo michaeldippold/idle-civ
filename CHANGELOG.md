@@ -11,6 +11,43 @@
 
 ---
 
+## 2026-08-25 — One rim, one width, one colour at a time
+
+**Caught by the owner in play, and it was three bugs wearing one coat.** Rims changed width as the
+cursor crossed them, and a selected hex still showed the colour of the ring underneath leaking out
+through the middle.
+
+The rims had never agreed on anything. Three bands — owned `0.82-0.94`, hover `0.87-0.97`, selection
+`0.84-1.00` — at three heights, at three opacities. The owned rim reached further *inward* than the
+selection ring did, which is precisely the sliver that was showing; and selection's `1.00` outer edge
+reached the hex's very corner, where neighbouring tiles touch, which is why it also looked like it
+spilled onto the ground next door. Three bands can never stack cleanly. One always can.
+
+Every rim now shares one band, the old owned one, since it is the most-drawn rim on the board and the
+look is calibrated to it.
+
+**Matching the geometry would not have been enough on its own**, which is the part worth recording.
+The hover ring was drawn at **0.85 opacity**, so it BLENDED with whatever sat beneath it — hovering
+your own country produced a mixture of two colours rather than either one, and identical geometry
+would have made the mixture perfectly aligned instead of fixing it. Every rim is opaque now. The
+owner put it better than the ticket did: *these are the little coloured rings you clip round the base
+of a mini — they are opaque for legibility.*
+
+**One consequence had to be designed rather than fixed.** Hover and selection had both become the
+player's `focus` colour in the palette work earlier today, and they were only telling themselves
+apart by width — so making the widths equal would have collapsed them into the same ring. The palette
+grew a middle step, and the rim ladder is now **brightness as attention**: `ring` for ground you
+merely hold, `hover` for the tile under the cursor, `focus` for the tile whose panel is open. Pinned
+by a check that the three rungs are monotonic in relative luminance *and* far enough apart to see,
+for every one of the seven colours — because brightness is now the only channel separating them.
+
+Heights staggered (`0.03 / 0.045 / 0.06`) since identical rings at an identical height would z-fight;
+hover and selection had shared `e+0.04`, which was harmless only while their geometry differed.
+
+673 -> 675 checks.
+
+---
+
 ## 2026-08-25 — The run you choose to start
 
 **Slice 5, plus the owner's two additions, so the start screen grew three choices rather than one:

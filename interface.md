@@ -109,6 +109,19 @@ the harness.
 | **Theirs** | **white** (steadings a shade below) | foreign hex rims, powers' and steadings' houses |
 | **Reserved** | **red, orange, yellow** | status only — nothing that means *who* may use them |
 
+**Every rim is one width, one position, and opaque.** Owned, foreign, hover and selection share a
+single band; the only thing distinguishing them is colour, so exactly one colour is ever visible on a
+given hex. They used to carry three different bands at three opacities, which made a rim visibly
+change width as the cursor crossed it and let the ring underneath show through the middle of the one
+on top. Opacity in particular was doing real damage: a translucent hover ring *blended* with the rim
+beneath it, so hovering your own country produced a mixture of two colours rather than either one.
+Think of them as the coloured rings clipped round the base of a mini — opaque, for legibility.
+
+**The rim ladder is brightness, and it means attention:** `ring` for ground you merely hold, `hover`
+for the tile under the cursor, `focus` for the tile whose panel is open. That middle step exists
+*because* the widths were unified — before it, hover and selection were the same colour and were
+telling themselves apart by width alone.
+
 **Inhabited ground wears a rim, and the rim says whose** *(owner request, 2026-08-25)*. Foreign
 seats used to be identified by their house glyph alone, which made one small mark carry the entire
 job; a rim in the same colour states it at tile scale and lets the house be confirmation rather than

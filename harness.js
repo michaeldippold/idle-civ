@@ -2837,8 +2837,25 @@ console.log("\n--- The board's colour law: yours, theirs, and reserved ---");
   check("freshState agrees with the palette's default -- the two copies of one fact",
     api.freshState().playerColor === api.DEFAULT_COLOR);
   check("every colour is distinct", new Set(ids).size === ids.length);
-  check("every colour carries all three roles",
-    api.PLAYER_COLORS.every((c) => c.ring && c.focus && c.glyph));
+  check("every colour carries all four roles",
+    api.PLAYER_COLORS.every((c) => c.ring && c.hover && c.focus && c.glyph));
+  // THE RIM LADDER IS BRIGHTNESS, and it has to be monotonic. Every rim on the
+  // board shares one width, one position and full opacity now, so brightness is
+  // the ONLY channel separating held ground from the tile under the cursor from
+  // the tile whose panel is open. A colour whose steps sit out of order, or too
+  // close to tell apart, silently collapses two of those three states.
+  const relL = (h) => {
+    const n = parseInt(h.slice(1), 16);
+    const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => {
+      c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+  };
+  check("the rim ladder brightens: held ground, then hovered, then selected",
+    api.PLAYER_COLORS.every((c) => relL(c.ring) < relL(c.hover) && relL(c.hover) < relL(c.focus)));
+  check("...with steps big enough to actually see",
+    api.PLAYER_COLORS.every((c) => relL(c.hover) - relL(c.ring) > 0.02 &&
+                                   relL(c.focus) - relL(c.hover) > 0.02));
 
   const hex = (v) => typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v);
   check("every colour value is a full hex triple",

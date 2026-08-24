@@ -48,8 +48,26 @@ const WET = new Set(["water", "river"]);
 // Passed in, never imported -- same rule as `isOwnedFn` below, and for the
 // same reason: this module draws, it does not know whose board it is drawing.
 // `pal` is a core/palette.js entry; the fallback keeps a bare call working.
-const FALLBACK = { focus: "#a6ec72" };
-function focusColor(pal) { return new THREE.Color((pal || FALLBACK).focus || FALLBACK.focus); }
+// ONE RIM, FOR EVERY PURPOSE (owner request, 2026-08-25). Owned, foreign, hover
+// and selection each used to carry their own band -- 0.82-0.94, 0.87-0.97 and
+// 0.84-1.00 -- so a rim visibly changed WIDTH as the cursor crossed it, and the
+// owned rim reached further inward (0.82) than the selection ring did (0.84),
+// leaving a sliver of the colour underneath showing through the middle. Three
+// bands can never stack cleanly; one always can.
+//
+// The band kept is the OWNED one: it is the most-drawn rim on the board and the
+// look is calibrated to it. Selection's old 1.00 outer edge reached the hex's
+// very corner, where neighbouring tiles touch, which is the other half of why
+// it read as spilling onto the ground next door.
+const RIM_OUTER = 0.94, RIM_INNER = 0.82;
+
+// Heights. Staggered rather than shared because hover and selection both sat at
+// e+0.04, which was harmless only while their geometry differed -- identical
+// rings at an identical height would z-fight.
+export const RIM_Y = { owned: 0.03, hover: 0.045, select: 0.06 };
+
+const FALLBACK = { ring: "#6fbf47", hover: "#8ad45c", focus: "#a6ec72" };
+function ringHex(pal, key) { return new THREE.Color((pal || FALLBACK)[key] || FALLBACK[key]); }
 
 export function elevationOf(place) {
   const base = ELEV[place.terrain] != null ? ELEV[place.terrain] : 0.1;
@@ -117,7 +135,7 @@ export function buildTerrain(places, rimFn, isRevealedFn) {
     // One merged mesh for all of them, so a board full of rims still costs one
     // draw call however far dominion spreads.
     const rim = rimFn(p);
-    if (rim) ringInto(rings, cx, e + 0.03, cz, rimColor.set(rim), 0.94, 0.82);
+    if (rim) ringInto(rings, cx, e + RIM_Y.owned, cz, rimColor.set(rim), RIM_OUTER, RIM_INNER);
   }
 
   const landMesh = new THREE.Mesh(land.build(), new THREE.MeshStandardMaterial({
@@ -132,7 +150,10 @@ export function buildTerrain(places, rimFn, isRevealedFn) {
   wetMesh.receiveShadow = true;
 
   const ringMesh = new THREE.Mesh(rings.build(), new THREE.MeshBasicMaterial({
-    vertexColors: true, transparent: true, opacity: 0.95,
+    // Opaque for the same reason the hover ring is: a rim states who holds this
+    // ground, and a translucent statement mixes with the terrain under it
+    // instead of being read.
+    vertexColors: true, transparent: false, opacity: 1,
     depthWrite: false, side: THREE.DoubleSide,
   }));
   ringMesh.renderOrder = 4;
@@ -144,14 +165,18 @@ export function buildTerrain(places, rimFn, isRevealedFn) {
 // rebuilt. Two instances exist for the life of the stage.
 export function buildRing(kind, pal) {
   const soup = new SoupBuilder();
-  // Hover and selection are the player's colour at FULL strength while owned
-  // country wears it quieted -- the tile under the cursor should come forward,
-  // and a darker ring reads as recessive on a board this bright.
-  const col = focusColor(pal);
-  const [outer, inner] = kind === "select" ? [1.0, 0.84] : [0.97, 0.87];
-  ringInto(soup, 0, 0, 0, col, outer, inner);
+  // Same band as every other rim; only the COLOUR distinguishes them now --
+  // three steps of the player's colour brightening with attention: ground you
+  // hold, the tile under the cursor, the tile whose panel is open.
+  const col = ringHex(pal, kind === "select" ? "focus" : "hover");
+  ringInto(soup, 0, 0, 0, col, RIM_OUTER, RIM_INNER);
   const mesh = new THREE.Mesh(soup.build(), new THREE.MeshBasicMaterial({
-    vertexColors: true, transparent: true, opacity: kind === "select" ? 1 : 0.85,
+    // OPAQUE, and this is the half of the fix that matching the geometry would
+    // not have delivered. The hover ring sat at 0.85 and BLENDED with whatever
+    // was beneath it, so hovering owned country produced a mixture of two
+    // colours rather than either one. These are the coloured rings you clip
+    // round the base of a mini: solid, so exactly one of them is ever read.
+    vertexColors: true, transparent: false, opacity: 1,
     depthWrite: false, side: THREE.DoubleSide,
   }));
   mesh.visible = false;

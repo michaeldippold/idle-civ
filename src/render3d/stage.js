@@ -24,7 +24,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { axialToWorld, worldToAxialRounded } from "./hex3d.js";
 import { buildProps } from "./props3d.js";
-import { buildRing, buildTerrain } from "./terrain3d.js";
+import { buildRing, buildTerrain, RIM_Y } from "./terrain3d.js";
 
 const VOID = new THREE.Color(0x11161f);
 
@@ -260,7 +260,11 @@ function placeRing(ring, id) {
   if (!ring) return;
   if (!p) { ring.visible = false; return; }
   const w = axialToWorld(p.q, p.r);
-  ring.position.set(w.x, (elev[p.id] || 0) + 0.04, w.z);
+  // Every rim shares one band now, so this stagger is the only thing keeping
+  // identical rings off each other: owned lowest, then hover, then selection.
+  // renderOrder already agrees, and neither ring writes depth.
+  const y = ring === selectRing ? RIM_Y.select : RIM_Y.hover;
+  ring.position.set(w.x, (elev[p.id] || 0) + y, w.z);
   ring.visible = true;
 }
 

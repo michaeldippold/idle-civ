@@ -11,6 +11,58 @@
 
 ---
 
+## 2026-08-24 — The world is inhabited from the first minute
+
+**Generation answers where and who; era answers what they are now.** Every people on the board is
+placed once, at world generation, and exists in every age. Three majors on the ground their own
+descriptions name, plus the minor tier by density — all of them there from the opening frame. What
+an era changes is the dressing: the camp at Coldwater becomes the steading at Coldwater becomes the
+freehold at Coldwater, understood to be the same people throughout.
+
+This closes the last contradiction in the fog design. Adversaries used to arrive at Iron, which
+meant the world you spend most of a run looking at was uninhabited, and that a hex you scouted
+empty could sprout a village the moment the age turned. It also turns out the manifest model
+already had the mechanism: adversary slates are wholesale and never inherited, so redressing a
+people per age is native rather than new.
+
+**Enemies that survive evolve alongside you, and they scale to the ERA, never to the player.** The
+distinction is the whole thing — era is a shared world clock, so rushing ahead genuinely puts you
+ahead for a while, where scaling to the player gives you the Oblivion problem and advancement stops
+feeling like anything. Two consequences fall out with no rules of their own: the far people are not
+statted stronger (you simply meet them later, when everyone is stronger, and `marchFactor` already
+governs reach), and a run thins as it goes, because the ones you take are gone for good.
+
+**Contact is the new era-fact.** Stone is `none` — not a rule against war, but the absence of
+anyone who could declare one. There are no kings in the Stone Age. So the camps are visible,
+scoutable, unsettleable, and the tile says why you cannot go rather than greying out a button and
+going quiet. Bronze opens it, because an age that hands you bronze spears and hide armour cannot
+coherently forbid you from carrying them anywhere; what scales is the size of the thing you send.
+
+Stone still has danger and always did — all three raid types roll, the `conflict` event fires.
+That danger is simply anonymous. Bronze is where it gets a name and an address.
+
+**Three things the validator now catches at load,** all of which fail silently otherwise. The seat
+list, the minor density, and the name pool's LENGTH must match across eras, because placement is a
+per-hex hash over that pool — drift any one of them and every neighbour relocates in every existing
+world with nothing to report it. And a major's strength must fall above its era's minor band, or
+the two tier words describe nothing.
+
+**Two real problems surfaced while building.** The validator caught that Bronze adversaries were
+stocking and paying gold, which does not exist until Iron — caravan payment is gold-denominated at
+its root, so trade is inherently an Iron system and Bronze neighbours are people you fight, not
+people you barter with. And a harness fixture was calling `ensureMap` without `initAdversaries`,
+which seats people on the board without creating their state; such a tile renders as bare terrain,
+the board quietly disowning someone standing on it. `boot()` has always called both in order.
+
+The minor name pool was rebuilt as bare LANDSCAPE names with the era supplying the settlement noun.
+The old pool baked nouns in, and "the Broken Tower" cannot be redressed backwards into an age with
+no masonry, while a cold stretch of water and a barrow on a hill are there in every age.
+
+Ten new checks (573), including one that pins the Stone tile offering no march at all — not a
+disabled one, which would read as a thing you could unlock rather than a thing that cannot exist.
+
+---
+
 ## 2026-08-24 — A house means a home, and Reveal can finally answer the question
 
 **Rivals wear a red house now, the same glyph your own seat wears.** The owner asked for it

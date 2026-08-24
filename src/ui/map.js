@@ -154,13 +154,28 @@ function tipFor(p) {
 }
 
 // ---------- Click: the Selected Tile panel ------------------
-function detailHTML(p) {
+// Whether this age can act on its neighbours at all. Every era HAS neighbours
+// now (2026-08-24) -- the camps are on the board from the first minute -- so
+// mere existence stopped being the right question to ask. "none" is not a rule
+// against war; it is the absence of anyone who could declare one. There are no
+// kings in the Stone Age, only people with spears.
+function canReachOut() { return active().contact === "open"; }
+
+// What the Stone Age says instead of offering a button. A tile you cannot act
+// on should still tell you something true about the world, rather than greying
+// out and going quiet -- the refusal is the flavour.
+function noReachLine() {
+  return `<span class="map-noworks">You know they are there, and that is the whole of it. No one here could raise a column to go and see — that is not what a ${spec().tileNoun.singular} is, and not yet what you are.</span>`;
+}
+
+export function detailHTML(p) {
   const parts = [];
   if (p.adversary) {
     const adv = active().adversaries.find((a) => a.id === p.adversary);
     const st = S.adversaries[p.adversary];
     if (adv && st) {
       parts.push(`<b>${advName(adv)}</b> — ${adv.disposition} · ${standingWord(st.standing)}<br>${adv.desc}<br>${stockLine(st)}`);
+      if (!canReachOut()) { parts.push(noReachLine()); return parts.join(""); }
       // The same refusals the Expeditions panel carried, or the buttons
       // silently no-op and read as broken (found in play).
       const noGround = (S.builds.musterGround || 0) < 1;
@@ -176,6 +191,7 @@ function detailHTML(p) {
   if (!isOwned(p.id) && p.minor && S.map.minors && S.map.minors[p.id]) {
     const st = S.map.minors[p.id];
     parts.push(`<b>${capWord(p.minor.name)}</b><br>${minorBand(p.minor.strength)} ${minorWalls(p)}`);
+    if (!canReachOut()) { parts.push(noReachLine()); return parts.join(""); }
     const plan = campaignPlan("tile:" + p.id);
     const noGround = (S.builds.musterGround || 0) < 1;
     const marchOut = expeditionOut("campaign");

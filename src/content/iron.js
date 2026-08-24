@@ -1,4 +1,5 @@
 import { S } from "../core/state.js";
+import { MINOR_PLACES, SEAT_IDS } from "./lib.js";
 
 // ---------- The Iron Age (delta) ----------------------------
 // The first delta with a real `remove` list -- an entire economy retires.
@@ -36,7 +37,7 @@ export const IRON_DELTA = {
   map: {
     tileNoun: { singular: "holdfast", plural: "holdfasts" },
     terrains: ["plains", "forest", "hills", "river", "water"],
-    seats: ["hillClans", "riverKingdom", "saltNomads"],
+    seats: SEAT_IDS,
     // What a holdfast on each ground yields, per resource (user ruling,
     // 2026-08-22): every land works EVERYTHING, at rates the terrain sets.
     // Specialties run at par or better; the rest are overpay routes -- the
@@ -68,15 +69,18 @@ export const IRON_DELTA = {
       // HASH rather than a stream draw, so adding a generation stage later
       // cannot shift who exists.
       density: 0.06,
-      strength: [3, 9],
+      // Narrowed from [3,9] (owner ruling, 2026-08-24): a top-roll minor used
+      // to TIE the weakest major at 9, which made the tier words describe
+      // nothing. Majors are now strictly stronger inside any given age.
+      strength: [3, 7],
       walls: [0, 4],
       stock: { food: [20, 60], wood: [10, 40], iron: [5, 25], gold: [3, 12] },
-      names: [
-        "the freehold at Coldwater", "Askel's Steading", "the Ford Houses",
-        "Barrow Hill", "the Salt Licks", "Thornwick", "the Old Quarry",
-        "Greyfen", "the Mill Rise", "Redbank", "the Broken Tower",
-        "Larkmoor", "the Hollow Oak", "Stonebrook",
-      ],
+      // The shared pool, wearing this age's noun. The old list mixed bare
+      // place names with settlement nouns baked in ("the Broken Tower"), which
+      // could not be redressed backwards -- there are no towers in the Stone
+      // Age, and the same fourteen places have to exist in every one.
+      names: MINOR_PLACES,
+      form: "the freehold at %s",
     },
   },
 
@@ -231,6 +235,9 @@ export const IRON_DELTA = {
       desc: "Wandering herders with no mines of their own — they pay gold for iron. At night they circle their wagons into a laager; they build no walls.",
     },
   ],
+
+  // Full war, in both directions: campaigns, sieges, conquest.
+  contact: "open",
 
   events: ["greatHunt", "trader", "sickness", "conflict", "scoutFindIron", "scoutWarning"],
   // No rot hints: caps retired with the storage line. directHoldfasts is the

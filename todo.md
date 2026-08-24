@@ -90,6 +90,35 @@ pass rather than acted on: (1) **7 may be a notch high** — 6 would bite a minu
 economy wants tightening later, the lever is per-capita rate or terrain caps, not more expansion
 nerfs — expansion is now governed.
 
+**Neighbours from the Stone Age (owner ruling, 2026-08-24) — slice 1 of 3, SHIPPED.**
+The roster is fixed at generation and exists in every age; the era only redresses it. Three majors
+on their home terrain plus the minor tier by density, present from the first minute, visible when
+charted, unsettleable, and untouchable at Stone. `contact` is the new era-fact: Stone `none`
+(nobody exists who could send an army), Bronze/Iron `open`. Majors strictly outrank minors within
+an age, and each people strengthens every age it survives. Minor names became bare LANDSCAPE
+places with the era supplying the noun (camp / steading / freehold), because the old pool baked
+settlement nouns in and "the Broken Tower" cannot be redressed backwards into the Stone Age.
+
+*Still open on this arc:*
+- **Slice 2 — era-scaled strength as a derived number, plus persistent damage.** Strength is
+  currently a static per-era field on each def, which is already era-scaled and already correct
+  for majors. What is NOT built: bloodying a minor and withdrawing should persist across an era
+  flip. `S.map.minors[id]` already stores walls and stock per hex, so damage has somewhere to live;
+  the shape is likely era-baseline x tier, with damage layered on rather than baked in.
+- **Slice 3 — Bronze's war party.** Bronze has `contact: "open"` and no scaled-down campaign
+  to go with it yet; it currently inherits the Iron machinery. A Bronze party should be a handful
+  of fighters with short reach, AoE-style but abstracted from individual units (owner framing).
+- **Anonymous raids become attributed at Bronze.** Stone's raiders belong to nobody; the beat is
+  that at Bronze you learn who they were. `hostilityMultiplier()` already scales the conflict
+  trigger by hostile warlike neighbours, and standing starts neutral (0; hostile is <= -2), so
+  nothing spiked when the roster moved to Stone. Unbuilt.
+- **Minors sit as close as distance 2** (138 of 300 seeds), so with the Stone cap at 7 hexes,
+  roughly half of runs have a blocked hex inside the opening bubble from minute one. Intended
+  friction — it is what makes terrain routing matter at Stone — but it is the first number to
+  read off a playtest.
+- **A camp reports "Known stock: 30 food, 20 wood" before you have ever been near it.** Free
+  intelligence, and it should probably be scouting's job (slice 6).
+
 **QA affordances (2026-08-24), so testing a map does not mean playing to it:**
 `?continent=broadwater|longreach|thescatter` forces a continent (standing in for slice 5's
 picker); the header's **Reveal** button toggles the whole board visible and back, as a lens that

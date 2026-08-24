@@ -210,7 +210,10 @@ export function generateMap(seed, spec, continentId) {
       const stock = {};
       for (const res in mn.stock) stock[res] = rollInt(mn.stock[res]);
       p.minor = {
-        name: pool[seated],
+        // The era supplies the settlement noun; the pool supplies the place.
+        // Same site, same people, different age -- this is the whole re-dress.
+        name: (mn.form || "%s").replace("%s", pool[seated]),
+        place: pool[seated],
         strength: rollInt(mn.strength),
         wallsMax: rollInt(mn.walls),
         stock,

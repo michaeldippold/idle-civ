@@ -718,6 +718,57 @@ no orphan tiles, home not adjacent to the strongest seat) without asserting anyt
 
 **This is the section that matters most, and the rule at the top of it is not negotiable.**
 
+### The roster is fixed at generation; the era only redresses it
+
+*(Owner ruling, 2026-08-24. Shipped the same day.)*
+
+**Generation answers *where* and *who*. Era answers *what they are now*.** Every people on the
+board — three majors on their own home terrain, plus the minor tier by density — is placed once, at
+world generation, and exists in every age. Nobody arrives at an era flip and nobody vanishes at
+one. What an era changes is the dressing: the camp at Coldwater becomes the steading at Coldwater
+becomes the freehold at Coldwater, and it is understood to be the same people throughout.
+
+This closed the last contradiction in the fog design. Adversaries used to arrive at Iron, which
+meant the world you spend most of a run looking at was uninhabited, and it meant a hex you scouted
+empty could sprout a village the moment the age turned.
+
+**Enemies that survive evolve alongside you.** Strength is a function of the ERA, never of your
+power — the distinction is the whole thing. Era is a shared world clock: rush ahead and you are
+genuinely ahead of your neighbours for a while; dawdle and they are ahead of you. Scale to the
+*player* instead and you get the Oblivion problem, where bandits appear in glass armour and
+advancement stops feeling like anything. Meeting a stone-age camp in the Iron Age makes no sense;
+neither does a neighbour who never grew.
+
+Two consequences fall out without needing rules of their own:
+
+- **Distance and difficulty correlate only incidentally.** The far people are not statted
+  stronger; you simply do not *meet* them until later, when everyone is stronger. Reach is already
+  governed by `marchFactor`/`routeCost`, so a Bronze war party can bloody the camp over the hill
+  and could never cross the continent.
+- **A run thins as it goes.** The ones you take are gone for good, so the board starts crowded
+  with small camps and ends as a handful of large powers plus your empire. Handling a neighbour
+  while the handling is cheap is real pressure, with no timer needed.
+
+**Majors always outrank minors within an age**, or the two words describe nothing. The compiler
+throws at load if any major's strength falls inside its era's minor band.
+
+#### Contact: what an age can do about its neighbours
+
+| era | contact | what it means |
+|---|---|---|
+| Stone | `none` | You can see them and scout them. You cannot touch them — not because a rule forbids war, but because nobody exists who could declare one. There are no kings in the Stone Age. |
+| Bronze | `open` | War parties, both directions. The age hands you bronze spears and hide armour, so it must let you carry them somewhere. Small scale: a handful of fighters, short reach. |
+| Iron | `open` | Campaigns, sieges, conquest, and trade — trade arrives with coinage, since caravan payment is gold-denominated at its root. |
+
+Stone still has DANGER, and always did: all three raid types roll and the `conflict` event fires.
+That danger is simply **anonymous** — a warband out of the dark, belonging to nobody on your map.
+Bronze is where it gets a name and an address.
+
+Three numbers make the fixed roster true, and all three fail silently: the seat list, the minor
+`density`, and the name pool's LENGTH (placement is a per-hex hash over that pool). Drift any of
+them between eras and every neighbour relocates in every existing world, with nothing to report
+it. The compiler asserts all three across eras at load.
+
 ### Adversaries are hand-written. They are never generated.
 
 Not their stats, not their names, not their descriptions, not their trade offers. The pool is

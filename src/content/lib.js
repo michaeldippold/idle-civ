@@ -24,6 +24,30 @@ import { log } from "../ui/log.js";
 // Plus: condition(S) gating, effect(S) (may return a custom log line), and
 // flavor.{hit,negated} pools. Adding an event never touches the engine --
 // only this library and the slates that name it.
+// ---------- The roster, shared by every era ----------------------------
+// WHO exists is decided at generation and never changes; ERA decides only what
+// they are called and how strong they are (owner ruling, 2026-08-24: "enemies
+// that survive need to evolve alongside you"). That means these two lists must
+// be IDENTICAL in every age, so they are declared once here and imported --
+// never retyped per era, where they could silently drift apart.
+//
+// Placement is a per-hex hash over the name pool, so the pool's LENGTH is
+// load-bearing: change it and every steading in every existing world moves.
+// The compiler asserts this across eras rather than trusting the comment.
+export const SEAT_IDS = ["hillClans", "riverKingdom", "saltNomads"];
+
+// Bare LANDSCAPE names, deliberately free of any settlement noun: there are no
+// freeholds in the Stone Age and no towers either, but a cold stretch of water
+// and a barrow on a hill are there in every age. The era supplies the noun via
+// `minors.form`, which is the whole re-dress trick -- the camp at Coldwater
+// becomes the steading at Coldwater becomes the freehold at Coldwater, and it
+// is understood to be the same people the entire time.
+export const MINOR_PLACES = [
+  "Coldwater", "Barrow Hill", "Thornwick", "Greyfen", "Redbank",
+  "the Salt Licks", "Larkmoor", "Stonebrook", "the Hollow Oak", "Ravensmoor",
+  "Blackfen", "Whitecrag", "Elderbrook", "Oxbend",
+];
+
 export const EVENT_LIB = {
   greatHunt: {
     sev: "good",

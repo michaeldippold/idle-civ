@@ -10,10 +10,6 @@ import { renderMapStage, renderTileDetail } from "./map.js";
 import { renderPeople } from "./panels-people.js";
 
 
-// The Expeditions panel belongs to any era whose manifest declares adversaries
-// -- i.e. once the world has an outside at all. Era-scoped rather than global,
-// since a later era without adversaries shouldn't show it. The Muster Ground
-// gates the actions on the cards, not the existence of the panel.
 // Deliberately NOT part of S: pause is UI state, not game state. Keeping it out
 // of the save means no schema change, and no loading into a frozen game and
 // wondering why nothing is happening.

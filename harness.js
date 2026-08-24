@@ -1570,8 +1570,31 @@ console.log("\n--- C2: adversaries in the manifest, validated ---");
 {
   const advs = api.MANIFESTS.iron.adversaries;
   check("iron declares exactly three adversaries", advs.length === 3);
-  check("stone and bronze declare none (wholesale, never inherited)",
-    api.MANIFESTS.stone.adversaries.length === 0 && api.MANIFESTS.bronze.adversaries.length === 0);
+  // THE ROSTER IS THE SAME BOARD IN EVERY AGE (owner ruling, 2026-08-24).
+  // Slates are still wholesale and never inherited -- each era retypes its
+  // three -- so what needs pinning is that they retype the SAME three. A
+  // dropped id here would delete a people at an era flip.
+  check("every era declares the same three, redressed rather than replaced",
+    ["stone", "bronze", "iron"].every((e) =>
+      api.MANIFESTS[e].adversaries.map((a) => a.id).sort().join(",") ===
+      "hillClans,riverKingdom,saltNomads"));
+  // Majors outrank the minor band WITHIN their age, or the tier words describe
+  // nothing. The compiler throws on this too; the check is the documentation.
+  check("a major always outranks a minor of its own age",
+    ["stone", "bronze", "iron"].every((e) => {
+      const m = api.MANIFESTS[e];
+      return m.adversaries.every((a) => a.strength > m.map.minors.strength[1]);
+    }));
+  // And each one grows. A survivor met in a later age must never be the same
+  // creature you could have crushed two eras ago.
+  check("each people strengthens with every age it survives",
+    ["hillClans", "riverKingdom", "saltNomads"].every((id) => {
+      const at = (e) => api.MANIFESTS[e].adversaries.find((a) => a.id === id).strength;
+      return at("stone") < at("bronze") && at("bronze") < at("iron");
+    }));
+  check("contact opens at bronze -- stone has no one who could send an army",
+    api.MANIFESTS.stone.contact === "none" &&
+    api.MANIFESTS.bronze.contact === "open" && api.MANIFESTS.iron.contact === "open");
   check("only peaceful adversaries trade",
     advs.every(a => !a.buys || a.disposition === "peaceful"));
   const throws = (fn) => { try { fn(); return false; } catch (e) { return true; } };
@@ -2053,9 +2076,14 @@ console.log("\n--- Phase 6d: the growth verbs -- minors, settle, routes ---");
   check("the minor tier is seated by density, on land, off your doorstep",
     minors.length >= 3 && minors.every((p) => p.terrain !== "water" && !p.adversary) &&
     minors.every((p) => api.distance(api.world, "0,0", p.id) >= 2));
+  // The pool holds bare PLACE names; the era supplies the settlement noun.
+  // Both halves are asserted, because a form that silently stopped applying
+  // would leave "Coldwater" on the board and read as merely terse.
   check("every minor is named from the hand-authored pool, uniquely",
-    new Set(minors.map((p) => p.minor.name)).size === minors.length &&
-    minors.every((p) => api.MANIFESTS.iron.map.minors.names.includes(p.minor.name)));
+    new Set(minors.map((p) => p.minor.place)).size === minors.length &&
+    minors.every((p) => api.MANIFESTS.iron.map.minors.names.includes(p.minor.place)));
+  check("and wears its age's noun over that place name",
+    minors.every((p) => p.minor.name === "the freehold at " + p.minor.place));
   check("no two steadings share a border -- they read as separate peoples",
     minors.every((p) => p.adj.every((n) => !api.world.places[n].minor)));
   check("minor remnants reconciled into S.map.minors",
@@ -2721,6 +2749,12 @@ console.log("\n--- Phase 6b: Conquest Growth G1 -- levy, output, no housing ---"
 console.log("\n--- Phase 6a: the map exists ---");
 {
   reset();
+  // initAdversaries BEFORE ensureMap, exactly as boot() does. The order is
+  // load-bearing now that the roster exists from the Stone Age: ensureMap
+  // seats the peoples on the BOARD, initAdversaries creates their STATE, and
+  // a tile whose people have no state renders as bare terrain -- the board
+  // would quietly disown someone standing on it.
+  api.initAdversaries();
   api.ensureMap();
   check("the chart exists from the first frame (stone has a map now)",
     api.world !== null && api.world.tileNoun === "clearing");
@@ -2738,16 +2772,65 @@ console.log("\n--- Phase 6a: the map exists ---");
       Object.values(api.world.places).some((p) => p.ocean) &&
       Object.values(api.world.places).every((p) => !p.ocean || p.terrain === "water"));
   }
-  const stoneWorld = JSON.stringify(api.world);
+  // The GROUND, with every era-dressed field deliberately left out: hex ids,
+  // terrain, ocean, which people sit where. Everything an era flip must not
+  // touch, and nothing it is allowed to.
+  const geoSig = (w) => Object.keys(w.places).sort().map((id) => {
+    const p = w.places[id];
+    return [id, p.terrain, p.ocean ? "o" : "-", p.adversary || "-", p.minor ? p.minor.place : "-"].join(":");
+  }).join("|");
+  const stoneGeo = geoSig(api.world);
+  const stoneSeatIds = Object.values(api.world.places)
+    .filter((p) => p.adversary).map((p) => [p.id, p.adversary]);
+  const stoneMinorIds = Object.values(api.world.places)
+    .filter((p) => p.minor).map((p) => p.id).sort().join(",");
+  check("stone seats all three peoples, from the first minute",
+    stoneSeatIds.length === 3);
+  check("and its steadings wear stone's noun",
+    Object.values(api.world.places).filter((p) => p.minor)
+      .every((p) => p.minor.name === "the camp at " + p.minor.place));
+
+  // NO OUTWARD VERB IN THE STONE AGE, and the reason is fictional rather than
+  // mechanical (owner ruling, 2026-08-24): "there are no kings in the stone
+  // age to send campaigns... It'll be dudes in rough clothing with spears."
+  // So the tile must offer no button at all -- not a disabled one, which would
+  // read as a thing you could unlock rather than a thing that cannot exist.
+  // Asserted against the rendered body, because that is where a leak would be.
+  {
+    const seatTile = Object.values(api.world.places).find((x) => x.adversary);
+    const campTile = Object.values(api.world.places).find((x) => x.minor);
+    api.S.map.revealed.push(seatTile.id, campTile.id);
+    const seatBody = api.detailHTML(seatTile), campBody = api.detailHTML(campTile);
+    check("a stone-age tile offers no march, not even a greyed one",
+      seatBody.indexOf("data-act=\"march\"") < 0 && campBody.indexOf("data-act=\"march\"") < 0);
+    check("but it still tells you who is out there",
+      seatBody.indexOf("hill camps") >= 0 || seatBody.indexOf("river camps") >= 0 ||
+      seatBody.indexOf("salt wanderers") >= 0);
+    check("and says WHY you cannot go, rather than going quiet",
+      seatBody.indexOf("raise a column") >= 0);
+  }
 
   S().era = "bronze";
   api.ensureMap();
-  check("bronze inherits the SAME world -- same noun, no regeneration",
-    JSON.stringify(api.world) === stoneWorld);
+  // Era changes the DRESSING, never the ground (owner ruling, 2026-08-24).
+  // This compared whole-world JSON until the neighbours started redressing per
+  // age, which made it fail for the right reason -- names and strengths are
+  // SUPPOSED to differ now. Comparing geography instead keeps the invariant
+  // that actually matters and states it more precisely than before: same
+  // hexes, same terrain, same ocean, same people on the same ground.
+  check("bronze inherits the SAME world -- same ground, no regeneration",
+    geoSig(api.world) === stoneGeo);
   check("your seat is owned, and on food-bearing ground",
     api.isOwned("0,0") &&
     ["plains", "river"].includes(api.world.places["0,0"].terrain));
-  check("bronze seats no adversaries", Object.values(api.world.places).every((p) => !p.adversary));
+  check("bronze seats the same three, on the same hexes as stone",
+    Object.values(api.world.places).filter((p) => p.adversary).length === 3 &&
+    stoneSeatIds.every((pair) => api.world.places[pair[0]].adversary === pair[1]));
+  // The steadings are the same SITES too -- only the noun over them moved.
+  check("and the same steadings, wearing bronze's noun instead of stone's",
+    Object.values(api.world.places).filter((p) => p.minor).map((p) => p.id).sort().join(",") === stoneMinorIds &&
+    Object.values(api.world.places).filter((p) => p.minor)
+      .every((p) => p.minor.name === "the steading at " + p.minor.place));
 
   const g1 = JSON.stringify(api.world);
   api.ensureMap();

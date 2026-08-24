@@ -1,5 +1,6 @@
 import { caps } from "../core/derived.js";
 import { S } from "../core/state.js";
+import { MINOR_PLACES, SEAT_IDS } from "./lib.js";
 
 // ---------- The Stone Age (base manifest) -------------------
 // The first era is authored in full; every later era is a delta against the
@@ -47,7 +48,7 @@ export const STONE = {
   map: {
     tileNoun: { singular: "clearing", plural: "clearings" },
     terrains: ["plains", "forest", "hills", "river", "water"],
-    seats: [],
+    seats: SEAT_IDS,
     // Carrying capacity per terrain (engine rework E1): how many people the
     // ground supports. Small at Stone ON PURPOSE -- caps are the era
     // production curve (a ceiling change, never a rate change), and these
@@ -68,6 +69,25 @@ export const STONE = {
     // more IS what an era advance means. This also hands the mid-era game
     // to DEVELOPMENT: once the land is held, buildings are the sink.
     dominionCap: 7,
+    // The neighbours are on the board FROM THE FIRST MINUTE (owner ruling,
+    // 2026-08-24). They were an Iron-age arrival until then, which meant the
+    // world you spent most of a run looking at was uninhabited, and it also
+    // meant a hex you scouted empty could sprout a village at the era flip --
+    // the one unresolved contradiction in the fog design. Same sites, same
+    // people, every age; only the dressing and the strength change.
+    minors: {
+      density: 0.06,          // IDENTICAL in every era, or the sites move
+      names: MINOR_PLACES,    // ditto: the pool's length places them
+      // The era supplies the settlement noun. See MINOR_PLACES.
+      form: "the camp at %s",
+      // Stone-scale: a dozen people behind a thorn fence, and no walls in an
+      // age with no masonry. Majors sit strictly above this band -- that is
+      // what the major/minor tier IS (owner ruling, 2026-08-24), and without
+      // it the two words describe nothing.
+      strength: [1, 3],
+      walls: [0, 0],
+      stock: { food: [5, 20], wood: [3, 12] },
+    },
     // What each terrain can be turned to, from the FIRST minute (E2): one
     // assignment per hex, terrain sets the rate, every ground works
     // everything at a price. The Stone table is the Iron table minus iron --
@@ -202,6 +222,50 @@ export const STONE = {
     { id: "warband", name: "warband",         weight: 50 },
     { id: "massed",  name: "massed charge",   weight: 30 },
     { id: "riders",  name: "band of riders",  weight: 20 },
+  ],
+
+  // CONTACT: what this age can do about its neighbours, in either direction.
+  // "none" is not a rule forbidding war -- it is the absence of anyone able to
+  // declare one (owner ruling, 2026-08-24): "there are no kings in the stone
+  // age to send campaigns, that's incoherent because they don't exist yet.
+  // It'll be dudes in rough clothing with spears." So the neighbours are
+  // visible, scoutable and untouchable, and the Expeditions panel stays shut.
+  //
+  // Stone still has DANGER, and always did: all three raidTypes roll and the
+  // `conflict` event fires. That danger is simply ANONYMOUS -- a warband out
+  // of the dark, belonging to no one on your map. Bronze is where it gets a
+  // name and an address.
+  contact: "none",
+
+  // The neighbours as they are in an age without metal: camps. Same ids, same
+  // ground, same people as the Iron Age powers they become -- an era slate is
+  // wholesale (never inherited), which makes redressing them per age the
+  // manifest model's native trick rather than a new mechanism.
+  //
+  // Strictly above the minor band ([1,3]) and strictly below their own Bronze
+  // selves. Nobody here has walls; nobody here has gold to trade.
+  adversaries: [
+    {
+      id: "hillClans", name: "the hill camps", disposition: "warlike",
+      homeTerrain: "hills",
+      strength: 5, walls: 0, fightsAs: "massed", campaignTime: 90,
+      stock: { food: 30, wood: 20 },
+      desc: "Smoke on the high ridges, most mornings. They have spears, they know the passes, and they have watched you longer than you have watched them.",
+    },
+    {
+      id: "riverKingdom", name: "the river camps", disposition: "peaceful",
+      homeTerrain: "river",
+      strength: 6, walls: 0, fightsAs: "riders", campaignTime: 120,
+      stock: { food: 45, wood: 25 },
+      desc: "Fishing camps strung along the water downstream, thick with drying racks. There are more of them than there are of you, and the river feeds them without asking.",
+    },
+    {
+      id: "saltNomads", name: "the salt wanderers", disposition: "peaceful",
+      homeTerrain: "plains",
+      strength: 4, walls: 0, fightsAs: "riders", campaignTime: 75,
+      stock: { food: 25, wood: 10 },
+      desc: "They follow the herds across the flats and are gone before you find their fires. Twice now, someone has left a gift of salt at the edge of your clearing.",
+    },
   ],
 
   events: ["greatHunt", "trader", "sickness", "conflict"],

@@ -1,4 +1,5 @@
 import { S } from "../core/state.js";
+import { MINOR_PLACES, SEAT_IDS } from "./lib.js";
 
 // ---------- The Bronze Age (delta) --------------------------
 // Everything the Bronze Age changes about the world, and nothing else.
@@ -21,7 +22,7 @@ export const BRONZE_DELTA = {
     radius: 4,
     tileNoun: { singular: "clearing", plural: "clearings" },
     terrains: ["plains", "forest", "hills", "river", "water"],
-    seats: [],
+    seats: SEAT_IDS,
     popCaps: { plains: 12, river: 15, forest: 8, hills: 5 },
     // The claim carries the age's SIGNATURE resource (owner ruling,
       // 2026-08-24) -- the capstone pricing rule, applied to the frontier:
@@ -30,6 +31,18 @@ export const BRONZE_DELTA = {
       // dominion keeps growing on food and timber alone.
       claim: { cost: { food: 30, wood: 15, stone: 8, bronze: 3 }, time: 35 },
       dominionCap: 12,
+    // The same fourteen places, one age older. Density and pool length are
+    // IDENTICAL to Stone's by construction (both read the shared list), which
+    // is what keeps every steading on the hex it has always been on.
+    minors: {
+      density: 0.06,
+      names: MINOR_PLACES,
+      form: "the steading at %s",
+      // Grown, and still strictly under the weakest Bronze major.
+      strength: [2, 5],
+      walls: [0, 2],
+      stock: { food: [15, 45], wood: [8, 25], bronze: [2, 8] },
+    },
     works: {
       plains: { food: 1.0, wood: 0.4, stone: 0.3, copper: 0.2, tin: 0.1 },
       river:  { food: 1.2, wood: 0.3, stone: 0.2 },
@@ -142,6 +155,41 @@ export const BRONZE_DELTA = {
   },
 
   // Slates are wholesale, never inherited -- see the manifest-model note.
+  // Bronze can reach outward, because Bronze hands you gear and it would be
+  // incoherent to hand you bronze-tipped spears and hide armour and then
+  // forbid you from carrying them anywhere (owner ruling, 2026-08-24). What
+  // scales by age is the SIZE of the thing you send: a war party here, a
+  // campaign at Iron. Reach is not gated either -- `marchFactor` already makes
+  // distance the limit, so a Bronze party can bloody the camp over the hill
+  // and could never dream of crossing the continent.
+  contact: "open",
+
+  // The neighbours, one age on: peoples now, not camps. Walls appear because
+  // masonry does. Still strictly above the Bronze minor band ([2,5]).
+  adversaries: [
+    {
+      id: "hillClans", name: "the Hill People", disposition: "warlike",
+      homeTerrain: "hills",
+      strength: 7, walls: 2, fightsAs: "massed", campaignTime: 90,
+      stock: { food: 70, wood: 50, bronze: 20 },
+      desc: "The ridge camps have grown into one people, and they have learned to alloy. Their spears are tipped now, and they come down more often than they used to.",
+    },
+    {
+      id: "riverKingdom", name: "the River Folk", disposition: "peaceful",
+      homeTerrain: "river",
+      strength: 18, walls: 9, fightsAs: "riders", campaignTime: 120,
+      stock: { food: 150, wood: 80, bronze: 40 },
+      desc: "Earthworks, granaries, and a stretch of the river dredged straight. There is no coin yet to trade with them for any of it, and there are already far too many of them to take it.",
+    },
+    {
+      id: "saltNomads", name: "the Salt Wanderers", disposition: "peaceful",
+      homeTerrain: "plains",
+      strength: 9, walls: 0, fightsAs: "riders", campaignTime: 75,
+      stock: { food: 60, wood: 30, bronze: 15 },
+      desc: "Wagons now, and a circuit they keep to. They have no mines and want none. What they cannot carry they barter for, and they always know what a thing is worth.",
+    },
+  ],
+
   events: ["greatHunt", "trader", "sickness", "conflict", "scoutFind", "scoutWarning"],
   hints:  ["wood", "stone", "build", "tools", "rotFood", "rotWood", "rotStone",
            "sicknessWarn", "conflictWarn", "rotOre", "firstBronze", "ironAvailable"],

@@ -98,6 +98,9 @@ export function compileBase(raw) {
     // Wholesale like the slates, never inherited: each age's world arrives
     // fresh, with fresh stocks, by construction.
     adversaries: (raw.adversaries || []).map((a) => Object.assign({}, a)),
+    // What this age can DO about its neighbours, either direction. "none"
+    // means no one exists who could send or receive a war -- see stone.js.
+    contact: raw.contact || "none",
     // The map spec INHERITS, like popNoun -- deliberately, because the map
     // regenerates only when the tile noun changes (design.md, Scale: The
     // Tile Ladder). An era that keeps the noun keeps the world; an era that
@@ -127,6 +130,7 @@ export function extendEra(parent, delta) {
     // Consolidation is per-border, never inherited (see applyConsolidation).
     consolidate: delta.consolidate ? Object.assign({}, delta.consolidate) : null,
     adversaries: (delta.adversaries || []).map((a) => Object.assign({}, a)),
+    contact: delta.contact || parent.contact,
     // COPIED, never shared. Inheriting the parent's map object by reference
     // meant a child could reach back and mutate its parent's spec -- and one
     // did: attachSeatTerrain() below writes onto m.map, so a silent delta
@@ -174,6 +178,51 @@ export const DEF_INDEX = {};
 for (const era of ERA_ORDER) {
   for (const cat of ["buildings", "upgrades", "units"]) {
     for (const d of MANIFESTS[era][cat]) DEF_INDEX[d.id] = d;
+  }
+}
+
+// ---------- The roster is the same board in every age -------------------
+// WHO exists is decided once, at generation; era decides only what they are
+// called and how strong they are. Three numbers make that true, and all three
+// are silent when wrong -- a drifted density or a resized name pool relocates
+// every steading in every existing world, and a changed seat list reseats the
+// powers. Nothing downstream would report it; you would simply find your
+// neighbours somewhere else after an era flip. So it is asserted at LOAD.
+{
+  const withMaps = ERA_ORDER.filter((e) => MANIFESTS[e].map);
+  const ref = withMaps[0];
+  for (const era of withMaps) {
+    const a = MANIFESTS[ref].map, b = MANIFESTS[era].map;
+    if ((a.seats || []).join(",") !== (b.seats || []).join(",")) {
+      throw new Error(`[manifest] ${era}: seats differ from ${ref}. The roster is fixed at generation -- every era must seat the same powers.`);
+    }
+    const am = a.minors, bm = b.minors;
+    if (!am !== !bm) {
+      throw new Error(`[manifest] ${era}: declares a minor tier and ${ref} does not (or vice versa). Sites exist in every age or none.`);
+    }
+    if (am && bm) {
+      if (am.density !== bm.density) {
+        throw new Error(`[manifest] ${era}: minor density ${bm.density} differs from ${ref}'s ${am.density}. Density is the per-hex placement roll -- changing it moves every steading.`);
+      }
+      if (am.names.length !== bm.names.length) {
+        throw new Error(`[manifest] ${era}: minor name pool has ${bm.names.length} entries, ${ref} has ${am.names.length}. The pool's LENGTH caps and orders placement.`);
+      }
+      if (!bm.form || bm.form.indexOf("%s") < 0) {
+        throw new Error(`[manifest] ${era}: minors.form must contain %s (the place name). Got ${JSON.stringify(bm.form)}.`);
+      }
+    }
+  }
+  // Majors strictly outrank minors WITHIN an age -- otherwise the two words
+  // describe nothing (owner ruling, 2026-08-24).
+  for (const era of withMaps) {
+    const m = MANIFESTS[era];
+    if (!m.map.minors || !m.adversaries.length) continue;
+    const ceiling = m.map.minors.strength[1];
+    for (const a of m.adversaries) {
+      if (a.strength <= ceiling) {
+        throw new Error(`[manifest] ${era}: major "${a.id}" at strength ${a.strength} does not outrank the minor band (max ${ceiling}).`);
+      }
+    }
   }
 }
 

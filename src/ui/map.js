@@ -206,7 +206,7 @@ export function detailHTML(p) {
     const marchOut = expeditionOut("campaign");
     const scopeFull = atDominionCap();
     parts.push(`<div class="map-actions"><button class="map-act" data-act="march" data-adv="tile:${p.id}"${noGround || marchOut || scopeFull ? " disabled" : ""}>March</button></div>`);
-    if (plan && plan.tilesOff != null) parts.push(`<span class="map-noworks">${plan.tilesOff} tiles off · ${plan.provisions} food · ${plan.time}s there and back. Win, and it swears fealty — one more holdfast.</span>`);
+    if (plan && plan.tilesOff != null) parts.push(`<span class="map-noworks">${plan.tilesOff} tiles off · ${Math.round(plan.provisionPerUnit)} food per fighter · ${plan.time}s there and back. Win, and it swears fealty — one more holdfast.</span>`);
     if (noGround) parts.push(`<span class="map-noworks">${musterName()} must stand first.</span>`);
     else if (marchOut) parts.push(`<span class="map-noworks">A campaign is already in the field.</span>`);
     else if (scopeFull) parts.push(`<span class="map-noworks">Victory would win ground this age cannot govern — the dominion is at its full scope.</span>`);

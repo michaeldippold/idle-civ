@@ -252,10 +252,10 @@ export const IRON_DELTA = {
 
   // Full war, in both directions: campaigns, sieges, conquest.
   contact: "open",
-  // Iron musters COLUMNS: no size cap, which is what makes the Bronze war
-  // party feel like the small thing it is. The Muster Ground's cap of 1 is
-  // still the real pacing -- one outbound column at a time, whatever its size.
-  muster: { building: "musterGround", column: null },
+  // The Muster Ground's cap of 1 is the real pacing: one outbound column at a
+  // time, whatever its size. How big that column can be is answered by what
+  // you hold and what you can feed, not by a number here.
+  muster: { building: "musterGround" },
 
   events: ["greatHunt", "trader", "sickness", "conflict", "scoutFindIron", "scoutWarning"],
   // No rot hints: caps retired with the storage line. directHoldfasts is the

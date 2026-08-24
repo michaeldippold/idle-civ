@@ -30,13 +30,19 @@ export function musterBuilt() {
   const m = musterSpec();
   return !!m && (S.builds[m.building] || 0) >= 1;
 }
-// How many fighters one column carries. null means no cap -- Iron musters
-// columns; Bronze musters a war party of four. This IS the scaling of the
-// age's outward verb, and the only one it needs.
-export function columnCap() {
-  const m = musterSpec();
-  return m && m.column != null ? m.column : Infinity;
-}
+// A flat cap on column size lived here from 2026-08-24 to 2026-08-25 and was
+// the wrong lever (owner, from play): "I had 4 of each type, but I can only
+// send 4 total." It made units you had already paid population for unusable,
+// and it flattened the mixed-column decision the whole counter system exists
+// to create -- with four slots you send four of whatever counters them and
+// leave the rest at home forever.
+//
+// It was also redundant twice over. `levyCap()` already sizes your army by
+// TERRITORY (owned hexes x armyPerHex), so a Bronze dominion of 12 fields
+// fewer than an Iron one of 20 without anyone deciding it should. And the
+// walls are thinner while a column is away, so keeping fighters home already
+// costs you something. What was missing was a price for bringing everyone,
+// which is now what provisions are.
 export function columnSize(unitCounts) {
   return Object.values(unitCounts || {}).reduce((a, b) => a + b, 0);
 }
@@ -147,9 +153,20 @@ export function campaignPlan(ref) {
   return {
     target: t,
     time: Math.round(t.baseTime * factor),
-    provisions: Math.round(CONFIG.campaignFoodCost * factor),
+    // Provisions cannot be known until the column is mustered -- they scale
+    // with who goes. The plan carries the RATES; provisionsFor() does the sum.
+    provisionBase: CONFIG.campaignFoodBase * factor,
+    provisionPerUnit: CONFIG.campaignFoodPerUnit * factor,
     tilesOff: targetTile && Number.isFinite(routeCost(targetTile)) ? Math.round(routeCost(targetTile)) : null,
   };
+}
+
+// What a column of `n` eats on this route. Distance multiplies both halves,
+// which is the supply-line rule doing its usual work: a long march with a big
+// army is the most expensive thing an era can attempt, and it should be.
+export function provisionsFor(plan, n) {
+  if (!plan) return 0;
+  return Math.round(plan.provisionBase + plan.provisionPerUnit * Math.max(0, n));
 }
 
 export function launchCampaign(advId, unitCounts) {
@@ -158,20 +175,21 @@ export function launchCampaign(advId, unitCounts) {
   // against MAJORS are plunder, not conquest, and stay ungated.
   if (typeof arguments[0] === "string" && arguments[0].startsWith("tile:") && atDominionCap()) return;
   if (S.dead || expeditionOut("campaign") || !musterBuilt()) return;
-  // The age's column cap, enforced HERE and not only in the modal: the modal
-  // is a convenience, this is the rule.
-  if (columnSize(unitCounts) > columnCap()) return;
   const plan = campaignPlan(advId);
   if (!plan) return;
   const total = Object.values(unitCounts).reduce((a, b) => a + b, 0);
   if (total < 1 || !validUnitCounts(unitCounts)) return;
-  if (S.res.food < plan.provisions) return;
-  S.res.food -= plan.provisions;
+  // You march on what you can feed. This is the only limit on column size
+  // there is now, and it is the honest one.
+  const provisions = provisionsFor(plan, total);
+  if (S.res.food < provisions) return;
+  S.res.food -= provisions;
   S.expeditions.push({ uid: ++S.buildSeq, type: "campaign", adversary: plan.target.ref,
     units: Object.assign({}, unitCounts), total: plan.time, remaining: plan.time });
-  // An age that musters four does not send a COLUMN. The word follows the
-  // era fact, so the Chronicle never promises an army you cannot raise.
-  const band = Number.isFinite(columnCap()) ? "A war party of" : "A column of";
+  // The word follows the SIZE of the thing that actually left, not an era
+  // fact: a handful of spears is a war party in any age, and twenty is a
+  // column even in Bronze if you can feed them that far.
+  const band = total <= 5 ? "A war party of" : "A column of";
   log(`${band} ${total} marches against ${plan.target.name}. The walls are thinner until they return.`);
   save();
   renderAll();

@@ -195,13 +195,13 @@ export const BRONZE_DELTA = {
   // and could never dream of crossing the continent.
   contact: "open",
 
-  // WHAT AN AGE SENDS. The building that must stand before anything marches,
-  // and how many fighters a single column can carry. Bronze sends a WAR PARTY
-  // -- "it won't be legions or platoons, but a few soldiers" (owner, 2026-08-24)
-  // -- which is the whole of how the age is scaled down. Reach needs no rule
-  // of its own: marchFactor already multiplies provisions and time by the
-  // route, so four people can cross a valley and could never cross a country.
-  muster: { building: "warCamp", column: 4 },
+  // WHAT AN AGE SENDS: the building that must stand before anything marches.
+  // It carried a column-size cap too until 2026-08-25; that was the wrong
+  // lever and is gone (see expeditions.js). Bronze sends less than Iron
+  // because it HOLDS less -- levyCap is territory x armyPerHex, and a Bronze
+  // dominion caps at 12 hexes against Iron's 20 -- and because provisions are
+  // paid per fighter, per tile. Nobody has to decide the number.
+  muster: { building: "warCamp" },
 
   // The neighbours, one age on: peoples now, not camps. Walls appear because
   // masonry does. Still strictly above the Bronze minor band ([2,5]).

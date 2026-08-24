@@ -1664,12 +1664,20 @@ console.log("\n--- C2: what an age can muster ---");
   // provisions and time by the route.
   check("stone musters nothing at all -- there is no one to send",
     api.MANIFESTS.stone.muster === null);
-  check("bronze gathers at a War Camp and marches four",
+  check("bronze gathers at a War Camp, iron at a Muster Ground",
     api.MANIFESTS.bronze.muster.building === "warCamp" &&
-    api.MANIFESTS.bronze.muster.column === 4);
-  check("iron gathers at a Muster Ground and has no ceiling",
-    api.MANIFESTS.iron.muster.building === "musterGround" &&
-    api.MANIFESTS.iron.muster.column === null);
+    api.MANIFESTS.iron.muster.building === "musterGround");
+  // NO ERA DECLARES A COLUMN SIZE (owner ruling, 2026-08-25). A flat cap made
+  // units you had already paid population for unusable -- "I had 4 of each
+  // type, but I can only send 4 total" -- and flattened the mixed-column
+  // decision the counter system exists to create. What an age sends is
+  // answered by what it HOLDS (levyCap = owned hexes x armyPerHex) and what
+  // it can FEED, both of which already differ by era without being told to.
+  check("no era caps column size -- territory and provisions do that",
+    ["stone", "bronze", "iron"].every((e) => {
+      const m = api.MANIFESTS[e].muster;
+      return !m || m.column === undefined;
+    }));
   // The War Camp must EXIST in bronze, or `contact: "open"` is a promise the
   // era cannot keep -- which is precisely the bug this slice fixes: a March
   // button appearing at Bronze, permanently disabled behind an Iron building.
@@ -1680,18 +1688,22 @@ console.log("\n--- C2: what an age can muster ---");
     !api.MANIFESTS.iron.buildings.some((b) => b.id === "warCamp"));
 
   api.S.era = "bronze";
-  check("columnCap reads the age", api.columnCap() === 4);
-  check("and nothing musters until the camp stands", !api.musterBuilt());
+  check("nothing musters until the camp stands", !api.musterBuilt());
   api.S.builds.warCamp = 1;
   check("...but it does once it does", api.musterBuilt());
 
   api.S.era = "iron";
   api.S.builds.warCamp = 1; api.S.builds.musterGround = 0;
   check("a war camp does not muster an iron column", !api.musterBuilt());
-  check("iron's cap is no cap", api.columnCap() === Infinity);
+
+  // Territory sizes the army, in every era. Bronze holds 12 hexes at most and
+  // Iron 20, so a Bronze army is smaller than an Iron one without any rule
+  // saying so -- which is the whole reason the flat cap was redundant.
+  check("a bigger dominion fields a bigger army, and Bronze's is capped smaller",
+    api.MANIFESTS.bronze.map.dominionCap < api.MANIFESTS.iron.map.dominionCap);
 }
 
-console.log("\n--- C2: a bronze war party marches, and only four go ---");
+console.log("\n--- C2: you march on what you can feed ---");
 {
   reset();
   api.S.era = "bronze";
@@ -1703,19 +1715,40 @@ console.log("\n--- C2: a bronze war party marches, and only four go ---");
 
   const target = Object.values(api.world.places).find((p) => p.minor);
   const ref = "tile:" + target.id;
+  const plan = api.campaignPlan(ref);
 
-  // The sim refuses an oversized column outright. The modal's stepper stops
-  // at four as a courtesy; THIS is the rule, and it is the one that matters
-  // because a save editor and a stale UI both route through here.
+  // AN ARMY EATS IN PROPORTION TO ITSELF. This is the only thing limiting
+  // column size now, so it is the thing that has to be true.
+  const one = api.provisionsFor(plan, 1);
+  const ten = api.provisionsFor(plan, 10);
+  check("ten fighters cost more to feed than one", ten > one);
+  check("...and the extra is per fighter, not a flat surcharge",
+    Math.abs((ten - one) - 9 * plan.provisionPerUnit) < 1.01);
+  check("even an empty column carries its own overhead",
+    api.provisionsFor(plan, 0) > 0);
+
+  // Distance multiplies BOTH halves -- the supply-line rule doing its usual
+  // work, so a long march with a big army is the costliest thing an era can
+  // attempt. A route through your own country stays cheap.
+  check("a longer route feeds the same column at a higher price",
+    plan.provisionPerUnit >= api.CONFIG.campaignFoodPerUnit);
+
+  // Starve the larder to exactly one fighter's worth and the big column is
+  // refused -- not by a cap, by arithmetic.
+  api.S.res.food = ten - 1;
   api.launchCampaign(ref, { soldier: 10 });
-  check("ten cannot march in an age that musters four",
+  check("you cannot march an army you cannot provision",
     !api.expeditionOut("campaign"));
 
-  api.launchCampaign(ref, { soldier: 4 });
-  check("four can", api.expeditionOut("campaign"));
+  api.S.res.food = 5000;
+  api.launchCampaign(ref, { soldier: 10 });
+  check("but ten CAN march when the food is there -- no headcount ceiling",
+    api.expeditionOut("campaign"));
   const ex = api.S.expeditions.find((e) => e.type === "campaign");
-  check("and the column that left is exactly the party mustered",
-    ex && api.columnSize(ex.units) === 4);
+  check("and the column that left is exactly who was mustered",
+    ex && api.columnSize(ex.units) === 10);
+  check("the provisions actually left the larder",
+    api.S.res.food <= 5000 - ten);
 }
 
 console.log("\n--- C2: larders refill per age, grudges do not ---");
@@ -1812,15 +1845,19 @@ console.log("\n--- C2: launching expeditions ---");
   check("can't send more than are home", S().expeditions.length === 0);
   api.launchCampaign("hillClans", {});
   check("can't send nobody", S().expeditions.length === 0);
+  // Provisions scale with the column now, so the expected figure is computed
+  // rather than restated -- and computed BEFORE the launch spends it.
+  const camPlan = api.campaignPlan("hillClans");
+  const camFood = api.provisionsFor(camPlan, 2);
   api.launchCampaign("hillClans", { soldier: 2 });
-  check("a legal campaign launches and pays provisions",
-    S().expeditions.length === 1 && S().res.food === 100 - api.CONFIG.campaignFoodCost);
+  check("a legal campaign launches and pays provisions for exactly who went",
+    S().expeditions.length === 1 && S().res.food === 100 - camFood);
   api.launchCampaign("hillClans", { soldier: 1 });
   check("one CAMPAIGN at a time", S().expeditions.filter(e => e.type === "campaign").length === 1);
   api.launchCaravan("riverKingdom");
   check("a caravan CAN roll while the campaign is out (parallel tracks)",
     S().expeditions.length === 2 && S().expeditions.some(e => e.type === "caravan"));
-  check("the caravan paid its cargo up front", S().res.food === 100 - 30 - 60);
+  check("the caravan paid its cargo up front", S().res.food === 100 - camFood - 60);
   check("deployment sums across everything that's out", api.deployedCount("soldier") === 2);
   S().res.iron = 50;
   api.launchCaravan("saltNomads");

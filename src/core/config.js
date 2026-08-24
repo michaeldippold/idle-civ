@@ -56,7 +56,14 @@ export const CONFIG = {
                                // NOTE: non-countering units multiply by 1, never below -- units
                                // are never penalised for being the wrong type, only un-bonused.
   counterCasualtyRelief: 0.5,  // how much a fully-countered raid softens the costly-repel roll
-  campaignFoodCost: 30,        // provisions paid up front when a campaign marches
+  // Provisions, paid up front when a campaign marches. PER FIGHTER, plus a
+  // flat overhead for the column itself -- an army eats in proportion to its
+  // size, and marching everyone you own should be a decision about whether
+  // you can feed them (owner ruling, 2026-08-25). This replaced a flat 30
+  // that cost the same for one soldier as for twenty, which left nothing but
+  // an arbitrary headcount cap to make a big army feel big.
+  campaignFoodBase: 10,        // the column's own overhead, whatever its size
+  campaignFoodPerUnit: 7,      // and what each fighter eats on the road
   plunderFraction: 0.4,        // share of each stock resource a victorious campaign carries home
   siegeWallBonus: 6,           // siege engines hit walls at this multiple of their strength
   wallRetreatLoss: 0.35,       // chance a failed breach costs one fighter (before armor)

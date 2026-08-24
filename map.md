@@ -797,8 +797,35 @@ over between ages — wood gives way to bronze gives way to iron and gold.
 | era | contact | what it means |
 |---|---|---|
 | Stone | `none` | You can see them and scout them. You cannot touch them — not because a rule forbids war, but because nobody exists who could declare one. There are no kings in the Stone Age. |
-| Bronze | `open` | War parties, both directions. The age hands you bronze spears and hide armour, so it must let you carry them somewhere. Gathers at a **War Camp**; a column carries **four**. |
+| Bronze | `open` | War parties, both directions. The age hands you bronze spears and hide armour, so it must let you carry them somewhere. Gathers at a **War Camp**. |
 | Iron | `open` | Campaigns, sieges, conquest, and trade — trade arrives with coinage, since caravan payment is gold-denominated at its root. |
+
+#### An army eats in proportion to itself
+
+Column size has **no cap**. It had one for a day — a flat four at Bronze — and it was the wrong lever
+(owner, from play): *"I had 4 of each type, but I can only send 4 total."* A headcount ceiling makes
+units you have already paid population for unusable, and it flattens the mixed-column decision the
+counter system exists to create: with four slots you send four of whatever counters them and leave
+the rest at home forever.
+
+Provisions are the honest limit instead. A campaign costs `campaignFoodBase` for the column plus
+`campaignFoodPerUnit` for every fighter, and the route multiplies **both** halves. Bringing everyone
+is a question about whether you can feed them.
+
+| column | next door | a few tiles | across the map |
+|---|---|---|---|
+| 4 | 38 | 57 | 95 |
+| 12 | 94 | 141 | 235 |
+| 24 | 178 | 267 | **445** |
+
+**The era scaling falls out of systems that already existed, and nobody had to pick a number.**
+`levyCap()` sizes your army by TERRITORY (`owned x armyPerHex`), so Bronze's 12-hex dominion fields
+24 where Iron's 20-hex one fields 40. And a Bronze food store caps at 350, so that bottom-right
+figure — a full levy marched across the continent — is **more food than the age can physically hold**.
+Iron retires storage caps entirely. War party at Bronze, legions at Iron, with no rule saying so.
+
+The walls are also thinner while a column is away, so keeping fighters home already costs something.
+That was the third redundancy the flat cap never noticed.
 
 **What an age can muster is an era fact**, carried on `muster: { building, column }`. The building
 a column gathers at was hard-coded to `musterGround` everywhere, which was fine while Iron was the

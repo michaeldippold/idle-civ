@@ -106,7 +106,7 @@ settlement nouns in and "the Broken Tower" cannot be redressed backwards into th
   regression the roster move introduced — seeding-once meant every Iron major stood unwalled with a
   stone-age larder and no gold at all, so caravans read "traded dry" the instant they launched.
 - [x] **Slice 3 — Bronze's war party** *(shipped 2026-08-24)*. `muster: { building, column }` is
-  the new era fact: Bronze gathers at a **War Camp** and marches **four**, Iron gathers at a Muster
+  the new era fact: Bronze gathers at a **War Camp**, Iron at a Muster
   Ground with no ceiling. This also closed a real hole — `contact: "open"` at Bronze was a promise
   the era could not keep, since the only mustering building in the game was Iron's, so the March
   button appeared and sat permanently disabled. Reach still needs no rule: `marchFactor` makes

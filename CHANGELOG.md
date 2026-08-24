@@ -11,6 +11,42 @@
 
 ---
 
+## 2026-08-25 — An army eats in proportion to itself
+
+**The flat column cap is gone after one day.** It was the wrong lever, caught in play: *"I had 4 of
+each type, but I can only send 4 total."* A headcount ceiling makes units you have already paid
+population for unusable, and it flattens the mixed-column decision the whole counter system exists
+to create — with four slots you send four of whatever counters them and leave the rest at home
+forever.
+
+It was also redundant three times over, which I should have checked before adding it. `levyCap()`
+already sizes your army by TERRITORY (`owned x armyPerHex`), so a Bronze dominion of 12 hexes fields
+24 where an Iron one of 20 fields 40. The walls are thinner while a column is away, so keeping
+fighters home already costs something. What was actually missing was a **price for bringing
+everyone**.
+
+**Provisions now scale per fighter, per tile** (owner's suggestion): `campaignFoodBase` for the
+column plus `campaignFoodPerUnit` each, with the route multiplying both halves. It replaced a flat
+30 that cost the same for one soldier as for twenty — which is precisely why an arbitrary cap was
+needed to make a big army feel big. Four fighters next door cost 38 food; twelve a few tiles out
+cost 141, about forty percent of a Bronze larder.
+
+**And the era scaling now falls out of systems that already existed, with nobody picking a number.**
+A full Bronze levy marched across the map wants 445 food — more than the age can physically store,
+since Bronze caps food at 350 and Iron retires storage caps altogether. War party at Bronze, legions
+at Iron, emergent from territory, distance and granaries rather than declared.
+
+The modal's provisions line is live now, moving as you muster, and turns red when the larder is
+short. A static cost printed above the steppers was part of why the cap seemed necessary at all. The
+tile panel advertises the per-fighter rate before you open anything, so distance is legible early:
+*"14 tiles off, 14 food per fighter."* The Chronicle's wording follows the column that actually left
+rather than an era fact — five or fewer is a war party in any age.
+
+Five new checks (610), replacing the ones that pinned the cap. Two more stopped restating
+`campaignFoodCost` and now compute the expected figure from the plan.
+
+---
+
 ## 2026-08-25 — The Forge was a straw in a firehose
 
 **Reported from a 27-minute Bronze playthrough: six Forges running, copper and tin both CAPPED and

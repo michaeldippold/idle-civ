@@ -786,6 +786,87 @@ world, and that is a deliberate dev-time act.
   nothing on, so by the time it is load-bearing the player has been reading it for forty minutes.
   That is *unravel the contents, not the board* pointed at geography.
 
+### The Noun Table — every ladder in one place
+
+**This is the sheet to ponder.** Everything below re-denominates, or should. The rule is
+`design.md`'s own and it is not a schedule: **a noun changes when the SCOPE changes, not when the era
+does.** Bronze keeps *clearing* on purpose; Silicon keeps *Bloc* on purpose. A row that changes every
+single age is a row that is probably being changed out of tidiness rather than meaning.
+
+**Filled cells are authored and live in the manifests. Blank cells are undecided.** Nothing here is
+implied by anything else — if a cell is empty, the game has no answer yet.
+
+#### 1. The scale ladder — the three nouns that carry the whole fiction
+
+| Age | A tile is a… | A person is a… | The odometer counts… | ×souls |
+|---|---|---|---|---|
+| **Stone** | clearing | settler | | ×1 |
+| **Bronze** | clearing | family | | ×1 |
+| **Iron** | holdfast | ⚠️ *holdfast* | | |
+| Enlightenment | city | | | |
+| Gunpowder | colony | | | |
+| Industrial | territory | | | |
+| Mechanized | nation | | | |
+| Global | bloc | | | |
+| Silicon | bloc *(held)* | | | |
+| Space | settlement | | | |
+| Galactic | world | | | |
+| Kardashev | system | | | |
+
+> ⚠️ **The live collision.** `popNoun` at Iron is **holdfast** — the same word as the tile noun. That
+> was correct when population *was* tiles; the engine rework made population a real per-hex variable
+> again, so the game now counts PEOPLE and calls them PLACES. The POP tooltip currently renders
+> *"Your holdfasts live on the ground they work, and every holdfast counted here stands on one of your
+> 20 hexes."* This is exactly the fight this document already refereed once, in *Scale: The Tile
+> Ladder* — *"a name you have to defend is a name two concepts are fighting over"* — resurrected by
+> the rework. **Iron's `popNoun` needs a person-word again.**
+
+**The odometer column is the topline POP number** (owner ruling, 2026-08-25): the inflated,
+fiction-true count shown at the top of the screen, `people × ×souls`. The small true number never
+appears there — it lives on the tile, where it is a lever. Stone and Bronze are ×1, so the two are
+the same number and nothing changes until Iron.
+
+#### 2. The military ladder — small counts, bigger words
+
+**The counts stay small and true forever** (rule 1: the odometer never enters a stepper). A unit
+costs exactly one hex-person, so a unit already *is* one person's worth of souls — the arithmetic
+never needed fixing. **Only the nouns do:** "3 Horsemen" defending 60,000 souls reads wrong, "3
+Cavalry" does not.
+
+| Age | foot | missile | mounted | siege | where they muster |
+|---|---|---|---|---|---|
+| **Stone** | Soldier | — | — | — | Barracks |
+| **Bronze** | Soldier | Archer | Horseman | — | War Camp |
+| **Iron** | | | | Siege Engine | Muster Ground |
+| Enlightenment+ | | | | | |
+
+*Units have never been renamed per era — `name` is authored once and inherited. Making it an
+era-fact is the same move `popNoun` already made.*
+
+#### 3. The world ladder — what your neighbours are called
+
+**Already working, and the best-proven row on this page.** The same three peoples and the same sites
+in every age; only what they have grown into changes.
+
+| Age | a minor site | the hill people | the river people | the plains people |
+|---|---|---|---|---|
+| **Stone** | the camp at %s | the hill camps | the river camps | the salt wanderers |
+| **Bronze** | the steading at %s | the Hill People | the River Folk | the Salt Wanderers |
+| **Iron** | the freehold at %s | the Hill Clans | the River Kingdom | the Salt Nomads |
+| Enlightenment+ | | | | |
+
+#### 4. Nouns that deliberately do NOT climb
+
+Recorded so nobody "fixes" them later:
+
+- **Raid types** — *warband*, *massed charge*, *band of riders*. These name a SHAPE of attack, not a
+  scale, and the same three shapes roll in every age. (*Warband stays available early by owner
+  ruling; it is a raid type, not a unit.*)
+- **Resources** — food, wood, stone, copper, tin, bronze, iron, steel, gold. A resource ladder is
+  the era list itself; the words are the words.
+- **The infirmary line** — Medicine Tent → Infirmary, then held. One change, at the point the scope
+  actually changed.
+
 ### Conquest Growth & the Peace Path
 
 *(Settled 2026-08-21 — the Iron rework, and the spine of every era after.)*

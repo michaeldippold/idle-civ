@@ -38,6 +38,7 @@ import * as mChrome from "./src/ui/chrome.js";
 import * as mPersist from "./src/core/persist.js";
 import * as mMapModel from "./src/map/model.js";
 import * as mMapGen from "./src/map/generate.js";
+import * as mContinents from "./src/map/continents.js";
 import * as mMapCore from "./src/map/map.js";
 import * as mMapUi from "./src/ui/map.js";
 import fs from "node:fs";
@@ -45,6 +46,7 @@ import nodePath from "node:path";
 import { fileURLToPath } from "node:url";
 
 const MODS = [mConfig, mRng, mLib, mStone, mBronze, mIron, mCompile, mIcons, mState,
+  mContinents,
   mDerived, mCombat, mEvents, mExped, mStep, mActions, mEra, mLog, mDom,
   mPLedger, mPPeople, mPHold, mPBuy, mExpedUi, mModal, mChrome, mPersist,
   mMapModel, mMapGen, mMapCore, mMapUi];
@@ -449,11 +451,13 @@ check("un-overridden defs read the same in both eras", api.defById("granary").na
 
 console.log("\n--- Bronze P1: carrying caps are retroactive (housing's heir) ---");
 reset(); api.ensureMap();
+const seatTerrain = api.world.places[api.world.home].terrain;
 const capStone = api.capOf(api.world.home);
-check("stone: the seat's plains hold 8", capStone === 8);
+check("stone: the seat's ground holds what its terrain says",
+  capStone === api.MANIFESTS.stone.map.popCaps[seatTerrain]);
 S().era = "bronze";
-check("bronze: the SAME ground now holds 12 -- caps are the era curve",
-  api.capOf(api.world.home) === 12);
+check("bronze: the SAME ground now holds more -- caps are the era curve",
+  api.capOf(api.world.home) === api.MANIFESTS.bronze.map.popCaps[seatTerrain]);
 check("advancing raised the ceiling without building anything",
   api.capOf(api.world.home) > capStone);
 S().era = "stone";
@@ -2141,6 +2145,49 @@ console.log("\n--- Phase 10: the renderer port keeps the marks ---");
   check("known but empty country carries no mark at all", api.markFor(wild) === null);
 }
 
+console.log("\n--- Slice 4: the authored continents ---");
+{
+  // The frames are CONTENT, and this is their validator. Each continent is
+  // generated across many seeds and asked the questions an authoring mistake
+  // would fail: is it a real country, is it whole, and -- THE ISLAND LAW --
+  // can every island be seen from somewhere, directly or down a chain?
+  const spec = {
+    tileNoun: { singular: "clearing", plural: "clearings" },
+    terrains: ["plains", "forest", "hills", "river", "water"],
+    seats: [],
+  };
+  let worstOrphan = null, checked = 0;
+  for (const cont of api.CONTINENTS) {
+    let minLand = 1e9, islandsSeen = 0;
+    for (let seed = 1; seed <= 25; seed++) {
+      const w = api.generateMap(seed, spec, cont.id);
+      const d = api.frameDiagnostics(w);
+      minLand = Math.min(minLand, d.land);
+      islandsSeen += d.islands.length;
+      checked += 1;
+      if (d.unsightable.length && !worstOrphan) {
+        worstOrphan = { cont: cont.id, seed, size: d.unsightable[0].size };
+      }
+      if (seed === 1) {
+        check(cont.name + ": a real country (120-160 land)", d.land >= 120 && d.land <= 160);
+        check(cont.name + ": mostly one connected mainland", d.mainland >= d.land * 0.6);
+        check(cont.name + ": has islands to want", d.islands.length >= 1);
+        check(cont.name + ": the seat sits on the mainland", w.places["0,0"] && !w.places["0,0"].ocean);
+      }
+    }
+  }
+  console.log(`  ${checked} continent-seeds generated`);
+  check("THE ISLAND LAW holds on every continent, every seed: no land is unseeable",
+    worstOrphan === null);
+  if (worstOrphan) {
+    console.log(`  orphan: ${worstOrphan.cont} seed ${worstOrphan.seed}, ${worstOrphan.size} hexes`);
+  }
+  // A bare seed reproduces the whole world, continent included.
+  check("the continent is drawn FROM the seed (a number reproduces a world)",
+    api.pickContinent(4242) === api.pickContinent(4242) &&
+    api.CONTINENTS.some((c) => c.id === api.pickContinent(4242)));
+}
+
 console.log("\n--- The dominion cap: what one age can hold ---");
 {
   api.setRngSource(() => 0.99);
@@ -2512,19 +2559,29 @@ console.log("\n--- Phase 6a: the map exists ---");
   api.ensureMap();
   check("the chart exists from the first frame (stone has a map now)",
     api.world !== null && api.world.tileNoun === "clearing");
-  // ONE BOARD, FOREVER: every era generates the same radius-4 disk. Stone no
-  // longer gets a small world that Iron throws away -- what changes across the
-  // ages is the fog and the tile noun, never the ground.
-  check("one board, forever: a radius-4 disk is 61 tiles in every era",
-    Object.keys(api.world.places).length === 61);
+  // ONE BOARD, FOREVER, and it is now an authored CONTINENT (slice 4): a
+  // named frame decides where land ends, the dice decide what land is.
+  check("the world is an authored continent, named",
+    !!api.world.continent && !!api.world.continentName);
+  {
+    // Workable land: not ocean, and not a lake either -- the same definition
+    // frameDiagnostics uses, and the only one that means anything.
+    const land = Object.values(api.world.places).filter((p) => !p.ocean && p.terrain !== "water");
+    check("the continent is a real country (120-160 workable land hexes)",
+      land.length >= 120 && land.length <= 160);
+    check("and it sits in an ocean that is not settleable",
+      Object.values(api.world.places).some((p) => p.ocean) &&
+      Object.values(api.world.places).every((p) => !p.ocean || p.terrain === "water"));
+  }
   const stoneWorld = JSON.stringify(api.world);
 
   S().era = "bronze";
   api.ensureMap();
   check("bronze inherits the SAME world -- same noun, no regeneration",
     JSON.stringify(api.world) === stoneWorld);
-  check("your seat is owned, and on workable ground",
-    api.isOwned("0,0") && api.world.places["0,0"].terrain === "plains");
+  check("your seat is owned, and on food-bearing ground",
+    api.isOwned("0,0") &&
+    ["plains", "river"].includes(api.world.places["0,0"].terrain));
   check("bronze seats no adversaries", Object.values(api.world.places).every((p) => !p.adversary));
 
   const g1 = JSON.stringify(api.world);
@@ -2536,8 +2593,7 @@ console.log("\n--- Phase 6a: the map exists ---");
 
   S().era = "iron"; api.initAdversaries();
   api.ensureMap();
-  check("the tile noun changed, so the world recut", api.world.tileNoun === "holdfast");
-  check("a radius-4 disk is 61 tiles", Object.keys(api.world.places).length === 61);
+  check("the tile noun changed, and the ground did NOT", api.world.tileNoun === "holdfast");
   const seats = Object.values(api.world.places).filter((p) => p.adversary);
   check("all three majors hold seats", seats.length === 3 &&
     ["hillClans", "riverKingdom", "saltNomads"].every((id) => seats.some((p) => p.adversary === id)));

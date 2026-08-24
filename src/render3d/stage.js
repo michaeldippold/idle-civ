@@ -226,11 +226,16 @@ export function setWorld(list, opts) {
   // Reframe while the camera is still the stage's to move, and again whenever
   // an era turns. Otherwise only the LIMITS refresh, so newly charted country
   // becomes reachable by zooming out without the view lurching mid-play.
+  // Limits follow what is KNOWN, not the whole board: the unknown world is
+  // not drawn (map.md 2.6), so zooming out past the charted frontier would
+  // only show void. (This inverts the earlier fix that widened limits to the
+  // whole board -- correct then, when unreached country still rendered.)
+  const frameSet = known.length ? known : list;
   if ((known.length !== lastRevealed || eraTurned) && !userMoved) {
-    frameBoard(known.length ? known : list, list);
+    frameBoard(frameSet, frameSet);
     lastRevealed = known.length;
   } else {
-    applyBoardLimits(list);
+    applyBoardLimits(frameSet);
     lastRevealed = known.length;
   }
 

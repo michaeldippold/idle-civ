@@ -45,7 +45,6 @@ export const STONE = {
   // literally grow, which meant the board a player learned in Bronze was
   // thrown away at Iron, and you cannot re-dress ground you regenerate.
   map: {
-    radius: 4,
     tileNoun: { singular: "clearing", plural: "clearings" },
     terrains: ["plains", "forest", "hills", "river", "water"],
     seats: [],

@@ -3,7 +3,7 @@ import { S } from "../core/state.js";
 import { CONFIG } from "../core/config.js";
 import { rng } from "../core/rng.js";
 import { log } from "../ui/log.js";
-import { generateMap, GEN_VERSION } from "./generate.js";
+import { generateMap, GEN_VERSION, pickContinent } from "./generate.js";
 import { hexDistance } from "./model.js";
 import { hashStr } from "./model.js";
 
@@ -38,6 +38,10 @@ export function ensureMap() {
       seed: (S.seed ^ hashStr(noun)) >>> 0,
       gen: GEN_VERSION,
       tileNoun: noun,
+      // WHICH continent this run is played on. Drawn from the run seed, so a
+      // bare seed number still reproduces the whole world; slice 5's picker
+      // will write a chosen one here instead (map.md 2.6).
+      continent: S.map && S.map.continent ? S.map.continent : pickContinent(S.seed),
       owned: ["0,0"],
     };
     if (firstChart && !S.seen.mapCharted) {
@@ -48,7 +52,7 @@ export function ensureMap() {
       log("Your people mark the ground they stand on. The world is wider than this.", "good");
     }
   }
-  world = generateMap(S.map.seed, spec);
+  world = generateMap(S.map.seed, spec, S.map.continent);
   // THE 3-HEX START (owner ruling, 2026-08-23, ratifying the E2 bridge's
   // accident): a fresh run opens with the seat plus two adjacent land hexes,
   // so one hex per resource is possible from the first minute -- the stepper

@@ -1,125 +1,197 @@
 import { makeRng } from "../core/rng.js";
-import { DIRS, pid, hexDistance } from "./model.js";
+import { CONTINENTS, SIGHT_RANGE, continentById, parseFrame } from "./continents.js";
+import { DIRS, hashStr, pid } from "./model.js";
 
-// ---------- The hex generator (map.md §3-§4) ----------------
-// Geometry is regenerated from the seed, never saved: a world is a number.
-// The generator draws from its OWN rng stream (makeRng), never the game's --
-// rebuilding the map at load must not advance the dice the simulation rolls.
+// ---------- The hex generator (map.md §3-§4, §2.6) ----------
+// Geometry is regenerated from the seed, never saved: a world is a number
+// plus a continent name. The generator draws from its OWN rng streams
+// (makeRng), never the game's -- rebuilding the map at load must not advance
+// the dice the simulation rolls.
+//
+// NAMED SUB-STREAMS, not one sequential stream (tech.md). Each stage seeds
+// from the run seed plus a stable label, so inserting a new stage later
+// cannot shift every downstream draw and silently invalidate every seed ever
+// recorded. Adding a river pass must not move the mountains.
 //
 // Bump GEN_VERSION whenever generation changes shape: ensureMap() regenerates
 // on a version mismatch, which during development is a deliberate, visible
-// reshape of existing worlds rather than a silent one. Before any release
-// this becomes a compatibility question -- do not discover that then.
-export const GEN_VERSION = 1;
+// reshape of existing worlds rather than a silent one.
+export const GEN_VERSION = 2;
 
-// Target share of the map per terrain. Plains is the background; the rest
+// Target share of the LAND per terrain. Plains is the background; the rest
 // grow as blobs onto it, in this order, claiming only unclaimed plains -- so
 // every terrain is GUARANTEED its share on every seed. That guarantee is
-// load-bearing, not cosmetic: terrain becomes the economy in 6c (hills are
-// where iron lives), and a seed that happened to roll two hills tiles would
-// strangle a run. (The first cut of this generator used noise + majority
+// load-bearing, not cosmetic: terrain IS the economy, and a seed that rolled
+// two hills would strangle a run. (The first cut used noise + majority
 // smoothing; smoothing collapses minorities, and a live map came out 44
 // plains / 2 hills / 0 river. Blobs replaced it the same day.)
-const BLOB_SHARE = [["water", 0.12], ["forest", 0.22], ["hills", 0.16], ["river", 0.10]];
+//
+// `water` here is INTERIOR water -- lakes and tarns inside the coastline.
+// The ocean around the continent is authored by the frame, not rolled.
+const BLOB_SHARE = [["water", 0.05], ["forest", 0.22], ["hills", 0.16], ["river", 0.10]];
 
-export function generateMap(seed, spec) {
-  const rng = makeRng(seed);
-  const R = spec.radius;
-  const world = { kind: "hex", tileNoun: spec.tileNoun.singular, home: pid(0, 0), places: {} };
+// Which continent a run is played on. A player who picked one passes it in;
+// a player who rolled Random gets it drawn FROM THE SEED, so a bare seed
+// number still reproduces the whole run (map.md §2.6, the picker ruling).
+export function pickContinent(seed) {
+  const i = hashStr("continent:" + seed) % CONTINENTS.length;
+  return CONTINENTS[i].id;
+}
 
-  // The disk, in a fixed order (r, then q) so every rng draw lands on the
-  // same tile in every regeneration.
-  const order = [];
-  for (let r = -R; r <= R; r++) {
-    for (let q = -R; q <= R; q++) {
-      if (Math.abs(q + r) > R) continue;
-      order.push([q, r]);
-      world.places[pid(q, r)] = { id: pid(q, r), q, r, adj: [], terrain: null, adversary: null };
-    }
-  }
-  for (const [q, r] of order) {
-    const p = world.places[pid(q, r)];
-    for (const [dq, dr] of DIRS) {
-      const n = pid(q + dq, r + dr);
-      if (world.places[n]) p.adj.push(n);
-    }
-  }
+export function generateMap(seed, spec, continentId) {
+  const cont = continentById(continentId || pickContinent(seed));
+  const frame = parseFrame(cont.rows);
+  const world = {
+    kind: "hex",
+    tileNoun: spec.tileNoun.singular,
+    continent: cont.id,
+    continentName: cont.name,
+    home: null,
+    places: {},
+  };
 
-  // Terrain: plains everywhere, then blobs grown onto it. A blob starts on a
-  // random unclaimed plains tile (never your seat) and spreads through a
-  // shuffled frontier of unclaimed plains neighbours -- coherent country, not
-  // confetti (map.md §4 names the failure mode), with every terrain's share
-  // structurally guaranteed on every seed.
-  for (const [q, r] of order) world.places[pid(q, r)].terrain = "plains";
-  const area = order.length;
-  const unclaimed = (p) => p.terrain === "plains" && p.id !== world.home;
+  // ---- The frame: land and ocean, in frame-local coordinates -------------
+  // Ocean is a real place (sight rays travel through it, routes cross it at
+  // a price) and is simply never settleable, like any water.
+  const localOrder = [];
+  const add = (q, r, ocean) => {
+    const id = pid(q, r);
+    world.places[id] = { id, q, r, adj: [], terrain: ocean ? "water" : null, ocean, adversary: null };
+    localOrder.push([q, r]);
+  };
+  for (const [q, r] of frame.land) add(q, r, false);
+  for (const [q, r] of frame.ocean) add(q, r, true);
+  linkNeighbours(world, localOrder);
+
+  const landIds = frame.land.map(([q, r]) => pid(q, r));
+
+  // The AUTHORED mainland: the largest run of frame land, computed before a
+  // grain of terrain exists. Two things depend on it, and the authoring check
+  // found both the hard way -- lakes belong on a continent, not on a two-hex
+  // islet (a lake there is nonsense, and worse, it can erase the islet and
+  // silently break an island CHAIN), and the seat belongs on the continent
+  // rather than marooned offshore.
+  const mainIds = new Set(largestFrameLandmass(world, landIds));
+
+  // ---- Terrain: blobs grown onto the land only (own stream) --------------
+  const tRng = makeRng(hashStr(seed + ":terrain"));
+  for (const id of landIds) world.places[id].terrain = "plains";
+  const area = landIds.length;
+  const unclaimed = (p) => p && !p.ocean && p.terrain === "plains";
   for (const [terrain, share] of BLOB_SHARE) {
+    if (!spec.terrains.includes(terrain)) continue;
+    // Interior water is LAKES: mainland only.
+    const eligible = terrain === "water" ? landIds.filter((id) => mainIds.has(id)) : landIds;
     let budget = Math.max(3, Math.round(area * share));
-    const blobSize = () => 3 + Math.floor(rng() * 4);   // 3..6 tiles per blob
-    let guard = 40;
+    const blobSize = () => 3 + Math.floor(tRng() * 4);   // 3..6 tiles per blob
+    let guard = 60;
     while (budget > 0 && guard-- > 0) {
-      const starts = order.map(([q, r]) => world.places[pid(q, r)]).filter(unclaimed);
+      const starts = eligible.map((id) => world.places[id]).filter(unclaimed);
       if (!starts.length) break;
-      const seed0 = starts[Math.floor(rng() * starts.length)];
+      const seed0 = starts[Math.floor(tRng() * starts.length)];
       let want = Math.min(blobSize(), budget);
       const frontier = [seed0];
       while (want > 0 && frontier.length) {
-        const i = Math.floor(rng() * frontier.length);
+        const i = Math.floor(tRng() * frontier.length);
         const tile = frontier.splice(i, 1)[0];
         if (!unclaimed(tile)) continue;
         tile.terrain = terrain;
         budget -= 1; want -= 1;
-        for (const n of tile.adj) if (unclaimed(world.places[n])) frontier.push(world.places[n]);
+        for (const n of tile.adj) {
+          if (terrain === "water" && !mainIds.has(n)) continue;   // lakes stay ashore
+          if (unclaimed(world.places[n])) frontier.push(world.places[n]);
+        }
       }
     }
   }
 
-  // Your seat is always workable ground (guaranteed above, restated for intent).
-  world.places[world.home].terrain = "plains";
+  // ---- The start: workable ground with room around it (own stream) -------
+  // Chosen AFTER terrain, so the seat's ground is honest rather than forced,
+  // and required to be a food terrain: the opening lesson is forage-or-die,
+  // and a hills start would make it forage-and-die-anyway.
+  const sRng = makeRng(hashStr(seed + ":start"));
+  // The seat belongs on the MAINLAND -- the largest connected landmass. A
+  // start marooned on a two-hex islet would make the continent itself an
+  // unreachable island, which the authoring check duly reported as an
+  // eighty-hex orphan.
+  const workable = (id) => {
+    const p = world.places[id];
+    return p && !p.ocean && mainIds.has(id) &&
+      (p.terrain === "plains" || p.terrain === "river");
+  };
+  const candidates = landIds.filter((id) => {
+    if (!workable(id)) return false;
+    const room = world.places[id].adj.filter((n) => {
+      const q = world.places[n];
+      return q && !q.ocean && q.terrain !== "water";
+    }).length;
+    return room >= 3;   // the trio needs two neighbours, with one to spare
+  });
+  const startId = candidates.length
+    ? candidates[Math.floor(sRng() * candidates.length)]
+    : landIds[0];
 
-  // Adversary seats: land, off your doorstep, spread apart. Constraints relax
-  // in steps rather than failing -- a cramped map seats everyone somewhere.
+  // ---- Translate so the start sits at the origin -------------------------
+  // Everything downstream (S.map.owned, adminDistance, the camera) already
+  // assumes home is "0,0"; moving the FRAME is cheaper than teaching them all
+  // that home moved.
+  const origin = world.places[startId];
+  const shifted = {};
+  const shiftOrder = [];
+  for (const [q, r] of localOrder) {
+    const src = world.places[pid(q, r)];
+    const nq = q - origin.q, nr = r - origin.r;
+    const id = pid(nq, nr);
+    shifted[id] = { id, q: nq, r: nr, adj: [], terrain: src.terrain, ocean: src.ocean, adversary: null };
+    shiftOrder.push([nq, nr]);
+  }
+  world.places = shifted;
+  world.home = pid(0, 0);
+  linkNeighbours(world, shiftOrder);
+
+  const order = shiftOrder.filter(([q, r]) => !world.places[pid(q, r)].ocean);
+
+  // ---- Adversary seats: land, off your doorstep, spread apart ------------
+  const aRng = makeRng(hashStr(seed + ":seats"));
   const seats = spec.seats || [];
   const placed = [];
   for (const advId of seats) {
-    let candidates = [];
-    for (let minPair = 3; minPair >= 1 && !candidates.length; minPair--) {
-      for (let minHome = 2; minHome >= 1 && !candidates.length; minHome--) {
-        candidates = order
+    let cands = [];
+    for (let minPair = 4; minPair >= 1 && !cands.length; minPair--) {
+      for (let minHome = 3; minHome >= 1 && !cands.length; minHome--) {
+        cands = order
           .map(([q, r]) => world.places[pid(q, r)])
           .filter((p) => p.terrain !== "water" && !p.adversary && p.id !== world.home)
-          .filter((p) => hexDistance(p.q, p.r, 0, 0) >= minHome)
-          .filter((p) => placed.every((s) => hexDistance(p.q, p.r, s.q, s.r) >= minPair));
+          .filter((p) => hexDist(p, 0, 0) >= minHome)
+          .filter((p) => placed.every((s) => hexDist(p, s.q, s.r) >= minPair));
       }
     }
-    const seat = candidates[Math.floor(rng() * candidates.length)];
+    if (!cands.length) continue;
+    const seat = cands[Math.floor(aRng() * cands.length)];
     seat.adversary = advId;
     placed.push(seat);
   }
 
-  // The minor tier: procedural seats, hand-authored names drawn without
-  // replacement from a shuffled pool, stats rolled in the spec's ranges.
-  // Everything here regenerates deterministically from the seed; the MUTABLE
-  // half (wall damage, depleting stock) lives in S.map.minors -- and a
-  // captured tile is simply owned, which trumps its minor def on every read.
+  // ---- The minor tier (own stream) ---------------------------------------
   if (spec.minors) {
+    const mRng = makeRng(hashStr(seed + ":minors"));
     const mn = spec.minors;
     const pool = mn.names.slice();
     for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(rng() * (i + 1));
+      const j = Math.floor(mRng() * (i + 1));
       [pool[i], pool[j]] = [pool[j], pool[i]];
     }
-    const rollInt = ([lo, hi]) => lo + Math.floor(rng() * (hi - lo + 1));
+    const rollInt = ([lo, hi]) => lo + Math.floor(mRng() * (hi - lo + 1));
     let seated = 0;
-    for (let minPair = 2; minPair >= 1 && seated < mn.count; minPair--) {
+    for (let minPair = 3; minPair >= 1 && seated < mn.count; minPair--) {
       const spots = order
         .map(([q, r]) => world.places[pid(q, r)])
         .filter((p) => p.terrain !== "water" && !p.adversary && !p.minor && p.id !== world.home)
-        .filter((p) => hexDistance(p.q, p.r, 0, 0) >= 2)
+        .filter((p) => hexDist(p, 0, 0) >= 2)
         .filter((p) => Object.values(world.places).every((o) =>
-          !o.minor || hexDistance(p.q, p.r, o.q, o.r) >= minPair));
+          !o.minor || hexDist(p, o.q, o.r) >= minPair));
       while (seated < mn.count && spots.length) {
-        const p = spots.splice(Math.floor(rng() * spots.length), 1)[0];
+        const p = spots.splice(Math.floor(mRng() * spots.length), 1)[0];
         const stock = {};
         for (const res in mn.stock) stock[res] = rollInt(mn.stock[res]);
         p.minor = {
@@ -134,4 +206,148 @@ export function generateMap(seed, spec) {
   }
 
   return world;
+}
+
+// The biggest connected run of FRAME land -- the continent proper, judged
+// before terrain exists, so lakes and the seat can both be kept on it.
+function largestFrameLandmass(world, landIds) {
+  const isLand = (id) => {
+    const p = world.places[id];
+    return p && !p.ocean;
+  };
+  const seen = new Set();
+  let best = [];
+  for (const id of landIds) {
+    if (!isLand(id) || seen.has(id)) continue;
+    const comp = [];
+    const stack = [id];
+    seen.add(id);
+    while (stack.length) {
+      const cur = stack.pop();
+      comp.push(cur);
+      for (const n of world.places[cur].adj) {
+        if (!seen.has(n) && isLand(n)) { seen.add(n); stack.push(n); }
+      }
+    }
+    if (comp.length > best.length) best = comp;
+  }
+  return best;
+}
+
+function linkNeighbours(world, order) {
+  for (const [q, r] of order) {
+    const p = world.places[pid(q, r)];
+    p.adj.length = 0;
+    for (const [dq, dr] of DIRS) {
+      const n = pid(q + dq, r + dr);
+      if (world.places[n]) p.adj.push(n);
+    }
+  }
+}
+
+function hexDist(p, q, r) {
+  const dq = p.q - q, dr = p.r - r;
+  return (Math.abs(dq) + Math.abs(dr) + Math.abs(dq + dr)) / 2;
+}
+
+// ---------- Frame diagnostics: THE ISLAND LAW ----------------------------
+// "No land is unreachable by the eye": every island must be within sight
+// range of SOME other land -- the mainland, or another island already in the
+// chain. An island nobody can ever see is not a promise, it is a secret.
+//
+// CHAIN-connectivity rather than mainland-adjacency, and the authoring check
+// is what found the reason: an archipelago cannot exist under the stricter
+// rule, because scattered islands are by definition far from the mainland
+// and near EACH OTHER. Chains are also the better fiction -- you stand on the
+// shore you just took and see the next one.
+//
+// This is an AUTHORING check, run by the harness against every continent,
+// never a runtime guard: a generator that threw mid-run would turn a content
+// mistake into a crash.
+export function frameDiagnostics(world) {
+  const places = world.places;
+  const isLand = (p) => p && !p.ocean && p.terrain !== "water";
+
+  // Land components, flooded through land only.
+  const seen = new Set();
+  const components = [];
+  for (const id in places) {
+    if (!isLand(places[id]) || seen.has(id)) continue;
+    const comp = [];
+    const stack = [id];
+    seen.add(id);
+    while (stack.length) {
+      const cur = stack.pop();
+      comp.push(cur);
+      for (const n of places[cur].adj) {
+        if (!seen.has(n) && isLand(places[n])) { seen.add(n); stack.push(n); }
+      }
+    }
+    components.push(comp);
+  }
+
+  const mainIdx = components.findIndex((c) => c.includes(world.home));
+  const compOf = {};
+  components.forEach((c, i) => c.forEach((id) => { compOf[id] = i; }));
+
+  // What each component can SEE: a water-only ray, SIGHT_RANGE steps, stopped
+  // by the first land it touches. Exactly the rule the renderer will use.
+  const sightEdges = components.map(() => new Set());
+  components.forEach((comp, i) => {
+    const wdist = {};
+    let frontier = [];
+    for (const id of comp) {
+      for (const n of places[id].adj) {
+        if (isLand(places[n])) continue;
+        if (wdist[n] === undefined) { wdist[n] = 1; frontier.push(n); }
+      }
+    }
+    while (frontier.length) {
+      const next = [];
+      for (const id of frontier) {
+        for (const n of places[id].adj) {
+          if (isLand(places[n])) {
+            // Land is seen from ANY water the ray reached, including the
+            // last one -- the range limits how far the water carries the
+            // ray, not whether its final cell has eyes.
+            const j = compOf[n];
+            if (j !== undefined && j !== i) sightEdges[i].add(j);
+            continue;                              // and land stops the ray
+          }
+          if (wdist[n] !== undefined) continue;
+          if (wdist[id] >= SIGHT_RANGE) continue;  // no further open water
+          wdist[n] = wdist[id] + 1;
+          next.push(n);
+        }
+      }
+      frontier = next;
+    }
+  });
+
+  // Can every component be reached from the mainland by chained sight?
+  const reached = new Set([mainIdx]);
+  const queue = [mainIdx];
+  while (queue.length) {
+    const i = queue.pop();
+    for (const j of sightEdges[i]) if (!reached.has(j)) { reached.add(j); queue.push(j); }
+  }
+
+  const islands = components
+    .map((comp, i) => ({
+      index: i,
+      size: comp.length,
+      sees: [...sightEdges[i]],
+      reachable: reached.has(i),
+      tiles: comp,
+    }))
+    .filter((c) => c.index !== mainIdx);
+
+  return {
+    continent: world.continent,
+    land: Object.values(places).filter(isLand).length,
+    ocean: Object.values(places).filter((p) => !isLand(p)).length,
+    mainland: components[mainIdx] ? components[mainIdx].length : 0,
+    islands,
+    unsightable: islands.filter((c) => !c.reachable),
+  };
 }

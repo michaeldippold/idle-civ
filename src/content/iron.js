@@ -34,7 +34,6 @@ export const IRON_DELTA = {
   // Scale: The Tile Ladder) -- bigger country, and the three majors take
   // seats on it. Still a readout in 6a; the rest of phase 6 makes it real.
   map: {
-    radius: 4,
     tileNoun: { singular: "holdfast", plural: "holdfasts" },
     terrains: ["plains", "forest", "hills", "river", "water"],
     seats: ["hillClans", "riverKingdom", "saltNomads"],

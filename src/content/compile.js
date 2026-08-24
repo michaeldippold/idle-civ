@@ -55,7 +55,6 @@ export function resolveSlates(m, raw) {
 // The map spec is an era-fact with structure, so it gets a real copy.
 function copyMapSpec(m) {
   return {
-    radius: m.radius,
     tileNoun: Object.assign({}, m.tileNoun),
     terrains: m.terrains.slice(),
     seats: (m.seats || []).slice(),
@@ -191,7 +190,6 @@ export function validateManifests(manifests) {
 
 
     if (m.map) {
-      if (!(m.map.radius >= 2)) bad(`map radius ${m.map.radius} is too small to mean anything`);
       // `view` (the era render radius) was retired 2026-08-22 with one board,
       // forever. A manifest still carrying one is a leftover, and a silently
       // ignored era-fact is exactly the kind of wrongness this validator exists

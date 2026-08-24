@@ -225,9 +225,19 @@ verified stop and a test brief.
       stretch?") that pure randomization can never produce; and the frame's job divides cleanly —
       the frame decides where land ENDS (ocean, islands), the dice decide what land IS (terrain
       blobs, lakes, rivers, start, adversaries). Deliverables:
-      - The authored-frame pool + hex packing + named sub-streams, ~120-150 land hexes. Ocean
-        (outside the coastline) is unsettleable; interior water stays the random lakes/rivers it
-        is today.
+      - [x] **4a — the authored frames** *(shipped 2026-08-24)*. `src/map/continents.js` holds the
+        pool as ASCII art (`#` land, `~` ocean, odd-r rows) so the shapes are legible to whoever
+        edits them: **Broadwater** (155 workable land, a deep bay, islands off the east), **The
+        Long Reach** (137, a narrow diagonal country with an island chain), **The Scatter** (141,
+        a 110-hex mainland in a four-island archipelago). Ocean is a real, unsettleable place that
+        rays and routes cross; interior lakes stay rolled — and are now kept **ashore on the
+        mainland**, because a lake on a two-hex islet is nonsense and can silently erase a link in
+        an island chain. The seat is chosen AFTER terrain, on the mainland, on food-bearing ground
+        (plains or river — a hills start would make forage-or-die into forage-and-die-anyway), and
+        the frame is translated so home stays `"0,0"` for every system that already assumed it.
+        Named sub-streams throughout (`:terrain`, `:start`, `:seats`, `:minors`). `radius` retires
+        as an era-fact — the frame decides extent. 20 new checks (545), including the island law
+        run over 75 continent-seeds.
       - **The SIGHTED fog state** *(refined by owner, 2026-08-24)*: LINE OF SIGHT, not radius —
         sight propagates from a charted coastal hex through WATER only, up to 3 steps, and the
         first land it touches becomes sighted and stops the ray. You see the island's near shore,

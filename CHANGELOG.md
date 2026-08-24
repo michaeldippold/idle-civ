@@ -11,6 +11,36 @@
 
 ---
 
+## 2026-08-24 — Slice 4a: the continents are authored
+
+**The board is a country now.** `src/map/continents.js` holds a small pool of hand-authored
+continents as ASCII art — `#` for land, `~` for ocean, odd-r offset rows — so the shape is legible
+to whoever edits it next: **Broadwater** (155 workable land, a deep bay, islands off the eastern
+shore), **The Long Reach** (137, narrow and diagonal, strung with islands), **The Scatter** (141,
+a 110-hex mainland inside a four-island archipelago). The frame decides where land ends; the dice
+still decide what land is — terrain blobs, lakes, the seat, and who lives nearby.
+
+Ocean is a real place: unsettleable, crossable by routes at a price, and the medium sight rays will
+travel in slice 4b. Interior lakes stay rolled, but are now kept **ashore on the mainland** — a
+lake on a two-hex islet is nonsense, and worse, it could erase an islet and silently break an
+island chain. The seat is chosen *after* terrain (so its ground is honest rather than forced), on
+the mainland, on food-bearing ground; the frame is then translated so `home` remains `"0,0"` and
+every system that already assumed it keeps working. `radius` retires as an era-fact.
+
+**The island law is enforced by the harness, and it earned its keep three times over.** The rule:
+every island must be within sight range of *some* other land — the mainland, or another island
+already in the chain. Chain-connectivity rather than mainland-adjacency, because the first version
+proved an archipelago cannot exist under the stricter rule: scattered islands are by definition far
+from the mainland and near each other. The check then caught a sight ray that died one step early
+(land beside the last water cell was never seen), and a start that could maroon itself on a two-hex
+islet — which made the actual continent report as an eighty-hex unreachable orphan.
+
+Twenty new checks (545), including the law run across seventy-five continent-seeds, that every
+continent is a real country of 120–160 workable hexes, and that a bare seed number still draws its
+own continent — so one number reproduces a whole world.
+
+---
+
 ## 2026-08-24 — The dominion cap: what one age can hold
 
 **The settlementmaxx door is closed.** Each era now declares its scope — `dominionCap`: stone 7,

@@ -55,10 +55,13 @@ export const STONE = {
     // numbers keep a 2-3 hex Stone endgame near today's 15-25 people. Water
     // holds no one and is deliberately absent: a missing terrain means cap 0.
     popCaps: { plains: 8, river: 10, forest: 5, hills: 3 },
-    // What claiming adjacent land costs at Stone scale (E3): food and time
-    // ONLY -- the first claim must be affordable before wood exists. Scaled
-    // by the route, like every expedition.
-    claim: { cost: { food: 25 }, time: 30 },
+    // What claiming adjacent land costs (owner ruling, 2026-08-24, from the
+    // all-food dominance run): a settling party carries provisions, timber
+    // AND tools -- a single-resource price let one export fund the whole
+    // conquest. Every component escalates per claim (claimScale) and scales
+    // by the route. (The old food-only rationale -- "affordable before wood
+    // exists" -- died with the steppers: any hex works wood from minute one.)
+    claim: { cost: { food: 20, wood: 8, stone: 4 }, time: 30 },
     // What each terrain can be turned to, from the FIRST minute (E2): one
     // assignment per hex, terrain sets the rate, every ground works
     // everything at a price. The Stone table is the Iron table minus iron --

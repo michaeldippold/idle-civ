@@ -23,7 +23,12 @@ export const BRONZE_DELTA = {
     terrains: ["plains", "forest", "hills", "river", "water"],
     seats: [],
     popCaps: { plains: 12, river: 15, forest: 8, hills: 5 },
-    claim: { cost: { food: 30, wood: 12 }, time: 35 },
+    // The claim carries the age's SIGNATURE resource (owner ruling,
+      // 2026-08-24) -- the capstone pricing rule, applied to the frontier:
+      // a bronze-age party leaves with bronze fittings. Small next to the
+      // base three, but it means no era's economy can be skipped while the
+      // dominion keeps growing on food and timber alone.
+      claim: { cost: { food: 30, wood: 15, stone: 8, bronze: 3 }, time: 35 },
     works: {
       plains: { food: 1.0, wood: 0.4, stone: 0.3, copper: 0.2, tin: 0.1 },
       river:  { food: 1.2, wood: 0.3, stone: 0.2 },

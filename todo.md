@@ -56,6 +56,24 @@ lockstep, consolidation, the levy, `outputMult`, `allocation`, `growth`, instant
    as expansion's long-term cost), the tech tree (parked, specced), 6e priests & envoy, phase 7
    decision queue, and the Claude Design panel pass against the diorama.
 
+**The all-food dominance run and its fix (owner + Claude, 2026-08-24):** going pure food was
+functionally invincible — claims were priced in the one flow every hex produces best, food had no
+competing sink, storage caps limit stock not rate, and an all-food empire is famine-proof, which
+neutralized E4's entire brake. Two rulings came out of it:
+
+- **Claims are multi-resource, era-signed** *(shipped)*: every claim costs food + wood + stone,
+  and from Bronze onward the age's SIGNATURE resource rides along (bronze 3, iron 5, and one day
+  electricity) — the capstone pricing rule applied to the frontier. The party carries provisions,
+  timber, tools, and the age's technology. No era's economy can be skipped while the dominion
+  keeps growing. (A claims-cost-people proposal was considered and rejected on the math: a
+  2-person party regrows in ~90 seconds — a rounding error, not a brake.)
+- **Sim speed becomes a tech-tree unlock** *(logged in the tech tree spec, deliberately NOT
+  implemented)*: 12× at Stone is the power to take the continent in the first age. The free
+  toggle stays as the QA tool; the owner test-plays at 1× by hand.
+
+Still ahead on the same problem: **stone-age minors** (contested land — and all-food means no
+military, which those punish hard).
+
 **Open flake, recorded verbatim per policy (2026-08-24):** one harness run in ~80 failed TWO
 checks together, post-E5, identity not captured (the run scrolled past). 70+ consecutive greens
 since. Most likely another fixture where E5's own fevers strike an unpinned window — the

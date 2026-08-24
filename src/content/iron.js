@@ -49,7 +49,7 @@ export const IRON_DELTA = {
     // is an Iron-scale instinct -- hills land at 9 here and pass 20 in later
     // eras as the cap curve keeps climbing.
     popCaps: { plains: 24, river: 30, forest: 15, hills: 9 },
-    claim: { cost: { food: 40, wood: 25 }, time: 45 },
+    claim: { cost: { food: 40, wood: 25, stone: 12, iron: 5 }, time: 45 },
     works: {
       plains: { food: 1.0, wood: 0.4, stone: 0.3, iron: 0.2 },
       river:  { food: 1.2, wood: 0.3, stone: 0.2, iron: 0.2 },

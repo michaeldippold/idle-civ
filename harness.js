@@ -691,16 +691,20 @@ console.log("\n--- E3: the timer, the hut and the lockstep are gone, and stay go
   const target = Object.values(api.world.places)
     .find((x) => x.terrain !== "water" && !x.adversary && !x.minor && !api.isOwned(x.id));
   const plan = api.settlePlan(target.id);
-  check("a stone claim is priced in food and time only (no wood before wood exists)",
-    plan && plan.cost.food > 0 && !("wood" in plan.cost) && plan.time > 0);
+  check("a claim is priced in food, timber AND tools (one-resource prices let one export fund the conquest)",
+    plan && plan.cost.food > 0 && plan.cost.wood > 0 && plan.cost.stone > 0 && plan.time > 0);
+  check("...but never in a resource the era does not have", !("bronze" in plan.cost));
   S().era = "bronze";
   const plan2 = api.settlePlan(target.id);
-  check("a bronze claim prices in timber too -- the claim spec is an era-fact",
-    plan2 && plan2.cost.wood > 0);
+  check("a bronze claim carries the age's signature metal (the capstone rule, applied to the frontier)",
+    plan2 && plan2.cost.bronze > 0 && plan2.cost.wood > plan.cost.wood);
+  S().era = "iron";
+  const plan3 = api.settlePlan(target.id);
+  check("an iron claim carries iron", plan3 && plan3.cost.iron > 0);
   S().era = "stone";
 
   // And the claim actually grows the dominion, through the queue.
-  S().res.food = 400; S().builds.granary = 4;
+  S().res.food = 400; S().res.wood = 200; S().res.stone = 200; S().builds.granary = 4;
   api.launchSettle(target.id);
   check("the claim entered the queue", S().buildQueue.some((q) => q.kind === "settle"));
   run(plan.time + 60);
@@ -2038,7 +2042,7 @@ console.log("\n--- Phase 6d: the growth verbs -- minors, settle, routes ---");
     .find((p) => p.terrain !== "water" && !p.minor && !p.adversary && !S().map.owned.includes(p.id));
   const plan = api.settlePlan(empty.id);
   check("settling is priced work, scaled by the route", plan && plan.cost.food >= 24 && plan.time >= 27);
-  S().res.food = 500; S().res.wood = 500;
+  S().res.food = 500; S().res.wood = 500; S().res.stone = 500; S().res.iron = 500;
   const popBefore = S().pop;
   api.launchSettle(empty.id);
   check("settling joins the Underway queue", S().buildQueue.some((q) => q.kind === "settle"));
@@ -2235,7 +2239,7 @@ console.log("\n--- Engine rework E4: the frontier starves first ---");
   // And the QUEUE counts (owner bug report): a claim underway prices the next
   // one up, exactly as queued buildings already price their next copy up.
   reset(); api.closeModal(); api.ensureMap();
-  S().res.food = 500; S().res.wood = 500;
+  S().res.food = 500; S().res.wood = 500; S().res.stone = 500;
   const q1 = Object.values(api.world.places)
     .filter((x) => x.terrain !== "water" && !x.adversary && !x.minor && !api.isOwned(x.id)).slice(0, 2);
   const first = api.settlePlan(q1[0].id).cost.food;

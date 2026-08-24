@@ -983,4 +983,8 @@ body.dead #mainArea .block { filter: saturate(.25); }
 /* Unpainted board in the 2D debug view (phase 10, slice 3). Matches the 3D
    stage's fog: neutral, flat, and carrying no information. Deliberately not
    a dark shroud -- see map.md 2.6. */
-.tile-fog { fill: #b6ab94; stroke: #9c9179; }   /* debug view keeps fog visible: a debug surface sees everything */
+/* The debug view sees everything: uncharted ground keeps its true terrain
+   and loses only its edge, so a continent's SHAPE is legible at a glance
+   without playing out to it. Not a game surface -- the 3D board draws
+   nothing it does not know. */
+.tile-uncharted { stroke: rgba(25, 23, 16, .10); }

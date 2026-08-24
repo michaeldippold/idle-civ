@@ -90,6 +90,13 @@ pass rather than acted on: (1) **7 may be a notch high** — 6 would bite a minu
 economy wants tightening later, the lever is per-capita rate or terrain caps, not more expansion
 nerfs — expansion is now governed.
 
+**QA affordances (2026-08-24), so testing a map does not mean playing to it:**
+`?continent=broadwater|longreach|thescatter` forces a continent (standing in for slice 5's
+picker); the header's **Reveal** button toggles the whole board visible and back, as a lens that
+touches no state; and `?map=2d` now shows every tile's TRUE terrain with uncharted ground marked
+only by a hairline edge — a debug surface sees everything. Existing flags unchanged: `?glcheck=1`
+(readable canvas), `?map=2d` (SVG renderer).
+
 **Open flake, recorded verbatim per policy (2026-08-24):** one harness run in ~80 failed TWO
 checks together, post-E5, identity not captured (the run scrolled past). 70+ consecutive greens
 since. Most likely another fixture where E5's own fevers strike an unpinned window — the

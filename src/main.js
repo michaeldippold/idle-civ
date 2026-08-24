@@ -4,8 +4,8 @@ import { initAdversaries, load, save } from "./core/persist.js";
 import { S, setLoops } from "./core/state.js";
 import { step } from "./core/step.js";
 import { cycleSpeed, modalHold, paused, preGame, renderAll, renderSpeed, setPaused, setPreGame, setSpeed, speed } from "./ui/chrome.js";
-import { ensureMap } from "./map/map.js";
-import { initMapStage } from "./ui/map.js";
+import { ensureMap, revealAll, setRevealAll } from "./map/map.js";
+import { initMapStage, invalidateMapStage } from "./ui/map.js";
 import { checkReveals, log } from "./ui/log.js";
 import { closeModal, modalIsOpen, openInfoPanel, openResetModal } from "./ui/modal.js";
 import { setUpgradeTab } from "./ui/panels-buy.js";
@@ -49,6 +49,14 @@ export function boot() {
   renderSpeed();
   document.getElementById("tabAvailable").addEventListener("click", () => setUpgradeTab("available"));
   document.getElementById("tabOwned").addEventListener("click", () => setUpgradeTab("owned"));
+  document.getElementById("revealBtn").addEventListener("click", () => {
+    setRevealAll(!revealAll);
+    const btn = document.getElementById("revealBtn");
+    btn.textContent = revealAll ? "Hide" : "Reveal";
+    btn.classList.toggle("fast", revealAll);   // the same "a lens is on" weight speed uses
+    invalidateMapStage();
+    renderAll();
+  });
   document.getElementById("infoBtn").addEventListener("click", openInfoPanel);
   initMapStage();
   document.getElementById("modalClose").addEventListener("click", closeModal);

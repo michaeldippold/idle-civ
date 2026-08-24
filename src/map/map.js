@@ -3,6 +3,7 @@ import { S } from "../core/state.js";
 import { CONFIG } from "../core/config.js";
 import { rng } from "../core/rng.js";
 import { log } from "../ui/log.js";
+import { CONTINENTS } from "./continents.js";
 import { generateMap, GEN_VERSION, pickContinent } from "./generate.js";
 import { hexDistance } from "./model.js";
 import { hashStr } from "./model.js";
@@ -25,6 +26,16 @@ export let world = null;
 // you rebuild is ground you cannot re-dress, and the per-era re-dress is the
 // whole visual arc. Only a GEN_VERSION bump regenerates now: a deliberate,
 // visible dev-time reshape.
+// `?continent=broadwater` forces a continent, the QA affordance standing in
+// for slice 5's picker: testing a shape should not mean rolling New Game
+// until the seed happens to offer it. Sits beside ?map=2d, ?glcheck=1.
+function forcedContinent() {
+  try {
+    const want = new URLSearchParams(location.search).get("continent");
+    return want && CONTINENTS.some((c) => c.id === want) ? want : null;
+  } catch (e) { return null; }
+}
+
 export function ensureMap() {
   const spec = active().map;
   if (!spec) { world = null; return; }   // an era without a map (Stone)
@@ -41,7 +52,7 @@ export function ensureMap() {
       // WHICH continent this run is played on. Drawn from the run seed, so a
       // bare seed number still reproduces the whole world; slice 5's picker
       // will write a chosen one here instead (map.md 2.6).
-      continent: S.map && S.map.continent ? S.map.continent : pickContinent(S.seed),
+      continent: S.map && S.map.continent ? S.map.continent : forcedContinent() || pickContinent(S.seed),
       owned: ["0,0"],
     };
     if (firstChart && !S.seen.mapCharted) {
@@ -133,7 +144,17 @@ export function syncCharted() {
   S.map.revealed = Array.from(seen);
 }
 
+// QA ONLY (owner request, 2026-08-24): show the whole board, on demand, so a
+// continent's shape can be judged without playing out to it. Deliberately NOT
+// in the save and NOT in the signature -- it is a lens on the world, like
+// pause and speed, and the button invalidates the stage by hand when it
+// flips. The charted set underneath is untouched, so flipping it back leaves
+// the run exactly as honest as it was.
+export let revealAll = false;
+export function setRevealAll(v) { revealAll = v; }
+
 export function isCharted(id) {
+  if (revealAll) return true;
   return !!S.map && !!S.map.revealed && S.map.revealed.includes(id);
 }
 

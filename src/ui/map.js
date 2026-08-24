@@ -78,12 +78,16 @@ function mapSVG() {
 
   let cells = "", marks = "";
   for (const { p, c } of centers) {
+    // The 2D view is the DEBUG surface and sees everything: uncharted ground
+    // shows its true terrain behind a hairline edge, so continent shapes can
+    // be judged without playing all the way out to them. The 3D board -- the
+    // game -- still draws nothing it does not know.
     const lit = isCharted(p.id);
     const owned = lit && isOwned(p.id);
     // Fogged tiles keep their geometry and lose everything else, including
     // their terrain class -- the 2D view is the debug surface, and a debug
     // surface that leaks what the real one hides is worse than useless.
-    cells += `<polygon class="tile ${lit ? "t-" + p.terrain : "tile-fog"}${owned ? " tile-owned" : ""}${lit && p.adversary ? " tile-seat" : ""}${p.id === selectedId ? " selected" : ""}"
+    cells += `<polygon class="tile t-${p.terrain}${lit ? "" : " tile-uncharted"}${owned ? " tile-owned" : ""}${lit && p.adversary ? " tile-seat" : ""}${p.id === selectedId ? " selected" : ""}"
       points="${hexPoints(c.x, c.y, HEX - 1)}"${lit ? ` data-id="${p.id}"` : ""}></polygon>`;
     if (!lit) {
       // nothing else to draw: unpainted board
@@ -313,6 +317,10 @@ export function renderMapStage() {
     if (p) attachTip(poly, () => tipFor(p));
   });
 }
+
+// The reveal toggle is not part of the signature (it is a lens, not state),
+// so flipping it has to say so out loud.
+export function invalidateMapStage() { lastSignature = ""; }
 
 export function renderTileDetail() {
   const panel = document.getElementById("panel-tile");

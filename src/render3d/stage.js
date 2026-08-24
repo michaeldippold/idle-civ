@@ -23,7 +23,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { axialToWorld, worldToAxialRounded } from "./hex3d.js";
-import { buildProps } from "./props3d.js";
+import { buildProps, setPropPhase } from "./props3d.js";
 import { buildRing, buildTerrain, RIM_Y } from "./terrain3d.js";
 
 const VOID = new THREE.Color(0x11161f);
@@ -48,6 +48,51 @@ let rafId = 0;
 let started = false;
 
 export function isReady() { return started; }
+
+// ---------- The sink-and-rise transition ----------
+// Motion happens only at the moment of a change, and only to the thing that
+// changed (design.md, Explicitly Out of Scope). This is the only thing on the
+// board that ever moves; nothing here runs on its own.
+//
+// Three phases, and the middle one is why this lives in the stage rather than
+// in props3d: the board REBUILDS between sinking and rising, and that rebuild
+// is the whole-map one. A rebuild landing mid-animation would replace the
+// meshes being animated, so `pendingWorld` holds the change until the ground
+// has closed over the old props.
+const SINK_MS = 260, RISE_MS = 320;
+let fx = null;              // { tiles:Set, t0, phase:"sink"|"rise" }
+let pendingWorld = null;    // a setWorld() that arrived mid-sink
+
+// Ask for a transition on specific hexes. Ids the board does not currently
+// draw are harmless: they simply match no instances.
+export function changeHexes(ids) {
+  if (!started || !ids || !ids.length) return false;
+  fx = { tiles: new Set(ids), t0: performance.now(), phase: "sink" };
+  return true;
+}
+
+function stepFx(now) {
+  if (!fx) return;
+  const dur = fx.phase === "sink" ? SINK_MS : RISE_MS;
+  const k = Math.min(1, (now - fx.t0) / dur);
+  // Ease so the props settle rather than stopping dead. Paint only -- nothing
+  // here is read back by anything.
+  const e = fx.phase === "sink" ? k * k : 1 - (1 - k) * (1 - k);
+  setPropPhase(worldGroup, fx.tiles, fx.phase === "sink" ? e : 1 - e);
+  if (k < 1) return;
+  if (fx.phase === "sink") {
+    // The ground has closed. Swap the world NOW, while nothing is visible, then
+    // bring the new props up out of it.
+    const tiles = fx.tiles;
+    fx = null;
+    if (pendingWorld) { const w = pendingWorld; pendingWorld = null; applyWorld(w.list, w.o); }
+    setPropPhase(worldGroup, tiles, 1);      // the new props start underground
+    fx = { tiles, t0: performance.now(), phase: "rise" };
+  } else {
+    setPropPhase(worldGroup, fx.tiles, 0);   // land exactly at rest, never near it
+    fx = null;
+  }
+}
 
 // ---------- Setup ----------------------------------------------------------
 
@@ -196,8 +241,17 @@ async function setupPost() {
 // at this board size a full re-mesh is a couple of milliseconds, and chunked
 // invalidation is an optimisation to reach for when the board is measured to
 // need it rather than assumed to.
+// The seam the transition needs: a rebuild arriving while the props are on
+// their way DOWN is held until the ground has closed over them, then applied
+// unseen. Without this, changing a hex would swap the meshes mid-sink and the
+// animation would jump.
 export function setWorld(list, opts) {
   if (!started) return;
+  if (fx && fx.phase === "sink") { pendingWorld = { list, o: opts || {} }; return; }
+  applyWorld(list, opts);
+}
+
+function applyWorld(list, opts) {
   const o = opts || {};
   places = list;
   byId = {};
@@ -471,6 +525,11 @@ function publishPerf(now) {
       if (o.isInstancedMesh) { instances += o.count; meshes++; }
     });
   }
+  // Under the same flag, hand out the live prop group and the transition
+  // trigger. The sink-and-rise is the one moving thing on the board, so it is
+  // the one thing a screenshot cannot check -- this makes it assertable
+  // instead, which is the standing contract for anything the pane cannot see.
+  window.__mapDebug = { group: worldGroup, changeHexes, fxActive: () => !!fx };
   window.__mapPerf = {
     drawCalls: renderer.info.render.calls,
     triangles: renderer.info.render.triangles,
@@ -494,6 +553,7 @@ function loop() {
   if (composer) composer.render();
   else renderer.render(scene, camera);
   positionLabels();
+  stepFx(performance.now());
   if (perfOn) publishPerf(performance.now());
 }
 

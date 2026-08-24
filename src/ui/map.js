@@ -355,6 +355,20 @@ export function markFor(p) {
   return null;
 }
 
+// Ask the 3D stage to play the sink-and-rise on specific hexes. A no-op under
+// `?map=2d` and before the stage is ready, which is why it is a function here
+// rather than a call at each site: the CALLERS should be able to say "this hex
+// changed" without knowing which renderer is listening.
+//
+// This is the general primitive the owner asked for rather than an era-ceremony
+// special case: the re-dress, building a structure, demolishing one, and losing
+// a hex to famine are all "this hex's contents changed", and all four route
+// here. (2026-08-25.)
+export function changedHexes(ids) {
+  if (mode !== "3d" || !stage3d || !stage3d.changeHexes) return;
+  stage3d.changeHexes(Array.isArray(ids) ? ids : [ids]);
+}
+
 // THE RIM A TILE WEARS -- the same question the mark ladder answers, asked of
 // the hex edge instead of the glyph above it (owner request, 2026-08-25: give
 // foreign ground a rim so the little house stops carrying the whole job on its
@@ -543,8 +557,14 @@ export function initMapStage() {
       if (act === "work" || act === "rest") {
         const tid = btn.dataset.tile;
         if (!isOwned(tid)) return;
+        const wasBuilt = hexUse(tid).kind === "structure";
         if (act === "work") S.map.work[tid] = btn.dataset.res;
         else delete S.map.work[tid];
+        // Re-directing a hex changes no PROPS today, so it plays nothing. The
+        // day a structure is torn down for a resource, that is a contents
+        // change and it animates -- one call site, already correct for a
+        // feature that does not exist yet.
+        if (wasBuilt) changedHexes(tid);
         save();               // a player action commits, like any other
         lastSignature = "";   // the work glyph changed
         renderMapStage();

@@ -382,9 +382,10 @@ export function growPopulation(dt) {
     const cap = capOf(id);
     if (cap <= 0) continue;
     let p = S.map.pop[id] || 0;
-    // A ghost hex rekindles once the settlement is fed again: land is never
-    // lost to famine, only emptied (rule 9), and healing is not migration.
-    if (p <= 0) { p = S.map.pop[id] = 0.2; }
+    // No rekindling: an emptied hex is not yours to repopulate any more, it is
+    // unsettled ground you may claim again (loseHexIfEmpty above). The old
+    // 0.2-soul revival died with rule 9 on 2026-08-25.
+    if (p <= 0) continue;
     if (p >= cap) continue;
     const next = p + r * p * (1 - p / cap) * dt;
     // The logistic APPROACHES its cap and never attains it; snap the last
@@ -455,6 +456,10 @@ export function killAt(id, n) {
   const killed = Math.min(before, Math.max(0, Math.floor(n)));
   S.map.pop[id] = Math.max(0, S.map.pop[id] - killed);
   syncPopMirror();
+  // A raid or a plague that takes the last person takes the ground with it --
+  // the same rule famine follows, because losing ground is a property of the
+  // hex being empty rather than of what emptied it.
+  loseHexIfEmpty(id);
   return killed;
 }
 
@@ -489,12 +494,53 @@ export function adminDistance(targetId) {
   return dist[targetId] !== undefined ? dist[targetId] : Infinity;
 }
 
+// AN EMPTY HEX IS LOST (owner ruling, 2026-08-25, reversing rule 9).
+//
+// Ground used to stay yours when it emptied -- a ghost that rekindled from 0.2
+// souls once the larder refilled, on the reasoning that "a ghost town you can
+// bring back is more interesting than a hex that vanishes". The `dominionCap`
+// shipped two days AFTER that ruling and changed its arithmetic: under a cap, a
+// ghost occupies one of your seven slots while producing nothing, so you were
+// punished twice and could not re-plan. Losing it frees the slot.
+//
+// What actually changed is narrower than it sounds. A ghost and a lost hex both
+// yield nothing; the difference is FREE RECOVERY versus paying the claim again.
+// So famine now costs the investment, not only the people -- which is the point:
+// it punishes stretching yourself thin, or not watching a threat.
+//
+// It self-corrects rather than spiralling, because claim escalation reads
+// `owned.length` (actions.js): losing ground makes the next claim CHEAPER.
+//
+// ONE function, called from every path that can empty a hex -- famine, sickness,
+// a raid -- because "you lose ground when nobody is left on it" is a property of
+// the ground being empty, not of what emptied it.
+export function loseHexIfEmpty(id) {
+  if (!S.map || !world || id === world.home) return false;   // the seat ends the run instead
+  if (!S.map.owned.includes(id)) return false;
+  if ((S.map.pop[id] || 0) >= 1) return false;
+
+  const built = hexUse(id);
+  S.map.owned = S.map.owned.filter((t) => t !== id);
+  delete S.map.pop[id];
+  delete S.map.work[id];            // the use goes with the ground
+  const noun = (active().map && active().map.tileNoun.singular) || "holding";
+  // A structure is destroyed with the hex, and there is no refund -- the same
+  // trade the deliberate demolish carries (design.md, Building on a Hex).
+  if (built.kind === "structure") {
+    log(`The last of them leave the ${noun}. What they built there is abandoned to the weather.`, "bad");
+  } else {
+    log(`The last of them leave the ${noun}. The ground is no longer yours.`, "bad");
+  }
+  syncPopMirror();
+  syncDominion();
+  return true;
+}
+
 // The famine drain: distance governs EXPOSURE, never efficiency. When the
 // larder is empty, unpaid upkeep accumulates, and every `starveCost` worth of
 // it kills one person at the peopled hex FURTHEST from the seat -- the empire
-// starves from its frontier inward, and dies only when the seat itself
-// empties. Land is never lost (dominion never shrinks): an emptied holding
-// stays yours, a ghost waiting to be fed again.
+// starves from its frontier inward, and dies only when the seat itself empties.
+// An emptied holding is LOST, not ghosted (see loseHexIfEmpty above).
 let famineAnnounced = false;
 export function starveTick(deficit, dt) {
   if (!S.map || !S.map.pop || !world) return false;
@@ -518,10 +564,7 @@ export function starveTick(deficit, dt) {
     if (S.map.pop[victim] < 1) {
       S.map.pop[victim] = 0;
       if (victim === world.home) { syncPopMirror(); return true; }   // the seat is empty: the caller ends the run
-      // The era's noun, not the terrain: "The plains ... lies empty" is a
-      // grammar accident waiting on every plural-looking terrain.
-      const noun = (active().map && active().map.tileNoun.singular) || "holding";
-      log(`The furthest ${noun} lies empty. The ground is still yours.`, "bad");
+      loseHexIfEmpty(victim);
     }
   }
   syncPopMirror();

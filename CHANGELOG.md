@@ -11,6 +11,58 @@
 
 ---
 
+## 2026-08-25 — Ground you can lose, and props that sink into it
+
+**Two halves of the same infrastructure, built together because they are the same event: a hex's
+contents changed.**
+
+### An empty hex is lost
+
+**Reverses `design.md` rule 9 and the never-shrinks ruling**, on new information rather than a change
+of heart. Ground used to stay yours when it emptied — a ghost that rekindled from 0.2 souls — because
+*"a ghost town you can bring back is more interesting than a hex that vanishes."* `dominionCap`
+shipped **two days after** that ruling and changed its arithmetic: under a cap a ghost occupies one
+of your seven slots while producing nothing, so you were punished twice and could not re-plan.
+
+What actually changed is narrower than it sounds: a ghost and a lost hex both yield nothing, so the
+difference is **free recovery versus paying the claim again**. Famine now costs the investment, not
+only the people. It self-corrects rather than spiralling, because claim escalation reads
+`owned.length` — losing ground makes the next claim *cheaper*.
+
+`loseHexIfEmpty()` is called from **every** path that can empty a hex — famine, sickness, a raid —
+because losing ground is a property of the hex being empty, not of what emptied it. The seat is the
+one exception and always was: it ends the run instead. A structure on a lost hex is destroyed with
+it, no refund, matching the deliberate-demolish rule.
+
+Ghosts and the 0.2-soul rekindle are **deleted**, not orphaned, with a tombstone block in the harness
+— the `housingPerHut` lesson applied on the way in rather than a fortnight later.
+
+### The sink-and-rise
+
+The first and only moving thing on the board, under the motion ruling: props go down into the ground,
+the world changes underneath, new props come up. `props3d.js` now records the **tile each instance
+stands on**, which is what lets one hex's props move without rebuilding the board — the difference
+between a general primitive and an era-ceremony special case.
+
+**The rebuild is the hard part, and it lives in the stage.** A `setWorld()` arriving mid-sink would
+swap the meshes being animated, so it is held in `pendingWorld` and applied at the bottom of the
+descent, unseen, before the rise begins. The ground hides everything for free: a hex is a solid slab,
+so anything below its top face is occluded from every angle the camera is clamped to — no clipping
+plane, no stencil.
+
+`changedHexes(ids)` is the one call, and all four futures route through it: the era re-dress,
+building a structure, demolishing one, and losing a hex.
+
+**Verified in flight rather than watched.** `?perf=1` now also hands out the live prop group, because
+the one moving thing on the board is the one thing a screenshot cannot check. Sampling an instance's
+Y across a transition: 0.348 at rest, −0.400 underground at 250ms, and back to **exactly** 0.348 at
+626ms. Landing on the precise original value is the motion law made checkable — when it settles, the
+board reads as if you had blinked and missed it.
+
+705 -> 710 checks.
+
+---
+
 ## 2026-08-25 — One hex, one use: the seam before the content
 
 **Infrastructure for building on hexes, built deliberately ahead of any structure to build.** The

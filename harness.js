@@ -3213,8 +3213,13 @@ console.log("\n--- Engine rework E4: the frontier starves first ---");
   check("the frontier bleeds first: the far holding lost people before the seat lost any",
     api.hexPop(far.id) < 3 && api.hexPop(api.world.home) === seatBefore);
   run(120);
-  check("the far holding empties entirely -- and the ground is STILL YOURS",
-    api.hexPop(far.id) === 0 && api.isOwned(far.id));
+  // REVERSED 2026-08-25: ground used to stay yours when it emptied. Under a
+  // dominionCap a ghost occupied a slot while producing nothing, so an empty
+  // hex is lost now -- famine costs the investment, not only the people.
+  check("the far holding empties entirely -- and the ground is LOST with it",
+    !api.isOwned(far.id) && !(far.id in S().map.pop));
+  check("...and the slot comes back, so the loss can be re-planned around",
+    S().map.owned.length < 3);
   check("no one is born during a famine",
     api.hexPopSum() <= 12);
 
@@ -3223,16 +3228,39 @@ console.log("\n--- Engine rework E4: the frontier starves first ---");
   check("the seat starves last, and its fall ends the run",
     S().dead === true && api.hexPop(api.world.home) === 0);
 
-  // Ghost land rekindles once the settlement is fed again.
+  // GHOSTS ARE GONE. Emptied land used to rekindle from 0.2 souls with a full
+  // larder; it is unsettled ground now, and getting it back means claiming it
+  // again. Deleted on purpose rather than left to rot -- this block is the
+  // tombstone for a mechanic that shipped and was reversed.
   reset(); api.closeModal(); api.ensureMap();
-  const ghost = S().map.owned.find((id) => id !== api.world.home);
-  S().map.pop[ghost] = 0;
+  const emptied = S().map.owned.find((id) => id !== api.world.home);
   S().map.work[api.world.home] = "food";
   S().res.food = 100;
-  run(300);   // a hearth rekindles from 0.2 souls; the logistic needs ~110s
-              // to carry that to a whole person, more on stingy terrain
-  check("an emptied holding rekindles when the larder is full again",
-    api.hexPop(ghost) >= 1);
+  api.killAt(emptied, 99);
+  check("emptying a holding loses it immediately, however it emptied",
+    !api.isOwned(emptied));
+  run(300);
+  check("a full larder does NOT bring lost ground back -- no rekindling",
+    !api.isOwned(emptied) && !(emptied in S().map.pop));
+  check("the ground is claimable again rather than destroyed",
+    !!api.world.places[emptied] && api.world.places[emptied].terrain !== "water");
+
+  // The seat is the exception, always: it ends the run instead of reverting,
+  // because "the capital falling is a better ending than an arithmetic one".
+  reset(); api.closeModal(); api.ensureMap();
+  api.S.map.pop[api.world.home] = 0;
+  api.syncPopMirror();
+  api.loseHexIfEmpty(api.world.home);
+  check("the seat never reverts -- losing it is the ending, not a slot freeing up",
+    api.isOwned(api.world.home));
+
+  // A structure goes with the ground, and there is no refund.
+  reset(); api.closeModal(); api.ensureMap();
+  const fort = S().map.owned.find((id) => id !== api.world.home);
+  S().map.work[fort] = api.STRUCTURE + "fortification";
+  api.killAt(fort, 99);
+  check("losing a hex destroys what was built on it",
+    !api.isOwned(fort) && !(fort in S().map.work));
 
   // Escalating claims: each hex beyond the trio costs more than the last.
   reset(); api.closeModal(); api.ensureMap();

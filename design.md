@@ -252,6 +252,13 @@ feed itself, people die at the hexes furthest from your seat and inward from the
 punished *spatially*, which makes a compact empire genuinely cheaper to hold than a sprawling one —
 strategy out of pure geometry, with no new resource and no new UI.
 
+**9. ~~Land stays yours when a hex empties.~~ REVERSED 2026-08-25 — an empty hex is LOST.** Ground
+reverts to unsettled resource ground the moment nobody is left on it, and getting it back means
+claiming it again. The reversal is on new information, not a change of heart: `dominionCap` shipped
+two days after this rule, and under a cap a ghost occupies a slot while producing nothing — punished
+twice, unable to re-plan. It punishes stretching yourself thin, or not watching a threat. The seat
+is still the exception; its fall is still the ending. *Original reasoning follows.*
+
 **9. Land stays yours when a hex empties.** *Dominion never shrinks* (the 2026-08-22 ruling) holds
 here too: a starved hex drops to zero people and remains your holding, repopulating if you can feed
 it again. A ghost town you can bring back is more interesting than a hex that vanishes. **Death

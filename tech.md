@@ -440,9 +440,12 @@ Population is **not** `jobs` summed plus idle. A person is in one of three state
 4. Apply production/upkeep to every resource in `active().resources`, scaled by `dt`.
 5. `runConverters(dt)` — the Forge and anything else with a `converts` spec.
 6. Clamp every resource to `caps()` — silently; a one-time Chronicle hint covers the concept.
-7. Starvation check: `food <= 0` and net food negative ⇒ `die("starvation")`.
-8. Advance `buildQueue[0]` by `CONFIG.buildSpeed * dt`; on completion `shift()` and `completeConstruction()`.
-9. `accrueGrowth(dt)` — a free settler every `CONFIG.settlerIntervalSeconds` while housing has room. **Growth is a background process, deliberately not an event** (`design.md`). Progress freezes rather than resetting when housing is full, so a partly-waited arrival lands soon after a new hut.
+7. **Famine, not instant death** *(rewritten E4)*: `food <= 0` and net food negative runs
+   `starveTick()`, which drains the peopled hex FURTHEST from the seat and returns true only when
+   the seat itself empties. Refill the larder and `endFamine()` lets the ghost hexes rekindle. An
+   empty larder used to kill in one tick, which was unsurvivable at any fast-forward speed.
+8. Advance `buildQueue[0]` by `CONFIG.buildSpeed * dt`; on completion `shift()` and `completeConstruction()`. **Only the front item advances** — the queue itself is the scarcity.
+9. `growPopulation(dt)` — every owned hex grows toward its terrain carrying cap. **Growth is a background process, deliberately not an event** (`design.md`), and since E3 it is also LOCAL: people are born where they will live. *(This was `accrueGrowth` — a free settler on a timer while housing had room — until the engine rework deleted housing, the timer and the hut together.)*
 10. `resolveEvents(dt)` — whatever the active manifest's slate holds.
 11. `resolveExpeditions(dt)` — outbound columns tick and resolve.
 12. Wipe-out check: `S.pop <= 0` ⇒ `die("conflict")`. Generic rather than attributed, so "what happens when population hits zero" lives in exactly one place regardless of cause. In practice only Conflict can reach it (Sickness floors at one survivor by design).
@@ -509,15 +512,45 @@ Buildings may carry a `cap` (Barracks and Muster Ground: `cap: 1`). Once `(S.bui
 
 **Status: shipped (Phases A, B, C1, C2, C2.1).** Design rationale in `design.md`, *The Era Manifest Model*. This is the architecture the rest of the game hangs off, and it is the part of the codebase that has paid back the most.
 
-**Authoring.** `STONE` is a full base manifest: `name`, `housingPerHut`, `panelTitles`, `popNoun`, `raidTypes`, the five def categories (`resources`, `jobs`, `buildings`, `upgrades`, `units`), `adversaries`, and two slates (`events`, `hints`) naming entries in the id-keyed `EVENT_LIB` / `HINT_LIB`. `BRONZE_DELTA` and `IRON_DELTA` are authored as **deltas**: `remove`, `override`, `add` (per category), fresh slates, an optional `consolidate` spec, `migrations`, and any era-scoped scalars. Reading the delta *is* reading the era's design — Iron's literally reads "remove the bronze economy; add iron and gold; the Forge now smelts steel."
+**Authoring.** `STONE` is a full base manifest: `name`, `panelTitles`, `popNoun`, `raidTypes`, the
+def categories (`resources`, `buildings`, `upgrades`, `units`; `jobs` survives as an empty array the
+compiler still threads), `adversaries`, the `map` spec, and two slates (`events`, `hints`) naming
+entries in the id-keyed `EVENT_LIB` / `HINT_LIB`. `BRONZE_DELTA` and `IRON_DELTA` are authored as
+**deltas**: `remove`, `override`, `add` (per category), fresh slates, `migrations`, and any
+era-scoped scalars.
+
+**Era-facts added by the adversary arc (2026-08-24/25), both inherited by value:**
+
+- **`contact`** — `"none"` or `"open"`. What an age can do about its neighbours, in either
+  direction. Stone is `"none"`, and the reason is fictional rather than mechanical: there is nobody
+  in a stone age able to send an army. It gates the outward verbs on the tile panel, NOT the
+  existence of neighbours — every era has neighbours now.
+- **`muster: { building }`** — which building must stand before a column leaves. It was hard-coded
+  to `musterGround` everywhere, which was fine while Iron was the only era with an outward verb and
+  became a lie the moment Bronze had one. It briefly also carried a `column` size cap; that was the
+  wrong lever and is gone (see *An army eats in proportion to itself* in `CHANGELOG.md`).
+
+**The map spec is COPIED on inheritance, never shared by reference.** A child that redeclares no
+`map` used to receive the parent's object itself, and `attachSeatTerrain()` writes onto it — so a
+silent delta reached back and wiped its parent's seat terrain. The harness caught it as 30 seats on
+their own ground out of 90, which is precisely chance, and that number is what made it findable. Reading the delta *is* reading the era's design — Iron's literally reads "remove the bronze economy; add iron and gold; the Forge now smelts steel."
 
 **Compilation.** `compileBase(STONE)` + `extendEra(parent, delta)` run at load into `MANIFESTS`. Every def is shallow-copied, so an override can never mutate the parent era's copy. The compiler **throws** on: remove/override targets missing from the parent, duplicate `add` ids, a missing slate, and unknown slate ids — at load, before a frame renders. Silent wrongness from a dangling id is this project's signature bug class; the compiler converts it into a loud one. (Phase 4 adds per-second → per-tick conversion to this pass.)
 
 **The indirection.** `active()` returns `MANIFESTS[S.era]`, and every engine and render read of content goes through it — rates, caps, converters, events, hints, combat math, expeditions, every render function. Nothing outside the active manifest renders, produces, fires, or can be purchased. The engine never consults `S.era` for content decisions; `S.era` is nothing more than the key, so `advanceEra()` swaps the entire world in one assignment.
 
-**Slates never inherit.** Each era declares its complete `events`, `hints` and `adversaries` lists even in delta form — a forgotten event is a loud authoring decision, not a silent omission. The predecessor design (per-event `eras: [...]` allowlists) once silently stopped events firing after a flip, with no error; the harness now asserts slate membership per era instead.
+**Slates never inherit.** Each era declares its complete `events`, `hints` and `adversaries` lists even in delta form — a forgotten event is a loud authoring decision, not a silent omission.
 
-**Era-varying values.** `housingPerHut()`, panel titles and the age badge read `active()`. The Info panel iterates `ERA_ORDER` and reads each era's compiled manifest directly, so the Iron tab shows Iron names while you are still in Stone.
+**This is also how the era RE-DRESS works, and it needed no new mechanism.** Since 2026-08-24 the
+same three peoples exist in every age on the same hexes: Stone declares them as camps, Bronze as
+peoples, Iron as powers, all sharing ids. A wholesale slate per era is exactly the shape that wants
+— generation answers *where* and *who*, the era answers *what they are now*. The validator asserts
+the three ids match across eras, so redressing can never quietly delete a people at a flip. The predecessor design (per-event `eras: [...]` allowlists) once silently stopped events firing after a flip, with no error; the harness now asserts slate membership per era instead.
+
+**Era-varying values.** Panel titles and the age badge read `active()`.
+*(`housingPerHut()` still exists in `core/derived.js` and is exported, but NOTHING in `src/` calls
+it — housing died in the engine rework and the accessor outlived it. `CONFIG.settlerIntervalSeconds`
+is dead the same way. Both are vestigial; see todo.md.)* The Info panel iterates `ERA_ORDER` and reads each era's compiled manifest directly, so the Iron tab shows Iron names while you are still in Stone.
 
 **Two rendering gotchas that predate manifests and still apply:**
 
@@ -526,7 +559,12 @@ Buildings may carry a `cap` (Barracks and Muster Ground: `cap: 1`). Once `(S.bui
 
 **The capstone Upgrade.** Advancing is an ordinary upgrade in the outgoing era's manifest (`bronzeAge`, `ironAge`), inheriting the queue, cost check, build timer, cancel-and-refund and "owned" state for free — and the incoming delta **removes** it: a capstone exists only in the era it ends. Its `reveal` reads *current* state (`S.pop >= 16 && (archer || horseman) >= 1`) rather than an ever-trained flag, because sticky reveals already cover the case where the units later die. `CAPSTONES` (id → era) maps completion to `advanceEra()`, the only place `S.era` is ever assigned. Because it sits in the normal queue, hazards keep resolving throughout its long build — the design's intended source of "and some luck."
 
-**The validator.** `validateManifests(MANIFESTS)` runs at load immediately after compilation and throws with a full problem list on any within-era dangling reference: cost keys, `converts.in`/`out` keys and `job.res` against that era's resources; `capBuilding`, `BOOST_BUILDING` targets and event `counter.building` against its buildings; unit `counters` and adversary `fightsAs` against its raid types; adversary `stock` keys and `buys.res` against its resources; `buys` only on peaceful adversaries; `consolidate.keep` in `(0, 1]`; plus def-shape checks and migration-instruction sanity. **This is what makes removal safe to author**: retire a resource and everything still mentioning it becomes a load-time error instead of NaN production or a converter that silently never runs. Honest limit, unchanged: `reveal()` predicates are arbitrary code, so a stale reference there yields a card that never appears — annoying, but it cannot break the economy.
+**The validator.** `validateManifests(MANIFESTS)` runs at load immediately after compilation and throws with a full problem list on any within-era dangling reference: cost keys, `converts.in`/`out` keys and `job.res` against that era's resources; `capBuilding`, `BOOST_BUILDING` targets and event `counter.building` against its buildings; unit `counters` and adversary `fightsAs` against its raid types; adversary `stock` keys and `buys.res` against its resources; `buys` only on peaceful adversaries; plus def-shape checks and migration-instruction sanity.
+**Added 2026-08-24/25, and all four are placement- or tier-stability rules the roster depends on:**
+every era must declare the same `map.seats`; every era's `map.minors` must share one `density` and
+one name-pool LENGTH (both decide WHICH hexes get steadings, so a drift relocates every neighbour in
+every existing world); `minors.form` must contain `%s`; and every major must outrank its own age's
+minor band, or the words "major" and "minor" describe nothing. **This is what makes removal safe to author**: retire a resource and everything still mentioning it becomes a load-time error instead of NaN production or a converter that silently never runs. Honest limit, unchanged: `reveal()` predicates are arbitrary code, so a stale reference there yields a card that never appears — annoying, but it cannot break the economy.
 
 **The era transition.** `advanceEra(era)` is the whole machine, in deliberate order:
 
@@ -550,7 +588,12 @@ Snapshots exclude `eraHistory` itself so they never nest; they are a few hundred
 - **Iron onward:** `popNoun` *is* the tile noun. Population is not a separate quantity — it is the count of places held, so `S.pop` past Iron should derive from the map rather than being tracked beside it. Expect `popNoun` to be renamed `tileNoun` (or for both names to point at one era-fact) when phase 8 lands; do not introduce a second, competing noun field in the meantime.
 - **A third, independent string arrives with the odometer** — souls / subjects / citizens / beings. It names a mass of people rather than a place, never touches a mechanic, and therefore cannot collide with the tile noun. Keep it a separate era-fact for exactly that reason.
 
-The odometer itself is **derived and never stored**: `souls = Σ tiles × soulsPerTile(era)`. It must never appear in a cost, cap, rate, requirement, or stepper — the moment it gates anything, the small-numbers pillar is broken. It is the one display in the game permitted number compaction.
+The odometer itself is **derived and never stored**: `souls = Σ tiles × soulsPerTile(era)`.
+*(Open, flagged 2026-08-25: that formula was written when tiles were the only lever at Iron. The
+engine rework made per-hex population a real variable, so `Σ hexPop × soulsPerPerson(era)` is very
+likely the honest version — and it satisfies the spec's own requirement that at Stone the odometer
+and the lever are the same small number, since a Stone multiplier of 1 makes the display literally
+be your population. Decide when the odometer is built, not before.)* It must never appear in a cost, cap, rate, requirement, or stepper — the moment it gates anything, the small-numbers pillar is broken. It is the one display in the game permitted number compaction.
 
 A sequencing question this opens, and it needs answering before either phase starts: **terrain-derived production lands with phase 6 (G1), not phase 8.** Per-hex allocation replaces the job steppers at Iron (`design.md`, *Allocation — the permanent verb*), so the moment G1 ships the player needs hexes to click — but hexes live on the map. **Decided 2026-08-22: phase 8's M1 slice lands inside phase 6.** The alternative — an interim production model built and then thrown away — is the more expensive mistake, and it is the one that is hard to unwind later. If pulling M1 forward goes badly, the revert target is the commit that recorded this decision, and the interim model is still available from there.
 
@@ -621,7 +664,12 @@ The reconciler balances against `jobsUsed() + reserved() - civilians()` and reso
 
 The harness fuzzes it: 400 random settlements with random armies, queues and death sequences, asserting `idle()` and `civilians()` never go negative. **The generalizable lesson: any derived quantity with more than one claimant needs a reconciler, and the reconciler needs a fuzz test, because the failure mode is a small negative number on screen rather than a crash.**
 
-`removeSettler(allowZero = false)` is the shared "a civilian dies" helper. It no-ops when `civilians() <= 0` — a settlement of nothing but trained units has no one for it to take, and without the guard `S.pop` could be pushed below the unit total, making `civilians()` negative. Otherwise it decrements `pop` (floored at 1 unless `allowZero`) and reconciles. Contrast `removeRandomUnit()`, which drops a unit and `pop` together so `civilians()` is unchanged and no reconciliation is needed.
+**`removeSettler()` died in E5 and nothing replaced it, deliberately.** Nobody dies *nowhere* any
+more: a death has to land on the ground where that person actually lived, so sickness and raids call
+`strikeHex(cause)` to choose a hex and `killAt(hex, toll)` to take people from it. The old helper
+decremented a global `S.pop` counter, which is exactly the fungible-pool thinking the rework
+removed. `removeRandomUnit()` survives unchanged for units, which genuinely are a roster rather than
+a place: it drops a unit and the pop mirror together.
 
 ## Progressive Reveal Hints
 
@@ -702,7 +750,14 @@ Conflict is the one hazard allowed to end a run (`design.md`, *Failure*), which 
 
 **Resolution lines log unconditionally.** Rare and story-critical, same rule as migration narration.
 
-**Layout.** `#panel-expeditions` sits at grid row 2 / column 4; the Chronicle's `grid-row: 1 / 3` becomes conditional and drops to row 1 once the Muster Ground reveals — the same sticky-span machinery the roster panels use, pointed the other way. Each adversary renders as a create-once card: name, disposition, standing word, known stock, wall state, campaign allocator (job-style steppers per unit type) and caravan button with the posted exchange. Campaigns launch through a muster **modal** (description, live estimate, steppers; the allocator is module-level UI state like `paused`, reset on launch). Caravans stay one-click on safe roads and open an **escort modal** when the roads are dangerous. Expeditions render as cancel-less progress cards at the top of the queue panel, typed by `QUEUE_ICONS`, with uids prefixed `x` so they share the panel with build uids.
+> **SUPERSEDED 2026-08-22 by the flip.** There is no Expeditions panel and no 4-column grid any
+> more: the map is a full-bleed stage with floating panels over it, and every outward verb lives on
+> the **selected tile** instead (`detailHTML` in `ui/map.js`). Campaigns still launch through the
+> muster modal described below, which survived the flip intact and is still the best-staged decision
+> in the game. The paragraph is kept for the card anatomy and the uid-prefix trick, both of which
+> still apply to the queue panel.
+
+**Layout (historical).** `#panel-expeditions` sat at grid row 2 / column 4; the Chronicle's `grid-row: 1 / 3` becomes conditional and drops to row 1 once the Muster Ground reveals — the same sticky-span machinery the roster panels use, pointed the other way. Each adversary renders as a create-once card: name, disposition, standing word, known stock, wall state, campaign allocator (job-style steppers per unit type) and caravan button with the posted exchange. Campaigns launch through a muster **modal** (description, live estimate, steppers; the allocator is module-level UI state like `paused`, reset on launch). Caravans stay one-click on safe roads and open an **escort modal** when the roads are dangerous. Expeditions render as cancel-less progress cards at the top of the queue panel, typed by `QUEUE_ICONS`, with uids prefixed `x` so they share the panel with build uids.
 
 **The panel is gated on era, not progress**: `expeditionsUnlocked()` is `active().adversaries.length > 0`, so it stands in any era whose manifest declares an outside world. The Muster Ground gates the *actions* on the cards (with a tooltip reason on each disabled button), not the panel — reading your neighbours before you can act on them is the point, since the cards are the recruiting poster for the building.
 

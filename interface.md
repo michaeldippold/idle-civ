@@ -175,8 +175,13 @@ plus a light/dark chrome assignment. Nothing else.
 
 ### Grid geometry
 
-`#mainArea` is `grid-template-columns: 0.86fr 1fr 1fr 1.24fr` × `grid-template-rows: 1fr 1.7fr`, 12px
-gap. People is narrowest (it is mostly steppers), Chronicle widest (it is prose); the roster row is
+> **SUPERSEDED by the flip (2026-08-22).** `#mainArea` and its 4x2 grid no longer exist: the map is
+> a full-bleed stage and the panels float over it. The proportions and scroll rules below are kept
+> because they still describe how a panel behaves internally, and because the reasoning about column
+> widths fed directly into how wide the floating panels are.
+
+`#mainArea` was `grid-template-columns: 0.86fr 1fr 1fr 1.24fr` × `grid-template-rows: 1fr 1.7fr`, 12px
+gap. People is narrowest, Chronicle widest (it is prose); the roster row is
 shorter than the action row. `body` is `overflow: hidden` and flex-column; `.block` is
 `overflow: hidden` with a fixed `h2` and a `.block-body` that scrolls. The ledger is its own grid,
 `repeat(auto-fill, minmax(190px, 1fr))` — `auto-fill` rather than `auto-fit` is load-bearing, since it
@@ -305,10 +310,11 @@ game, including all future eras, which are authored as data against this same gr
    (name above, rate and stepper beneath): at ~180px column width there is no honest way to fit name +
    rate + stepper on one, and the name is the control's primary label. Used for job assignment and for
    mustering forces in the campaign/caravan modals.
-   **Era-scoped (pending — phase 6/8):** job assignment retires the stepper at Iron, replaced by
-   clicking a hex and setting what that holding gathers. Same mechanic, better surface — the decision
-   moves to where the information already is. The stepper survives for non-spatial quantity
-   allocation, principally mustering.
+   **SHIPPED, and it went further than planned.** Job assignment did not retire at Iron — it retired
+   *entirely*, in every era, when the engine rework put population on hexes. You click a hex and set
+   what that ground works; there is no global pool to divide, so there is nothing for a job stepper
+   to divide. **The stepper survives in exactly one place: mustering a column** in the campaign
+   modal, which is non-spatial quantity allocation and the one thing the control was always best at.
 4. **Buy card** — the workhorse, one grammar for buildings, upgrades and units alike. Name +
    right-aligned status (owned count / "owned" / "queued" / "Maxed"), cost line with each unaffordable
    resource in red, build time. **Unaffordable is a lighter border and nothing else** — text stays at

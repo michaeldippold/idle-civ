@@ -826,6 +826,22 @@ These survive the pivot unchanged.
 
 ---
 
+## Vestigial code, found by the docs pass (2026-08-25)
+
+Both are exported/declared, referenced by nothing in `src/`, and outlived the system they belonged
+to. Neither breaks anything; both will mislead the next person who greps for them, which is exactly
+what the docs pass was for.
+
+- [ ] **`housingPerHut()`** in `core/derived.js`. Housing died in the engine rework; the accessor
+      did not. The `housingPerHut` era-fact is still declared in the manifests and still passed by
+      six harness fixtures, so removing it is a small three-file change (manifest field, accessor,
+      fixtures) rather than a one-liner.
+- [ ] **`CONFIG.settlerIntervalSeconds`**. Dead since E3, when `accrueGrowth` was replaced by
+      `growPopulation` and people started being born where they will live. The harness already
+      carries a comment saying so. This one IS a one-liner.
+
+---
+
 ## Known rough edges
 
 - [ ] **Mobile layout** is a basic stacked-column `@media` fallback, not designed for. Matches the

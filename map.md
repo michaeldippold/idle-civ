@@ -862,7 +862,18 @@ a generator produces *distributions* and the memorable ones are outliers with a 
 **What is procedural is which adversaries appear, and where they sit.** The pool per era is
 **larger than the number used per run** — not fifty, but comfortably more than the slate needs —
 so which neighbours you get varies between runs while every neighbour you get is one somebody
-wrote. Placement scatters the chosen ones across the generated world; **some tiles are simply
+wrote.
+
+> **HONEST STATUS (measured 2026-08-25): only the MINOR tier delivers this.** The steading pool
+> holds 14 names and seats about 7 per world, so those genuinely differ run to run. The **majors do
+> not**: the pool is exactly three and all three are seated in every run, in every era. So the Hill
+> Clans, the River Kingdom and the Salt Nomads are a fixed cast, and the "which neighbours did I
+> get" drama the paragraph above promises is currently carried entirely by the steadings.
+>
+> This is a content gap, not a design change — the machinery already supports a larger pool, since
+> `map.seats` names which ids to seat and the slate can hold more than it seats. Writing three or
+> four more majors per era would turn the promise on. It is worth doing *after* the era re-dress,
+> because every new major costs three descriptions rather than one. Placement scatters the chosen ones across the generated world; **some tiles are simply
 empty**, and emptiness is a feature, not an absence: it's what makes distance real and what gives
 capture somewhere to go.
 

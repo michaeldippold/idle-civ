@@ -328,6 +328,13 @@ gone. Growth is local, expansion is a paid claim with escalating costs, and fami
 frontier inward until the seat falls — rules 8 and 9 above are live code. `S.pop` survives only as
 a mirror until E5 re-homes the army and events.)*
 
+*(And E5–E6 did: the army answers to the land (`levyCap` = owned hexes × `armyPerHex`) and recruits
+draw a real person from the seat; `removeSettler` is gone entirely, replaced by `strikeHex` /
+`killAt` so sickness and raids land on the ground where those people actually lived. **Owner played
+a full run to Iron on 2026-08-25** — the loop holds end to end, a minor was subdued in Bronze and
+swore fealty, and the finding worth keeping is that the dominion cap never bit: demand ran out
+before the ceiling did.)*
+
 #### The four re-homings (the actual work)
 
 Population was load-bearing in four places. Each needs a new home on the hex:
@@ -734,18 +741,32 @@ to need it — one formatter for one display, not the pillar being abandoned. An
 holdfast is forty thousand people the ladder should read as roughly plausible rather than randomly
 generous. Cheap now, annoying to retrofit.
 
-**Border policy.** Stone→Bronze is a **1:1 relabel** — pure text, zero re-balance, protecting the
-proven early pacing. **Consolidation begins at Bronze→Iron** and cuts **deep**: you should enter an era
-with a *handful* of tiles held, each weighty enough that gaining or losing one is an event. The trick
-that makes depth free: consolidation pairs with an **era output multiplier** so that `keep × output ≈
-1` — total throughput unchanged, every existing cost stays valid, no re-tuning cascade. Narrated as a
-standard migration, and a soft tithe on min-maxed stockpiling.
+> **BOTH MECHANISMS BELOW WERE DELETED (engine rework E2–E3, and the one-board ruling). Kept because
+> the PROBLEM they solved is still real and will need an answer again.** `consolidate` and
+> `outputMult` are gone from the code and from every manifest; the map never regenerates at all now.
 
-**The map regenerates when the tile noun changes.** That is the whole test, and it is why Bronze
-inherits Stone's clearing unchanged (same valley, new tileset, no regeneration) while Bronze→Iron
-rescales. Declared as an era-fact, exactly like `consolidate`. Rescale borders will usually coincide
-with consolidation borders because they are the same event — the scope zooming out — but they stay
-separate facts so they *can* diverge. See `map.md` §2 and §10.3.
+**Border policy, as designed (historical).** Stone→Bronze is a **1:1 relabel** — pure text, zero
+re-balance, protecting the proven early pacing. **Consolidation begins at Bronze→Iron** and cuts
+**deep**: you enter an era holding a *handful* of tiles, each weighty enough that gaining or losing
+one is an event. The trick that made depth free: consolidation paired with an **era output
+multiplier** so that `keep × output ≈ 1` — total throughput unchanged, every existing cost still
+valid, no re-tuning cascade.
+
+**What replaced it.** The scope of an age is now expressed by `dominionCap` (Stone 7, Bronze 12, Iron
+20) and by per-terrain `popCaps` that climb per era — **caps-as-era-scope rather than
+caps-as-housing**. An age gets bigger by being allowed to *hold* more and by each hex supporting
+more, instead of by having your holdings folded together at the border. That is a gentler instrument
+and it keeps the board continuous, which the one-board ruling requires.
+
+**The open half, stated so it is not lost:** consolidation also answered *"how does the number of
+things you manage stay small as the empire grows?"* Nothing answers that yet. At Iron you hold up to
+twenty hexes and click each one. Later ages cannot keep adding rungs to that ladder, and the
+delegation idea in *A Game You Watch* is where the eventual answer probably lives.
+
+**The map never regenerates.** *(One board, forever — owner ruling, `map.md` §2.6.)* The old rule
+regenerated when the tile noun changed; that is gone, because ground you rebuild is ground you cannot
+re-dress, and the per-era re-dress is the whole visual arc. Only a `GEN_VERSION` bump reshapes a
+world, and that is a deliberate dev-time act.
 
 **Notes:**
 

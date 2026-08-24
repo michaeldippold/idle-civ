@@ -23,37 +23,52 @@ and open <http://localhost:8123>. Progress auto-saves to your browser's local st
 
 ## The loop
 
-> **This describes what currently RUNS, and the first half of it is being replaced.** As of
-> 2026-08-23 the economy is being reworked so that production runs on hexes from the Stone Age and
-> population lives on the map rather than in a global pool — steppers, jobs and housing all retire.
-> See `design.md` → *Population Lives Somewhere*. Kept accurate to the shipped game until that
-> lands, because a README that describes an intention is worse than one that is merely out of date.
+*(Accurate to the shipped game as of 2026-08-25. The engine rework and the map arc both landed;
+what follows is what actually runs.)*
 
-- You begin with **3 settlers** and a nearly empty board. Everyone **eats food** every second, so
-  your first job is to forage — **run out and the settlement dies.**
-- Assign settlers to gather **food**, **wood**, and **stone** with the steppers in Your People.
-  Everyone eats whether they're working or not, so growth is a trade-off rather than a pure win.
-- **Housing gates population** in the early ages. Settlers arrive free on a timer while there's
-  room, so the rhythm is: forage → grow → hit the cap → build → grow.
-- **Building takes time.** Costs are paid when you click, then the item sits in a **queue** — only
-  the front one progresses. Costs escalate per building type, including ones still queued.
-- **Storage is capped.** Surplus past the cap is *lost*, not stalled.
-- **The world acts on you.** Sickness, raids, windfalls and traders resolve on their own schedule,
-  and the **Chronicle** is the settlement's memory of it.
-- **From the Iron Age the loop turns outward.** Housing and free growth retire; you grow by
-  **conquest or conversion**. Neighbouring peoples become real counterparties you can campaign
-  against, trade with, or eventually win over — and expeditions are where the game's best decisions
-  live.
-- **Ages turn.** Stone → Bronze → Iron, each adding new resources, buildings and mechanics: bronze
-  smelting, unit composition, sieges, and expeditions.
+- **Your people live on the ground they work.** You begin holding three hexes — your seat and two
+  beside it — on a board whose edges you cannot see. Population is not a pool you spend; it is a
+  number that lives *on a hex*, grows toward what that terrain can carry, and cannot move.
+- **Turn each hex to one thing.** Every ground works every resource, at rates the terrain sets:
+  plains favour food, forest timber, hills stone and ore. Output is people x per-capita rate, so a
+  hex matters in proportion to how many live there. Choosing the suboptimal route on purpose is a
+  real option and sometimes the right one.
+- **Everyone eats.** Empty the larder and a **famine** drains your dominion from the frontier
+  inward, hex by hex, toward the seat. The land stays yours and rekindles when food returns; the run
+  ends only if the seat itself empties.
+- **Expansion is a claim you pay for.** Settling adjacent land costs food, timber, stone and — from
+  Bronze on — the age's signature metal, escalating with every claim and scaling with distance from
+  the ground you already hold. Each age also caps how much land it can govern at all.
+- **Building takes time.** Costs are paid when you click, then the item sits in a **queue** where
+  only the front one progresses. Costs escalate per building type, including ones still queued.
+- **Storage is capped** until Iron retires the granaries. Surplus past the cap is *lost*.
+- **The world acts on you, and it acts somewhere.** Sickness and raids strike a *specific hex* and
+  take people from it; the **Chronicle** is the settlement's memory of all of it.
+- **You are not alone, from the first minute.** Neighbouring camps and peoples sit on the board from
+  the Stone Age — visible once you have charted their ground, impossible to settle, and impossible to
+  touch, because nobody in a stone age can raise a column. They are the same peoples in every age;
+  what changes is what they have grown into.
+- **From Bronze the loop turns outward.** The age that hands you bronze spears lets you carry them
+  somewhere. March on a steading and win, and it swears fealty — one more holdfast under your banner.
+  An army eats in proportion to its size and the distance it walks, so *how many go* is the
+  decision, not a cap.
+- **From Iron it turns outward fully:** campaigns against major powers, sieges against real walls,
+  caravans and trade, and conquest as a way to grow.
+- **Ages turn.** Stone -> Bronze -> Iron, each adding resources, buildings and mechanics — and each
+  re-dressing the same board and the same neighbours rather than replacing them.
 
 ## The interface
 
 The identity is **the digital tabletop** (`design.md`, Open Question 3 — resolved): the world is
 a lit 3D hex diorama — a board game come to life, bright and warm, that you can spin, pitch and
-zoom like a plate — with the game's panels floating over it. A working spike of the renderer is
-merged (`spike3d/`); porting the live map onto it is the next build phase. Comparisons to a
-physical board game are invited on purpose.
+zoom like a plate — with the game's panels floating over it. **This is shipped, not planned:**
+the live map runs on three.js with real lighting, ambient occlusion and per-terrain props, on an
+authored continent generated fresh each run. The SVG stage survives only as `?map=2d`, a debug
+surface. Comparisons to a physical board game are invited on purpose.
+
+*(The 4x2 panel grid described in older docs is gone: the flip on 2026-08-22 made the map a
+full-bleed stage with floating panels over it, and the Expeditions panel was deleted outright — every
+outward verb now lives on the selected tile.)*
 
 The board is **whole from the first frame** — every panel the current age can fill is on screen,
 named, empty and waiting; what unravels is what goes *inside* them. The panels currently wear

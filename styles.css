@@ -969,15 +969,29 @@ body.dead #mainArea .block { filter: saturate(.25); }
   font-size: 15px; font-weight: 700; letter-spacing: 0;
   color: #fdf8ec;
 }
-.map3d-glyph.home  { font-size: 19px; color: #ffffff; }
+.map3d-glyph.home  { font-size: 22px; color: #ffffff; }
 /* A HOUSE MEANS A HOME; the colour says whose. White is yours, red is not --
    which makes "who else lives on this board" answerable at a glance, without
    reading a single label. Size grades the two kinds of stranger: a power's
-   hall matches your own seat, a steading sits below it. */
-.map3d-glyph.seat  { color: #ff4a3d; font-size: 19px; }
-.map3d-glyph.minor { color: #ff8a7a; font-size: 14px; }
+   hall matches your own seat, a steading sits below it.
+   Sizes bumped 19 -> 22 / 14 -> 16 (owner, 2026-08-25): the houses are the
+   board's most-read mark and were losing to the terrain under them. The
+   home/seat PARITY is deliberate and survives the bump -- your hall and a
+   rival's are the same kind of thing, told apart by colour. */
+.map3d-glyph.seat  { color: #ff4a3d; font-size: 22px; }
+.map3d-glyph.minor { color: #ff8a7a; font-size: 16px; }
 .map3d-glyph.work  { color: #bff29a; }
 .map3d-glyph.rest  { color: #c9bfa8; opacity: 1; }   /* quiet: resting is legal */
+
+/* YOUR SEAT WEARS BOTH MARKS: the house says whose ground this is, the glyph
+   beside it says what it is producing. One positioned element, two glyphs
+   inside -- the label layer places exactly one node per tile, so the pair has
+   to be a single box. The gap is what stops it reading as one smudged mark. */
+.map3d-glyph.pair { display: inline-flex; align-items: center; gap: 4px; }
+.map3d-glyph .part { font-family: var(--mono); font-weight: 700; line-height: 1; }
+.map3d-glyph .part.home { font-size: 22px; color: #ffffff; }
+.map3d-glyph .part.work { font-size: 15px; color: #bff29a; }
+.map3d-glyph .part.rest { font-size: 15px; color: #c9bfa8; }
 .map3d-label {
   font-family: var(--ui);
   font-size: 11.5px; font-weight: 600; letter-spacing: .04em;

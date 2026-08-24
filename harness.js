@@ -2439,6 +2439,39 @@ console.log("\n--- Phase 10: the renderer port keeps the marks ---");
     .find((x) => !api.isOwned(x.id) && !x.adversary && !x.minor && x.id !== api.world.home
       && api.isCharted(x.id));
   check("known but empty country carries no mark at all", api.markFor(wild) === null);
+
+  // YOUR SEAT WEARS BOTH (owner, 2026-08-25). The home branch used to
+  // short-circuit the ladder, so the capital was the ONE owned hex that never
+  // said what it was producing -- invisible precisely because it is the hex
+  // you look at most. The house is still the primary mark; the work rides
+  // beside it as `sub`.
+  const homeId = api.world.home;
+  api.S.map.work[homeId] = "wood";
+  const hm = api.markFor(P(homeId));
+  check("your seat still wears the house first", hm.glyph === "⌂" && hm.cls === "home");
+  check("...and now reports what it is working", hm.sub && hm.sub.glyph === "W" && hm.sub.cls === "work");
+  // Read through a guard, not a dot: if a regression drops `sub` entirely this
+  // must report as a failed CHECK, not a TypeError that kills the run and hides
+  // every check after it.
+  const subOf = (id) => (api.markFor(P(id)).sub || {});
+  const seatLetters = ["food", "wood", "stone", "iron"].map((res) => {
+    api.S.map.work[homeId] = res;
+    return subOf(homeId).glyph;
+  });
+  check("...through every resource, with the same letters ordinary ground uses",
+    new Set(seatLetters).size === 4 && seatLetters.join("") === "FWSI");
+
+  delete api.S.map.work[homeId];
+  check("a resting seat says so too, in the same quiet dash",
+    subOf(homeId).glyph === "—" && subOf(homeId).cls === "rest");
+
+  // The composite is the ladder's ONLY one. Everything else on the board is a
+  // single thing, and a renderer that started drawing `sub` unconditionally
+  // would put a dash on every rival's hall.
+  api.S.map.work[ownedId] = "food";
+  check("ordinary owned country is not composite", !api.markFor(P(ownedId)).sub);
+  check("a rival's hall is not composite", !api.markFor(seat).sub);
+  check("a steading is not composite", !api.markFor(minor).sub);
 }
 
 console.log("\n--- Slice 4c: neighbours by density, seated on their own ground ---");

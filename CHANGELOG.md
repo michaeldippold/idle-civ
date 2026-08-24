@@ -11,6 +11,40 @@
 
 ---
 
+## 2026-08-25 — Your seat says what it is producing
+
+**The one owned hex that never reported its work was the capital** — invisible precisely because it
+is the hex you look at most. `markFor()` is a priority ladder, and the `home` branch sat above the
+owned-country branch and short-circuited it: your seat wore a house and stopped there, while every
+other holding showed its work letter.
+
+Your seat now wears **both**: the house says whose ground this is, the glyph beside it says what the
+ground is producing (`⌂ F`). It is the ladder's only composite — a `sub` field, drawn beside the
+primary mark — and the harness pins that nothing else on the board is composite, because a renderer
+that drew `sub` unconditionally would put a dash on every rival's hall. On the 3D board the pair is
+**one positioned element with two glyphs inside it**, since the label layer places exactly one node
+per tile and a second top-level span would land on the same point and overlap.
+
+Houses got bigger: **19 → 22px** for your hall and a power's, **14 → 16px** for a steading. The
+home/seat parity is deliberate and survives the bump — your hall and a rival's are the same kind of
+thing, told apart by colour, not size.
+
+**And the two renderers now actually read one ladder.** `markFor()`'s comment has claimed since the
+port that "this is the SAME ladder the SVG renderer draws, lifted out so both renderers read from one
+definition rather than drifting apart." It wasn't true. The SVG stage re-implemented the ladder inline
+and had already drifted — a seat drew `◆` and a steading `▪`, where `markFor()` gives both a house.
+Nobody noticed because the 2D view is the debug surface, the one nobody watches. **A claim in a
+comment is not a mechanism.** The SVG stage calls `markFor()` now, so the two cannot diverge again
+without someone deleting the call.
+
+Live-verified in the DOM rather than by eye: the seat's mark is a flex pair with a 4px gap, house at
+22px white, work glyph at 15px green, no console errors. 632 -> 639 checks.
+
+*Found and left alone:* `data-work-for` on the SVG work glyph is written and read by nothing in the
+repo. It went out with the inline block it lived on.
+
+---
+
 ## 2026-08-25 — The danger acquires a name
 
 **C3, and it is the payoff for a decision made two weeks ago.** The Chronicle now says *"The Hill

@@ -90,21 +90,24 @@ function mapSVG() {
     // surface that leaks what the real one hides is worse than useless.
     cells += `<polygon class="tile t-${p.terrain}${lit ? "" : (sighted ? " tile-sighted" : " tile-uncharted")}${owned ? " tile-owned" : ""}${lit && p.adversary ? " tile-seat" : ""}${p.id === selectedId ? " selected" : ""}"
       points="${hexPoints(c.x, c.y, HEX - 1)}"${lit ? ` data-id="${p.id}"` : ""}></polygon>`;
-    if (!lit) {
-      // nothing else to draw: unpainted board
-    } else if (p.id === world.home) {
-      marks += `<text class="tile-mark" x="${c.x}" y="${c.y + 5}" text-anchor="middle">⌂</text>`;
-    } else if (p.adversary) {
-      const adv = active().adversaries.find((a) => a.id === p.adversary);
-      marks += `<text class="tile-mark seat" x="${c.x}" y="${c.y + 5}" text-anchor="middle">◆</text>` +
-        `<text class="tile-label" x="${c.x}" y="${c.y + HEX * 0.95}" text-anchor="middle">${adv ? advName(adv) : p.adversary}</text>`;
-    } else if (owned) {
-      const w = (S.map.work || {})[p.id];
-      marks += `<text class="tile-work" data-work-for="${p.id}" x="${c.x}" y="${c.y + 5}" text-anchor="middle">${w ? WORK_GLYPH[w] || "" : "—"}</text>`;
-    } else if (p.minor) {
-      // A small mark, no label: minors are numerous, and their names live on
-      // hover -- the map stays a map, not a directory.
-      marks += `<text class="tile-mark minor" x="${c.x}" y="${c.y + 5}" text-anchor="middle">▪</text>`;
+    // THE 2D STAGE READS THE SHARED LADDER (fixed 2026-08-25). It used to
+    // re-implement it inline, and it had drifted: a seat drew a diamond and a
+    // minor a small square, where markFor() -- and so the 3D board the player
+    // actually looks at -- gives both a house. markFor()'s own comment claimed
+    // both renderers read one definition; as of now that is true.
+    const mark = lit ? markFor(p) : null;
+    if (mark) {
+      // The work glyph keeps its own smaller type; everything else is a mark.
+      const clsFor = (m) => (m.cls === "work" || m.cls === "rest" ? "tile-work " : "tile-mark ") + m.cls;
+      if (mark.sub) {
+        marks += `<text class="${clsFor(mark)}" x="${c.x - 9}" y="${c.y + 5}" text-anchor="middle">${mark.glyph}</text>` +
+          `<text class="${clsFor(mark.sub)}" x="${c.x + 9}" y="${c.y + 5}" text-anchor="middle">${mark.sub.glyph}</text>`;
+      } else {
+        marks += `<text class="${clsFor(mark)}" x="${c.x}" y="${c.y + 5}" text-anchor="middle">${mark.glyph}</text>`;
+      }
+      if (mark.label) {
+        marks += `<text class="tile-label" x="${c.x}" y="${c.y + HEX * 0.95}" text-anchor="middle">${mark.label}</text>`;
+      }
     }
   }
   return `<svg id="mapSvg" viewBox="${vb}" role="img" aria-label="Map of the known world">${cells}${marks}</svg>`;
@@ -290,6 +293,18 @@ function signature() {
     JSON.stringify((S.map && S.map.work) || {}), selectedId].join("~");
 }
 
+// What owned country REPORTS: the resource it is working, or a quiet dash if
+// it is resting. Lifted out because two tiles need it now -- an ordinary
+// holding, and your seat, which wears a house AND reports its work.
+function workMark(id) {
+  const w = (S.map.work || {})[id];
+  // A resting hex says so (owner request, 2026-08-23): the old ledger's red
+  // "N idle" died with the jobs system, and unworked ground was invisible
+  // until clicked. The dash is quiet on purpose -- resting is sometimes a
+  // choice, and the starving ledger already carries the alarm.
+  return w ? { glyph: WORK_GLYPH[w] || "", cls: "work" } : { glyph: "\u2014", cls: "rest" };
+}
+
 // The mark a tile wears, in priority order -- home, then a named seat, then
 // the work letter on owned country, then a minor's dot. This is the SAME
 // ladder the SVG renderer draws, lifted out so both renderers read from one
@@ -298,7 +313,13 @@ export function markFor(p) {
   // Unpainted board says nothing about itself. Fog hides the BOARD; what is
   // on it is a separate layer that simply is not known yet.
   if (!isCharted(p.id)) return null;
-  if (p.id === world.home) return { glyph: "\u2302", cls: "home" };
+  // YOUR SEAT WEARS BOTH (owner, 2026-08-25). The house says whose ground this
+  // is; the glyph beside it says what that ground is producing. Until now the
+  // home branch short-circuited the ladder, so the seat was the one owned hex
+  // that never reported its work -- invisible precisely because it is the hex
+  // you look at most. `sub` is a second glyph drawn BESIDE the first, and it is
+  // the ladder's only composite: everything else on the board is one thing.
+  if (p.id === world.home) return { glyph: "\u2302", cls: "home", sub: workMark(p.id) };
   // A HOUSE MEANS A HOME, and the colour says whose (owner request): white
   // for your seat, red for someone else's. A power gets a house and a name;
   // a steading gets a smaller house and no name, because minors are numerous
@@ -307,14 +328,7 @@ export function markFor(p) {
     const adv = active().adversaries.find((a) => a.id === p.adversary);
     return { glyph: "\u2302", cls: "seat", label: adv ? advName(adv) : p.adversary };
   }
-  if (isOwned(p.id)) {
-    const w = (S.map.work || {})[p.id];
-    // A resting hex says so (owner request, 2026-08-23): the old ledger's red
-    // "N idle" died with the jobs system, and unworked ground was invisible
-    // until clicked. The dash is quiet on purpose -- resting is sometimes a
-    // choice, and the starving ledger already carries the alarm.
-    return w ? { glyph: WORK_GLYPH[w] || "", cls: "work" } : { glyph: "—", cls: "rest" };
-  }
+  if (isOwned(p.id)) return workMark(p.id);
   // Minors get a mark and no label: they are numerous, and their names live on
   // hover. The map stays a map rather than becoming a directory.
   if (p.minor) return { glyph: "\u2302", cls: "minor" };

@@ -1073,8 +1073,15 @@ walk-back of its central claim. What actually happened to each argument below:
   What is genuinely lost is *semantic* pixel verification, and the mitigation is structural: the
   marks that carry a tile's meaning — the home glyph, seat names, work letters — are **projected
   DOM text, not meshes**, so they stay in the accessibility tree and stay assertable exactly as
-  this section wanted. The harness pins the mark ladder itself (7 checks), and the SVG stage
+  this section wanted. The harness pins the mark ladder itself, and the SVG stage
   survives as `?map=2d`, a full second renderer that any check can fall back to.
+
+  **Both renderers now genuinely read that one ladder (fixed 2026-08-25).** They did not before:
+  `markFor()`'s own comment claimed they did, while the SVG stage re-implemented the ladder inline
+  and had already drifted — a seat drew a diamond and a steading a small square, where the 3D board
+  the player actually looks at gave both a house. The drift was invisible because the debug view is
+  the surface nobody watches. A claim in a comment is not a mechanism; the SVG stage calls
+  `markFor()` now, so the two cannot diverge again without deleting the call.
 
 *Original argument follows.*
 

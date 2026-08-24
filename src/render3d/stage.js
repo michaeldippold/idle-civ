@@ -331,8 +331,22 @@ function buildLabels() {
     if (mark.glyph) {
       const g = document.createElement("span");
       g.className = "map3d-glyph" + (mark.cls ? " " + mark.cls : "");
-      g.textContent = mark.glyph;
       g.dataset.id = p.id;
+      if (mark.sub) {
+        // A composite mark (today: your seat, which wears a house AND reports
+        // its work) is ONE positioned element with two glyphs inside it.
+        // positionLabels() places exactly one node per tile id, so a second
+        // top-level span would be placed at the same point and overlap it.
+        g.classList.add("pair");
+        for (const part of [mark, mark.sub]) {
+          const el = document.createElement("span");
+          el.className = "part " + part.cls;
+          el.textContent = part.glyph;
+          g.appendChild(el);
+        }
+      } else {
+        g.textContent = mark.glyph;
+      }
       labelLayer.appendChild(g);
     }
     if (mark.label) {

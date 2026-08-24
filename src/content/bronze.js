@@ -109,10 +109,29 @@ export const BRONZE_DELTA = {
         // No workers: the opportunity cost is already paid by the miners
         // feeding it, and "would you like to stop smelting?" isn't an
         // interesting choice when neither input has another use.
+        //
+        // RATE 0.20, up from 0.05 (owner playtest, 2026-08-25). At 0.05 a
+        // forge drew 0.2 copper/s against a hills hex producing 5/s -- FOUR
+        // PERCENT of it -- so twenty-five forges were needed to consume one
+        // hex, and the owner ran six while copper and tin both sat CAPPED and
+        // overflowing at +1.26/s and +0.31/s. The ore was free and the straw
+        // was the whole game. One forge took 65 minutes to fund a Bronze Age;
+        // building three or four was not a choice, it was a tax.
+        //
+        // The number is set so the ore economy BINDS instead: three forges
+        // (2.4 copper/s) draw about what a worked hills hex yields, so how
+        // many are worth building is a real question with a real answer --
+        // how much hill country you hold, and what you gave up to work it.
+        //
+        // SCALE 1.25, down from 1.5. A converter is capped by its INPUTS; the
+        // ore supply already says when to stop, so a punitive curve on top of
+        // it was friction doing no work. Compounded at 1.5 the seventh forge
+        // cost 513 wood and 342 stone, which is what the era's own pacing had
+        // driven the owner toward. At 1.25 the sixth costs 137.
         id: "forge", name: "Forge", kind: "building",
         desc: "Smelts 4 copper + 1 tin into 1 bronze, continuously.",
-        base: { wood: 45, stone: 30 }, scale: 1.5, buildTime: 26,
-        converts: { in: { copper: 4, tin: 1 }, out: { bronze: 1 }, rate: 0.05 },
+        base: { wood: 45, stone: 30 }, scale: 1.25, buildTime: 26,
+        converts: { in: { copper: 4, tin: 1 }, out: { bronze: 1 }, rate: 0.20 },
         reveal: () => true,
       },
     ],

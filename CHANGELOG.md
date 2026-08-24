@@ -11,6 +11,45 @@
 
 ---
 
+## 2026-08-25 — The Forge was a straw in a firehose
+
+**Reported from a 27-minute Bronze playthrough: six Forges running, copper and tin both CAPPED and
+still climbing, and bronze trickling in at 0.30/s.** The seventh Forge wanted 513 wood and 342
+stone. The owner's read — *"3-4 feel like a hard requirement to get anything done"* — was
+generous. One Forge took **65 minutes** to fund a Bronze Age.
+
+The arithmetic underneath: a Forge drew 0.2 copper/s while a single worked hills hex yields **5/s**.
+Four percent. It would have taken **twenty-five Forges to consume one hex**, so the input was
+effectively free and the converter was the entire economy — and the only way to play was to stack
+copies of a building whose cost compounded at 1.5x. Meanwhile the ore you were paying real
+opportunity cost to mine (hills are also your only stone, at the lowest population cap in the game)
+overflowed and was thrown away.
+
+Rate goes **0.05 to 0.20**, sized so the ore economy binds instead: three Forges now draw about what
+a worked hills hex yields, which turns "how many should I build" into a question about how much hill
+country you hold. Scale goes **1.5 to 1.25** — a converter is capped by its inputs, so the supply
+already says when to stop and a punitive curve on top of it was friction doing no work.
+
+**A new check found the same disease further along in Iron, unprompted.** Iron's Forge drew 0.15
+iron/s against a hills hex yielding 9/s: **sixty copies to consume one hex**, and 23 minutes of
+smelting for the era's two steel upgrades. The rate is an absolute number that never scaled with the
+eras feeding it, while Iron's population caps are nearly double Bronze's. Iron goes to 0.40, sized
+differently on purpose: steel there is a GATE, not a currency (the whole era asks for 70 of it,
+against Bronze's 195), so one Forge should simply cover it and nobody should want six.
+
+The check is deliberately a loose ABSURDITY floor, not a balance assertion: it does not care whether
+the answer is three copies or eight, only that an era's economy has not quietly become about
+stacking one building. Nothing had been watching this, which is how a converter drifted 25x and then
+60x past sense without a single test going red.
+
+Eight checks that hard-coded the old rates now read them from the manifest. A check that restates a
+balance number is a second place for that number to be wrong — retuning meant editing five checks
+and getting all five right.
+
+Two new checks (607).
+
+---
+
 ## 2026-08-25 — The build queue says what is actually happening
 
 **A card in second place counted down while its progress bar sat at 0%.** Reported from play: it

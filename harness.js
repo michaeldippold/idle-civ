@@ -1542,10 +1542,18 @@ console.log("\n--- C1: iron-era economy runs ---");
   check("iron flows from worked hills (2 tiles of 4 people, 30s, ~48)", S().res.iron > 40);
   S().builds.forge = 2; S().res.iron = 60; S().res.wood = 40;
   const w0 = S().res.wood;
-  api.runConverters(10);   // 2 forges x 0.05 x 10s = 1 steel
-  check("the Forge makes steel from iron AND wood", Math.abs(S().res.steel - 1) < 1e-9 &&
-    Math.abs((w0 - S().res.wood) - 2) < 1e-9);
-  check("iron consumed at the recipe ratio", Math.abs(S().res.iron - 57) < 1e-9);
+  // Read the rate rather than restating it: it was hard-coded into five
+  // separate checks, so retuning the Forge in 2026-08 meant editing all five
+  // and getting every one right. A check that repeats a balance number is a
+  // second place for it to be wrong.
+  const iRate = api.MANIFESTS.iron.buildings.find((b) => b.id === "forge").converts.rate;
+  const batches = 2 * iRate * 10;                    // 2 forges x rate x 10s
+  api.runConverters(10);
+  check("the Forge makes steel from iron AND wood",
+    Math.abs(S().res.steel - batches) < 1e-9 &&
+    Math.abs((w0 - S().res.wood) - 2 * batches) < 1e-9);
+  check("iron consumed at the recipe ratio",
+    Math.abs(S().res.iron - (60 - 3 * batches)) < 1e-9);
   const c = api.caps();
   check("caps retired at Iron: every resource runs uncapped (6c)",
     !Number.isFinite(c.food) && !Number.isFinite(c.wood) && !Number.isFinite(c.stone) &&
@@ -2083,9 +2091,17 @@ console.log("\n--- Ledger rates: converter flows shown honestly ---");
   S().builds.forge = 2;
   S().res.copper = 100; S().res.tin = 100;
   let r = api.ledgerRates();
-  check("bronze rate = forges x recipe out (2 x 0.05)", Math.abs(r.bronze - 0.1) < 1e-9);
-  check("copper reads NET of forge consumption", Math.abs(r.copper - (-0.4)) < 1e-9);
-  check("tin reads net too", Math.abs(r.tin - (-0.1)) < 1e-9);
+  // Rate retuned 0.05 -> 0.20 (owner playtest, 2026-08-25). These pin the
+  // ARITHMETIC, not the balance number, so they read it from the manifest
+  // rather than hard-coding it twice -- retuning again should not require
+  // editing three checks and getting all three right.
+  const fRate = api.MANIFESTS.bronze.buildings.find((b) => b.id === "forge").converts.rate;
+  check(`bronze rate = forges x recipe out (2 x ${fRate})`,
+    Math.abs(r.bronze - 2 * fRate) < 1e-9);
+  check("copper reads NET of forge consumption",
+    Math.abs(r.copper - (-2 * fRate * 4)) < 1e-9);
+  check("tin reads net too",
+    Math.abs(r.tin - (-2 * fRate * 1)) < 1e-9);
   check("rates() itself stays gross -- the simulation is untouched", api.rates().bronze === 0);
 
   // The designed equilibrium: 2 copper : 1 tin miners feeding 2 forges.
@@ -2138,10 +2154,14 @@ console.log("\n--- Ledger rates: converter flows shown honestly ---");
     work: { "f2": "wood", "f3": "wood" }, pop: { "f1": 2, "f2": 4, "f3": 4 } };
   S().res.iron = 100; S().res.wood = 100;
   r = api.ledgerRates();
-  check("steel flows at 2 forges' rate", Math.abs(r.steel - 0.1) < 1e-9);
-  // 8 people on wood at par = 1.6 gross, minus the forges' 0.2 burn.
-  check("wood reads worked forest minus the forge's burn (1.6 gross - 0.2)", Math.abs(r.wood - 1.4) < 1e-9);
-  check("iron reads as pure drain with no miners", Math.abs(r.iron - (-0.3)) < 1e-9);
+  const iRate2 = api.MANIFESTS.iron.buildings.find((b) => b.id === "forge").converts.rate;
+  const draw = 2 * iRate2;                           // 2 forges' worth of batches/s
+  check("steel flows at 2 forges' rate", Math.abs(r.steel - draw) < 1e-9);
+  // 8 people on wood at par = 1.6 gross, minus the forges' burn of 2 wood each.
+  check("wood reads worked forest minus the forge's burn",
+    Math.abs(r.wood - (1.6 - 2 * draw)) < 1e-9);
+  check("iron reads as pure drain with no miners",
+    Math.abs(r.iron - (-3 * draw)) < 1e-9);
 }
 
 console.log("\n--- Phase B: legacy saves default eraHistory ---");
@@ -3052,6 +3072,52 @@ console.log("\n--- Phase 5: asking modals hold the world ---");
   api.setSpeed(7);
   check("setSpeed refuses a notch that doesn't exist", api.speed === 8);
   api.setSpeed(1);
+}
+
+console.log("\n--- A converter must be worth the ground that feeds it ---");
+{
+  // THE INVARIANT: a converting building's throughput has to be commensurate
+  // with the terrain that supplies it. Nothing checked this, and the Forge
+  // drifted a long way past absurd without a single test going red -- rate
+  // 0.05 drew 0.2 copper/s against a hills hex yielding 5/s, so TWENTY-FIVE
+  // forges were needed to consume one worked hex. The owner ran six while
+  // copper and tin sat capped and overflowing, which is the shape of the bug:
+  // the input was free, the converter was the whole game, and the only way to
+  // play was to spam a building whose cost compounded.
+  //
+  // The bound is deliberately loose. This is not a balance assertion -- it
+  // does not care whether the number is 3 or 8 -- it is an ABSURDITY floor,
+  // catching the case where a converter is so weak that the era's economy
+  // stops being about anything but stacking copies of it.
+  const MAX_COPIES = 10;
+  for (const era of ["stone", "bronze", "iron"]) {
+    const m = api.MANIFESTS[era];
+    if (!m.map || !m.map.works) continue;
+    for (const def of m.buildings) {
+      if (!def.converts) continue;
+      // The best a single worked hex can yield of each input, at its cap.
+      const bestYield = (res) => {
+        let best = 0;
+        for (const terr in m.map.works) {
+          const per = m.map.works[terr][res] || 0;
+          best = Math.max(best, per * (m.map.popCaps[terr] || 0));
+        }
+        return best;
+      };
+      // The BINDING input is the one needing the fewest copies to exhaust --
+      // that is the one that actually limits you.
+      let copies = Infinity, binding = null;
+      for (const res in def.converts.in) {
+        const draw = def.converts.rate * def.converts.in[res];
+        const y = bestYield(res);
+        if (draw <= 0 || y <= 0) continue;
+        const n = y / draw;
+        if (n < copies) { copies = n; binding = res; }
+      }
+      check(`${era}: a handful of ${def.name}s consume one worked hex of ${binding} (${copies.toFixed(1)} of ${MAX_COPIES} max)`,
+        copies <= MAX_COPIES);
+    }
+  }
 }
 
 console.log("\n--- The build queue says what is actually happening ---");

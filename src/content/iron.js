@@ -107,7 +107,19 @@ export const IRON_DELTA = {
     stone: { baseCap: Infinity, capBuilding: null },
     forge: {
       desc: "Burns wood to work iron into steel — 3 iron + 2 wood into 1 steel, continuously.",
-      converts: { in: { iron: 3, wood: 2 }, out: { steel: 1 }, rate: 0.05 },
+      // RATE 0.40, up from 0.05 (2026-08-25). The same disease as Bronze's
+      // forge and further along: the rate is an ABSOLUTE number that never
+      // scaled with the eras feeding it, while Iron's population caps are
+      // nearly double Bronze's. At 0.05 a forge drew 0.15 iron/s against a
+      // hills hex yielding 9/s, so SIXTY forges were needed to consume one
+      // worked hex, and the two steel upgrades took 23 minutes of smelting.
+      //
+      // Iron is sized differently from Bronze on purpose: steel is a GATE,
+      // not a currency. The whole era asks for 70 of it (Iron Weapons, Steel
+      // Armor) where Bronze wanted 195 to fund its claims and its capstone.
+      // So one forge should simply cover it -- about three minutes -- and
+      // nobody should ever want six.
+      converts: { in: { iron: 3, wood: 2 }, out: { steel: 1 }, rate: 0.40 },
     },
     // Re-priced out of the dead resource. Iron is cheaper than bronze was --
     // it's everywhere; that's the whole point of the era.

@@ -74,6 +74,14 @@ neutralized E4's entire brake. Two rulings came out of it:
 Still ahead on the same problem: **stone-age minors** (contested land — and all-food means no
 military, which those punish hard).
 
+**Dominion cap playtest (owner, 2026-08-24, mid-test):** hit the 7-cap at ~5 minutes and it
+"feels like plenty — maybe even generous"; the wall forced the intended refocus onto buildings and
+upgrades; selection ran on visibility + resource needs. Two tuning signals held for the balance
+pass rather than acted on: (1) **7 may be a notch high** — 6 would bite a minute earlier; (2)
+**production still runs above the old Bureau baseline** even inside the cap, so if the whole
+economy wants tightening later, the lever is per-capita rate or terrain caps, not more expansion
+nerfs — expansion is now governed.
+
 **Open flake, recorded verbatim per policy (2026-08-24):** one harness run in ~80 failed TWO
 checks together, post-E5, identity not captured (the run scrolled past). 70+ consecutive greens
 since. Most likely another fixture where E5's own fevers strike an unpinned window — the

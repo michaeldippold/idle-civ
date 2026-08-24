@@ -22,7 +22,7 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { axialToWorld, worldToAxialRounded } from "./hex3d.js";
+import { axialToWorld, hash01, worldToAxialRounded } from "./hex3d.js";
 import { buildProps, setPropPhase } from "./props3d.js";
 import { buildRing, buildTerrain, RIM_Y } from "./terrain3d.js";
 
@@ -59,9 +59,31 @@ export function isReady() { return started; }
 // is the whole-map one. A rebuild landing mid-animation would replace the
 // meshes being animated, so `pendingWorld` holds the change until the ground
 // has closed over the old props.
-const SINK_MS = 260, RISE_MS = 320;
+// PACING IS THE CONTENT HERE (owner, 2026-08-25, after seeing it): the
+// re-dress is not a UI transition, it is a picture of PEOPLE DOING WORK --
+// raising a building, turning a forest into a farm. At 260/320 it was
+// "blink and you miss it". Roughly tripled, and the rise is much longer than
+// the sink because tearing down is quicker than building up.
+const SINK_MS = 620, RISE_MS = 980;
+
+// And slowing it exposed something the speed was hiding: twelve hexes moving in
+// perfect lockstep read as one MECHANISM, not as twelve crews. Each tile gets a
+// deterministic offset up to this much, hashed off its id -- so the country
+// works at its own pace and nothing is synchronised. Set to 0 to disable; the
+// motion is correct either way, just duller.
+const STAGGER_MS = 420;
+
 let fx = null;              // { tiles:Set, t0, phase:"sink"|"rise" }
 let pendingWorld = null;    // a setWorld() that arrived mid-sink
+
+// Deterministic per-tile delay. Paint only -- hashed, never rng(), same rule
+// every other visual jitter on this board follows.
+function fxOffset(tile) { return STAGGER_MS * hash01(tile + ":fx"); }
+
+// Smoothstep, both directions. The old easing was quadratic in and out, which
+// made props DROP and then POP -- physical, and wrong for the reading: labour
+// starts deliberately and ends deliberately. This eases at both ends.
+function smooth(k) { return k * k * (3 - 2 * k); }
 
 // Ask for a transition on specific hexes. Ids the board does not currently
 // draw are harmless: they simply match no instances.
@@ -74,11 +96,17 @@ export function changeHexes(ids) {
 function stepFx(now) {
   if (!fx) return;
   const dur = fx.phase === "sink" ? SINK_MS : RISE_MS;
-  const k = Math.min(1, (now - fx.t0) / dur);
-  // Ease so the props settle rather than stopping dead. Paint only -- nothing
-  // here is read back by anything.
-  const e = fx.phase === "sink" ? k * k : 1 - (1 - k) * (1 - k);
-  setPropPhase(worldGroup, fx.tiles, fx.phase === "sink" ? e : 1 - e);
+  const sinking = fx.phase === "sink";
+  // Each tile runs the same curve, started at its own moment.
+  const phaseOf = (tile) => {
+    const k = Math.min(1, Math.max(0, (now - fx.t0 - fxOffset(tile)) / dur));
+    const e = smooth(k);
+    return sinking ? e : 1 - e;
+  };
+  setPropPhase(worldGroup, fx.tiles, phaseOf);
+  // The PHASE is over only when the last-started tile has finished, or the
+  // stragglers would be cut off mid-move by the swap.
+  const k = Math.min(1, (now - fx.t0) / (dur + STAGGER_MS));
   if (k < 1) return;
   if (fx.phase === "sink") {
     // The ground has closed. Swap the world NOW, while nothing is visible, then
@@ -86,10 +114,10 @@ function stepFx(now) {
     const tiles = fx.tiles;
     fx = null;
     if (pendingWorld) { const w = pendingWorld; pendingWorld = null; applyWorld(w.list, w.o); }
-    setPropPhase(worldGroup, tiles, 1);      // the new props start underground
+    setPropPhase(worldGroup, tiles, () => 1);   // the new props start underground
     fx = { tiles, t0: performance.now(), phase: "rise" };
   } else {
-    setPropPhase(worldGroup, fx.tiles, 0);   // land exactly at rest, never near it
+    setPropPhase(worldGroup, fx.tiles, () => 0);  // land exactly at rest, never near it
     fx = null;
   }
 }

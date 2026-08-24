@@ -71,11 +71,15 @@ class Part {
 // clamped to. No clipping plane, no stencil.
 export const SINK_DEPTH = 0.9;
 
-// phase 0 = standing, 1 = fully underground. Rewrites only the instances that
-// belong to `tiles`, which is what recording the tile per instance bought.
-export function setPropPhase(group, tiles, phase) {
+// `phaseOf(tile)` returns 0 (standing) to 1 (fully underground) FOR THAT TILE.
+// Per-tile rather than one number for the whole set, so hexes can move at
+// slightly different times -- a country of crews working at their own pace
+// rather than one mechanism. Rewrites only the instances belonging to `tiles`,
+// which is what recording the tile per instance bought.
+export function setPropPhase(group, tiles, phaseOf) {
   if (!group) return;
-  const sink = SINK_DEPTH * Math.max(0, Math.min(1, phase));
+  const depth = (tile) => SINK_DEPTH * Math.max(0, Math.min(1, phaseOf(tile)));
+  const cache = new Map();
   group.traverse((mesh) => {
     const items = mesh.userData && mesh.userData.items;
     if (!items || !mesh.isInstancedMesh) return;
@@ -83,6 +87,8 @@ export function setPropPhase(group, tiles, phase) {
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
       if (!tiles.has(it.tile)) continue;
+      if (!cache.has(it.tile)) cache.set(it.tile, depth(it.tile));
+      const sink = cache.get(it.tile);
       _q.setFromAxisAngle(_up, it.rotY);
       _p.set(it.x, it.y - sink, it.z);
       const sy = it.scale.y ?? it.scale;

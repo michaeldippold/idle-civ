@@ -11,6 +11,33 @@
 
 ---
 
+## 2026-08-25 — The re-dress slows down to look like work
+
+**Owner verdict from the desk: exactly right, but "blink and you miss it."** The framing that came
+with it is the spec — *"this is a visual representation of real work happening by the people in the
+hex. Raising new buildings over time, setting up a farm in a forest hex."* So the pacing is not
+polish, it is the content.
+
+**620ms down, 980ms up** (from 260/320), the rise much longer than the sink because tearing down is
+quicker than building up. **Easing changed too:** it was quadratic in and quadratic out, so props
+*dropped* and *popped* — physical, and wrong for the reading. Smoothstep both ways now: deliberate at
+the start, deliberate at the end.
+
+**And slowing it down exposed something the speed had been hiding.** At 580ms nobody notices that
+twelve hexes move in perfect lockstep; at two seconds it reads as one *mechanism* rather than twelve
+crews. Each tile now takes a deterministic offset of up to 420ms, hashed off its id — never `rng()`,
+the same rule every other visual jitter on this board follows. `setPropPhase` takes a `phaseOf(tile)`
+function rather than one number for the whole set.
+
+A full-board re-dress is now about **2.4 seconds**; a single hex about 1.6.
+
+*Measured in flight:* at 302ms one hex is already 0.24 down while another has not started, all three
+bottom out around 935ms, and every one returns to exactly its rest height. **Three constants if the
+feel is still off** — `SINK_MS`, `RISE_MS`, `STAGGER_MS`, all in `stage.js`, and `STAGGER_MS = 0`
+turns the stagger off without touching anything else.
+
+---
+
 ## 2026-08-25 — Regrowth survived, and the harness found the sharp edge
 
 **Owner question: did deleting ghosts also delete population growing back after a hit?** No. Only

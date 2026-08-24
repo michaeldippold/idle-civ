@@ -865,7 +865,18 @@ Three pieces make it work:
 - **`props3d.js` records the TILE each instance stands on.** One string per instance, and it is the
   difference between a general per-hex primitive and an era-ceremony special case: without it, moving
   one hex's props means rebuilding the whole board.
-- **`setPropPhase(group, tiles, phase)`** rewrites only the matching instance matrices. `phase` 0 is
+- **Pacing is the content.** 620ms down, 980ms up, plus a per-tile stagger of up to 420ms, so a
+  whole-board re-dress runs about **2.4 seconds** and a single hex about 1.6. The owner's framing is
+  the spec: this is not a UI transition, it is *people doing work* — raising a building, turning a
+  forest into a farm — and at the original 260/320 it was "blink and you miss it". Easing is
+  smoothstep both ways; the first version dropped and popped, which read as physics rather than
+  labour. **Three constants** — `SINK_MS`, `RISE_MS`, `STAGGER_MS` in `stage.js`.
+- **The stagger exists because slowing it down exposed the lockstep.** At 580ms nobody notices twelve
+  hexes moving as one; at 2.4s it reads as a single mechanism rather than twelve crews. Each tile
+  takes a deterministic offset hashed off its id — never `rng()`, the same rule every other visual
+  jitter follows. `STAGGER_MS = 0` disables it.
+- **`setPropPhase(group, tiles, phaseOf)`** rewrites only the matching instance matrices. `phaseOf(tile)`
+  returns that tile's own 0..1, which is what makes the stagger possible. 0 is
   standing, 1 is fully underground. The ground hides the descent for free — a hex is a solid slab, so
   anything below its top face is occluded at every angle the camera is clamped to. No clipping plane.
 - **The rebuild is held, and that is the hard part.** `setWorld()` arriving mid-sink would swap the

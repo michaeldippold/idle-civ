@@ -990,9 +990,10 @@ description of capturable tiles.
 **One board, forever** *(settled 2026-08-22; full treatment in `map.md` §2.6)*. The world is
 generated once, at full size, and never regenerates. Eras change what you can see and what you can
 do; they never change what the world is — **the map is always there, what you can do and see
-changes**. Unreached country sits under fog rendered as unpainted board, flipped as you scout it
-the way a tabletop game flips face-down tiles, and the rule that keeps it honest is that **fog
-hides the board, never the pieces**: a flip reveals *land*, which is permanent and cannot be
+changes**. Unreached country is not drawn at all — the world visibly **accretes out of the void**
+as you chart it (re-ruled by a live look test 2026-08-24; the unpainted-board idea it replaced is
+kept in `map.md` §2.6) — and the rule that keeps discovery honest is unchanged: **the unknown
+hides the board, never the pieces**: charting reveals *land*, which is permanent and cannot be
 falsified later, while *who lives there* is a separate layer that arrives with the eras. A run
 opens on a pregame screen offering three continents as bare outlines — you choose the shape of your
 world while learning nothing about its contents — and each continent simply *is* a seed, so one

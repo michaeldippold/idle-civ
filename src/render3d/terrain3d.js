@@ -27,14 +27,13 @@ const COLORS = {
 const WALL_TINT = new THREE.Color(0x5c4a36);
 const WET = new Set(["water", "river"]);
 
-// Fog is UNPAINTED BOARD, not a dark shroud. A military blackout would fight
-// the bright, warm palette and read as the wrong genre entirely; blank pieces
-// waiting to be painted read as a board game mid-setup, which is exactly what
-// this is. Unrevealed tiles are also FLAT and uniform -- if they kept their
-// real elevation you could read the mountain ranges straight through the fog,
-// which would leak the terrain the fog exists to hide.
-const FOG_COLOR = new THREE.Color(0xa79b83);
-const FOG_ELEV = 0.16;
+// The unknown world is NOT DRAWN (owner ruling, 2026-08-24, after a live
+// three-way look test: tan unpainted-board, dark shroud, invisible --
+// "invisible is the winner and it's not close"). The board simply ends at the
+// knowledge frontier, cut-edge walls falling to the slab there, and every
+// discovery makes the world visibly ACCRETE out of the void -- the reveal is
+// the reward. The 2D debug view still shows fogged tiles, because a debug
+// surface should see everything.
 
 // Ring colors. State is carried by ring presence and COLOR, never by fading a
 // tile out -- `interface.md`'s first law follows the renderer unchanged.
@@ -58,28 +57,21 @@ export function buildTerrain(places, isOwnedFn, isRevealedFn) {
   const rings = new SoupBuilder();
   const elev = {};
   const shown = isRevealedFn || (() => true);
-  for (const p of places) elev[p.id] = shown(p.id) ? elevationOf(p) : FOG_ELEV;
+  for (const p of places) { if (shown(p.id)) elev[p.id] = elevationOf(p); }   // unknown ground does not exist yet
 
   const topColor = new THREE.Color();
   const wallColor = new THREE.Color();
 
   for (const p of places) {
-    const lit = shown(p.id);
-    // Unrevealed board is always matte: a fogged water tile must not give
-    // itself away by catching a specular highlight.
-    const soup = (lit && WET.has(p.terrain)) ? wet : land;
+    if (!shown(p.id)) continue;   // the unknown world is not drawn
+    const soup = WET.has(p.terrain) ? wet : land;
     const { x: cx, z: cz } = axialToWorld(p.q, p.r);
     const e = elev[p.id];
 
-    if (lit) {
-      // Per-tile tonal variation, so a field of plains does not read as one
-      // flat sheet of paint.
-      topColor.copy(COLORS[p.terrain] || COLORS.plains);
-      topColor.offsetHSL(0, 0, (hash01(p.id + ":c") - 0.5) * 0.07);
-    } else {
-      // No jitter at all: variation would imply information.
-      topColor.copy(FOG_COLOR);
-    }
+    // Per-tile tonal variation, so a field of plains does not read as one
+    // flat sheet of paint.
+    topColor.copy(COLORS[p.terrain] || COLORS.plains);
+    topColor.offsetHSL(0, 0, (hash01(p.id + ":c") - 0.5) * 0.07);
 
     const cs = [];
     for (let k = 0; k < 6; k++) {
@@ -106,7 +98,7 @@ export function buildTerrain(places, isOwnedFn, isRevealedFn) {
 
     // Owned country wears a rim. One merged mesh for all of them, so dominion
     // costs one draw call however far it spreads.
-    if (lit && isOwnedFn(p.id)) ringInto(rings, cx, e + 0.03, cz, RING_OWNED, 0.94, 0.82);
+    if (isOwnedFn(p.id)) ringInto(rings, cx, e + 0.03, cz, RING_OWNED, 0.94, 0.82);
   }
 
   const landMesh = new THREE.Mesh(land.build(), new THREE.MeshStandardMaterial({

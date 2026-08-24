@@ -354,11 +354,23 @@ decides whether you get sick; world generation never touches it.
 
 #### Fog: face-down tiles, and the honesty rule
 
-Unrevealed board renders as **unpainted board** — blank prisms in a neutral material, like unpunched
-cardboard or unpainted resin — and the world gets visibly *painted in* as it is discovered. Not a
-dark military shroud: that idiom fights the bright, warm palette and reads as the wrong genre. This
-is the tabletop idiom, face-down tiles flipped as you reach them, and it is available to us
-precisely because we went 3D.
+**Re-ruled by eyes, 2026-08-24: the unknown world is INVISIBLE — not drawn at all.** A live
+three-way look test (tan unpainted-board vs dark shroud vs nothing) settled it in minutes: *"an
+invisible world means discovery makes the world appear out of nowhere — cool and much more
+noticeable. Invisible is the winner and it's not close."* The board ends at the knowledge
+frontier with proper cut edges, and every claim or scout makes the world visibly **accrete out of
+the void** — the reveal is the reward. The dark shroud stayed rejected (wrong genre); the
+unpainted-board idea below is superseded but kept, because its honesty rule survives unchanged.
+One consequence to design around later: the continent picker's silhouette promise (§2.6) and
+"visible land you cannot reach" (islands) now need the *charted* frontier to do their work — you
+see what you've charted, not what exists. Scouting becomes the way the world's extent is bought.
+The 2D debug view keeps fog visible: a debug surface sees everything.
+
+*(Superseded original, kept for the trail:)* Unrevealed board renders as **unpainted board** —
+blank prisms in a neutral material, like unpunched cardboard or unpainted resin — and the world
+gets visibly *painted in* as it is discovered. Not a dark military shroud: that idiom fights the
+bright, warm palette and reads as the wrong genre. This is the tabletop idiom, face-down tiles
+flipped as you reach them, and it is available to us precisely because we went 3D.
 
 The rule that makes fog honest, and it is short:
 

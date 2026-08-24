@@ -238,9 +238,10 @@ renderer plus the world model that renderer made possible. The additions, in dep
 - [ ] **Retire era view radii and map regeneration.** `ensureMap()` loses its regenerate-on-
       `tileNoun`-change branch; the era `view` radius is deleted in favour of fog plus a camera
       that pulls back per era. Both are shipped behaviours being removed, not new work.
-- [ ] **Fog as face-down tiles.** Unrevealed hexes render as unpainted board (neutral material, the
-      world painted in as it is reached), never a dark shroud. Revealed is permanent — no
-      re-fogging, per the sticky-reveals law.
+- [x] **Fog** *(shipped in E-slices + re-ruled 2026-08-24)*: the unknown world is INVISIBLE —
+      not drawn — after a live three-way look test (tan / dark / nothing; "invisible is the winner
+      and it's not close"). The world accretes out of the void as you chart. Revealed is permanent;
+      the 2D debug view keeps fog visible.
 - [ ] **Scouting, the Stone Age's spatial verb.** Distance-priced through `routeCost`; reward is
       primarily Chronicle flavor, with any material payoff kept rare so exploration does not become
       a farm; systems stay era-gated behind it.

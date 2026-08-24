@@ -105,10 +105,11 @@ export async function initStage(el, h) {
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.target.set(0, 0, 0);
-  // Pitch clamped 40-65 degrees from horizontal. The board must never be seen
-  // edge-on: it is a thing on a table, and a table is looked down at.
+  // Pitch clamped ~24-65 degrees from horizontal (owner request 2026-08-24:
+  // let the camera get low and cinematic across the board). Never edge-on --
+  // it is a thing on a table -- but close enough to see the world as terrain.
   controls.minPolarAngle = THREE.MathUtils.degToRad(25);
-  controls.maxPolarAngle = THREE.MathUtils.degToRad(50);
+  controls.maxPolarAngle = THREE.MathUtils.degToRad(66);
   controls.minDistance = 4;
   controls.maxDistance = 40;   // replaced per board by frameBoard()
   controls.screenSpacePanning = false;

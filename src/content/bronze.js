@@ -34,7 +34,12 @@ export const BRONZE_DELTA = {
       plains: { food: 1.0, wood: 0.4, stone: 0.3, copper: 0.2, tin: 0.1 },
       river:  { food: 1.2, wood: 0.3, stone: 0.2 },
       forest: { wood: 1.0, food: 0.5, stone: 0.2 },
-      hills:  { stone: 1.0, food: 0.3, wood: 0.3, copper: 0.8, tin: 0.4 },
+      // Copper 1.0 / tin 0.5 (owner ruling, 2026-08-24: pivoting into the
+      // alloy economy felt near-impossible at 0.8/0.4). The hills hex's
+      // 5-person cap is the balance -- high value per person, few people --
+      // and mountains stay THE copper country, which keeps hunting them
+      // tense. Tin holds at exactly half: the scarce half of the alloy.
+      hills:  { stone: 1.0, food: 0.3, wood: 0.3, copper: 1.0, tin: 0.5 },
     },
   },
 

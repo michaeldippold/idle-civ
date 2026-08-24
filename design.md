@@ -1032,6 +1032,34 @@ never whether**: the trigger roll and `hostilityMultiplier()` upstream already m
 *rate*, so standing only weights which warlike neighbour gets named. Attribution adds no danger; it
 adds a subject to the sentence.
 
+**SELECTION AND RESOLUTION ARE SEPARATE PHASES** *(owner ruling, 2026-08-25, and it is the rule that
+keeps fortifications and raid-roads from ever colliding)*:
+
+> *"The selected raid always goes ahead. Fortifications just push or pull on the resolution and the
+> numbers that come from it."*
+
+**SELECTION** decides that a raid happens, who sends it, and where it lands. **RESOLUTION** decides
+what it costs. **Nothing the player builds may touch selection.** Fortifications, walls, garrisons —
+all of them act on resolution only.
+
+**Why redirection was rejected, and it fails on its own terms before it fails on any other.** A
+fortification that steers raids away has two possible outcomes and both are bad: either the raid does
+not happen, so the building is *safety* and deletes the danger rather than managing it; or the raider
+marches around it, which is pathing simulation and means fortifying only ever *displaces* the problem
+— you could never actually defend, only move the wound.
+
+**The structural payoff:** raid-roads (`5c`) change SELECTION — a raid comes from a named people along
+a route. Fortifications change RESOLUTION. The two operate on different phases, so they cannot
+conflict by construction rather than by careful tuning.
+
+**One architectural fact this has to live with today:** raid resolution is settlement-GLOBAL and only
+the victim hex is local. `militaryStrength()` sums the whole army, `repelChance` is one roll for the
+settlement, and `stealResources()` hits your stores; the single local step is `strikeHex()` choosing a
+hex and `killAt()` taking people from it. So a per-hex fortification lands cleanly on the local half —
+a raid striking near a fort takes fewer people. Letting a fort raise the GLOBAL repel roll is
+defensible fiction but means a fort anywhere helps everywhere, which quietly undoes the geography
+forts exist to create.
+
 **Where raids are going: a name, a home, and a road** *(owner intent, 2026-08-25 — previewed, not
 scheduled)*. *"Raids being fairly random is probably going to die when named adversaries arrive in
 Bronze. I eventually want you to be able to see which adversary raided you, and what path they took

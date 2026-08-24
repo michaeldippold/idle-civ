@@ -361,7 +361,18 @@ button { font-family: inherit; cursor: pointer; }
 #mapStage {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
+  transition: opacity .22s ease-out;
 }
+/* The stage holds until the renderer is decided, so a hard refresh no longer
+   flashes the 2D board for a second before the 3D one replaces it.
+   KEYED THE SAFE WAY ROUND, deliberately: the default is VISIBLE and only
+   script can hide it. If the module never runs, the class is never added and
+   the board is simply there -- a broken script must not be able to leave the
+   game staring at an empty rectangle.
+   This is not opacity-as-state (interface.md's law): it encodes nothing a
+   player reads, it fires exactly once on first paint, and it is gone for the
+   rest of the run. */
+#mapStage.stage-waiting { opacity: 0; transition: none; }
 #mapStage svg { width: min(70vw, 1500px); max-height: 94%; height: auto; }
 
 /* Floating panels reuse the full Bureau .block shell. They sit ON the map,

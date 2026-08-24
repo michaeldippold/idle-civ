@@ -338,6 +338,10 @@ export function markFor(p) {
 export function renderMapStage() {
   const stage = document.getElementById("mapStage");
   if (!stage) return;
+  // Still deciding which renderer owns the stage: draw nothing, and do NOT
+  // touch lastSignature -- whichever board wins needs the next call to be a
+  // real render rather than a no-op.
+  if (mode === "pending") return;
   if (!world) {
     if (mode === "2d") stage.innerHTML = "";
     lastSignature = "none";
@@ -395,7 +399,18 @@ export function selectTile(id) {
 // Which renderer is live. "2d" until the 3D stage reports itself up, so every
 // failure path -- no WebGL, a missing vendored library, `?map=2d` -- lands on a
 // working board rather than a black rectangle.
-let mode = "2d";
+// THE BOARD DOES NOT DRAW UNTIL WE KNOW WHICH BOARD (owner, 2026-08-25).
+// `pending` is the boot state while the 3D import and GPU setup are in flight:
+// the stage draws NOTHING rather than drawing a 2D fallback that is about to be
+// thrown away. Before this, a hard refresh showed the SVG board for a second or
+// two and then replaced it -- a flash of a different game, and the first thing
+// a new player saw.
+//
+// The fallback is untouched and still covers every failure path (no WebGL, a
+// missing vendored library, a throw anywhere in setup). It simply stops being
+// the DEFAULT view and becomes what you get when 3D actually fails. `?map=2d`
+// never enters `pending` at all, so the debug surface stays instant.
+let mode = wants3d() ? "pending" : "2d";
 let stage3d = null;
 
 function wants3d() {
@@ -412,6 +427,11 @@ const tipHolder = {};
 
 async function init3d(stage) {
   if (!wants3d()) return false;
+  // Every exit below must leave `mode` decided. It used to start at "2d" and
+  // only ever move UP to "3d", so a failure needed no handling; now that it
+  // starts at "pending", a path that forgets to settle it leaves a blank board
+  // forever. That is the one way this change could break the fallback, so each
+  // return sets it explicitly rather than relying on the initial value.
   try {
     stage3d = await import("../render3d/stage.js");
     const ok = await stage3d.initStage(stage, {
@@ -424,14 +444,15 @@ async function init3d(stage) {
       },
       onHoverMove: (ev) => tipMove(ev),
     });
-    if (!ok) { stage3d = null; return false; }
+    if (!ok) { stage3d = null; mode = "2d"; return false; }
     mode = "3d";
     return true;
   } catch (e) {
-    // Anything at all going wrong here keeps the 2D board, which is a whole
-    // playable game. Loud in the console, silent on screen.
-    console.warn("[map] 3D stage unavailable; keeping the 2D board:", e);
+    // Anything at all going wrong here falls back to the 2D board, which is a
+    // whole playable game. Loud in the console, silent on screen.
+    console.warn("[map] 3D stage unavailable; falling back to the 2D board:", e);
     stage3d = null;
+    mode = "2d";
     return false;
   }
 }
@@ -447,14 +468,21 @@ export function initMapStage() {
       const id = e.target && e.target.dataset && e.target.dataset.id;
       if (id && world && world.places[id]) selectTile(id);
     });
-    // Deliberately not awaited: boot must not block on a GPU. The 2D board
-    // draws immediately, and the 3D stage takes over a frame later when it is
-    // ready -- clearing the SVG first so the two never share the element.
-    init3d(stage).then((ok) => {
-      if (!ok) return;
+    // Deliberately not awaited: boot must not block on a GPU. Nothing else
+    // waits -- panels, the Chronicle and the clock all come up immediately;
+    // only the STAGE holds, because it is the one element that would otherwise
+    // show the wrong board first.
+    if (mode === "pending") stage.classList.add("stage-waiting");
+    init3d(stage).then(() => {
+      // Runs on EVERY path, success or fallback -- init3d never rejects, it
+      // returns false. Whichever board won now draws for the first time, and
+      // the stage is revealed either way. An early return here for the
+      // failure case would leave the 2D fallback hidden behind the waiting
+      // class, which is the exact bug this whole change could have introduced.
       stage.querySelectorAll("#mapSvg").forEach((el) => el.remove());
       lastSignature = "";
       renderMapStage();
+      stage.classList.remove("stage-waiting");
     });
   }
   const close = document.getElementById("tileClose");

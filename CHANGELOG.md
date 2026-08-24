@@ -11,6 +11,46 @@
 
 ---
 
+## 2026-08-25 — The board stops showing you the wrong game first
+
+**A hard refresh flashed the 2D SVG board for a second or two before the 3D one replaced it.** That
+was a deliberate tradeoff finally coming due: `init3d()` is not awaited, because boot must never
+block on a GPU, and the comment promised the 3D stage would "take over a frame later." On a cold
+load the dynamic `three` import plus GPU setup is one to two seconds, and for that whole window the
+player was looking at a different game — the first thing a new player saw.
+
+**The fix is a third state, not a workaround.** `mode` used to be `2d` or `3d`, starting at `2d`, so
+the fallback *was* the boot view. It starts at **`pending`** now: `renderMapStage()` draws nothing
+while the renderer is undecided, and the stage carries a `stage-waiting` class until `init3d()`
+settles either way. Nothing else waits — panels, the Chronicle and the clock all come up
+immediately; only the stage holds, because it is the one element that would otherwise show the wrong
+board. `?map=2d` never enters `pending`, so the debug surface stays instant.
+
+**The fallback is untouched in behaviour and got safer in construction.** It stops being the default
+view and becomes what you get when 3D actually fails. Two details keep that true, and both are how
+this could have become a permanent black rectangle instead of a nicety:
+
+- **Every exit from `init3d()` must now decide `mode`.** It used to start at `2d` and only move up,
+  so failure paths needed no handling at all; with a `pending` start, a path that forgets to settle
+  leaves a board that never appears. Each `return` sets it explicitly rather than leaning on the
+  initial value.
+- **The CSS is keyed the safe way round.** The default is *visible* and only script can hide it, so a
+  module that never runs leaves the board simply there. The reveal also runs on every path — the old
+  `if (!ok) return;` would have left the 2D fallback hidden behind the waiting class, which is
+  precisely the bug this change invited.
+
+Not opacity-as-state (`interface.md`'s law): it encodes nothing a player reads, fires once on first
+paint, and is gone for the rest of the run.
+
+**Verified live rather than by eye,** since the timing is the whole feature. With a 2.5s delay
+injected into `init3d`, the stage reported `svg: false` at *every* sample across the window — the 2D
+board is never built, not merely hidden — and revealed the instant `mode` became `3d`. With the 3D
+import deliberately broken, it fell back to a 2D board of 408 tiles at full opacity. With `?map=2d`,
+it never waited at all. No new harness checks: this is boot-order and DOM timing, which the harness
+deliberately does not import `main.js` to see.
+
+---
+
 ## 2026-08-25 — Your seat says what it is producing
 
 **The one owned hex that never reported its work was the capital** — invisible precisely because it

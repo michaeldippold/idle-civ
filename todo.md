@@ -29,8 +29,8 @@ to two weeks of work. Nothing is half-done. There is no fire.
 
 #### 1. Clear the vestigial code *(one sitting, genuinely small)*
 
-Both were found by the docs pass and are scoped to the line. Neither breaks anything today; both
-will mislead whoever greps for them next.
+All three are scoped to the line and none breaks anything today; every one of them will mislead
+whoever greps for it next. (Two came from the docs pass, the third from the README pass after it.)
 
 - **`housingPerHut()`** — `src/core/derived.js:14`. Housing died in the engine rework. **Simpler than
   it looks: no manifest declares the field at all**, so `active().housingPerHut` already returns
@@ -40,6 +40,12 @@ will mislead whoever greps for them next.
 - **`CONFIG.settlerIntervalSeconds`** — `src/core/config.js:19`. Dead since E3, when `accrueGrowth`
   became `growPopulation` and people started being born where they will live. One line. The harness
   already carries a comment saying it died.
+- **`CONFIG.baseHousing`** — `src/core/config.js:18`. *(Found 2026-08-25 during the README pass, not
+  by the docs pass — same vintage and same cause as the two above.)* Housing died in E3; this
+  survived it. Read by nothing in `src/` at all. One line. **While you are in `derived.js` for
+  `housingPerHut()`, the three-line comment directly above it goes too** — it explains how advancing
+  an era retroactively upgrades every hut into a Stone House, describing a building that no longer
+  exists.
 
 *Checked and NOT vestigial, so leave it alone:* `arrivalLine` looks the same vintage and is
 validator-required, but it is genuinely live — printed at `map/map.js:346` when a hex grows.
@@ -905,11 +911,11 @@ These survive the pivot unchanged.
 
 ---
 
-## Vestigial code, found by the docs pass (2026-08-25)
+## Vestigial code, found by the docs and README passes (2026-08-25)
 
-Both are exported/declared, referenced by nothing in `src/`, and outlived the system they belonged
-to. Neither breaks anything; both will mislead the next person who greps for them, which is exactly
-what the docs pass was for.
+All three are exported or declared, referenced by nothing in `src/`, and outlived the system they
+belonged to. None breaks anything; each will mislead the next person who greps for it, which is
+exactly what the docs pass was for — and the third is proof the sweep was worth repeating.
 
 - [ ] **`housingPerHut()`** in `core/derived.js`. Housing died in the engine rework; the accessor
       did not. The `housingPerHut` era-fact is still declared in the manifests and still passed by
@@ -918,6 +924,12 @@ what the docs pass was for.
 - [ ] **`CONFIG.settlerIntervalSeconds`**. Dead since E3, when `accrueGrowth` was replaced by
       `growPopulation` and people started being born where they will live. The harness already
       carries a comment saying so. This one IS a one-liner.
+- [ ] **`CONFIG.baseHousing`** *(added 2026-08-25, README pass)*. The third of the set, and the docs
+      pass missed it because it is referenced by literally nothing — not `src/`, not the harness, not
+      a manifest, so no grep for a live caller turns it up. Housing died in E3. One line.
+      **Also in this pass:** the stale comment block above `housingPerHut()` in `derived.js`, which
+      documents huts upgrading into Stone Houses at an era border. Deleting an accessor while leaving
+      the paragraph that explains its mechanic is how vestigial code grows back.
 
 ---
 

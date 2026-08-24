@@ -84,24 +84,34 @@ old contract was **the game never needs you**, which banned every interesting de
 is **the game never punishes you for leaving** — nothing expires, nothing is missed, and you can
 stop any time; but the game is meant to be watched.
 
-Concretely, in progress:
+**The mechanical half of that pivot is shipped.** Offline progress is gone and the clock runs only
+while you're looking at it; pause and fast-forward are real player controls on real keys; the
+simulation is seeded, so a run is exactly reproducible from its number; and the **hex map** — places
+you can hold, take, or win over, generated per run from hand-authored continents and a hand-authored
+pool of neighbours — is live on the 3D board.
 
-- Offline progress removed; the clock runs only while you're looking at it.
-- **Pause and fast-forward promoted to real player controls.**
-- **Events that present a choice** — which wait patiently, never expire, and always carry a designed
-  default.
-- A seeded simulation, so any run is exactly reproducible from its number.
-- A **hex map** of places you can hold, take, or win over, procedurally generated per run from a
-  hand-authored pool of neighbours — shipped, and being ported from its SVG stage onto the 3D
-  diorama (`todo.md`, Phase 10).
+**What the pivot unlocked and has not spent yet is the decision queue** (`todo.md`, phase 7): events
+that present a choice, wait patiently, never expire, and always carry a designed default. It is held
+deliberately rather than blocked — a choice can only wait for free once the clock stops when you look
+away, so the feature had to come second.
 
-`todo.md` has the phase plan.
+`todo.md` has the working order; its START HERE block is the authority on what happens next.
 
 ## Tuning
 
-Balance lives in **`src/core/config.js`** (`CONFIG`: gather rates, food upkeep, growth pacing,
-storage caps, cost curves, build times) and the era manifests in **`src/content/`** (`stone.js`
-plus the `bronze.js`/`iron.js` deltas). Change a number, refresh the page.
+Balance lives in two places, and which one you want depends on whether the number is a **law** or a
+**price**.
+
+- **`src/core/config.js`** holds the game-long laws — the ones with no era and no owner: the
+  per-capita gather rate and food upkeep, growth pacing (`popGrowthRate`), the famine's exchange rate
+  (`starveCost`), army capacity per hex, claim-cost escalation (`claimScale`), global build pace,
+  and the conflict and campaign dials.
+- **The era manifests in `src/content/`** (`stone.js` plus the `bronze.js`/`iron.js` deltas) hold
+  everything that is priced *per age*: each building's own cost and `scale` factor, its `buildTime`,
+  per-resource storage caps, the per-terrain works table and `popCaps`, `dominionCap`, and the claim
+  price. A cost that should differ between ages lives here, never in `CONFIG`.
+
+Change a number, refresh the page.
 
 ## Tests
 
@@ -109,7 +119,7 @@ plus the `bronze.js`/`iron.js` deltas). Change a number, refresh the page.
 node harness.js
 ```
 
-A headless Node harness (490 checks) that imports the game's modules directly — no browser, no
+A headless Node harness (611 checks) that imports the game's modules directly — no browser, no
 framework, no dependencies — and exercises the simulation through its real exports.
 
 ## Docs
@@ -120,6 +130,6 @@ framework, no dependencies — and exercises the simulation through its real exp
 | `tech.md` | Architecture: simulation model, manifests, rendering, what's shipped vs pending |
 | `map.md` | The map arc: place-graph model, hexes, procedural generation, art strategy |
 | `interface.md` | The interface system: layout, components, presentation rules, the interim Bureau skin |
-| `todo.md` | **Start here.** Status, the phase plan, and what is actually built |
+| `todo.md` | **Start here.** THE WORKING ORDER says what happens next; the rest is the spec for each item |
 | `CHANGELOG.md` | The shipped-feature record, newest first |
 | `redesign/` | The design pass that produced Bureau — prototype and reasoning |

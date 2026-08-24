@@ -17,23 +17,71 @@ from three different plans, interleaved — and the owner correctly called it un
 what happens next. The old labels survive below because they are how each item is specced and
 discussed; this section is the only place that says **when**.
 
-### 1 — NOW: officially next in line
+### START HERE — the next session, in this order *(owner, 2026-08-25, end of session)*
 
-- **The map picker** *(map arc, slice 5)*. Named continents plus Random; the save stores
-  `{continent, seed}`; Random draws the continent from the seed so a bare number reproduces a random
-  run. **The owner has additions to this that raise its importance — ask before starting.**
-  Finishes the map arc, which is currently only reachable through a URL flag.
-- **Raid attribution** *(carry-over, C3)*. "The Hill Clans test your defenses" instead of an
-  anonymous warband. This is the anonymous-to-named beat the Stone-Age roster was built for: Stone's
-  raiders belong to nobody, and at Bronze you learn who they were. `hostilityMultiplier()` already
-  scales the conflict trigger by hostile warlike neighbours, so much of the wiring exists.
+The owner set this sequence explicitly on pausing. It reorders the tiers below: tech debt first
+because *"tech debt is real"*, then the unsexy-but-unfinished thing, then the map picker.
 
-### 2 — MAYBE AHEAD OF BOTH: the odometer
+**Where things stand:** harness green at **610 checks**, working tree clean, everything pushed
+through `2f481d0`. The last session shipped the adversary arc (roster from the Stone Age, larders
+that refill per age, provisions per fighter), fixed four bugs found in play, and caught the docs up
+to two weeks of work. Nothing is half-done. There is no fire.
 
-The owner asked whether it is cheap enough to jump the queue. **Verdict: yes, the cheapest thing on
-this list** — a derived sum, an era multiplier, one formatter, one display slot. No new state, no save
-migration, nothing else reads it (rule 1: it never appears in a cost, cap, rate, requirement or
-stepper). Two decisions sit inside it, both small:
+#### 1. Clear the vestigial code *(one sitting, genuinely small)*
+
+Both were found by the docs pass and are scoped to the line. Neither breaks anything today; both
+will mislead whoever greps for them next.
+
+- **`housingPerHut()`** — `src/core/derived.js:14`. Housing died in the engine rework. **Simpler than
+  it looks: no manifest declares the field at all**, so `active().housingPerHut` already returns
+  `undefined` and the accessor returns undefined to nobody. Delete the export. Six harness fixtures
+  still pass `housingPerHut: 1`; those are inert once the accessor is gone and can be tidied in the
+  same pass.
+- **`CONFIG.settlerIntervalSeconds`** — `src/core/config.js:19`. Dead since E3, when `accrueGrowth`
+  became `growPopulation` and people started being born where they will live. One line. The harness
+  already carries a comment saying it died.
+
+*Checked and NOT vestigial, so leave it alone:* `arrivalLine` looks the same vintage and is
+validator-required, but it is genuinely live — printed at `map/map.js:346` when a hex grows.
+
+#### 2. Raid attribution *(carry-over C3)*
+
+*"The Hill Clans test your defenses"* instead of an anonymous warband. **This is the payoff for
+putting the roster on the board from minute one**, and the beat is: at Stone raiders belong to
+nobody, and at Bronze the danger acquires a name and an address.
+
+What already exists: `hostilityMultiplier()` in `sim/expeditions.js` scales the conflict trigger by
+hostile warlike neighbours (`disposition === "warlike"` and `standing <= -2`), and `riskAdversary()`
+picks the strongest such neighbour. Standing starts at 0 (neutral), so **merely having adversaries
+at Stone does not spike Stone's raid rate** — verified when the roster moved.
+
+The design question to settle first: attribution should almost certainly key off **`contact`**, the
+era-fact that already distinguishes "there is nobody who could send an army" (Stone) from "there is"
+(Bronze, Iron). That gives the beat for free and adds no new era-fact.
+
+#### 3. The map picker *(map arc, slice 5)* — **ASK THE OWNER FIRST**
+
+**The owner has additions here, plus other start-screen ideas, and will provide them when we reach
+this.** Do not start building from the spec below without asking — it is the spec as of slice 4, and
+the owner has said twice that his additions raise its importance.
+
+The specced-and-decided part: named continents plus a Random option; the save stores
+`{continent, seed}`; Random draws the continent FROM the seed, so a bare seed number reproduces a
+random run and a picked run reproduces as "Broadwater 12345". The start screen shell already exists
+(slice 1) and was built with room for this. Today the only way to choose a continent is
+`?continent=broadwater|longreach|thescatter`, so three authored continents are effectively
+unreachable by a player.
+
+---
+
+### 4 — AFTER THOSE THREE: the odometer
+
+*(Was tier 2 and "maybe ahead of everything" until the owner set the order above; it keeps its
+verdict, it just waits.)*
+
+**The cheapest thing on the list** — a derived sum, an era multiplier, one formatter, one display slot.
+No new state, no save migration, nothing else reads it (rule 1: it never appears in a cost, cap,
+rate, requirement or stepper). Two decisions sit inside it, both small:
 
 - **It should multiply PEOPLE, not tiles.** The spec says `souls = Sum(tiles) x soulsPerTile(era)`,
   written when tiles were the only lever at Iron. The engine rework made population a real per-hex
@@ -46,13 +94,13 @@ stepper). Two decisions sit inside it, both small:
 One part deserves care rather than speed: the per-era multipliers *"want choosing deliberately once
 [...] cheap now, annoying to retrofit"*. Pick the whole ladder in one pass, not a rung at a time.
 
-### 3 — SOON AFTER: the era re-dress *(map arc, slice 7)*
+### 5 — THEN: the era re-dress *(map arc, slice 7)*
 
 Prop-sets, palette, light and the camera pull-back — the revealed board changing clothes while the
 player watches. **The owner has ideas here too.** Wants it sooner rather than later, but behind
 everything above.
 
-### 4 — HELD, DELIBERATELY, AND NOT TO BE LOST
+### 6 — HELD, DELIBERATELY, AND NOT TO BE LOST
 
 - **The decision queue** *(phase 7)*. Held until wanted; the spec is complete and the pause-on-ask
   seam is already built. Confirmed 2026-08-25 that this is exactly what it sounds like — the world
@@ -61,14 +109,14 @@ everything above.
 - **Scouting** *(map arc, slice 6)*. Back seat: still needs addressing, not urgent. Carries a live
   constraint found in play — it must not delete the settle-blind gamble.
 
-### 5 — THE BIG ONE, GATED ON PURPOSE: the tech tree
+### 7 — THE BIG ONE, GATED ON PURPOSE: the tech tree
 
 **What the owner is most excited about, and deliberately not next.** It is a major change, and the
 gate is that the open threads above should close first. Also the reason not to touch the dominion
 cap yet: a tree is a large new resource sink by design, and whether expansion self-limits is exactly
 what a new sink changes.
 
-### 6 — THE BACK SEAT, EXPLICITLY
+### 8 — THE BACK SEAT, EXPLICITLY
 
 - **Priests and the envoy** *(6e)*, and anything else Enlightenment-shaped.
 - **STANDING RULE (owner, 2026-08-25): no more eras, and no more era-scale features, until the core

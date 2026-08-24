@@ -1,7 +1,7 @@
 import { active } from "../content/compile.js";
 import { cancelBuild } from "../core/actions.js";
 import { CONFIG } from "../core/config.js";
-import { defById } from "../core/derived.js";
+import { defById, queueTiming } from "../core/derived.js";
 import { S } from "../core/state.js";
 import { campaignTarget, findAdversary } from "../sim/expeditions.js";
 import { renderTile } from "./dom.js";
@@ -58,10 +58,10 @@ export function renderQueue() {
     expCards.push(card);
   }
 
-  let etaAccum = 0;
+  const timings = queueTiming(S.buildQueue, CONFIG.buildSpeed);
   const buildCards = [];
   S.buildQueue.forEach((item, i) => {
-    etaAccum += item.remaining;
+    const t = timings[i];
     const def = defById(item.id);
     const label = item.label || (def && def.name) || item.id;
     let card = wrap.querySelector(`[data-uid="${item.uid}"]`);
@@ -88,8 +88,13 @@ export function renderQueue() {
     card.querySelector(".q-label").textContent = label;
     card.querySelector(".q-pct").textContent = `(${Math.floor(pct)}%)`;
     card.querySelector(".q-bar").style.width = pct + "%";
-    card.querySelector(".q-eta").textContent =
-      `~${Math.max(1, Math.ceil(etaAccum / CONFIG.buildSpeed))}s left`;
+    // An active card counts down its OWN build. A queued card counts down the
+    // WAIT, which is the only thing actually moving for it -- and says so, so
+    // that a shrinking number beside an empty bar reads as a queue advancing
+    // rather than as work being done ahead of schedule.
+    card.querySelector(".q-eta").textContent = t.active
+      ? `~${t.own}s left`
+      : `starts in ~${t.waiting}s \u00b7 ~${t.own}s to raise`;
     card.classList.toggle("queued", i > 0);
     buildCards.push(card);
   });

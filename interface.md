@@ -512,3 +512,34 @@ its reasoning in `redesign/DESIGN-NOTES.md`. Do not treat these as current.
 | `05-campaign-modal.png` | Campaign muster modal: steppers, estimate, walls readout |
 | `06-info-reference.png` | Info/Reference modal with era tabs |
 | `07-game-over.png` | The game-over modal and fallen-state chrome |
+
+---
+
+## The build queue says what is actually happening
+
+Only the front item is under construction — the queue itself is the scarcity, and `step()` decrements
+`buildQueue[0]` and nothing else. That means a queued card has **two** numbers about it, answering
+different questions:
+
+| number | question it answers |
+|---|---|
+| `own` | how long this takes to build, once someone starts |
+| `waiting` | how long until anyone starts on it |
+| `done` | `waiting + own` — when will I actually have it |
+
+The card printed `done` for every item with no other change, so a card in position two counted down
+while its progress bar sat at 0%. Both numbers were honest and together they told a lie: the owner
+watched one *"shave off like 7 or 8 seconds"* in position two and reasonably read it as building
+early. Nothing was building early. The **wait** was shrinking, which is a different sentence, and
+now gets said as one:
+
+- active: `~24s left`
+- queued: `starts in ~16s · ~25s to raise`
+
+The queued line's second half is the load-bearing half: it does not move while the item waits, which
+is the reassurance the old card failed to give.
+
+The arithmetic lives in `queueTiming()` in `core/derived.js` rather than inline in the renderer,
+because a rule with no name is a rule with no check — this one had gone unnoticed since the queue
+was built.
+

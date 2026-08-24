@@ -11,6 +11,29 @@
 
 ---
 
+## 2026-08-25 — The build queue says what is actually happening
+
+**A card in second place counted down while its progress bar sat at 0%.** Reported from play: it
+*"shave[d] off like 7 or 8 seconds while sitting in position 2"*, then took the front slot and kept
+going from the reduced number.
+
+Nothing was building early. `step()` decrements `buildQueue[0]` and nothing else, so the queued
+item's own work was untouched the whole time — the panel was printing *time until this finishes*,
+which includes waiting for the item ahead, and that total genuinely shrinks as the front item
+progresses. The number was honest. Paired with an empty progress bar it still told a lie, because
+the only reading available was "this is being worked on".
+
+A queued card now separates the two: `starts in ~16s · ~25s to raise`. The second half does not
+move while it waits, which is precisely the reassurance the old card failed to give. The active
+card is unchanged at `~24s left`.
+
+The arithmetic moved out of the renderer into `queueTiming()` in `core/derived.js`. A rule living
+inline in a DOM loop is a rule with no check, which is why this went unnoticed since the queue was
+built. Nine new checks (605), the sharpest being the bug as a property: **work on the front item
+must never shorten the build behind it.**
+
+---
+
 ## 2026-08-24 — Sight leaves ground you stand on
 
 **Sight rays were casting from every CHARTED hex rather than every OWNED one,** and charted includes

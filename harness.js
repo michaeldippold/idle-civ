@@ -3054,6 +3054,46 @@ console.log("\n--- Phase 5: asking modals hold the world ---");
   api.setSpeed(1);
 }
 
+console.log("\n--- The build queue says what is actually happening ---");
+{
+  // Only the FRONT item is under construction (step()). A queued item has two
+  // numbers about it that answer different questions, and printing the wrong
+  // one made the panel tell a lie the sim never told: a card in position two
+  // counted down while its progress bar sat at 0%, so it read as building
+  // early. Nothing built early -- the WAIT was shrinking.
+  reset();
+  const q = [
+    { uid: 1, id: "hut", remaining: 10, total: 10 },
+    { uid: 2, id: "hut", remaining: 20, total: 20 },
+    { uid: 3, id: "hut", remaining: 5,  total: 5  },
+  ];
+  const t = api.queueTiming(q, 1);
+  check("only the front item is active", t[0].active && !t[1].active && !t[2].active);
+  check("the active item waits for nobody", t[0].waiting === 0);
+  check("a queued item waits for everything ahead of it",
+    t[1].waiting === 10 && t[2].waiting === 30);
+  check("each item's OWN build time is its own, untouched by the queue",
+    t[0].own === 10 && t[1].own === 20 && t[2].own === 5);
+  check("and 'done' is the wait plus the work",
+    t[0].done === 10 && t[1].done === 30 && t[2].done === 35);
+
+  // THE BUG, stated as a property: as the front item progresses, a queued
+  // item's OWN time must not move. Only its wait may shrink.
+  q[0].remaining = 2;                 // eight seconds of work happened
+  const t2 = api.queueTiming(q, 1);
+  check("work on the front item never shortens the build behind it",
+    t2[1].own === t[1].own && t2[2].own === t[2].own);
+  check("...it only brings the queued item's start closer",
+    t2[1].waiting === 2 && t2[1].waiting < t[1].waiting);
+
+  // buildSpeed is a multiplier on work, so it divides every duration.
+  const fast = api.queueTiming(q, 2);
+  check("build speed scales the clock, not the order",
+    fast[1].own === 10 && fast[1].waiting === 1);
+  check("no card ever advertises zero seconds",
+    api.queueTiming([{ uid: 9, id: "hut", remaining: 0.01, total: 5 }], 1)[0].own === 1);
+}
+
 console.log("\n--- Phase 4: the tick clock ---");
 {
   reset();

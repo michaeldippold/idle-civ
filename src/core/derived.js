@@ -167,6 +167,36 @@ export function ledgerRates() {
 // accrueGrowth() -- the free settler timer -- died in E3. Growth is local
 // (people grow toward each hex's cap) and expansion is a claim you pay for.
 
+// What each queue card should SAY. Only the front item is under construction
+// (see step()), so a queued item has two different numbers about it and they
+// answer different questions:
+//
+//   own     -- how long it takes to build, once someone starts
+//   waiting -- how long until anyone starts on it
+//   done    -- waiting + own, the answer to "when will I have it"
+//
+// The card used to print `done` for every item with no other change, so a
+// QUEUED card counted down while its progress bar sat at 0%. Both numbers were
+// honest and together they told a lie: the owner watched a card in position two
+// "shave off like 7 or 8 seconds" and reasonably read it as building early.
+// Nothing was building early. The wait was shrinking, which is a different
+// sentence and now gets said as one.
+export function queueTiming(queue, buildSpeed) {
+  const secs = (t) => Math.max(1, Math.ceil(t / buildSpeed));
+  let ahead = 0;
+  return (queue || []).map((item, i) => {
+    const row = {
+      uid: item.uid,
+      active: i === 0,
+      own: secs(item.remaining),
+      waiting: i === 0 ? 0 : secs(ahead),
+      done: secs(ahead + item.remaining),
+    };
+    ahead += item.remaining;
+    return row;
+  });
+}
+
 export function capWord(w) { return w.charAt(0).toUpperCase() + w.slice(1); }
 // Good enough for every unit name this game will ever have ("Horseman" ->
 // "Horsemen", everything else takes an s). Not a general pluralizer.

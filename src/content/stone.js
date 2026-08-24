@@ -62,6 +62,13 @@ export const STONE = {
     // by the route. (The old food-only rationale -- "affordable before wood
     // exists" -- died with the steppers: any hex works wood from minute one.)
     claim: { cost: { food: 20, wood: 8, stone: 4 }, time: 30 },
+    // The DOMINION CAP (owner ruling, 2026-08-24, second 5-minute test):
+    // what one age can HOLD is the era's scope, and no cost curve can brake
+    // what compounding production funds -- claims buy production, so any
+    // price is a treadmill. A stone chief holds seven clearings; holding
+    // more IS what an era advance means. This also hands the mid-era game
+    // to DEVELOPMENT: once the land is held, buildings are the sink.
+    dominionCap: 7,
     // What each terrain can be turned to, from the FIRST minute (E2): one
     // assignment per hex, terrain sets the rate, every ground works
     // everything at a price. The Stone table is the Iron table minus iron --

@@ -223,6 +223,21 @@ export function growPopulation(dt) {
   }
 }
 
+// The era's scope (owner ruling, 2026-08-24): how many lands this age can
+// hold, counting parties already on the road. No cost curve can brake what
+// compounding production funds; the cap shuts the door outright, and the
+// tech tree may later sell administrative capacity against it.
+export function dominionCap() {
+  return (active().map && active().map.dominionCap) || Infinity;
+}
+export function holdsUsed() {
+  if (!S.map) return 0;
+  return S.map.owned.length + S.buildQueue.filter((q) => q.kind === "settle").length;
+}
+export function atDominionCap() {
+  return holdsUsed() >= dominionCap();
+}
+
 export function ownedTiles() { return S.map ? S.map.owned : []; }
 export function isOwned(id) { return !!S.map && S.map.owned.includes(id); }
 

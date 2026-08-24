@@ -11,6 +11,36 @@
 
 ---
 
+## 2026-08-24 — The dominion cap: what one age can hold
+
+**The settlementmaxx door is closed.** Each era now declares its scope — `dominionCap`: stone 7,
+bronze 12, iron 20 — and the expansion verbs answer to it: the settle button refuses at scope with
+the reason worded ("Your people hold all 7 lands this age can govern. A new age must dawn."),
+subduing a minor refuses to march when victory would win ground the age cannot govern, queued
+parties count against the scope so the queue is not a loophole, and prices stay printed at the cap
+because a refusal should never hide the arithmetic. The era ceremony announces the scope rising;
+the People panel counts your holds.
+
+The ruling's history is worth the record: the owner proposed a cap, Claude rejected it as housing
+back from the dead, the owner re-argued it with playtest data — twenty hexes in ten minutes, ten
+per second of income, a settlement built to the bare minimum — and the re-argument won on the
+economics Claude had himself proven: claims buy production, so compounding production outruns any
+cost curve, and tuning expansion prices forever would couple into the whole economy. The original
+objection was right about caps-as-housing and wrong about caps-as-era-scope, which is the tile
+ladder enforced: a stone chief holds seven clearings, and holding more is what an era advance
+means.
+
+Two gifts found on arrival. Development becomes the mid-era game: once the land is held, buildings
+stop losing the argument with hexes and become the thing to buy. And expansion becomes SELECTION:
+with seven slots, which seven is the age's defining decision — a snake through the valley to the
+far forest and a tight ring around the seat are different civilizations, and the shape is already
+priced, because the stretched dominion is the one that starves first and burns first.
+
+Escalating, era-signed claim costs stay unchanged as friction within the scope. Seven new checks
+(530), including that the cap counts parties still on the road.
+
+---
+
 ## 2026-08-24 — Engine rework E5+E6: the world strikes hexes, and the rework is COMPLETE
 
 **Nobody dies nowhere any more.** `strikeHex(kind)` picks the victim: sickness person-weighted, so

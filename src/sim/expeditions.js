@@ -3,7 +3,7 @@ import { rng } from "../core/rng.js";
 import { CONFIG } from "../core/config.js";
 import { availableUnits } from "../core/derived.js";
 import { save } from "../core/persist.js";
-import { captureTile, marchFactor, routeCost, seatOf, syncPopMirror, world } from "../map/map.js";
+import { atDominionCap, captureTile, marchFactor, routeCost, seatOf, syncPopMirror, world } from "../map/map.js";
 import { S } from "../core/state.js";
 import { armorFactor, weaponMultiplier } from "./combat.js";
 import { renderAll } from "../ui/chrome.js";
@@ -131,6 +131,10 @@ export function campaignPlan(ref) {
 }
 
 export function launchCampaign(advId, unitCounts) {
+  // A campaign that would END in a new holding answers to the era's scope
+  // (dominionCap) -- you cannot subdue what the age cannot hold. Campaigns
+  // against MAJORS are plunder, not conquest, and stay ungated.
+  if (typeof arguments[0] === "string" && arguments[0].startsWith("tile:") && atDominionCap()) return;
   if (S.dead || expeditionOut("campaign") || (S.builds.musterGround || 0) < 1) return;
   const plan = campaignPlan(advId);
   if (!plan) return;

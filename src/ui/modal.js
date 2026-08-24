@@ -147,6 +147,10 @@ export function openEraModal(era, before) {
   }
   // (the housing-rises line died in E3 with housing itself)
   // (the growth-mode ceremony line died in E5 -- growth is local everywhere)
+  // The dominion cap rising is arguably the era's headline: the age's SCOPE.
+  if (prevM && m.map && prevM.map && m.map.dominionCap > prevM.map.dominionCap) {
+    changes.push(`Your banner may govern more of the world — ${prevM.map.dominionCap} holdings becomes ${m.map.dominionCap}.`);
+  }
   if (prevM) {
     for (const panelId in m.panelTitles) {
       if (prevM.panelTitles[panelId] && prevM.panelTitles[panelId] !== m.panelTitles[panelId]) {

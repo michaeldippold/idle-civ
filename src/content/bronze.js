@@ -29,6 +29,7 @@ export const BRONZE_DELTA = {
       // base three, but it means no era's economy can be skipped while the
       // dominion keeps growing on food and timber alone.
       claim: { cost: { food: 30, wood: 15, stone: 8, bronze: 3 }, time: 35 },
+      dominionCap: 12,
     works: {
       plains: { food: 1.0, wood: 0.4, stone: 0.3, copper: 0.2, tin: 0.1 },
       river:  { food: 1.2, wood: 0.3, stone: 0.2 },

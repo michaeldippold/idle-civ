@@ -62,6 +62,7 @@ function copyMapSpec(m) {
     works: m.works ? JSON.parse(JSON.stringify(m.works)) : null,
     popCaps: m.popCaps ? Object.assign({}, m.popCaps) : null,
     claim: m.claim ? JSON.parse(JSON.stringify(m.claim)) : null,
+    dominionCap: m.dominionCap || null,
     minors: m.minors ? JSON.parse(JSON.stringify(m.minors)) : null,
   };
 }
@@ -207,6 +208,9 @@ export function validateManifests(manifests) {
       if (!m.map.claim || !m.map.claim.cost || !(m.map.claim.time > 0)) {
         bad("map declares no claim spec -- expansion is the growth verb and must be priced");
       }
+      // The dominion cap is the era's scope (owner ruling 2026-08-24): what
+      // one age can hold. Required, and it must at least fit the trio.
+      if (!(m.map.dominionCap >= 3)) bad("map declares no dominionCap (or one smaller than the starting trio)");
       else for (const t of m.map.terrains) {
         if (t === "water") continue;
         if (!(m.map.popCaps[t] > 0)) bad(`popCaps missing or non-positive for terrain "${t}"`);

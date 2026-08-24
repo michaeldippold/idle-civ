@@ -365,6 +365,20 @@ in the interface; allow it.
 good alone; together they may make expansion feel strictly bad. This will present much later as
 "expansion feels bad" and the cause will not be obvious, so it is written down here.
 
+#### The dominion cap: what one age can hold
+
+*(Owner ruling, 2026-08-24 — proposed, rejected, re-argued with playtest data, adopted.)* Each era
+declares how many holdings the age can govern — the `dominionCap` era-fact: **stone 7, bronze 12,
+iron 20**, rising toward board scale as the ages pass. No cost curve can brake expansion, because
+claims buy production and compounding production outruns any price — the cap shuts the door
+outright, and the claim costs underneath it (escalating, era-signed) become friction *within* the
+scope rather than the failed brake. This is the tile ladder enforced, not housing revived: scope
+per era is what an era advance *is*. Consequences that arrived with it: development is the mid-era
+sink (once the land is held, buildings are what's left to buy), and expansion becomes **selection**
+— with seven slots, *which* seven is the age's defining decision, and empire shape (snake vs blob)
+is already priced by frontier famine and raid exposure. The tech tree may later sell
+administrative capacity against the cap.
+
 #### Buildings are your capital (the Luthadel rule)
 
 *(Settled in passing, 2026-08-23 — owner and Claude reached it independently, which is usually the

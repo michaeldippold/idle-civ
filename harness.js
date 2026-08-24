@@ -2141,6 +2141,59 @@ console.log("\n--- Phase 10: the renderer port keeps the marks ---");
   check("known but empty country carries no mark at all", api.markFor(wild) === null);
 }
 
+console.log("\n--- The dominion cap: what one age can hold ---");
+{
+  api.setRngSource(() => 0.99);
+  reset(); api.closeModal(); api.ensureMap();
+  S().res.food = 5000; S().res.wood = 5000; S().res.stone = 5000;
+
+  check("the stone age governs seven holdings", api.dominionCap() === 7);
+  check("the trio leaves room for four more", !api.atDominionCap() && api.holdsUsed() === 3);
+
+  // Fill the scope: capture to six, then QUEUE the seventh -- parties on the
+  // road count against the age's scope, or the queue becomes the loophole.
+  const wild = () => Object.values(api.world.places)
+    .find((x) => x.terrain !== "water" && !x.adversary && !x.minor && !api.isOwned(x.id)
+      && !api.pendingSettle(x.id));
+  while (S().map.owned.length < 6) api.captureTile(wild().id);
+  const seventh = wild();
+  api.launchSettle(seventh.id);
+  check("the seventh party counts while still on the road",
+    api.holdsUsed() === 7 && api.atDominionCap());
+
+  const eighth = wild();
+  const qBefore = S().buildQueue.length;
+  api.launchSettle(eighth.id);
+  check("the age refuses an eighth: no cost curve, a closed door",
+    S().buildQueue.length === qBefore && !api.isOwned(eighth.id));
+  check("the price is still PRINTED at the cap (the refusal is worded, not hidden)",
+    api.settlePlan(eighth.id) !== null);
+
+  // A new age is what raises the scope.
+  S().era = "bronze"; api.initAdversaries(); api.ensureMap();
+  S().res.bronze = 100;   // the wider banner brings its signature metal
+  check("bronze governs twelve", api.dominionCap() === 12 && !api.atDominionCap());
+  api.launchSettle(eighth.id);
+  check("the same claim is welcome under the wider banner",
+    S().buildQueue.some((q) => q.kind === "settle" && q.tile === eighth.id));
+
+  // Subduing a minor is conquest, and conquest answers to the scope too.
+  reset(); api.closeModal();
+  S().era = "iron"; api.initAdversaries(); api.ensureMap();
+  S().builds.musterGround = 1; S().units.soldier = 6; S().res.food = 5000;
+  while (S().map.owned.length < 20) {
+    const w = Object.values(api.world.places)
+      .find((x) => x.terrain !== "water" && !x.adversary && !x.minor && !api.isOwned(x.id));
+    if (!w) break;
+    api.captureTile(w.id);
+  }
+  const minorTile = Object.values(api.world.places).find((x) => x.minor && !api.isOwned(x.id));
+  api.launchCampaign("tile:" + minorTile.id, { soldier: 4 });
+  check("a subdual that would exceed the age's scope refuses to march",
+    S().expeditions.length === 0);
+  api.setRngSource(null);
+}
+
 console.log("\n--- Engine rework E5: the world strikes hexes ---");
 {
   api.setRngSource(() => 0.5);

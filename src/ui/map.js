@@ -3,7 +3,7 @@ import { S } from "../core/state.js";
 import { capWord } from "../core/derived.js";
 import { save } from "../core/persist.js";
 import { launchSettle, pendingSettle, settlePlan } from "../core/actions.js";
-import { world, isOwned, isCharted, capOf, hexPop } from "../map/map.js";
+import { world, isOwned, isCharted, capOf, hexPop, atDominionCap, dominionCap, holdsUsed } from "../map/map.js";
 import { hexDistance, hexPoints, toPixel } from "../map/model.js";
 import { campaignPlan, expeditionOut, standingWord } from "../sim/expeditions.js";
 import { attachTip, tipHide, tipMove, tipShow } from "./dom.js";
@@ -173,10 +173,12 @@ function detailHTML(p) {
     const plan = campaignPlan("tile:" + p.id);
     const noGround = (S.builds.musterGround || 0) < 1;
     const marchOut = expeditionOut("campaign");
-    parts.push(`<div class="map-actions"><button class="map-act" data-act="march" data-adv="tile:${p.id}"${noGround || marchOut ? " disabled" : ""}>March</button></div>`);
+    const scopeFull = atDominionCap();
+    parts.push(`<div class="map-actions"><button class="map-act" data-act="march" data-adv="tile:${p.id}"${noGround || marchOut || scopeFull ? " disabled" : ""}>March</button></div>`);
     if (plan && plan.tilesOff != null) parts.push(`<span class="map-noworks">${plan.tilesOff} tiles off · ${plan.provisions} food · ${plan.time}s there and back. Win, and it swears fealty — one more holdfast.</span>`);
     if (noGround) parts.push(`<span class="map-noworks">A Muster Ground must stand first.</span>`);
     else if (marchOut) parts.push(`<span class="map-noworks">A campaign is already in the field.</span>`);
+    else if (scopeFull) parts.push(`<span class="map-noworks">Victory would win ground this age cannot govern — the dominion is at its full scope.</span>`);
     return parts.join("");
   }
   const mine = isOwned(p.id);
@@ -207,11 +209,16 @@ function detailHTML(p) {
     const best = specialties(p.terrain);
     const plan = settlePlan(p.id);
     if (plan) {
-      // The settle verb: wilderness is claimable, as queued and priced work.
+      // The settle verb: wilderness is claimable, as queued and priced work --
+      // within the age's SCOPE (dominionCap): what one era can hold is finite,
+      // and holding more is what an era advance means.
       const queued = pendingSettle(p.id);
-      parts.push(`<div class="map-actions"><button class="map-act" data-act="settle" data-tile="${p.id}"${queued ? " disabled" : ""}>Settle</button></div>`);
+      const capped = !queued && atDominionCap();
+      parts.push(`<div class="map-actions"><button class="map-act" data-act="settle" data-tile="${p.id}"${queued || capped ? " disabled" : ""}>Settle</button></div>`);
       parts.push(`<span class="map-noworks">${queued
         ? "A party is already on its way."
+        : capped
+        ? `Your people hold all ${dominionCap()} lands this age can govern. A new age must dawn before the banner spreads further.`
         : `${Object.entries(plan.cost).map(([k, v]) => `${v} ${k}`).join(", ")} · ${plan.time}s${plan.tilesOff != null ? ` · ${plan.tilesOff} tiles off` : ""}${best.length ? ` · best worked for ${best.join(" or ")}` : ""}. Stake the ground, raise a hearth — one more ${spec().tileNoun.singular}.`}</span>`);
     } else {
       parts.push(`<span class="map-noworks">Not yours${best.length ? ` — best worked for ${best.join(" or ")}` : ""}. Growth is conquest and fealty.</span>`);

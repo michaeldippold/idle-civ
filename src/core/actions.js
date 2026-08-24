@@ -1,7 +1,7 @@
 import { buildCost, canAfford, civilians, defById, isCapped, levyCap, levyUsed, pendingCount, playtime, reserved } from "./derived.js";
 import { active } from "../content/compile.js";
 import { CONFIG } from "./config.js";
-import { marchFactor, routeCost, world, captureTile, syncPopMirror } from "../map/map.js";
+import { atDominionCap, marchFactor, routeCost, world, captureTile, syncPopMirror } from "../map/map.js";
 import { S } from "./state.js";
 import { save } from "./persist.js";
 import { advanceEra } from "../sim/era.js";
@@ -105,6 +105,7 @@ export function pendingSettle(tileId) {
 
 export function launchSettle(tileId) {
   if (S.dead) return;   // every era allocates hexes since E2
+  if (atDominionCap()) return;   // the age can hold no more (dominionCap)
   const plan = settlePlan(tileId);
   if (!plan || pendingSettle(tileId)) return;
   if (!canAfford(plan.cost)) return;

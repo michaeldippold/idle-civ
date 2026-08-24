@@ -1,5 +1,6 @@
 import { active } from "../content/compile.js";
 import { capWord, civilians, isRevealed } from "../core/derived.js";
+import { dominionCap, holdsUsed } from "../map/map.js";
 import { S } from "../core/state.js";
 import { renderTile } from "./dom.js";
 import { PERSON_ICONS } from "./icons.js";
@@ -33,6 +34,8 @@ export function renderPeople() {
     list.appendChild(tilesNote);
   }
   const tn = (active().map && active().map.tileNoun) || { plural: "lands" };
-  tilesNote.textContent = `Your people work the land they live on — click a ${tn.singular || "hex"} on the map to direct it.`;
+  const cap = dominionCap();
+  const holds = Number.isFinite(cap) ? ` You hold ${holdsUsed()} of the ${cap} ${tn.plural} this age can govern.` : "";
+  tilesNote.textContent = `Your people work the land they live on — click a ${tn.singular || "hex"} on the map to direct it.${holds}`;
   tilesNote.classList.remove("hidden");
 }

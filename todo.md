@@ -389,9 +389,21 @@ per era-fact — the odometer comes from the ceiling rising, never from the rate
      hexes) ARE the systemic costs of sprawl — judge overall difficulty only after they land.
   3. **Stone-age adversaries** (the minor tier extending DOWN: weak steadings, no kingdoms yet) —
      the real long-term answer; contested land is the honest cost of expansion. After E5.
-  4. **Per-age hex caps: rejected for now** (housing back from the dead). If a governor is still
-     needed later, the tech tree sells "administrative capacity" — second seats as a reward, not
-     a wall.
+  4. **Per-age hex caps: REVERSED and ADOPTED 2026-08-24** — the owner re-argued it after the
+     second 5-minute test (20 hexes at 10 minutes, 10/s income, a bare-minimum settlement) and
+     the re-argument won: no cost curve can brake what compounding production funds, and endless
+     expansion-cost tuning would couple into the whole economy. The original objection was aimed
+     at caps-as-housing; this is **caps-as-era-scope**, which is the tile ladder enforced — a
+     stone chief holds seven clearings, and holding more IS what an era advance means. Shipped as
+     the `dominionCap` era-fact (stone 7 / bronze 12 / iron 20): the settle verb and tile
+     campaigns refuse at scope with worded reasons, queued parties count, prices stay printed,
+     the era ceremony announces the scope rising, and the People panel counts holds. Cost
+     escalation and era-signature claims stay AS friction within the cap. The tech tree may later
+     sell administrative capacity against it. **Two bonuses found on arrival:** development
+     becomes the mid-era sink (buildings stop competing with hexes and start being the thing to
+     buy), and expansion becomes SELECTION — with seven slots, which seven is the age's defining
+     decision, snake-through-the-valley boards look and play differently than blobs, and E4/E5
+     already price the shape (a stretched dominion starves and burns first).
   5. **Do not flatten the 1.0-vs-0.3 terrain gap yet:** it powers the which-terrain decision, and
      escalating claim costs make overpay routes relatively more attractive on their own.
 

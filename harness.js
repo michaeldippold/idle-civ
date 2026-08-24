@@ -2232,6 +2232,18 @@ console.log("\n--- Engine rework E4: the frontier starves first ---");
   check("the same ground costs more once you hold more (escalating claims)",
     later > base);
 
+  // And the QUEUE counts (owner bug report): a claim underway prices the next
+  // one up, exactly as queued buildings already price their next copy up.
+  reset(); api.closeModal(); api.ensureMap();
+  S().res.food = 500; S().res.wood = 500;
+  const q1 = Object.values(api.world.places)
+    .filter((x) => x.terrain !== "water" && !x.adversary && !x.minor && !api.isOwned(x.id)).slice(0, 2);
+  const first = api.settlePlan(q1[0].id).cost.food;
+  api.launchSettle(q1[0].id);
+  const second = api.settlePlan(q1[1].id).cost.food;
+  check("a claim still underway raises the next claim's price",
+    second > first);
+
   api.setRngSource(null);
 }
 
@@ -2429,8 +2441,10 @@ console.log("\n--- Phase 6b: Conquest Growth G1 -- levy, output, no housing ---"
   for (const id of S().map.owned) S().map.pop[id] = 30;   // above cap, so growth
   api.syncPopMirror();                                     // cannot refill the draw
   const seatBefore = api.hexPop(api.world.home);
+  api.setRngSource(() => 0.99);   // E5's own fevers must not strike this fixture
   api.build(api.defById("soldier"));
   run(20);
+  api.setRngSource(null);
   check("the capital musters: the recruit walked out of the seat",
     S().units.soldier >= 1 && api.hexPop(api.world.home) === seatBefore - 1);
 }

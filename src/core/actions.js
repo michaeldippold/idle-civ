@@ -85,7 +85,10 @@ export function settlePlan(tileId) {
   // Escalation (E4, from the owner's first playtest: settling was trivial):
   // each claim beyond the starting trio costs claimScale more than the last,
   // the same per-copy idiom buildings use. Distance still multiplies on top.
-  const esc = Math.pow(CONFIG.claimScale, Math.max(0, S.map.owned.length - 3));
+  // QUEUED claims count too (owner bug report: queue two and both priced at
+  // the same step) -- exactly as building costs already count their queue.
+  const pendingClaims = S.buildQueue.filter((q) => q.kind === "settle").length;
+  const esc = Math.pow(CONFIG.claimScale, Math.max(0, S.map.owned.length + pendingClaims - 3));
   const cost = {};
   for (const k in spec.cost) cost[k] = Math.round(spec.cost[k] * factor * esc);
   return {

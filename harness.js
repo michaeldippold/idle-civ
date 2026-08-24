@@ -2676,6 +2676,95 @@ console.log("\n--- The dominion cap: what one age can hold ---");
   api.setRngSource(null);
 }
 
+console.log("\n--- C3: the danger acquires a name ---");
+{
+  // The payoff for putting the roster on the board from minute one. At Stone
+  // raiders belong to nobody; from Bronze they are your neighbours, and it was
+  // the same people all along.
+  const attributionIn = (era) => {
+    reset();
+    api.S.era = era;
+    api.initAdversaries(); api.ensureMap();
+    return api.raidAttribution();
+  };
+
+  check("Stone raids belong to nobody -- the danger is real and anonymous",
+    attributionIn("stone") === null);
+  check("Bronze gives the danger a name", attributionIn("bronze") !== null);
+  check("Iron keeps it", attributionIn("iron") !== null);
+  check("and it is the same people in both ages, not a fresh enemy per era",
+    attributionIn("bronze").id === attributionIn("iron").id);
+
+  // The gate is `contact`, not the presence of a roster: Stone SEATS all three
+  // peoples, so "nobody is named" has to come from the era-fact rather than
+  // from an empty board. This is the check that would catch someone "fixing"
+  // Stone's silence by deleting its adversaries.
+  reset(); api.S.era = "stone"; api.initAdversaries(); api.ensureMap();
+  check("...and Stone is silent DESPITE having neighbours seated",
+    api.MANIFESTS.stone.adversaries.length > 0 && api.raidAttribution() === null);
+  check("the gate is the contact era-fact",
+    api.MANIFESTS.stone.contact === "none" && api.MANIFESTS.bronze.contact === "open");
+
+  // Peaceful neighbours never take the blame, in any era.
+  reset(); api.S.era = "iron"; api.initAdversaries(); api.ensureMap();
+  check("a named era always names somebody", api.raidAttribution() !== null);
+  check("peaceful neighbours are never blamed for a raid",
+    api.MANIFESTS.iron.adversaries.some((a) => a.disposition === "peaceful") &&
+    api.raidAttribution().disposition === "warlike");
+
+  // A roster with nobody seated has nobody to blame, and that is a real state
+  // rather than a crash -- the caller falls back to the anonymous voice.
+  const saved = api.S.adversaries;
+  api.S.adversaries = {};
+  check("no seated neighbours, no attribution -- and no throw",
+    api.raidAttribution() === null);
+  api.S.adversaries = saved;
+
+  // TEMPLATE LEAK. Every named line carries {who}, and some carry {ground} and
+  // {raid} as well; a token that survives substitution ships a literal brace
+  // into the Chronicle. Rendering every line in every pool is cheap, and this
+  // is exactly the class of bug that reaches a player.
+  const who = api.MANIFESTS.iron.adversaries.find((a) => a.disposition === "warlike");
+  let leaked = null;
+  for (const pool of ["repelledClean", "repelledCleanNamed", "raidSucceeds", "raidSucceedsNamed", "civilianLost"]) {
+    for (const line of api.CONFLICT_FLAVOR[pool]) {
+      const out = api.sentenceCase(line
+        .replace(/\{who\}/g, who.name)
+        .replace("{ground}", api.raidGround(who))
+        .replace("{raid}", "warband"));
+      if (/[{}]/.test(out)) leaked = pool + ": " + out;
+    }
+  }
+  check("no flavor line leaks an unsubstituted token", leaked === null);
+
+  // Sentence case, and the specific failure it exists for: a line may start
+  // MORE than one sentence with a name, and every name begins "the".
+  check("sentenceCase capitalises the opening",
+    api.sentenceCase("the Hill Clans hold.") === "The Hill Clans hold.");
+  check("...and every sentence after it -- the bug that would have shipped",
+    api.sentenceCase("They came back. the Hill Clans, and they knew the way.")
+      === "They came back. The Hill Clans, and they knew the way.");
+  check("...without touching a name mid-sentence",
+    api.sentenceCase("A warband out of the high ground.") === "A warband out of the high ground.");
+
+  // Named and anonymous pools must stay in step: an outcome with an anonymous
+  // line and no named counterpart would silently fall back to Stone's voice in
+  // an age that has neighbours.
+  check("every attributable outcome has both voices",
+    api.CONFLICT_FLAVOR.repelledClean.length > 0 && api.CONFLICT_FLAVOR.repelledCleanNamed.length > 0 &&
+    api.CONFLICT_FLAVOR.raidSucceeds.length > 0 && api.CONFLICT_FLAVOR.raidSucceedsNamed.length > 0);
+  check("every named line actually names somebody",
+    [...api.CONFLICT_FLAVOR.repelledCleanNamed, ...api.CONFLICT_FLAVOR.raidSucceedsNamed]
+      .every((l) => l.includes("{who}")));
+
+  // Attribution must not spend a draw it cannot use -- the roster ships one
+  // warlike people, so the common path is a lookup, not a roll.
+  reset(); api.S.era = "iron"; api.initAdversaries(); api.ensureMap();
+  const before = api.S.rngState;
+  api.raidAttribution();
+  check("a single candidate costs no dice", api.S.rngState === before);
+}
+
 console.log("\n--- Engine rework E5: the world strikes hexes ---");
 {
   api.setRngSource(() => 0.5);

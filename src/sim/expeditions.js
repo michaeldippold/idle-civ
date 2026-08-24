@@ -79,6 +79,51 @@ export function riskAdversary() {
 }
 export function hostileRouteRisk() { return !!riskAdversary(); }
 
+// WHO is raiding you -- the name the Chronicle prints when a raid lands.
+//
+// This answers a DIFFERENT question from riskAdversary() above, and conflating
+// them is the trap. riskAdversary() asks who has a grudge big enough to prowl
+// the roads (standing <= -2); it gates caravan escorts and multiplies the raid
+// trigger, and it is null on a peaceful map. Attribution asks whose banners
+// the raiders carry, which is a question every raid has an answer to.
+//
+// It keys off `contact`, the era-fact that already distinguishes "there is
+// nobody who could send an army" from "there is" -- so the beat costs no new
+// era-fact at all. At Stone the danger is real and ANONYMOUS: a warband out of
+// the dark, belonging to no one on your map, because nobody in a stone age can
+// raise a column. From Bronze it has a name and an address, and it is the same
+// people every age -- the hill camps become the Hill People become the Hill
+// Clans, and it was them the whole time.
+//
+// Returns null when nobody could plausibly be blamed, which is a real state
+// and not a failure: the caller falls back to the anonymous voice.
+export function raidAttribution() {
+  if (active().contact === "none") return null;
+  const pool = [];
+  let total = 0;
+  for (const a of active().adversaries) {
+    // Peaceful neighbours do not raid you. If they ever should, that is a
+    // disposition change with its own fiction, not a quiet exception here.
+    if (a.disposition !== "warlike") continue;
+    if (!S.adversaries[a.id]) continue;
+    // A grudge does not decide WHETHER a warlike neighbour raids -- the
+    // trigger roll upstream already did that, and hostilityMultiplier()
+    // already made anger raise the rate. It decides how likely it is to be
+    // THEM: neutral weighs 1, the angriest possible neighbour weighs 6.
+    const w = 1 + Math.max(0, -(S.adversaries[a.id].standing || 0));
+    pool.push([a, w]);
+    total += w;
+  }
+  if (!pool.length) return null;
+  // One candidate is the common case (the roster ships exactly one warlike
+  // people). Returning it without a draw keeps the dice stream untouched --
+  // an rng() call that cannot change an outcome should never be spent.
+  if (pool.length === 1) return pool[0][0];
+  let roll = rng() * total;
+  for (const [a, w] of pool) { if (roll < w) return a; roll -= w; }
+  return pool[pool.length - 1][0];
+}
+
 // A campaign force's strength: the same math as home defense, pointed
 // outward -- weapon tiers apply, and counters match against the adversary's
 // fighting style instead of a rolled raid type.

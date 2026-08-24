@@ -862,6 +862,21 @@ cuts harder: **descriptions are mechanics-bearing text.** An adversary whose fla
 oversells its strength is a bug of the same class as a wrong cost label, and no validator can catch it.
 See `map.md` for how the adversary pool keeps this honest as the roster grows.
 
+**A raid has an author, from the age that could have one (C3, shipped 2026-08-25).** The Chronicle
+names who raided you — *"the Hill Clans test your defenses"* — and the gate is the **`contact`**
+era-fact that already distinguishes *there is nobody who could send an army* (Stone) from *there is*
+(Bronze, Iron). No new era-fact was needed; the beat fell out of one that existed. So Stone's danger
+is real and **anonymous** — a warband out of the dark, belonging to no one on your map, because
+nobody in a stone age can raise a column — and from Bronze the same danger has a name and an address.
+**This is the payoff for seating the roster from the first minute:** the peoples you have been
+watching since your first clearing turn out to be the ones who were coming.
+
+Two rules keep it honest. **Only warlike neighbours are ever blamed** — a peaceful people raiding you
+would be a disposition change with its own fiction, not a quiet exception. And **a grudge decides who,
+never whether**: the trigger roll and `hostilityMultiplier()` upstream already make anger raise the
+*rate*, so standing only weights which warlike neighbour gets named. Attribution adds no danger; it
+adds a subject to the sentence.
+
 **Campaigns:** pick a target, allocate units with the same steppers jobs use (send some, keep some —
 the split is the decision), pay a provision, and the column marches. Resolution is the raid math
 pointed outward, as a ratio. Win and you carry home a large fraction of their remaining stock; they are

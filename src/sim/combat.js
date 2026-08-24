@@ -12,19 +12,65 @@ import { log } from "../ui/log.js";
 // active manifest's `events` slate (see resolveEvents). What follows here is
 // the machinery those events call into.
 
+// Two voices, and which one speaks is decided by the era's `contact` fact --
+// see raidAttribution() in sim/expeditions.js. The ANONYMOUS pool is the Stone
+// Age's: real danger belonging to nobody on your map, a warband out of the
+// dark. The NAMED pool is what Bronze buys you -- the danger acquires a name
+// and an address, and it turns out to have been your neighbours all along.
+// This is the payoff for putting the roster on the board from minute one.
+//
+// {raid} is the raid TYPE (warband, massed charge, band of riders); {who} is
+// the people; {ground} is the country they came out of. Every named line reads
+// with a PLURAL subject, because every people-name in the roster is plural in
+// every era ("the hill camps" / "the Hill People" / "the Hill Clans"), and
+// none of them takes a possessive -- "the Hill Clans's" is why.
 export const CONFLICT_FLAVOR = {
   repelledClean: [
     "A {raid} tests your defenses and thinks better of it. Your line holds.",
     "A {raid} is spotted and driven off before it reaches the settlement.",
   ],
+  repelledCleanNamed: [
+    "{who} test your defenses and think better of it. Your line holds.",
+    "A {raid} comes down out of {ground}. {who} are turned back before they reach the settlement.",
+    "{who} probe your line with a {raid} and find it holds. They withdraw the way they came.",
+  ],
   raidSucceeds: [
     "A {raid} breaches your defenses. Stores are looted and your fighters pay the price.",
     "The settlement is overrun by a {raid} before anyone can hold them back.",
+  ],
+  raidSucceedsNamed: [
+    "{who} breach your defenses. Stores are looted and your fighters pay the price.",
+    "A {raid} out of {ground} overruns the settlement before anyone can hold them back. {who}, and they knew the way.",
+    "{who} come with a {raid} and leave with your stores. Your fighters pay for the difference.",
   ],
   civilianLost: [
     "In the chaos, one of your people is caught and does not survive.",
   ],
 };
+
+// The country a people came out of, from their `homeTerrain`. Deliberately
+// vague nouns: the Chronicle should place a raid without handing the player
+// map coordinates they have not charted.
+const RAID_GROUND = {
+  hills:  "the high ground",
+  river:  "the water",
+  plains: "the flats",
+  forest: "the trees",
+};
+export function raidGround(adv) {
+  return (adv && RAID_GROUND[adv.homeTerrain]) || "the dark";
+}
+
+// Flavor lines are templates, and every people-name in the roster begins with
+// a lowercase article ("the Hill Clans"). That reads correctly mid-sentence
+// and wrongly at the start of one -- and a line may start MORE THAN ONE
+// sentence with a substitution, which is how "...before anyone can hold them
+// back. the Hill Clans, and they knew the way." got written and would have
+// shipped. Capitalising only the first character catches the first case and
+// misses the second, so do it wherever a sentence actually begins.
+export function sentenceCase(line) {
+  return line.replace(/(^|[.!?]\s+)([a-z])/g, (_, lead, ch) => lead + ch.toUpperCase());
+}
 
 // Raid size rolls independently of everything else -- usually a small
 // scouting party, rarely something much larger.

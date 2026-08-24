@@ -2,9 +2,9 @@ import { CONFIG } from "../core/config.js";
 import { rng } from "../core/rng.js";
 import { caps, totalUnits } from "../core/derived.js";
 import { S } from "../core/state.js";
-import { CONFLICT_FLAVOR, armorFactor, counterCoverage, militaryStrength, pick, removeRandomUnit, reconcileReservations, rollRaidSize, rollRaidType, stealResources } from "../sim/combat.js";
+import { CONFLICT_FLAVOR, armorFactor, counterCoverage, militaryStrength, pick, raidGround, removeRandomUnit, reconcileReservations, rollRaidSize, rollRaidType, sentenceCase, stealResources } from "../sim/combat.js";
 import { hexPop, killAt, strikeHex, world } from "../map/map.js";
-import { hostilityMultiplier } from "../sim/expeditions.js";
+import { hostilityMultiplier, raidAttribution } from "../sim/expeditions.js";
 import { log } from "../ui/log.js";
 
 // ---------- Event library -----------------------------------
@@ -120,7 +120,17 @@ export const EVENT_LIB = {
       const raid = rollRaidType();
       const defense = militaryStrength(raid);
       const repelChance = defense / (defense + raidSize);
-      const say = (pool, sev) => log(pick(pool).replace("{raid}", raid.name), sev);
+      // WHOSE raid this is (C3). Null at Stone by era-fact, which selects the
+      // anonymous pool -- the danger is identical, only the attribution
+      // changes. Drawn once here so both the flavor line and the hex strike
+      // below blame the same people.
+      const raiders = raidAttribution();
+      const say = (anon, named, sev) => {
+        const line = raiders
+          ? pick(named).replace(/\{who\}/g, raiders.name).replace("{ground}", raidGround(raiders))
+          : pick(anon);
+        log(sentenceCase(line.replace("{raid}", raid.name)), sev);
+      };
 
       if (rng() < repelChance) {
         // Second dial: fielding the countering unit type doesn't just help you
@@ -131,13 +141,13 @@ export const EVENT_LIB = {
           const lost = removeRandomUnit();
           log(`The ${raid.name} is driven off, but not without cost — a ${lost || "defender"} falls in the fighting.`, "bad");
         } else {
-          say(CONFLICT_FLAVOR.repelledClean, "good");
+          say(CONFLICT_FLAVOR.repelledClean, CONFLICT_FLAVOR.repelledCleanNamed, "good");
         }
       } else {
         const losses = Math.min(totalUnits(), 1 + Math.floor(raidSize / 5));
         for (let i = 0; i < losses; i++) removeRandomUnit();
         stealResources(raidSize);
-        say(CONFLICT_FLAVOR.raidSucceeds, "bad");
+        say(CONFLICT_FLAVOR.raidSucceeds, CONFLICT_FLAVOR.raidSucceedsNamed, "bad");
         if (defense === 0 || defense < raidSize / 2) {
           // E5: the raid lands SOMEWHERE -- exposure-weighted, so the frontier
           // burns first. Bigger warbands take more people with them.
@@ -145,7 +155,14 @@ export const EVENT_LIB = {
           if (at) {
             const died = killAt(at, 1 + Math.floor(raidSize / 8));
             reconcileReservations();
-            if (died) log(`Raiders put the ${world.places[at].terrain} to the torch — ${died === 1 ? "a soul is" : died + " souls are"} lost.`, "bad");
+            if (died) {
+              // The same attribution, on the line that names a PLACE. An
+              // anonymous raid burns "the hills"; a named one is your
+              // neighbours doing it, which is a different sentence entirely.
+              const toll = died === 1 ? "a soul is" : died + " souls are";
+              const who = raiders ? sentenceCase(raiders.name) : "Raiders";
+              log(`${who} put the ${world.places[at].terrain} to the torch — ${toll} lost.`, "bad");
+            }
           }
         }
       }

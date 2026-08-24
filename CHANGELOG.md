@@ -11,6 +11,43 @@
 
 ---
 
+## 2026-08-25 — The danger acquires a name
+
+**C3, and it is the payoff for a decision made two weeks ago.** The Chronicle now says *"The Hill
+Clans test your defenses"* instead of reporting an anonymous warband. The beat is: at Stone raiders
+belong to nobody, and from Bronze the danger has a name and an address — and it turns out to have
+been the neighbours you have been watching since your first clearing.
+
+**It cost no new era-fact.** `contact` already distinguishes *there is nobody who could send an army*
+from *there is*, which is exactly the line attribution wanted to be drawn on. `raidAttribution()`
+returns `null` at Stone and a people from Bronze; null selects the anonymous flavor pool, a people
+selects the named one. Same danger, same odds, same math — only the subject of the sentence changes.
+
+**It is deliberately not `riskAdversary()`,** and conflating them was the trap worth avoiding. That
+function asks who has a grudge worth prowling the roads over (`standing <= -2`); it gates caravan
+escorts and multiplies the raid trigger, and it is null on a peaceful map. Attribution asks a
+question every raid has an answer to. So a grudge decides **who, never whether** — the trigger roll
+and `hostilityMultiplier()` already made anger raise the rate, and standing now only weights which
+warlike neighbour gets named. Peaceful peoples are never blamed; that would be a disposition change
+with its own fiction, not a quiet exception.
+
+**Reading the output caught two bugs no assertion would have.** Rendering all six named lines showed
+*"...before anyone can hold them back. the Hill Clans, and they knew the way."* — every people-name
+begins with a lowercase article, which is right mid-sentence and wrong at the start of one, and a
+line can begin *more than one* sentence with a substitution. Capitalising `line[0]` catches the first
+and misses the rest. `sentenceCase()` now capitalises wherever a sentence actually begins.
+
+Sixteen checks, and they have teeth: removing the `contact` gate fails exactly the two Stone checks,
+and reverting `sentenceCase()` to a first-character fix fails exactly the one written for it
+(mutation-tested both ways). Among them a **template-leak** check that renders every line in every
+pool and fails on a surviving `{`, because that bug reaches a player and nothing else would see it.
+616 -> 632 checks, 0 failures in 40 consecutive runs.
+
+The same attribution rides the line that names a *place*: an anonymous raid burns "the hills"; a
+named one is your neighbours doing it, which is a different sentence entirely.
+
+---
+
 ## 2026-08-25 — A coin flip wearing an assertion's clothes
 
 **The harness had a check that failed one run in eight, and it had been passing for the wrong

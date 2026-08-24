@@ -721,6 +721,10 @@ Conflict uses the `resolve()` escape hatch. Its algorithm:
    - **Repelled, costly** — rolled separately (`raidSize / (defense + raidSize)`, softened by armor and by `counterCoverage()`); one unit lost via the exposure-weighted draw.
    - **Raid succeeds** — `1 + floor(raidSize / 5)` units lost (capped at how many exist), a fraction of every resource stolen (scaling with raid size, capped at 50%), and — only if defense was especially thin relative to the raid, including `defense === 0` — one civilian lost via `removeSettler(true)`.
 
+6. **Attribution** — `raidAttribution()` (in `sim/expeditions.js`) answers *whose raid was this*, and returns `null` at any era whose `contact` fact is `"none"`. Null selects the anonymous flavor pool; a people selects the named one. It is drawn **once** per raid so the flavor line and the hex-strike line blame the same neighbours, and it is deliberately **not** `riskAdversary()`: that one asks who has a grudge worth prowling the roads over (`standing <= -2`, gates caravan escorts, null on a peaceful map), while attribution asks a question every raid has an answer to. Candidates are warlike neighbours only, weighted `1 + max(0, -standing)`; a lone candidate is returned **without a draw**, so the common path spends no entropy.
+
+**Flavor lines are templates, and `sentenceCase()` is not cosmetic.** Every people-name in the roster begins with a lowercase article ("the Hill Clans"), which is correct mid-sentence and wrong at the start of one — and a line may begin *more than one* sentence with a substitution. Capitalising only `line[0]` catches the first and misses the rest, which is how *"...before anyone can hold them back. the Hill Clans, and they knew the way."* got written. The harness pins both cases, plus a template-leak check that renders every line in every pool and fails on a surviving `{` — the class of bug that reaches a player because no type system sees it.
+
 Conflict is the one hazard allowed to end a run (`design.md`, *Failure*), which is why it passes `allowZero: true`. **It does not end the game itself** — the generic `S.pop <= 0` check in `step()` does.
 
 ## Adversaries & Expeditions

@@ -22,11 +22,11 @@ discussed; this section is the only place that says **when**.
 The owner set this sequence explicitly on pausing. It reorders the tiers below: tech debt first
 because *"tech debt is real"*, then the unsexy-but-unfinished thing, then the map picker.
 
-**Where things stand *(updated 2026-08-25, mid-session)*:** harness green at **616 checks**, working
-tree clean, everything pushed. Item 1 below is done; **item 2 is the live one, item 3 is the stop
-sign.** The session before shipped the adversary arc (roster from the Stone Age, larders that refill
-per age, provisions per fighter), fixed four bugs found in play, and caught the docs up to two weeks
-of work. Nothing is half-done. There is no fire.
+**Where things stand *(updated 2026-08-25, mid-session)*:** harness green at **632 checks**, working
+tree clean, everything pushed. **Items 1 and 2 below are done. Item 3 is the stop sign — ask the
+owner before starting it.** The session before shipped the adversary arc (roster from the Stone Age,
+larders that refill per age, provisions per fighter), fixed four bugs found in play, and caught the
+docs up to two weeks of work. Nothing is half-done. There is no fire.
 
 #### 1. Clear the vestigial code — ✅ **SHIPPED 2026-08-25**
 
@@ -44,20 +44,21 @@ read as a clean bill of health. Neither is findable by asking about callers; bot
 reading. *(`arrivalLine` was checked and is genuinely live — validator-required, printed at
 `map/map.js:346` when a hex grows. Leave it alone.)*
 
-#### 2. Raid attribution *(carry-over C3)*
+#### 2. Raid attribution — ✅ **SHIPPED 2026-08-25** *(carry-over C3)*
 
-*"The Hill Clans test your defenses"* instead of an anonymous warband. **This is the payoff for
-putting the roster on the board from minute one**, and the beat is: at Stone raiders belong to
-nobody, and at Bronze the danger acquires a name and an address.
+*"The Hill Clans test your defenses."* Gated on **`contact`** exactly as this section predicted, so
+it cost no new era-fact: Stone stays anonymous, Bronze and Iron name the people. `raidAttribution()`
+lives beside `riskAdversary()` in `sim/expeditions.js` and is deliberately distinct from it — a
+grudge decides **who, never whether**. Peaceful neighbours are never blamed. The same attribution
+rides the hex-strike line, so a burned tile names who burned it. 616 → 632 checks. See `CHANGELOG.md`;
+canon in `design.md` → *Adversaries & Expeditions*, mechanism in `tech.md` → *Conflict*.
 
-What already exists: `hostilityMultiplier()` in `sim/expeditions.js` scales the conflict trigger by
-hostile warlike neighbours (`disposition === "warlike"` and `standing <= -2`), and `riskAdversary()`
-picks the strongest such neighbour. Standing starts at 0 (neutral), so **merely having adversaries
-at Stone does not spike Stone's raid rate** — verified when the roster moved.
-
-The design question to settle first: attribution should almost certainly key off **`contact`**, the
-era-fact that already distinguishes "there is nobody who could send an army" (Stone) from "there is"
-(Bronze, Iron). That gives the beat for free and adds no new era-fact.
+**Worth keeping: reading the output caught two bugs the harness never would.** Rendering all six
+named lines showed `"...hold them back. the Hill Clans, and they knew the way."` — names begin with a
+lowercase article, and a line can start more than one sentence with a substitution. There is now a
+`sentenceCase()` and a template-leak check, but the general lesson is that **flavor is not verifiable
+by assertion alone; it has to be read.** Budget a render-and-read pass for any content that
+substitutes into prose.
 
 #### 3. The map picker *(map arc, slice 5)* — **ASK THE OWNER FIRST**
 
@@ -880,8 +881,10 @@ verbs land straight into their real home) or after (6d proves the content first)
 
 These survive the pivot unchanged.
 
-- [ ] **C3 — Iron polish.** Raid attribution flavor ("the Hill Clans test your defenses" rather than
-      an anonymous warband), so the world's proper nouns appear in both directions.
+- [x] **C3 — Iron polish** *(shipped 2026-08-25)*. Raid attribution flavor ("the Hill Clans test your
+      defenses" rather than an anonymous warband), so the world's proper nouns appear in both
+      directions. Landed a age earlier than "Iron polish" implies: the gate is `contact`, so it turns
+      on at BRONZE.
 - [ ] **Balance pass on `CONFIG`.** Most numbers are still first guesses, deliberately tuned toward
       too-hard per the standing rule. `conflictBaseChance` has been retuned once from real playtest
       data (tripled); expect others to move. The pivot changes the pacing target — everything must

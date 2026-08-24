@@ -261,6 +261,25 @@ the screen each. Cell rules are drawn as box-shadows on trailing edges only, one
 
 ---
 
+### The start screen's three choices *(slice 5, shipped 2026-08-25)*
+
+**World, Colour, Seat** — the moment you pick your piece off the box lid. Buttons rather than
+`<select>`s on purpose: a dropdown hides two of the three worlds behind a click, and this screen has
+to stay readable as *one screen with one decision on it* (`todo.md`'s standing constraint). Three
+short rows, a word of label each, no headings.
+
+Bureau's first law applies here too: **selection is border weight plus fill, never opacity.** An
+unchosen option stays fully readable, because reading it is how you choose. Colour swatches show the
+colour rather than naming it — the swatch *is* the label — with the accessible name on `aria-label`,
+and the chosen ring drawn *outside* the swatch so the colour it marks is never covered.
+
+**They are shown for a new run only, and say so when it matters.** A run already underway has all
+three and they are fixed for its lifetime. Hiding them outright when a save exists is the obvious fix
+and the wrong one — New Game would become unconfigurable, or would need a second screen. They stay
+put and carry a "FOR A NEW RUN" caption, which appears *only* when there is a Continue button to be
+confused with; with no save every control on screen already belongs to the run about to start, and
+the caption would answer a question nobody asked.
+
 ## 3. The layout
 
 **Shipped 2026-08-22 — "the flip."** The map is the game's main surface; everything else floats

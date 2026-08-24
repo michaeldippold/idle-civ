@@ -3,6 +3,8 @@ import { CONFIG } from "../core/config.js";
 import { playtime } from "../core/derived.js";
 import { suppressSaves } from "../core/persist.js";
 import { S } from "../core/state.js";
+import { CONTINENTS } from "../map/continents.js";
+import { DEFAULT_COLOR, PLAYER_COLORS } from "../core/palette.js";
 import { fmtTime, renderAll, setPreGame } from "./chrome.js";
 
 
@@ -31,6 +33,32 @@ import { fmtTime, renderAll, setPreGame } from "./chrome.js";
 // survives the reload in sessionStorage so the fresh run skips this screen
 // instead of asking a player who just answered.
 const AUTOSTART = "idleciv.autostart";
+// The three choices a new run is started with, stashed across freshRun()'s
+// reload in the same breath as AUTOSTART. They cannot simply be written to S:
+// the reload throws that S away, which is the entire point of reloading.
+const CHOICES = "idleciv.newrun";
+
+// What the screen is currently offering. Null continent means Random, which is
+// the DEFAULT and is not a special case anywhere downstream -- Random is the
+// absence of a pick, so the continent falls to the run seed, which is what lets
+// a bare seed number reproduce a random run exactly.
+let choice = { continent: null, color: DEFAULT_COLOR, name: "" };
+
+export function stashChoices() {
+  try { sessionStorage.setItem(CHOICES, JSON.stringify(choice)); } catch (e) {}
+}
+
+// Read once and clear, exactly like pendingAutostart(): a choice is consumed by
+// the run it starts, and must never leak into the next one.
+export function pendingChoices() {
+  try {
+    const raw = sessionStorage.getItem(CHOICES);
+    if (!raw) return null;
+    sessionStorage.removeItem(CHOICES);
+    const c = JSON.parse(raw);
+    return c && typeof c === "object" ? c : null;
+  } catch (e) { return null; }
+}
 
 export function pendingAutostart() {
   try {
@@ -55,13 +83,81 @@ function beginRun() {
   renderAll();
 }
 
+// EVERY new run goes through the reload, including the very first one on a
+// machine with no save. It used to branch -- "Begin" started in place, "New
+// Game" reloaded -- and the picker makes that branch wrong: the world is
+// generated during boot, well before this screen is shown, so a continent
+// chosen here can only take effect on the next boot. Rebuilding in place is
+// the alternative and it is the thing this file already warns against, since
+// every module-level render cache would still be holding the dead run.
 function freshRun() {
   suppressSaves();
+  stashChoices();
   try {
     localStorage.removeItem(CONFIG.saveKey);
     sessionStorage.setItem(AUTOSTART, "1");
   } catch (e) {}
   location.reload();
+}
+
+// ---------- The three choices ----------------------------------------------
+// Rendered as buttons rather than <select>s on purpose: this is the moment you
+// pick your piece off the box lid, and a dropdown hides two of the three worlds
+// behind a click. It also keeps the screen readable as ONE screen with one
+// decision on it, which is the standing constraint (todo.md) -- three short
+// rows, a word of label each, no headings.
+function buildChoiceButtons(host, items, get, set) {
+  host.innerHTML = "";
+  for (const it of items) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "start-choice" + (it.swatch ? " swatch" : "");
+    b.dataset.value = it.value === null ? "" : it.value;
+    if (it.swatch) {
+      b.style.setProperty("--sw", it.swatch);
+      b.setAttribute("aria-label", it.label);
+      b.title = it.label;
+    } else {
+      b.textContent = it.label;
+      if (it.title) b.title = it.title;
+    }
+    b.addEventListener("click", () => { set(it.value); paint(); });
+    host.appendChild(b);
+  }
+  // Selection is a border-weight and a check, never opacity -- Bureau's first
+  // law outlives Bureau and applies to this screen too.
+  function paint() {
+    for (const b of host.children) {
+      const v = b.dataset.value === "" ? null : b.dataset.value;
+      b.classList.toggle("on", v === get());
+    }
+  }
+  paint();
+}
+
+function initChoices() {
+  const worlds = document.getElementById("startContinents");
+  const colors = document.getElementById("startColors");
+  const name = document.getElementById("startName");
+
+  if (worlds) {
+    // Random leads, and is the default: a veteran rolls it for the where-am-I
+    // drama, and a new player is not asked to choose between three proper
+    // nouns that mean nothing to them yet (map.md 2.6, know-then-not-know).
+    buildChoiceButtons(worlds, [
+      { value: null, label: "Random", title: "Drawn from the run's seed." },
+      ...CONTINENTS.map((c) => ({ value: c.id, label: c.name, title: c.blurb })),
+    ], () => choice.continent, (v) => { choice.continent = v; });
+  }
+  if (colors) {
+    buildChoiceButtons(colors, PLAYER_COLORS.map((c) => ({
+      value: c.id, label: c.name, swatch: c.ring,
+    })), () => choice.color, (v) => { choice.color = v; });
+  }
+  if (name) {
+    name.value = "";
+    name.addEventListener("input", () => { choice.name = name.value; });
+  }
 }
 
 // `had` is load()'s answer: whether a run was actually restored.
@@ -93,7 +189,25 @@ export function initStartScreen(had) {
   if (fresh) {
     fresh.textContent = had ? "New Game" : "Begin";
     fresh.classList.toggle("primary", !had);
-    fresh.addEventListener("click", had ? freshRun : beginRun);
+    fresh.addEventListener("click", freshRun);
+  }
+
+  // The setup rows belong to a NEW run and to nothing else. A run already
+  // underway HAS a continent, a name and a colour, and all three are fixed for
+  // its lifetime, so these controls must never read as applying to Continue.
+  //
+  // Hiding them outright when a save exists is the obvious fix and it is the
+  // wrong one: New Game would then be unconfigurable, or would need a second
+  // screen to configure it on. Instead they stay put and SAY who they are for,
+  // but only when there is something to be confused with -- with no save, every
+  // control on screen already belongs to the run you are about to start, and
+  // the caption would be answering a question nobody asked.
+  const setup = document.getElementById("startSetup");
+  if (setup) {
+    setup.classList.remove("hidden");
+    const forNew = document.getElementById("startSetupFor");
+    if (forNew) forNew.classList.toggle("hidden", !had);
+    initChoices();
   }
 
   screen.classList.remove("hidden");

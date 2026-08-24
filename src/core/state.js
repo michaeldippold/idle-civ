@@ -40,6 +40,10 @@ export function freshState() {
     // asserts this equals palette's DEFAULT_COLOR instead, which is the cheaper
     // of the two ways to keep one fact in two files honest.
     playerColor: "green",
+    // What the player calls their capital. Optional by design -- empty means
+    // the game's own words ("Your Seat"), which is a perfectly good answer and
+    // the reason naming is never a gate on starting a run.
+    seatName: "",
     era: "stone",     // the key into MANIFESTS -- the whole era system is this one string
     eraHistory: {},   // frozen pre-transition snapshots, keyed by the era just left -- see advanceEra()
     // The living remnants of the era's adversaries: { [id]: { stock, standing } }.

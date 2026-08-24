@@ -936,6 +936,88 @@ body.dead #mainArea .block { filter: saturate(.25); }
   padding-top: 18px;
   margin: 0 0 22px;
 }
+/* The three choices a new run is started with (slice 5). Three short rows, a
+   word of label each: this is the moment you pick your piece off the box lid,
+   not a settings panel, and the standing constraint is that it must never grow
+   into one. */
+/* The Selected Tile panel's population line. The class has been applied since
+   the engine rework and never had a rule, so it rendered as an unstyled inline
+   span butted against the sentence before it -- "...measured from.People: 3 of
+   10". Pre-existing and easy to miss, because the seat sentence is the only one
+   long enough to push the join onto the same line. */
+.tile-pop { display: block; margin-top: 6px; }
+
+#startSetup {
+  border-top: 1px solid var(--hair);
+  padding-top: 18px;
+  margin-bottom: 22px;
+  text-align: left;
+}
+/* Shown only when a save exists, i.e. only when there is a Continue button
+   these rows could be mistaken for belonging to. */
+#startSetupFor {
+  font-family: var(--ui);
+  font-size: 10.5px; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--text-faint);
+  margin: 0 0 10px;
+}
+.start-row {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 10px;
+}
+.start-row:last-child { margin-bottom: 0; }
+.start-label {
+  font-family: var(--ui);
+  font-size: 10.5px; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--text-2);
+  width: 52px; flex: 0 0 52px;
+}
+.start-choices { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Selection is border WEIGHT plus fill, never opacity -- an unchosen option is
+   fully readable, because reading it is how you choose. Bureau's first law
+   outlives Bureau and applies here too. */
+.start-choice {
+  font-family: var(--ui);
+  font-size: 12px; font-weight: 600; letter-spacing: .01em;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--hair);
+  padding: 5px 10px;
+}
+.start-choice:hover { border-color: var(--ink); }
+.start-choice.on {
+  border: 2px solid var(--ink);
+  background: var(--ink); color: var(--ink-light);
+  padding: 4px 9px;                  /* hold the box steady as the border thickens */
+}
+/* A colour is shown, not named -- the swatch IS the label, and its accessible
+   name lives on aria-label so the control stays announceable. */
+.start-choice.swatch {
+  width: 26px; height: 26px; padding: 0;
+  background: var(--sw);
+  border: 1px solid var(--hair);
+}
+.start-choice.swatch:hover { border-color: var(--ink); }
+.start-choice.swatch.on {
+  padding: 0;
+  background: var(--sw);
+  /* A ring OUTSIDE the swatch, so the chosen colour is never covered by the
+     thing marking it as chosen. */
+  border: 2px solid var(--ink);
+  box-shadow: 0 0 0 2px var(--card) inset;
+}
+#startName {
+  font-family: var(--ui);
+  font-size: 12.5px; color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--hair);
+  padding: 6px 9px;
+  flex: 1 1 auto; min-width: 0;
+}
+#startName:focus { outline: none; border-color: var(--ink); }
+#startName::placeholder { color: var(--text-faint); }
+
 #startActions {
   display: flex; justify-content: center; gap: 10px;
   margin-bottom: 26px;

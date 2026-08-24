@@ -11,6 +11,56 @@
 
 ---
 
+## 2026-08-25 — The run you choose to start
+
+**Slice 5, plus the owner's two additions, so the start screen grew three choices rather than one:
+World, Colour, Seat.**
+
+**World.** Random — the default — plus the three authored continents, which until now were reachable
+only through `?continent=`. Three hand-made shapes existed that a player could not choose. **Random
+is not a special case:** it is the *absence* of a pick, so the continent falls to the run seed. That
+is what makes a bare seed number reproduce a random run exactly, and it is why the picker needed no
+new save field at all.
+
+**Colour.** The seven from the palette work, painting your hex rims, your seat's house, and the
+hover and selection rings that derive from it.
+
+**Seat.** Optional, falling back to "Your Seat" — and the fallback is the *common* case, not a
+degraded one, so it reads as intended rather than as a blank someone forgot to fill. A name is a
+**proper noun** and does not re-denominate at an era border: your Greenhollow is still Greenhollow
+when it stops being a clearing and becomes a holdfast, which is the whole reason naming buys
+attachment. Whitespace is not a name.
+
+**All three are fixed for the run** (owner ruling) and shown for a new run only. Hiding them when a
+save exists is the obvious reading of "Continue must not offer them" and it is the wrong one — New
+Game would become unconfigurable, or need a second screen. They stay put and carry a "FOR A NEW RUN"
+caption that appears *only* when there is a Continue button to be confused with.
+
+**The one structural change: every new run now goes through the reload,** including the first one on
+a fresh machine. "Begin" used to start in place while "New Game" reloaded, and the picker makes that
+branch wrong — the world is generated during boot, well before this screen is shown, so a continent
+chosen here can only take effect on the next boot. Rebuilding in place is the alternative, and it is
+exactly what `start.js` already warns against, since every module-level render cache would still hold
+the dead run.
+
+Verified end to end in the browser rather than by unit alone: picked The Long Reach + purple +
+"Greenhollow", clicked New Game, and the reload came back with `{continent: "longreach", seatName:
+"Greenhollow", playerColor: "purple"}` in the save, purple rims on the board, and GREENHOLLOW in the
+tile panel. Continue then preserved all three untouched.
+
+**Found and fixed while looking at that panel:** `.tile-pop` has carried a class with **no CSS rule**
+since the engine rework, so the population line rendered as an unstyled inline span butted against
+the sentence before it — *"...measured from.People: 3 of 10"*. Pre-existing, and easy to miss because
+the seat's sentence is the only one long enough to push the join onto the same line. One rule.
+
+661 -> 673 checks. Mutation-tested: ignoring the pick fails the pick check, and dropping the name's
+trim fails the whitespace check.
+
+**Still open, and cheap:** there is no way to type a seed in. "A bare seed number reproduces the run"
+is true mechanically now, but the death screen prints seeds and nothing reads one back.
+
+---
+
 ## 2026-08-25 — Foreign ground wears a rim too
 
 **A one-line request with a good instinct behind it (owner's): give adversary hexes a white rim like

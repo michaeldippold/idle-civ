@@ -12,6 +12,17 @@ export function playtime() { return S.tick * TICK_SECONDS; }
 // sweep later: the land's carrying capacity is the only ceiling there is. The
 // accessor outlived its era-fact by so long that no manifest declared the
 // field any more -- it had been returning undefined to nobody.
+// What to call the capital. A player-given name is a PROPER NOUN and so does
+// not re-denominate with the era the way `tileNoun` does -- your Greenhollow is
+// still Greenhollow when it stops being a clearing and becomes a holdfast.
+// Falls back to the game's own words, which is the common case: naming is
+// optional and skipping it must cost nothing.
+export function seatName() {
+  const n = (S.seatName || "").trim();
+  return n || "Your Seat";
+}
+export function seatIsNamed() { return !!(S.seatName || "").trim(); }
+
 export function totalUnits() { return Object.values(S.units).reduce((a, b) => a + b, 0); }
 // Under a levy (Iron onward) population SUPPORTS the army instead of
 // containing it: every holdfast stays in the assignable pool, and the war

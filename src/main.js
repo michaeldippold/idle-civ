@@ -5,12 +5,12 @@ import { initAdversaries, load, save } from "./core/persist.js";
 import { S, setLoops } from "./core/state.js";
 import { step } from "./core/step.js";
 import { cycleSpeed, modalHold, paused, preGame, renderAll, renderSpeed, setPaused, setPreGame, setSpeed, speed } from "./ui/chrome.js";
-import { ensureMap, revealAll, setRevealAll } from "./map/map.js";
+import { ensureMap, revealAll, setRevealAll, setPickedContinent } from "./map/map.js";
 import { initMapStage, invalidateMapStage } from "./ui/map.js";
 import { checkReveals, log } from "./ui/log.js";
 import { closeModal, modalIsOpen, openInfoPanel, openResetModal } from "./ui/modal.js";
 import { setUpgradeTab } from "./ui/panels-buy.js";
-import { initStartScreen, pendingAutostart } from "./ui/start.js";
+import { initStartScreen, pendingAutostart, pendingChoices } from "./ui/start.js";
 
 
 // `?era=iron` jumps the run's era before the world is built. It exists for one
@@ -35,6 +35,18 @@ export function boot() {
     S.era = era;
     console.log(`[qa] era forced to ${era} -- generation preview, not a real advance`);
   }
+  // The start screen's three choices, carried across its reload (slice 5).
+  // This must run BEFORE ensureMap(), because the continent decides the world
+  // that is about to be generated -- and before applyPlayerColor(), because the
+  // colour is read straight out of S. Absent on a Continue, which is correct: a
+  // run underway already carries all three in its save.
+  const chose = pendingChoices();
+  if (chose) {
+    if (typeof chose.color === "string") S.playerColor = chose.color;
+    if (typeof chose.name === "string") S.seatName = chose.name.trim().slice(0, 24);
+    setPickedContinent(chose.continent);
+  }
+
   initAdversaries();
   // Before the first render and before the 3D stage builds its rings: the
   // colour is chosen on the start screen and fixed for the run, so this is the

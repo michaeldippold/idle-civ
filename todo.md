@@ -22,7 +22,7 @@ discussed; this section is the only place that says **when**.
 The owner set this sequence explicitly on pausing. It reorders the tiers below: tech debt first
 because *"tech debt is real"*, then the unsexy-but-unfinished thing, then the map picker.
 
-**Where things stand *(updated 2026-08-25, mid-session)*:** harness green at **661 checks**, working
+**Where things stand *(updated 2026-08-25, mid-session)*:** harness green at **673 checks**, working
 tree clean, everything pushed. **Items 1 and 2 below are done, plus a display pass off the owner's
 ideation doc (the seat now reports its work; houses got bigger; the 2D stage stopped drifting from
 the mark ladder). Item 3 is the stop sign — ask the owner before starting it.** The session before shipped the adversary arc (roster from the Stone Age,
@@ -61,18 +61,32 @@ lowercase article, and a line can start more than one sentence with a substituti
 by assertion alone; it has to be read.** Budget a render-and-read pass for any content that
 substitutes into prose.
 
-#### 3. The map picker *(map arc, slice 5)* — **ASK THE OWNER FIRST**
+#### 3. The map picker — ✅ **SHIPPED 2026-08-25**, with the owner's additions
 
-**The owner has additions here, plus other start-screen ideas, and will provide them when we reach
-this.** Do not start building from the spec below without asking — it is the spec as of slice 4, and
-the owner has said twice that his additions raise its importance.
+The owner's additions arrived and were built with it, so the start screen grew **three** choices
+rather than one:
 
-The specced-and-decided part: named continents plus a Random option; the save stores
-`{continent, seed}`; Random draws the continent FROM the seed, so a bare seed number reproduces a
-random run and a picked run reproduces as "Broadwater 12345". The start screen shell already exists
-(slice 1) and was built with room for this. Today the only way to choose a continent is
-`?continent=broadwater|longreach|thescatter`, so three authored continents are effectively
-unreachable by a player.
+- **World** — Random (the default) plus the three authored continents. Random is not a special case:
+  it is the *absence* of a pick, so the continent falls to the run seed, which is what makes a bare
+  seed number reproduce a random run and needed no new save field. Before this, three authored
+  continents were reachable only by `?continent=`.
+- **Colour** — the seven from `core/palette.js`. See *the board's colour law* in `interface.md`.
+- **Seat name** — optional, falling back to "Your Seat". A proper noun, so it does **not**
+  re-denominate at an era border: your Greenhollow is still Greenhollow when it stops being a
+  clearing and becomes a holdfast.
+
+All three are **fixed for the run** (owner ruling) and shown for a new run only, captioned "FOR A NEW
+RUN" when a save exists so they can never read as applying to Continue.
+
+**The one structural change:** every new run now goes through the reload, including the first one on
+a fresh machine. "Begin" used to start in place while "New Game" reloaded, and the picker makes that
+branch wrong — the world is generated during boot, well before the start screen is shown, so a
+continent chosen there can only take effect on the next boot. Rebuilding in place is the alternative
+and it is the thing `start.js` already warns against.
+
+*Still open, and cheap if wanted:* **a seed input.** The spec's "a bare seed number fully reproduces
+a random run" is now true mechanically, but there is no way for a player to type one in. The death
+screen prints the seed; nothing reads one back.
 
 ---
 
@@ -347,7 +361,7 @@ verified stop and a test brief.
         steadings rather than camps) — the populate-on-discovery idea, unbuilt.
         **NOTE: adversaries still only exist at IRON.** Stone and Bronze declare no seats and no
         minor tier, which is why early play is unopposed — see the stone-age-minors item above.
-- [ ] **5 — The picker: BOTH, with Random (owner ruling, 2026-08-24).** Named continents you can
+- [x] **5 — The picker: BOTH, with Random** *(shipped 2026-08-25)*. **(owner ruling, 2026-08-24.)** Named continents you can
       choose, plus a Random option — know-then-not-know: new players learn the maps by choosing
       them, veterans roll Random for the where-am-I drama. Seeding survives intact: the save
       stores {continent, seed}; picking Random draws the continent FROM the seed, so a bare seed

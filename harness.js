@@ -2747,6 +2747,80 @@ console.log("\n--- The dominion cap: what one age can hold ---");
   api.setRngSource(null);
 }
 
+console.log("\n--- Slice 5: the run you choose to start ---");
+{
+  // Three choices, all fixed for the run by ruling. The picker itself is DOM
+  // and lives on a screen the harness never renders; what is checkable is the
+  // half that outlives the screen -- the state fields, the fallbacks, and the
+  // seeding property the whole feature rests on.
+  reset();
+
+  // THE SEAT'S NAME. Optional by construction: skipping it is the common case
+  // and must read as intended rather than as a blank nobody filled in.
+  check("a run with no name uses the game's own words", api.seatName() === "Your Seat");
+  check("...and knows it is unnamed", api.seatIsNamed() === false);
+  api.S.seatName = "Greenhollow";
+  check("a named seat answers with its name", api.seatName() === "Greenhollow");
+  check("...and knows it is named", api.seatIsNamed() === true);
+  // Whitespace is not a name. Without this, a player who types a space gets a
+  // blank panel header and no way to tell what went wrong.
+  api.S.seatName = "   ";
+  check("a name of nothing but spaces is no name", api.seatName() === "Your Seat" && !api.seatIsNamed());
+  api.S.seatName = "";
+
+  // A proper noun does NOT re-denominate with the era. Your Greenhollow is
+  // still Greenhollow when it stops being a clearing and becomes a holdfast --
+  // which is the whole reason naming buys attachment.
+  api.S.seatName = "Greenhollow";
+  const namedIn = (era) => { api.S.era = era; return api.seatName(); };
+  check("the name survives every era border",
+    namedIn("stone") === "Greenhollow" && namedIn("bronze") === "Greenhollow" &&
+    namedIn("iron") === "Greenhollow");
+  api.S.era = "stone"; api.S.seatName = "";
+
+  // THE CONTINENT. Random is not a special case -- it is the ABSENCE of a
+  // pick, so the continent falls out of the run seed. That is what makes a
+  // bare seed number reproduce a random run exactly, and it is why the picker
+  // needed no new save field.
+  reset();
+  api.setPickedContinent(null);
+  api.S.map = null; api.ensureMap();
+  const randomRun = api.S.map.continent;
+  const seed = api.S.seed;
+  check("a random run still lands on a real continent",
+    api.CONTINENTS.some((c) => c.id === randomRun));
+
+  reset();
+  api.S.seed = seed; api.S.map = null;
+  api.setPickedContinent(null);
+  api.ensureMap();
+  check("the same seed draws the same random continent -- a bare number reproduces the run",
+    api.S.map.continent === randomRun);
+
+  // A PICK overrides the seed, and is recorded in the save so the run
+  // reproduces as "Broadwater · 12345" rather than needing the pick repeated.
+  check("every authored continent can be picked", api.CONTINENTS.every((c) => {
+    reset(); api.setPickedContinent(c.id); api.S.map = null; api.ensureMap();
+    return api.S.map.continent === c.id;
+  }));
+  check("the pick is written into the save, not just used once",
+    api.S.map.continent === api.CONTINENTS[api.CONTINENTS.length - 1].id);
+
+  // A pick that is not a continent must not strand the run on nothing.
+  reset();
+  api.setPickedContinent("atlantis");
+  api.S.map = null; api.ensureMap();
+  check("a bogus pick falls back to the seed rather than an empty world",
+    api.CONTINENTS.some((c) => c.id === api.S.map.continent));
+  api.setPickedContinent(null);
+
+  // The picker offers exactly the authored pool -- a continent that exists but
+  // cannot be chosen is the bug this feature was built to remove (three of
+  // them were reachable only by URL before slice 5).
+  check("every authored continent is offered, and nothing else is",
+    api.CONTINENTS.length === 3 && api.CONTINENTS.every((c) => c.id && c.name && c.blurb));
+}
+
 console.log("\n--- The board's colour law: yours, theirs, and reserved ---");
 {
   // A digital tabletop has three colour jobs -- who you are, who everyone else

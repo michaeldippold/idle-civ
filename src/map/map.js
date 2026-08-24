@@ -36,6 +36,16 @@ function forcedContinent() {
   } catch (e) { return null; }
 }
 
+// The continent the player PICKED on the start screen, or null for Random.
+// Set once during boot, before ensureMap() runs, from the choice the start
+// screen stashed across its reload. Null is not a failure: it means "Random",
+// and Random is simply the absence of a pick -- the continent then comes from
+// the run seed, which is what makes a bare seed number reproduce a random run.
+let picked = null;
+export function setPickedContinent(id) {
+  picked = id && CONTINENTS.some((c) => c.id === id) ? id : null;
+}
+
 export function ensureMap() {
   const spec = active().map;
   if (!spec) { world = null; return; }   // an era without a map (Stone)
@@ -52,7 +62,10 @@ export function ensureMap() {
       // WHICH continent this run is played on. Drawn from the run seed, so a
       // bare seed number still reproduces the whole world; slice 5's picker
       // will write a chosen one here instead (map.md 2.6).
-      continent: S.map && S.map.continent ? S.map.continent : forcedContinent() || pickContinent(S.seed),
+      // Order matters: the URL is a QA OVERRIDE and outranks everything, then
+      // the player's pick, then the seed (which is what "Random" means).
+      continent: S.map && S.map.continent ? S.map.continent
+        : forcedContinent() || picked || pickContinent(S.seed),
       owned: ["0,0"],
     };
     if (firstChart && !S.seen.mapCharted) {

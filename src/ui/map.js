@@ -1,6 +1,6 @@
 import { active } from "../content/compile.js";
 import { S } from "../core/state.js";
-import { capWord } from "../core/derived.js";
+import { capWord, seatIsNamed, seatName } from "../core/derived.js";
 import { save } from "../core/persist.js";
 import { launchSettle, pendingSettle, settlePlan } from "../core/actions.js";
 import { world, isOwned, isCharted, isVisible, capOf, hexPop, atDominionCap, dominionCap, holdsUsed } from "../map/map.js";
@@ -128,7 +128,7 @@ function tipFor(p) {
     }
   }
   if (p.id === world.home) {
-    return { title: "Your seat",
+    return { title: seatName(),
       stat: `${hexPop(p.id)} of ${capOf(p.id)} people`,
       body: `The ${spec().tileNoun.singular} everything else is measured from.`,
       why: tilesEra() ? "Click to set what it works." : null };
@@ -218,7 +218,15 @@ export function detailHTML(p) {
   }
   const mine = isOwned(p.id);
   const noun = spec().tileNoun.singular;
-  if (p.id === world.home) parts.push(`<b>Your seat.</b> The ${noun} everything else is measured from.`);
+  if (p.id === world.home) {
+    // A named seat says its name and then what it is; an unnamed one keeps the
+    // game's original sentence exactly. The fallback is not a degraded case --
+    // most runs will never name anything, and that has to read as intended
+    // rather than as a blank someone forgot to fill.
+    parts.push(seatIsNamed()
+      ? `<b>${seatName()}.</b> Your seat — the ${noun} everything else is measured from.`
+      : `<b>Your seat.</b> The ${noun} everything else is measured from.`);
+  }
   else if (mine) parts.push(`<b>Your ${noun}</b> — ${p.terrain}. ${TERRAIN_FLAVOR[p.terrain] || ""}`);
   // People live here (engine rework E1): every owned hex reports its
   // population against what the ground supports. Displayed floored, so this
@@ -279,7 +287,7 @@ function titleFor(p) {
     const adv = active().adversaries.find((a) => a.id === p.adversary);
     if (adv) return advName(adv);
   }
-  if (p.id === world.home) return "Your Seat";
+  if (p.id === world.home) return seatName();
   if (isOwned(p.id)) return `Your ${capWord(spec().tileNoun.singular)}`;
   if (p.minor && S.map.minors && S.map.minors[p.id]) return capWord(p.minor.name);
   return capWord(p.terrain);

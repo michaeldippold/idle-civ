@@ -161,6 +161,31 @@
       <p id="startLead">You start by foraging for food. By the end you are deciding
         the fate of star systems.</p>
       <p id="startResume" class="hidden"></p>
+
+      <!-- The three choices a run is started with (phase 10, slice 5). Shown
+           for a NEW run only: a run already underway has a continent, a name
+           and a colour, so offering them beside Continue would imply they can
+           be changed. They cannot -- all three are fixed for the run.
+           One screen, one decision: this must never become a settings panel
+           (todo.md), which is why there are three short rows and no headings
+           beyond a word each. -->
+      <div id="startSetup" class="hidden">
+        <p id="startSetupFor" class="hidden">For a new run</p>
+        <div class="start-row">
+          <span class="start-label">World</span>
+          <div id="startContinents" class="start-choices"></div>
+        </div>
+        <div class="start-row">
+          <span class="start-label">Colour</span>
+          <div id="startColors" class="start-choices"></div>
+        </div>
+        <div class="start-row">
+          <label class="start-label" for="startName">Seat</label>
+          <input id="startName" type="text" maxlength="24" autocomplete="off"
+                 spellcheck="false" placeholder="Your Seat">
+        </div>
+      </div>
+
       <div id="startActions">
         <button id="startContinue" class="chrome-btn primary hidden">Continue</button>
         <button id="startNew" class="chrome-btn">New Game</button>

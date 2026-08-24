@@ -2464,6 +2464,32 @@ console.log("\n--- Slice 4b: sight across water ---");
   api.syncCharted();
   check("sight is sticky and additive", (api.S.map.sighted || []).length >= before);
   api.setRngSource(null);
+  // ...and the same rule again, measured from the ORIGIN THAT MATTERS. The
+  // check above walks water back to any CHARTED land, which is the very
+  // mistake syncSighted itself was making, so it passed happily while a fresh
+  // game showed land five steps out: rays were leaving every charted hex,
+  // including the ring of neighbours you own nothing of. Measuring plain hex
+  // distance from OWNED ground has no such blind spot.
+  //
+  // The bound is SIGHT_RANGE + 1: three steps of open water, then the far
+  // shore. Anything beyond that means someone is using a vantage point they
+  // do not stand on.
+  {
+    let far = 0, farSeed = null;
+    for (let seed = 1; seed <= 12; seed++) {
+      reset(); S().seed = seed;
+      api.initAdversaries(); api.ensureMap();
+      const owned = S().map.owned;
+      const vis = new Set([...(S().map.revealed || []), ...(S().map.sighted || [])]);
+      for (const id of vis) {
+        let best = Infinity;
+        for (const o of owned) best = Math.min(best, api.distance(api.world, o, id));
+        if (Number.isFinite(best) && best > far) { far = best; farSeed = seed; }
+      }
+    }
+    check(`no ground is visible further than SIGHT_RANGE+1 from land you actually hold (worst ${far} of ${api.SIGHT_RANGE + 1}, seed ${farSeed})`,
+      far <= api.SIGHT_RANGE + 1);
+  }
 }
 
 console.log("\n--- Slice 4: the authored continents ---");

@@ -11,6 +11,28 @@
 
 ---
 
+## 2026-08-24 — Sight leaves ground you stand on
+
+**Sight rays were casting from every CHARTED hex rather than every OWNED one,** and charted includes
+the whole ring of neighbours around everything you hold. So a fresh three-hex game looked out to sea
+from roughly twelve vantage points, most of them shorelines nobody had ever walked to — and it
+compounded with every claim, because each new hex charted a fresh ring it did not own. The owner
+caught it in play: *"my starting revealed slices keep getting bigger and bigger."*
+
+Measured before: **34 hexes visible from a 3-hex dominion**, land showing FIVE steps from the
+nearest owned tile (a charted hex one step out, three of open water, then the far shore). After:
+**23 visible, four at worst**, which is exactly what `SIGHT_RANGE` describes.
+
+**The existing range check passed throughout, because it made the same mistake the code did** —
+it walked water back to any *charted* land, so the extra step was invisible to it. A check that
+shares its subject's blind spot is worse than no check, because it reads as coverage. The new one
+measures plain hex distance from ground you actually hold; reintroducing the fault turns it red
+(worst 5 of 4), which is how I know it works.
+
+One new check (596).
+
+---
+
 ## 2026-08-24 — Bronze musters a war party, not a column
 
 **What an age can send is now an era fact.** `muster: { building, column }` names the building a

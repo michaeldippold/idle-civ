@@ -426,6 +426,20 @@ Marks remain gated on **charted**, never on sighted — sight reveals the board,
 (see the fog section above). Reveal forces charted, so it shows every house on the map, which is
 what makes it a seed-reading tool.
 
+#### Sight leaves ground you stand on
+
+Rays cast from **owned** hexes, never from merely charted ones. The distinction is easy to lose and
+expensive: charted includes every *neighbour* of every owned hex, so casting from the charted set
+meant a three-hex dominion looked out to sea from about twelve vantage points, most of them
+shorelines nobody had ever walked to. It compounded with every claim, since each new hex charted a
+fresh ring it did not own.
+
+Measured on the broken rule: **34 hexes visible from a 3-hex start**, with land showing five steps
+from the nearest owned tile. On the correct one: **23 visible, four steps at worst** — your
+coastal hex, three of open water, the far shore. Fourteen seeds in sixty now show nothing beyond the
+charted ring at all, because they start inland, which is the intended contrast: a coastal opening is
+a different game from an inland one.
+
 #### Terrain drives settlement, which turns the one real objection into a mechanic
 
 The obvious worry — *I scouted an empty hex, the era flipped, now there's a village on it* —

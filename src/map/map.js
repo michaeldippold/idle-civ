@@ -201,9 +201,20 @@ export function syncSighted() {
   const seen = new Set(S.map.sighted);
   let newLand = 0;
 
-  for (const id of (S.map.revealed || [])) {
+  // RAYS LEAVE FROM GROUND YOU STAND ON, not from ground you have merely
+  // glimpsed. This read `S.map.revealed` until 2026-08-24, and charted
+  // includes every NEIGHBOUR of every owned hex -- so a fresh game cast rays
+  // from about twelve hexes instead of three, from shorelines nobody had ever
+  // walked to. It compounded as you settled, since each new claim charted a
+  // new ring of vantage points it did not own.
+  //
+  // Measured on the old rule: 34 hexes visible from a 3-hex dominion, with
+  // land showing FIVE steps from the nearest owned tile (a charted hex one
+  // step out, plus three of open water, plus the far shore). Owner caught it
+  // in play: "my starting revealed slices keep getting bigger and bigger."
+  for (const id of S.map.owned) {
     const from = world.places[id];
-    if (!from || wet(from)) continue;          // rays leave dry, charted ground
+    if (!from || wet(from)) continue;          // rays leave dry, OWNED ground
     const dist = {};
     let frontier = [];
     for (const n of from.adj) {

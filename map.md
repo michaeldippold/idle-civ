@@ -1043,6 +1043,30 @@ movement cost** — because the player already assumes it exists. A rule that me
 instinct the map already created is much cheaper to learn than one that has to be taught. Not
 scheduled; recorded so it is here when routes are next opened.
 
+### Observed: a rim made a generation rule visible *(2026-08-25)*
+
+*(Owner, on the foreign-rim change.)* The point of giving adversary hexes a white rim was legibility
+for the mark — the house glyph was carrying "somebody lives here" on its own. What it actually
+delivered was bigger: **spawning next to a neighbour is now obvious in the first frame**, where
+before it was a tiny red house you might not register for twenty minutes.
+
+**The rule it exposed was already there.** `generate.js` rejects any steading site with
+`hexDist(p, 0, 0) < 2`, so a neighbour can never touch your seat — but distance 2 is legal, and that
+means it *can* border your starting trio. What the owner spotted is the tightest legal spawn, and it
+has real consequences the player can now read immediately: at Stone `contact` is `"none"`, so a
+steading on your doorstep cannot be attacked, cannot be settled, and quietly removes one direction
+from a dominion the age caps at seven.
+
+**So a silent variance became a difficulty tell.** "You drew a crowded neighbourhood" used to be
+something a run told you in its second act; it is now a fact about the opening, visible before the
+first claim. That is the same pattern as the note above — the board saying something before a rule
+asked it to — and it is the argument for a **minimum-distance dial** if starts ever need levelling.
+Deliberately not added: the variance reads as drama right now rather than unfairness, and the honest
+version of that judgement needs play, not a guess.
+
+**It does not collide with the settle-blind gamble** that slice 6's scouting has to protect. A rim
+reveals **who**, never **what terrain** — wanting the forest you did not get is untouched.
+
 ### Deliberately not on this list
 
 Terrain yield modifiers, per-tile buildings, tile-level unit stationing, movement. Each is a

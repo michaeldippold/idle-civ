@@ -17,43 +17,76 @@ from three different plans, interleaved — and the owner correctly called it un
 what happens next. The old labels survive below because they are how each item is specced and
 discussed; this section is the only place that says **when**.
 
-### START HERE — ✅ next up is **5, the era re-dress** *(set dressing)*.
+### START HERE — the board is prepared and nothing is half-built
 
 **Where things stand *(end of session, 2026-08-25)*:** harness green at **713 checks**, working tree
-clean, everything pushed. **All three items the owner queued for this session shipped, plus a
-display pass off his ideation doc and a colour system that was not on any list.** Nothing is
-half-done. There is no fire.
+clean, everything pushed. A long session: the three queued items shipped, then five more things that
+were not on any list. **Nothing is half-done and no decision is pending on code that exists.**
 
 **What shipped, in order:**
 
 1. **The vestigial code** — three dead fields, not two.
 2. **Raid attribution (C3)** — gated on `contact`, so Bronze names the danger.
-3. **The map picker** — and the owner's two additions rode with it, so the start screen now asks
-   three questions: World, Colour, Seat.
+3. **The map picker** — plus the owner's two additions, so the start screen asks World, Colour, Seat.
+4. **The board's colour law** — powers off red, hover/selection off yellow, seven player colours,
+   red/orange/yellow reserved for status. Then foreign rims, then one rim width for everything.
+5. **The odometer** — re-specced by the owner to REPLACE the topline population count. Iron reads
+   SUBJECTS 5,800. Iron's `popNoun` stopped colliding with its tile noun, and the compiler refuses
+   that collision now.
+6. **The infrastructure for a living board** — see below. This is the part with no content yet.
 
-**Not on any list, and it grew out of (3):** the board's **colour law** — powers moved off red,
-hover and selection stopped spending yellow, seven player colours, red/orange/yellow reserved for
-status. Then two follow-ups from play: **foreign ground wears a rim**, and **every rim is one width,
-one position and opaque**. `interface.md` → *The board's colour law* is the canon.
+**Also fixed on the way:** the 2D-flash on boot, a 12%-flaky harness check that had been passing for
+the wrong reason, and a `.tile-pop` class that had never had a CSS rule.
 
-**Four lessons from the session, kept because they will recur:**
+---
 
-- **Dead code is not findable by asking about callers.** `housingPerHut()` had a live caller and a
-  dead era-fact; `CONFIG.baseHousing` had no references at all, so every search came back clean.
-  Both were only findable by reading.
-- **`.find()` or `[0]` over generated geometry inside an assertion is polling the dice, not testing
-  a rule.** That was a 12%-flaky check that had been passing for the wrong reason.
-- **Flavor is not verifiable by assertion alone; it has to be read.** Rendering every named raid line
-  caught two grammar bugs no check would have.
-- **A claim in a comment is not a mechanism.** `markFor()` said both renderers read one ladder for
-  weeks while the 2D stage quietly drew diamonds.
+### BUILT AND IDLE — infrastructure with no content on top of it
 
-**The noun table is built and waiting for you:** `design.md` → *The Noun Table*, every ladder in the
-game in one sheet, filled where authored and blank where undecided. It is the pondering surface for
-item 4.
+**All three are finished, tested and unused.** They exist because the owner asked for the ground to
+be prepared rather than the features built — the standard being the geometry/paint split that made
+3D cheap. Nothing below needs a decision to be *correct*; they need content to be *visible*.
 
-**Two items below carry an ASK-FIRST flag** — the owner has ideas for both: **5, the era re-dress**
-and **6, the interface redesign**.
+- **The use seam.** `hexUse(id)` answers `rest` / `resource` / `structure`; `hexProduces()` and
+  `hexResource()` beside it. Structures live in the same slot behind a `build:` prefix, so a second
+  simultaneous use is unrepresentable rather than merely forbidden. 14 checks already exercise
+  `build:farm` and `build:fortification`.
+- **Losing ground.** `loseHexIfEmpty()`, called from every path that can empty a hex. Reverses rule 9
+  on new information (the `dominionCap` postdated it). Ghosts and the rekindle are deleted with a
+  tombstone.
+- **The sink-and-rise.** `changedHexes(ids)` — props sink, the world changes underneath, new props
+  rise. General by construction: the re-dress, a build, a demolish and a hex loss all route through
+  the one call. Verified in flight (Y returns to exactly its rest value, not near it).
+
+**The one balance flag from all of this, for play rather than argument:** a fresh hex enters at 2
+people and a raid takes 1–2, so a newly claimed hex can be lost within seconds — measured at 0.3%
+inside five seconds. Either the over-extension punishment the rule was written for, or arbitrary.
+Dials if it reads wrong: new hexes at 3, or a grace period before reversion.
+
+---
+
+### 5 — THE BOARD COMES ALIVE *(the next real work — three features, one thesis)*
+
+**Regrouped 2026-08-25**, because the owner named the goal that unites them: *"all aimed at livening
+up the board. If it's just a few home hexes and a bunch of resource hexes, it really constrains what
+we can do late game to make it feel alive — without animating movement."* The thesis and its test
+live in `map.md` → *The thesis behind set-dressing, hex builds and raid paths*: **every one of them
+makes a hex say more about itself**, and a feature here that adds motion without adding information
+is off-thesis.
+
+They share the infrastructure above, so they can ship in any order. All three need **content and
+taste**, which is why none of them was built today.
+
+- **5a — The era re-dress** *(map arc slice 7)*. Prop-sets, palette, light, camera pull-back. The
+  owner has ideas and has not given them yet; **ask first.** Needs playtesting, so it wants a session
+  at the desk.
+- **5b — Building on hexes.** Design settled (`design.md` → *Building on a Hex*): one use per hex,
+  keeps its people, shares the build queue, re-dresses when it makes sense, reversible with no
+  refund. **What is undecided is the content** — which structures exist and what they do.
+- **5c — Raid roads.** Intent logged (`design.md` → *Adversaries & Expeditions*). Three known
+  prerequisites: raids should weight exposure from the RAIDER's seat rather than yours; `routeCost()`
+  returns a cost and would need to retain predecessors to yield a path; and **the Chronicle is pure
+  text**, so clickable events mean log entries become records with data attached. That last one is
+  the cheap-now/annoying-later piece. *Wetland and mountain do not exist as terrains.*
 
 ---
 
@@ -138,7 +171,7 @@ a hover to reconcile them. Worth a verdict once it has been looked at rather tha
 (Horseman → Cavalry). The units are a pure noun swap whenever wanted — the arithmetic already works,
 since a unit costs one hex-person and therefore already IS one person's worth of souls.
 
-### 5 — THEN: the era re-dress *(map arc, slice 7)*
+### 5a spec — the era re-dress *(map arc, slice 7; queued under THE BOARD COMES ALIVE above)*
 
 Prop-sets, palette, light and the camera pull-back — the revealed board changing clothes while the
 player watches. **The owner has ideas here too.** Wants it sooner rather than later, but behind

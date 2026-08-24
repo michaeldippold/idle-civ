@@ -123,6 +123,29 @@ settlement nouns in and "the Broken Tower" cannot be redressed backwards into th
 - **A camp reports "Known stock: 30 food, 20 wood" before you have ever been near it.** Free
   intelligence, and it should probably be scouting's job (slice 6).
 
+**Full run to Iron (owner playtest, 2026-08-25).** Two bugs found and fixed on the spot (the Forge
+throughput, the column cap), and one confirmation worth keeping: **a minor was subdued in Bronze,
+swore fealty, and joined** — the conquest-growth loop works end to end at the era it now unlocks in.
+
+**THE DOMINION CAP NEVER BIT, and that is the finding.** The owner stopped expanding at 7 hexes
+*"because I didn't need more resources for what stone wants, only realizing I'd hit the cap later."*
+The cap was introduced (2026-08-24) to brake an expansion that felt free. It has since been joined
+by multi-resource era-signed claims that escalate per claim — and those, plus Stone's short list of
+things to spend on, now stop expansion on their own. Demand ran out before the ceiling did.
+
+That is the *good* outcome (the economy self-limits rather than a rule saying no), but it makes the
+cap's status a real question rather than a tuning one:
+
+- It may be **redundant at Stone** and worth testing without, since the thing it was built to stop
+  no longer happens.
+- It may still be doing necessary work at **Bronze and Iron**, where the sink list is longer and the
+  economy compounds harder — untested either way.
+- Earlier signal pointed the other way (*"7 may be a notch high"*, same day). Both readings are now
+  on the table and neither has been run.
+
+*Do not tune this before the tech tree lands.* A tree is a large new resource sink by design, and
+whether expansion self-limits is exactly the thing a new sink changes.
+
 **Parked (owner observation, 2026-08-25): a march and a build advance at the same time, in one
 panel.** Spotted in play — a column marching on the steading at Larkmoor sitting at 65% while an
 Archer built to 25% beside it. Owner's own read: *"thinking about this I am not sure I object, we
@@ -284,9 +307,9 @@ verified stop and a test brief.
       what is KNOWN rather than a per-era number**, so the era zoom-out arc falls out of discovery
       itself and needs no authored camera heights. Dominion never shrinks (owner ruling — see
       `map.md` §2.6). 10 new checks (511).
-      *Flagged for the balance pass:* `removeSettler` is now inert in tile eras, since taking a hex
-      for a fever is the land-loss the ruling forbids. Sickness and raids need a designed tile-scale
-      effect instead of a population number.
+      *~~Flagged for the balance pass:~~ CLOSED by the engine rework (E5). `removeSettler` is gone
+      entirely; `strikeHex`/`killAt` give sickness and raids a real tile-scale effect, so deaths land
+      on the ground where those people actually lived.*
 - [ ] **4 — The frame generator** *(RE-SPECCED 2026-08-24 after the invisible-fog ruling forced a
       re-examination; owner discussion, landed)*. The frame SURVIVES, on three grounds the debate
       sharpened: islands are a GLOBAL property local randomness cannot guarantee (enclosure is

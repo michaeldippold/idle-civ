@@ -11,6 +11,53 @@
 
 ---
 
+## 2026-08-25 — Yours, theirs, and the colours the board shouts in
+
+**Slice A of the start-screen work: the colour plumbing, ahead of the picker that uses it.** A
+digital tabletop has three colour jobs — who you are, who everyone else is, and the board shouting —
+and this settles all three at once. `core/palette.js` is the law; `interface.md` carries it.
+
+**Powers are no longer red, and the deciding argument was a design one (owner's).** Most neighbours
+are not enemies: `riverKingdom` and `saltNomads` ship `disposition: "peaceful"`, and standing,
+caravans and the envoy are all real. Red pre-judged the whole diplomatic half of the game before the
+player had met anybody. Powers wear **white** now, steadings a shade below — the board-game
+convention for pieces that are not yours.
+
+**Hover and selection stopped owning a colour.** They were gold and pale gold, which spent
+**yellow** on the most frequent thing on screen, since hover fires whenever the cursor moves. Both
+derive from the player's colour now — a hover ring is your attention on the board, so it belongs in
+your colour. One correction to the sketch: hover is the *light* one and owned is the *quiet* one,
+because a darker ring reads as recessive and the tile under the cursor should come forward.
+
+**Seven player colours**, authored rather than computed — no HSL transform is right for both
+`#1b1f27` and `#ff8cc0`, the same reason the continents are authored ASCII. Black gets its text
+shadow inverted, since it is the one colour darker than the board it sits on.
+
+**Red, orange and yellow are now reserved — as a reservation, not a system.** No per-hex status
+visual exists yet. It is declared so the player palette can never quietly grow into the colours a
+warning will need, and severity is meant to ride on ring *pattern* rather than more hues.
+
+**Brown is allowed and orange is not, and the harness had to learn why.** The reserved-band check
+failed twice before it was right: a red-dominant predicate misses yellow (high green by definition),
+and widening it to the warm wedge flags brown — because brown *is* dark orange. The real distinction
+is **chroma**: red/orange/yellow shout because they are vivid; brown is that family held quiet. The
+check encodes warm-and-vivid, and pins the brown-vs-orange pair specifically.
+
+**The worry I raised turned out backwards, which is why it got measured.** The fear was white houses
+vanishing on grey hills — where the Hill Clans are seated by `homeTerrain`. Sampled off the real
+drawing buffer with `?glcheck=1`, white beat the old red on *every* tile: 5.73:1 vs 1.72:1 on high
+ground, 4.40:1 vs 1.32:1 over water. **Red was the poor-contrast choice all along.** Weakest case is
+a steading on bright plains at 2.49:1, carried by the dark halo every mark wears.
+
+Also: the work letter stopped being green and is a fixed parchment neutral. It is a *readout*, not
+an identity — tying it to the player would collapse ring, house and letter into one hue for anyone
+picking green, and the letter is the one of the three that must be read rather than recognised.
+
+`state.js` hardcodes the default colour rather than importing it, because palette reads `S` and the
+import would be a cycle for one string; a check pins the two copies equal. 639 -> 653 checks.
+
+---
+
 ## 2026-08-25 — The board stops showing you the wrong game first
 
 **A hard refresh flashed the 2D SVG board for a second or two before the 3D one replaced it.** That

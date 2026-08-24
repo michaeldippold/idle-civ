@@ -96,6 +96,53 @@ that") retired with the paper identity. Two directions were rejected on the way:
 "Basalt" register that was handsome but fought the paper metaphor. A pastel chalkboard variant died
 because panel tints plus semantic red/green overloaded the color channel.
 
+### The board's colour law *(owner ruling, 2026-08-25)*
+
+This is a **digital tabletop**, so colour works the way it works on a board: one colour is *you*,
+one is *everybody else*, and a small reserved set is the board *shouting*. Mixing those three jobs
+up is how a board stops being readable at a glance. Written down in `core/palette.js`, enforced by
+the harness.
+
+| Job | Colour | Where it appears |
+|---|---|---|
+| **Yours** | the player's pick, chosen on the start screen | owned hex rims, your seat's house, hover + selection rings |
+| **Theirs** | **white** (steadings a shade below) | every power and steading on the board |
+| **Reserved** | **red, orange, yellow** | status only — nothing that means *who* may use them |
+
+**Powers were red until this ruling, and the argument that moved them is a design one, not a palette
+one.** Most neighbours are not enemies: `riverKingdom` and `saltNomads` ship
+`disposition: "peaceful"`, and standing, caravans and the envoy are all real. Red pre-judged the
+entire diplomatic half of the game before the player had met anybody. White is the board-game
+convention for pieces that are not yours, and it says *someone else lives here* without saying *and
+they hate you*.
+
+**Hover and selection are derived from the player's colour rather than owning one.** They used to be
+gold `#ffd76a` and pale gold `#ffe9a8` — which quietly spent **yellow** on the single most frequent
+thing on screen, since hover fires whenever the cursor moves. Deriving them frees yellow for status
+and is more honest anyway: a hover ring is *your attention on the board*. One correction to the
+original sketch, because the board is bright: **hover is the light one and owned is the quiet one**,
+not the reverse. A darker ring reads as recessive, and the tile under the cursor should come
+forward.
+
+**The reserved set is a reservation, not a system.** No per-hex status visual exists yet — famine,
+sickness, raids and ghost hexes are all Chronicle-only. It is declared now so the player palette can
+never quietly grow into the colours a warning will need. Severity is intended to ride on ring
+**pattern** (solid vs dashed) rather than on more hues, because pattern is independent of hue and so
+stays legible whatever colour the player picked.
+
+**Brown is allowed and orange is not, and the distinction is chroma rather than hue.** They are the
+same hue family; red/orange/yellow shout because they are *vivid*, brown is that family held quiet.
+The harness encodes exactly that — a warm-and-vivid predicate — and the first version of that check
+failed twice before it was right: a red-dominant test misses yellow, and a whole-warm-wedge test
+flags brown.
+
+**One measured result worth keeping, because it reverses the obvious worry.** The fear was white
+houses vanishing on grey hills, where the Hill Clans are seated by `homeTerrain`. Sampled off the
+real drawing buffer with `?glcheck=1`, white beat the old red on *every* tile tested — 5.73:1 vs
+1.72:1 on high ground, 4.40:1 vs 1.32:1 over water. Red was the poor-contrast choice all along. The
+weakest case is a steading on bright plains at 2.49:1, carried by the dark text-shadow halo that
+every mark wears.
+
 ### The two load-bearing laws
 
 1. **Opacity is never used for state. Ever.** It previously did triple duty for *unaffordable*,

@@ -862,6 +862,11 @@ cuts harder: **descriptions are mechanics-bearing text.** An adversary whose fla
 oversells its strength is a bug of the same class as a wrong cost label, and no validator can catch it.
 See `map.md` for how the adversary pool keeps this honest as the roster grows.
 
+**Neighbours are not painted as enemies (2026-08-25).** Powers and steadings wear **white** on the
+board, not red. Most of them are not hostile — two of the three ship `disposition: "peaceful"` — and
+colouring every neighbour red pre-judged standing, caravans and the envoy before the player had met
+anyone. Red is reserved for status now. See `interface.md` → *The board's colour law*.
+
 **A raid has an author, from the age that could have one (C3, shipped 2026-08-25).** The Chronicle
 names who raided you — *"the Hill Clans test your defenses"* — and the gate is the **`contact`**
 era-fact that already distinguishes *there is nobody who could send an army* (Stone) from *there is*

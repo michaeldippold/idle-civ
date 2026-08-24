@@ -31,6 +31,15 @@ export function freshState() {
     pop: CONFIG.startPop,
     growth: 0,        // seconds accrued toward the next free settler; freezes while housing is full
     bought: 0,        // lifetime settlers grown -- a stat for the game-over screen
+    // The player's colour on the board (core/palette.js). Chosen on the start
+    // screen and fixed for the run by ruling, so nothing writes it after boot.
+    // Old saves inherit the default through load()'s merge against freshState.
+    //
+    // The literal is deliberate: palette.js reads S, so importing DEFAULT_COLOR
+    // here would make state and palette a cycle for one string. The harness
+    // asserts this equals palette's DEFAULT_COLOR instead, which is the cheaper
+    // of the two ways to keep one fact in two files honest.
+    playerColor: "green",
     era: "stone",     // the key into MANIFESTS -- the whole era system is this one string
     eraHistory: {},   // frozen pre-transition snapshots, keyed by the era just left -- see advanceEra()
     // The living remnants of the era's adversaries: { [id]: { stock, standing } }.

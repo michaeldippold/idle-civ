@@ -4,6 +4,7 @@ import { capWord } from "../core/derived.js";
 import { save } from "../core/persist.js";
 import { launchSettle, pendingSettle, settlePlan } from "../core/actions.js";
 import { world, isOwned, isCharted, isVisible, capOf, hexPop, atDominionCap, dominionCap, holdsUsed } from "../map/map.js";
+import { playerColor } from "../core/palette.js";
 import { hexDistance, hexPoints, toPixel } from "../map/model.js";
 import { campaignPlan, expeditionOut, musterBuilt, standingWord } from "../sim/expeditions.js";
 import { attachTip, tipHide, tipMove, tipShow } from "./dom.js";
@@ -436,6 +437,9 @@ async function init3d(stage) {
     stage3d = await import("../render3d/stage.js");
     const ok = await stage3d.initStage(stage, {
       markFor,
+      // The renderer draws; it does not know whose board it is. Same rule the
+      // mark ladder follows -- state arrives through hooks.
+      palette: playerColor(),
       onPick: (id) => selectTile(id),
       onHoverChange: (p, ev) => {
         if (!p || !ev) { tipHide(); return; }

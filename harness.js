@@ -41,6 +41,7 @@ import * as mMapGen from "./src/map/generate.js";
 import * as mContinents from "./src/map/continents.js";
 import * as mMapCore from "./src/map/map.js";
 import * as mMapUi from "./src/ui/map.js";
+import * as mPalette from "./src/core/palette.js";
 import fs from "node:fs";
 import nodePath from "node:path";
 import { fileURLToPath } from "node:url";
@@ -49,7 +50,7 @@ const MODS = [mConfig, mRng, mLib, mStone, mBronze, mIron, mCompile, mIcons, mSt
   mContinents,
   mDerived, mCombat, mEvents, mExped, mStep, mActions, mEra, mLog, mDom,
   mPLedger, mPPeople, mPHold, mPBuy, mExpedUi, mModal, mChrome, mPersist,
-  mMapModel, mMapGen, mMapCore, mMapUi];
+  mMapModel, mMapGen, mMapCore, mMapUi, mPalette];
 
 function fakeEl() {
   const el = {
@@ -2707,6 +2708,91 @@ console.log("\n--- The dominion cap: what one age can hold ---");
   check("a subdual that would exceed the age's scope refuses to march",
     S().expeditions.length === 0);
   api.setRngSource(null);
+}
+
+console.log("\n--- The board's colour law: yours, theirs, and reserved ---");
+{
+  // A digital tabletop has three colour jobs -- who you are, who everyone else
+  // is, and the board shouting -- and mixing them up is how a board stops
+  // being readable. core/palette.js is where they are written down; these are
+  // the properties that keep them from quietly merging again.
+  const ids = api.PLAYER_COLORS.map((c) => c.id);
+
+  check("the default colour is one of the offered colours",
+    ids.includes(api.DEFAULT_COLOR));
+  // state.js hardcodes the default rather than importing it, because palette
+  // reads S and the import would be a cycle for one string. This is the guard
+  // that keeps the two copies equal.
+  check("freshState agrees with the palette's default -- the two copies of one fact",
+    api.freshState().playerColor === api.DEFAULT_COLOR);
+  check("every colour is distinct", new Set(ids).size === ids.length);
+  check("every colour carries all three roles",
+    api.PLAYER_COLORS.every((c) => c.ring && c.focus && c.glyph));
+
+  const hex = (v) => typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v);
+  check("every colour value is a full hex triple",
+    api.PLAYER_COLORS.every((c) => hex(c.ring) && hex(c.focus) && hex(c.glyph)));
+
+  // RESERVED. Nothing that means WHO may wear a status colour, and this is the
+  // check that stops the player palette growing into red/orange/yellow later.
+  // No per-hex status visual exists yet -- this is a reservation, and a
+  // reservation nobody enforces is a comment.
+  const lum = (h) => {
+    const n = parseInt(h.slice(1), 16);
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+  };
+  // "Reads as a warning" is NOT a hue test, and writing it as one is how this
+  // check first failed. Two things went wrong and both were informative:
+  // yellow has high green by definition, so a red-dominant test misses it; and
+  // once widened to the whole warm wedge it flagged BROWN, because brown IS
+  // dark orange.
+  //
+  // The real distinction is CHROMA, not hue. Red, orange and yellow shout
+  // because they are vivid -- one channel pinned high, another crushed. Brown
+  // is the same hue family held quiet, which is exactly why it can be a player
+  // colour without ever being mistaken for an alarm. So: warm AND vivid.
+  const warnish = (h) => {
+    const { r, g, b } = lum(h);
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    const chroma = max === 0 ? 0 : (max - min) / max;
+    return r > 170 && b < r - 60 && chroma > 0.68;
+  };
+  const offenders = [];
+  for (const c of api.PLAYER_COLORS) {
+    for (const k of ["ring", "focus", "glyph"]) if (warnish(c[k])) offenders.push(c.id + "." + k);
+  }
+  check("no player colour strays into the reserved warning band", offenders.length === 0);
+  check("...and all three reserved colours ARE in that band (the test has teeth)",
+    warnish(api.STATUS.critical) && warnish(api.STATUS.urgent) && warnish(api.STATUS.notice));
+  // The specific pair the predicate exists to tell apart. Brown and orange are
+  // the same hue family; only chroma separates a player from an alarm.
+  check("brown is warm but quiet, and orange is warm and loud",
+    !warnish(api.colorById("brown").focus) && warnish(api.STATUS.urgent));
+
+  // THEIRS is white, and must not be confusable with any player's glyph --
+  // otherwise "who lives here" stops being answerable at a glance, which is
+  // the entire job of the house colour.
+  const near = (a, b, tol) => {
+    const x = lum(a), y = lum(b);
+    return Math.abs(x.r - y.r) < tol && Math.abs(x.g - y.g) < tol && Math.abs(x.b - y.b) < tol;
+  };
+  check("no player's house can be mistaken for a foreign one",
+    api.PLAYER_COLORS.every((c) => !near(c.glyph, api.FOREIGN, 40)));
+  check("powers are no longer red -- peaceful neighbours stopped looking like enemies",
+    api.FOREIGN === "#ffffff" && api.FOREIGN_MINOR !== "#ff8a7a");
+
+  // The lookup is the only way the rest of the game reads a colour, so it has
+  // to survive a save carrying something that is not a colour at all.
+  check("an unknown colour id falls back rather than painting the board undefined",
+    api.colorById("chartreuse").id === api.DEFAULT_COLOR);
+  check("a missing colour id falls back too", api.colorById(undefined).id === api.DEFAULT_COLOR);
+  check("a known id round-trips", api.colorById("purple").id === "purple");
+
+  // Old saves predate the field entirely and must inherit the default through
+  // load()'s merge rather than arriving as undefined.
+  reset();
+  const fresh = api.freshState();
+  check("a run always has a colour", ids.includes(fresh.playerColor));
 }
 
 console.log("\n--- C3: the danger acquires a name ---");

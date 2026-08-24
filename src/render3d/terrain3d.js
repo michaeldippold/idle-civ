@@ -37,9 +37,19 @@ const WET = new Set(["water", "river"]);
 
 // Ring colors. State is carried by ring presence and COLOR, never by fading a
 // tile out -- `interface.md`'s first law follows the renderer unchanged.
-const RING_OWNED = new THREE.Color(0x6fbf47);
-const RING_SELECT = new THREE.Color(0xffd76a);
-const RING_HOVER = new THREE.Color(0xffe9a8);
+//
+// All three now come from the PLAYER'S colour (core/palette.js) rather than
+// being authored here: owned country wears it quieted, and hover and selection
+// wear it at full strength. They used to be a fixed green plus two golds, and
+// those golds were spending YELLOW on the most frequent thing on screen --
+// yellow is reserved for status now, so the rings moved into the one colour
+// that was always really theirs. The colour is fixed for the run, so reading
+// it at build time is enough; nothing has to repaint.
+// Passed in, never imported -- same rule as `isOwnedFn` below, and for the
+// same reason: this module draws, it does not know whose board it is drawing.
+// `pal` is a core/palette.js entry; the fallback keeps a bare call working.
+const FALLBACK = { ring: "#6fbf47", focus: "#a6ec72" };
+function ringColor(pal, key) { return new THREE.Color((pal || FALLBACK)[key] || FALLBACK[key]); }
 
 export function elevationOf(place) {
   const base = ELEV[place.terrain] != null ? ELEV[place.terrain] : 0.1;
@@ -51,7 +61,7 @@ export function elevationOf(place) {
 
 // `places` is the already-filtered list the stage wants drawn; `isOwnedFn` is
 // passed in rather than imported so this module stays ignorant of game state.
-export function buildTerrain(places, isOwnedFn, isRevealedFn) {
+export function buildTerrain(places, isOwnedFn, isRevealedFn, pal) {
   const land = new SoupBuilder();
   const wet = new SoupBuilder();
   const rings = new SoupBuilder();
@@ -98,7 +108,7 @@ export function buildTerrain(places, isOwnedFn, isRevealedFn) {
 
     // Owned country wears a rim. One merged mesh for all of them, so dominion
     // costs one draw call however far it spreads.
-    if (isOwnedFn(p.id)) ringInto(rings, cx, e + 0.03, cz, RING_OWNED, 0.94, 0.82);
+    if (isOwnedFn(p.id)) ringInto(rings, cx, e + 0.03, cz, ringColor(pal, "ring"), 0.94, 0.82);
   }
 
   const landMesh = new THREE.Mesh(land.build(), new THREE.MeshStandardMaterial({
@@ -123,9 +133,12 @@ export function buildTerrain(places, isOwnedFn, isRevealedFn) {
 
 // A free-floating ring used for hover and selection, repositioned rather than
 // rebuilt. Two instances exist for the life of the stage.
-export function buildRing(kind) {
+export function buildRing(kind, pal) {
   const soup = new SoupBuilder();
-  const col = kind === "select" ? RING_SELECT : RING_HOVER;
+  // Hover and selection are the player's colour at FULL strength while owned
+  // country wears it quieted -- the tile under the cursor should come forward,
+  // and a darker ring reads as recessive on a board this bright.
+  const col = ringColor(pal, "focus");
   const [outer, inner] = kind === "select" ? [1.0, 0.84] : [0.97, 0.87];
   ringInto(soup, 0, 0, 0, col, outer, inner);
   const mesh = new THREE.Mesh(soup.build(), new THREE.MeshBasicMaterial({

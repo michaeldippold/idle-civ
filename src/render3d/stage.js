@@ -122,8 +122,8 @@ export async function initStage(el, h) {
   await setupLighting();
   await setupPost();
 
-  hoverRing = buildRing("hover");
-  selectRing = buildRing("select");
+  hoverRing = buildRing("hover", hooks.palette);
+  selectRing = buildRing("select", hooks.palette);
   scene.add(hoverRing, selectRing);
 
   wirePointer(canvas);
@@ -215,7 +215,7 @@ export function setWorld(list, opts) {
   // reveals the board, never the pieces.
   isVisible = o.isVisible || (() => true);
   isCharted = o.isCharted || isVisible;
-  const built = buildTerrain(list, o.isOwned || (() => false), isVisible);
+  const built = buildTerrain(list, o.isOwned || (() => false), isVisible, hooks.palette);
   elev = built.elev;
   worldGroup.add(built.landMesh, built.wetMesh, built.ringMesh);
   worldGroup.add(buildProps(list, elev, o.homeId, isCharted));

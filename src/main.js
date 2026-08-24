@@ -1,5 +1,6 @@
 import { ERA_ORDER } from "./content/compile.js";  // side-effect first: build + validate the manifests before anything else evaluates
 import { CONFIG } from "./core/config.js";
+import { applyPlayerColor } from "./core/palette.js";
 import { initAdversaries, load, save } from "./core/persist.js";
 import { S, setLoops } from "./core/state.js";
 import { step } from "./core/step.js";
@@ -35,6 +36,10 @@ export function boot() {
     console.log(`[qa] era forced to ${era} -- generation preview, not a real advance`);
   }
   initAdversaries();
+  // Before the first render and before the 3D stage builds its rings: the
+  // colour is chosen on the start screen and fixed for the run, so this is the
+  // only place it is ever applied.
+  applyPlayerColor();
   ensureMap();
   // Same channel as the [pacing] telemetry: the seed is how a mid-run bug
   // report becomes reproducible, so it should be readable without dying.

@@ -17,17 +17,43 @@ from three different plans, interleaved — and the owner correctly called it un
 what happens next. The old labels survive below because they are how each item is specced and
 discussed; this section is the only place that says **when**.
 
-### START HERE — the next session, in this order *(owner, 2026-08-25, end of session)*
+### START HERE — ✅ that queue is empty. The next item is **4, the odometer.**
 
-The owner set this sequence explicitly on pausing. It reorders the tiers below: tech debt first
-because *"tech debt is real"*, then the unsexy-but-unfinished thing, then the map picker.
+**Where things stand *(end of session, 2026-08-25)*:** harness green at **675 checks**, working tree
+clean, everything pushed. **All three items the owner queued for this session shipped, plus a
+display pass off his ideation doc and a colour system that was not on any list.** Nothing is
+half-done. There is no fire.
 
-**Where things stand *(updated 2026-08-25, mid-session)*:** harness green at **675 checks**, working
-tree clean, everything pushed. **Items 1 and 2 below are done, plus a display pass off the owner's
-ideation doc (the seat now reports its work; houses got bigger; the 2D stage stopped drifting from
-the mark ladder). Item 3 is the stop sign — ask the owner before starting it.** The session before shipped the adversary arc (roster from the Stone Age,
-larders that refill per age, provisions per fighter), fixed four bugs found in play, and caught the
-docs up to two weeks of work. Nothing is half-done. There is no fire.
+**What shipped, in order:**
+
+1. **The vestigial code** — three dead fields, not two.
+2. **Raid attribution (C3)** — gated on `contact`, so Bronze names the danger.
+3. **The map picker** — and the owner's two additions rode with it, so the start screen now asks
+   three questions: World, Colour, Seat.
+
+**Not on any list, and it grew out of (3):** the board's **colour law** — powers moved off red,
+hover and selection stopped spending yellow, seven player colours, red/orange/yellow reserved for
+status. Then two follow-ups from play: **foreign ground wears a rim**, and **every rim is one width,
+one position and opaque**. `interface.md` → *The board's colour law* is the canon.
+
+**Four lessons from the session, kept because they will recur:**
+
+- **Dead code is not findable by asking about callers.** `housingPerHut()` had a live caller and a
+  dead era-fact; `CONFIG.baseHousing` had no references at all, so every search came back clean.
+  Both were only findable by reading.
+- **`.find()` or `[0]` over generated geometry inside an assertion is polling the dice, not testing
+  a rule.** That was a 12%-flaky check that had been passing for the wrong reason.
+- **Flavor is not verifiable by assertion alone; it has to be read.** Rendering every named raid line
+  caught two grammar bugs no check would have.
+- **A claim in a comment is not a mechanism.** `markFor()` said both renderers read one ladder for
+  weeks while the 2D stage quietly drew diamonds.
+
+**Two items below carry an ASK-FIRST flag** — the owner has ideas for both: **5, the era re-dress**
+and **6, the interface redesign**.
+
+---
+
+#### The three that shipped this session *(records, not queue)*
 
 #### 1. Clear the vestigial code — ✅ **SHIPPED 2026-08-25**
 

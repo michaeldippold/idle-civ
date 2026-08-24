@@ -56,6 +56,12 @@ lockstep, consolidation, the levy, `outputMult`, `allocation`, `growth`, instant
    as expansion's long-term cost), the tech tree (parked, specced), 6e priests & envoy, phase 7
    decision queue, and the Claude Design panel pass against the diorama.
 
+**Open flake, recorded verbatim per policy (2026-08-24):** one harness run in ~80 failed TWO
+checks together, post-E5, identity not captured (the run scrolled past). 70+ consecutive greens
+since. Most likely another fixture where E5's own fevers strike an unpinned window — the
+capital-musters fixture had exactly that shape and is now pinned. Next failure: capture the check
+names before re-running.
+
 ### Standing notes
 
 **Saves are disposable** until the fundamentals stop moving — and with the rework complete, they

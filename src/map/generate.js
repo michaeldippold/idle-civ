@@ -1,6 +1,6 @@
 import { makeRng } from "../core/rng.js";
 import { CONTINENTS, SIGHT_RANGE, continentById, parseFrame } from "./continents.js";
-import { DIRS, hashStr, pid } from "./model.js";
+import { DIRS, hash01, hashStr, pid } from "./model.js";
 
 // ---------- The hex generator (map.md §3-§4, §2.6) ----------
 // Geometry is regenerated from the seed, never saved: a world is a number
@@ -152,19 +152,29 @@ export function generateMap(seed, spec, continentId) {
   const order = shiftOrder.filter(([q, r]) => !world.places[pid(q, r)].ocean);
 
   // ---- Adversary seats: land, off your doorstep, spread apart ------------
+  // Seats prefer their OWN GROUND -- the Hill Clans in the high passes, the
+  // River Kingdom on the bluffs, the Nomads on the flats -- because every one
+  // of them says so in its own description. Preference, not demand: the
+  // constraint relaxes to any land rather than leaving a people homeless.
   const aRng = makeRng(hashStr(seed + ":seats"));
   const seats = spec.seats || [];
   const placed = [];
+  const seatTerrain = spec.seatTerrain || {};
   for (const advId of seats) {
+    const want = seatTerrain[advId];
     let cands = [];
-    for (let minPair = 4; minPair >= 1 && !cands.length; minPair--) {
-      for (let minHome = 3; minHome >= 1 && !cands.length; minHome--) {
-        cands = order
-          .map(([q, r]) => world.places[pid(q, r)])
-          .filter((p) => p.terrain !== "water" && !p.adversary && p.id !== world.home)
-          .filter((p) => hexDist(p, 0, 0) >= minHome)
-          .filter((p) => placed.every((s) => hexDist(p, s.q, s.r) >= minPair));
+    for (const onHomeGround of want ? [true, false] : [false]) {
+      for (let minPair = 4; minPair >= 1 && !cands.length; minPair--) {
+        for (let minHome = 3; minHome >= 1 && !cands.length; minHome--) {
+          cands = order
+            .map(([q, r]) => world.places[pid(q, r)])
+            .filter((p) => p.terrain !== "water" && !p.adversary && p.id !== world.home)
+            .filter((p) => !onHomeGround || p.terrain === want)
+            .filter((p) => hexDist(p, 0, 0) >= minHome)
+            .filter((p) => placed.every((s) => hexDist(p, s.q, s.r) >= minPair));
+        }
       }
+      if (cands.length) break;
     }
     if (!cands.length) continue;
     const seat = cands[Math.floor(aRng() * cands.length)];
@@ -173,6 +183,12 @@ export function generateMap(seed, spec, continentId) {
   }
 
   // ---- The minor tier (own stream) ---------------------------------------
+  // The minor tier by DENSITY: every eligible hex rolls for a steading, so a
+  // wider country has more neighbours rather than the same five. The roll is
+  // a per-hex hash, not a stream draw -- inserting a future generation stage
+  // must not change who exists -- while NAMES and stats still come from the
+  // hand-authored pool, drawn without replacement. Identity is authored;
+  // placement is procedural, exactly as the adversary law has always said.
   if (spec.minors) {
     const mRng = makeRng(hashStr(seed + ":minors"));
     const mn = spec.minors;
@@ -183,25 +199,23 @@ export function generateMap(seed, spec, continentId) {
     }
     const rollInt = ([lo, hi]) => lo + Math.floor(mRng() * (hi - lo + 1));
     let seated = 0;
-    for (let minPair = 3; minPair >= 1 && seated < mn.count; minPair--) {
-      const spots = order
-        .map(([q, r]) => world.places[pid(q, r)])
-        .filter((p) => p.terrain !== "water" && !p.adversary && !p.minor && p.id !== world.home)
-        .filter((p) => hexDist(p, 0, 0) >= 2)
-        .filter((p) => Object.values(world.places).every((o) =>
-          !o.minor || hexDist(p, o.q, o.r) >= minPair));
-      while (seated < mn.count && spots.length) {
-        const p = spots.splice(Math.floor(mRng() * spots.length), 1)[0];
-        const stock = {};
-        for (const res in mn.stock) stock[res] = rollInt(mn.stock[res]);
-        p.minor = {
-          name: pool[seated] || `the steading at ${p.id}`,
-          strength: rollInt(mn.strength),
-          wallsMax: rollInt(mn.walls),
-          stock,
-        };
-        seated += 1;
-      }
+    for (const [q, r] of order) {
+      if (seated >= pool.length) break;          // never seat a nameless people
+      const p = world.places[pid(q, r)];
+      if (p.terrain === "water" || p.adversary || p.minor) continue;
+      if (p.id === world.home || hexDist(p, 0, 0) < 2) continue;
+      // Two steadings never share a border: they read as one settlement.
+      if (p.adj.some((n) => world.places[n] && world.places[n].minor)) continue;
+      if (hash01(seed + ":minor:" + p.id) >= mn.density) continue;
+      const stock = {};
+      for (const res in mn.stock) stock[res] = rollInt(mn.stock[res]);
+      p.minor = {
+        name: pool[seated],
+        strength: rollInt(mn.strength),
+        wallsMax: rollInt(mn.walls),
+        stock,
+      };
+      seated += 1;
     }
   }
 

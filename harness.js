@@ -2016,11 +2016,14 @@ console.log("\n--- Phase 6d: the growth verbs -- minors, settle, routes ---");
   api.initAdversaries(); api.ensureMap();
 
   const minors = Object.values(api.world.places).filter((p) => p.minor);
-  check("the minor tier is seated (5, on land, off your doorstep)",
-    minors.length === 5 && minors.every((p) => p.terrain !== "water" && !p.adversary) &&
+  check("the minor tier is seated by density, on land, off your doorstep",
+    minors.length >= 3 && minors.every((p) => p.terrain !== "water" && !p.adversary) &&
     minors.every((p) => api.distance(api.world, "0,0", p.id) >= 2));
-  check("every minor is named from the pool, uniquely",
-    new Set(minors.map((p) => p.minor.name)).size === 5);
+  check("every minor is named from the hand-authored pool, uniquely",
+    new Set(minors.map((p) => p.minor.name)).size === minors.length &&
+    minors.every((p) => api.MANIFESTS.iron.map.minors.names.includes(p.minor.name)));
+  check("no two steadings share a border -- they read as separate peoples",
+    minors.every((p) => p.adj.every((n) => !api.world.places[n].minor)));
   check("minor remnants reconciled into S.map.minors",
     minors.every((p) => S().map.minors[p.id] && S().map.minors[p.id].walls === p.minor.wallsMax));
 
@@ -2143,6 +2146,43 @@ console.log("\n--- Phase 10: the renderer port keeps the marks ---");
     .find((x) => !api.isOwned(x.id) && !x.adversary && !x.minor && x.id !== api.world.home
       && api.isCharted(x.id));
   check("known but empty country carries no mark at all", api.markFor(wild) === null);
+}
+
+console.log("\n--- Slice 4c: neighbours by density, seated on their own ground ---");
+{
+  const spec = api.MANIFESTS.iron.map;
+  // Every adversary's DESCRIPTION already names its ground; placement now
+  // agrees with it. Preference, not demand -- so this asks how often it
+  // lands, not whether it always does.
+  let onHome = 0, total = 0, minorCounts = [];
+  for (let seed = 1; seed <= 30; seed++) {
+    const w = api.generateMap(seed, spec, null);
+    for (const p of Object.values(w.places)) {
+      if (!p.adversary) continue;
+      const adv = api.MANIFESTS.iron.adversaries.find((a) => a.id === p.adversary);
+      if (!adv || !adv.homeTerrain) continue;
+      total += 1;
+      if (p.terrain === adv.homeTerrain) onHome += 1;
+    }
+    minorCounts.push(Object.values(w.places).filter((p) => p.minor).length);
+  }
+  console.log(`  seats on their own ground: ${onHome}/${total}`);
+  check("adversaries are seated on the ground their own flavour names",
+    total > 0 && onHome / total >= 0.9);
+
+  const avg = minorCounts.reduce((a, b) => a + b, 0) / minorCounts.length;
+  const spread = new Set(minorCounts).size;
+  console.log(`  steadings per world across 30 seeds: ${Math.min(...minorCounts)}-${Math.max(...minorCounts)}, avg ${avg.toFixed(1)}`);
+  check("neighbours scale with the world rather than being a fixed five",
+    avg >= 4 && avg <= 14 && spread > 1);
+  check("...and never outrun the hand-authored name pool",
+    Math.max(...minorCounts) <= spec.minors.names.length);
+
+  // The per-hex hash means WHO exists cannot be shifted by a later stage.
+  const a = api.generateMap(99, spec, "broadwater");
+  const b = api.generateMap(99, spec, "broadwater");
+  const ids = (w) => Object.values(w.places).filter((p) => p.minor).map((p) => p.id).sort().join("|");
+  check("the same seed seats the same neighbours, exactly", ids(a) === ids(b));
 }
 
 console.log("\n--- Slice 4b: sight across water ---");
@@ -2416,11 +2456,15 @@ console.log("\n--- Engine rework E4: the frontier starves first ---");
   // one up, exactly as queued buildings already price their next copy up.
   reset(); api.closeModal(); api.ensureMap();
   S().res.food = 500; S().res.wood = 500; S().res.stone = 500;
+  // Price the SAME tile before and after another claim is queued: comparing
+  // two different tiles let their distances mask the escalation, since the
+  // route multiplier can easily outweigh 1.18x on a continent this size.
   const q1 = Object.values(api.world.places)
     .filter((x) => x.terrain !== "water" && !x.adversary && !x.minor && !api.isOwned(x.id)).slice(0, 2);
-  const first = api.settlePlan(q1[0].id).cost.food;
+  const watched = q1[1].id;
+  const first = api.settlePlan(watched).cost.food;
   api.launchSettle(q1[0].id);
-  const second = api.settlePlan(q1[1].id).cost.food;
+  const second = api.settlePlan(watched).cost.food;
   check("a claim still underway raises the next claim's price",
     second > first);
 

@@ -66,10 +66,27 @@ export function hexPoints(cx, cy, size) {
   return pts.join(" ");
 }
 
-// Deterministic string hash (djb2) -- used to derive the per-noun sub-seed,
-// so the same run regenerates the same world for the same era scale.
+// Deterministic string hash (djb2) -- used to derive sub-seeds, so the same
+// run regenerates the same world.
 export function hashStr(s) {
   let h = 5381;
   for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
   return h >>> 0;
+}
+
+// A deterministic [0,1) from a string, for per-hex decisions that must not
+// move when some other generation stage changes.
+//
+// The avalanche is NOT optional, and the harness proved it: djb2's raw output
+// is badly biased in exactly the high bits that `h / 2^32` reads, so a "6%
+// chance" roll fired on 0 hexes for one seed and every hex for the next --
+// a 0.000 hit rate over two thousand samples. The murmur3 finalizer below
+// mixes those bits down; without it, every hash01 in the project (prop
+// placement, tonal jitter, elevation) was quietly drawing from a narrow band.
+export function hash01(s) {
+  let h = hashStr(s);
+  h ^= h >>> 16; h = Math.imul(h, 2246822507);
+  h ^= h >>> 13; h = Math.imul(h, 3266489909);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
 }

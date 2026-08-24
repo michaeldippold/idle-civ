@@ -51,12 +51,12 @@ export function edgeCorners(dq, dr) {
   return [m, (m + 1) % 6];
 }
 
-// Deterministic [0,1) from a string. Elevation jitter, tonal variation and
-// prop placement all draw from this rather than from rng(): they are PAINT,
-// and paint must never touch the simulation's dice. It also means the look of
-// a tile is stable across re-meshes without storing anything.
-export function hash01(s) {
-  let h = 5381;
-  for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) >>> 0;
-  return (h >>> 0) / 4294967296;
-}
+// Elevation jitter, tonal variation and prop placement all draw from this
+// rather than from rng(): they are PAINT, and paint must never touch the
+// simulation's dice. It also means a tile's look is stable across re-meshes
+// without storing anything.
+//
+// Re-exported from map/model.js rather than reimplemented -- this file
+// carried its own biased copy until 2026-08-24, which meant prop angles and
+// tonal variation were drawing from a narrow band without anyone noticing.
+export { hash01 } from "../map/model.js";

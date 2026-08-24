@@ -66,6 +66,20 @@ function copyMapSpec(m) {
   };
 }
 
+// Each adversary names its own ground in its own description, and the
+// GENERATOR needs that where it looks: the generator is handed the map spec,
+// not the whole manifest, so the seat->terrain lookup is folded in here.
+// (Placement read `spec.adversaries` for one commit and silently found
+// nothing, seating everyone at random -- the harness caught it as 30 seats
+// on their own ground out of 90, which is exactly chance.)
+function attachSeatTerrain(m) {
+  if (!m.map) return m;
+  const t = {};
+  for (const a of m.adversaries || []) if (a.homeTerrain) t[a.id] = a.homeTerrain;
+  m.map.seatTerrain = t;
+  return m;
+}
+
 export function compileBase(raw) {
   const m = {
     name: raw.name,
@@ -92,7 +106,7 @@ export function compileBase(raw) {
   };
   for (const cat of DEF_CATEGORIES) m[cat] = (raw[cat] || []).map((d) => Object.assign({}, d));
   resolveSlates(m, raw);
-  return m;
+  return attachSeatTerrain(m);
 }
 
 export function extendEra(parent, delta) {
@@ -113,7 +127,15 @@ export function extendEra(parent, delta) {
     // Consolidation is per-border, never inherited (see applyConsolidation).
     consolidate: delta.consolidate ? Object.assign({}, delta.consolidate) : null,
     adversaries: (delta.adversaries || []).map((a) => Object.assign({}, a)),
-    map: delta.map ? copyMapSpec(delta.map) : parent.map,
+    // COPIED, never shared. Inheriting the parent's map object by reference
+    // meant a child could reach back and mutate its parent's spec -- and one
+    // did: attachSeatTerrain() below writes onto m.map, so a silent delta
+    // (an era that redeclares no map) overwrote IRON's seat terrain with its
+    // own empty one, and every adversary went back to being seated at random.
+    // The harness caught it as 30 seats on their own ground out of 90, which
+    // is precisely chance. Inheritance by value reads identically and cannot
+    // do this.
+    map: delta.map ? copyMapSpec(delta.map) : (parent.map ? copyMapSpec(parent.map) : null),
   };
   const removes = new Set(delta.remove || []);
   const overrides = delta.override || {};
@@ -137,7 +159,7 @@ export function extendEra(parent, delta) {
   for (const id of removes) if (!touched.has(id)) throw new Error(`era "${m.name}": removes unknown id "${id}"`);
   for (const id in overrides) if (!touched.has(id)) throw new Error(`era "${m.name}": overrides unknown id "${id}"`);
   resolveSlates(m, delta);
-  return m;
+  return attachSeatTerrain(m);
 }
 
 export const MANIFESTS = { stone: compileBase(STONE) };
@@ -201,6 +223,14 @@ export function validateManifests(manifests) {
       if (!Array.isArray(m.map.terrains) || !m.map.terrains.length) bad("map declares no terrains");
       // Engine rework E1: a mapped era must say how many people its ground
       // holds. Water is exempt (no one lives on open water; absent = 0).
+      if (m.map.minors && !(m.map.minors.density > 0 && m.map.minors.density < 1)) {
+        bad("map.minors needs a density in (0,1) -- neighbours scale with the world (slice 4c)");
+      }
+      for (const a of m.adversaries) {
+        if (a.homeTerrain && !m.map.terrains.includes(a.homeTerrain)) {
+          bad(`adversary ${a.id} prefers "${a.homeTerrain}", not a terrain this era has`);
+        }
+      }
       if (!m.map.popCaps) bad("map declares no popCaps -- terrain must say how many people it holds");
       // E3: growth is claiming, so a mapped era must price the claim verb.
       if (!m.map.claim || !m.map.claim.cost || !(m.map.claim.time > 0)) {
@@ -219,9 +249,11 @@ export function validateManifests(manifests) {
       }
       if (m.map.minors) {
         const mn = m.map.minors;
-        if (!(mn.count >= 1)) bad("map.minors.count must be at least 1");
-        if (!Array.isArray(mn.names) || mn.names.length < mn.count) {
-          bad("map.minors needs a name pool at least as large as its count");
+        // `count` retired in slice 4c: neighbours are seeded by DENSITY, so
+        // the pool is the ceiling on how many can exist -- and a nameless
+        // people would be a generated adversary, which the law forbids.
+        if (!Array.isArray(mn.names) || mn.names.length < 4) {
+          bad("map.minors needs a hand-authored name pool (at least four)");
         }
         for (const r in mn.stock || {}) if (!resIds.has(r)) bad(`minors stock "${r}", not a resource this era`);
       }

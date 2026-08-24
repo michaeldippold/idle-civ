@@ -266,11 +266,18 @@ verified stop and a test brief.
         reaching — vision is a resource.
       - **Authoring law, validator-enforced: every island lies within sighted range of the
         nearest mainland coast.** No island may exist that cannot be yearned for.
-      - **Adversary placement goes density-based** (owner ruling): each eligible hex rolls a
-        seeded per-hex chance (hash of hex + era, never the live dice), identity still drawn from
-        the hand-authored pool — placement was always procedural; now it scales with the world.
-        The spawn-on-charting-vs-at-generation fork (populate-on-discovery: chart at Iron, find
-        walled steadings) is decided at build time.
+      - [x] **4c — neighbours by density, seated on their own ground** *(shipped 2026-08-24)*.
+        The minor tier is seeded by DENSITY (0.06 per eligible hex, per-hex hash so a later
+        generation stage cannot shift who exists): 3–13 steadings per world, averaging ~7, scaling
+        with the country instead of a fixed five, never outrunning the hand-authored name pool,
+        and never bordering one another. And **adversaries are seated on the ground their own
+        descriptions name** (owner catch): the Hill Clans in the high passes, the River Kingdom on
+        the bluffs, the Salt Nomads on the flats — a `homeTerrain` preference that relaxes to any
+        land rather than leaving a people homeless. 6 new checks (559).
+        *Still open from this slice:* spawn-on-charting (chart a region at Iron, find walled
+        steadings rather than camps) — the populate-on-discovery idea, unbuilt.
+        **NOTE: adversaries still only exist at IRON.** Stone and Bronze declare no seats and no
+        minor tier, which is why early play is unopposed — see the stone-age-minors item above.
 - [ ] **5 — The picker: BOTH, with Random (owner ruling, 2026-08-24).** Named continents you can
       choose, plus a Random option — know-then-not-know: new players learn the maps by choosing
       them, veterans roll Random for the where-am-I drama. Seeding survives intact: the save

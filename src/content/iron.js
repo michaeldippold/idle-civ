@@ -62,7 +62,12 @@ export const IRON_DELTA = {
     // the seats so runs differ ("you won't believe what spawned in mine").
     // The Chronicle names the place for the last time when it swears.
     minors: {
-      count: 5,
+      // DENSITY, not a count (owner ruling, 2026-08-24): every eligible hex
+      // rolls for a steading, so neighbours scale with the world instead of
+      // being a fixed five however big the country is. The roll is a per-hex
+      // HASH rather than a stream draw, so adding a generation stage later
+      // cannot shift who exists.
+      density: 0.06,
       strength: [3, 9],
       walls: [0, 4],
       stock: { food: [20, 60], wood: [10, 40], iron: [5, 25], gold: [3, 12] },
@@ -198,12 +203,20 @@ export const IRON_DELTA = {
   adversaries: [
     {
       id: "hillClans", name: "the Hill Clans", disposition: "warlike",
+      // Each adversary names its own ground, because each one's DESCRIPTION
+      // already did: "the high passes", "downriver ... on the bluffs", "they
+      // circle their wagons". Placement was terrain-blind until 2026-08-24,
+      // which could seat the Hill Clans in a forest -- a contradiction in a
+      // game where descriptions are mechanics-bearing text. A preference, not
+      // a demand: a world with no free hills seats them wherever it can.
+      homeTerrain: "hills",
       strength: 9, walls: 5, fightsAs: "massed", campaignTime: 90,
       stock: { food: 120, wood: 90, iron: 60, gold: 15 },
       desc: "Raiders in the high passes — weak alone, bold when your walls look thin. Their seat crouches behind a rough timber palisade.",
     },
     {
       id: "riverKingdom", name: "the River Kingdom", disposition: "peaceful",
+      homeTerrain: "river",
       strength: 32, walls: 26, fightsAs: "riders", campaignTime: 120, caravanTime: 75,
       stock: { food: 250, steel: 25, gold: 240 },
       buys: { res: "food", amount: 60, pays: 15 },
@@ -211,6 +224,7 @@ export const IRON_DELTA = {
     },
     {
       id: "saltNomads", name: "the Salt Nomads", disposition: "peaceful",
+      homeTerrain: "plains",
       strength: 13, walls: 2, fightsAs: "riders", campaignTime: 75, caravanTime: 60,
       stock: { food: 90, iron: 30, gold: 80 },
       buys: { res: "iron", amount: 40, pays: 12 },

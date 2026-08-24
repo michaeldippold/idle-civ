@@ -11,6 +11,44 @@
 
 ---
 
+## 2026-08-24 — Slice 4c: neighbours by density, seated on their own ground
+
+**The minor tier scales with the world.** Every eligible hex now rolls for a steading (density
+0.06) instead of the world getting a fixed five however big it is — 3 to 13 per world, averaging
+about seven, never bordering one another, never outrunning the hand-authored name pool. The roll is
+a per-hex hash rather than a draw from a stream, so inserting a future generation stage cannot
+change *who exists*. Identity stays authored, placement stays procedural: the adversary law,
+unchanged, now applied at the right scale.
+
+**And adversaries are seated on the ground their own descriptions name** — the owner's catch, and a
+genuine contradiction: every one of the three says where it lives. "Raiders in the high passes."
+"A state downriver… on the bluffs." "They circle their wagons into a laager." Placement was
+terrain-blind, so the Hill Clans could be seated in a forest. `homeTerrain` is a preference, not a
+demand — it relaxes to any land rather than leaving a people homeless — and it now lands 90 seats
+out of 90.
+
+**Two real bugs surfaced on the way, both caught by measurement rather than reading.**
+
+The first: `hash01` was badly biased. djb2's raw output concentrates in exactly the high bits that
+dividing by 2³² reads, so a "6% chance" fired on *zero* hexes for one seed and *every* hex for the
+next — a 0.000 hit rate over two thousand samples. A murmur3 finalizer fixes it (0.0556 measured,
+deciles flat), and the fix reaches further than the minors: prop placement, tonal variation and
+elevation jitter in the renderer had all been quietly drawing from a narrow band, because the
+renderer carried its own copy of the same biased function. It now imports the good one.
+
+The second: **`extendEra` shared the parent's map object by reference.** Since seat terrain is
+folded onto the map spec, a silent delta — an era that redeclares no map — reached back and
+overwrote its *parent's* seat terrain with its own empty one, and every adversary went back to
+random placement. The harness reported it as 30 seats on their own ground out of 90, which is
+precisely chance, and that number is what made it findable. Map specs are copied now, not shared;
+inheritance by value reads identically and cannot do this.
+
+Six new checks (559). One existing check was also rewritten rather than coerced: comparing two
+different tiles' claim prices let their distances mask the 1.18× escalation, so it now prices the
+same tile before and after.
+
+---
+
 ## 2026-08-24 — Slice 4b: sight across water
 
 **The islands started calling.** A ray now leaves every charted coastal hex, travels through water

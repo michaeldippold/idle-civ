@@ -105,9 +105,13 @@ settlement nouns in and "the Broken Tower" cannot be redressed backwards into th
   is never re-seeded. Depletion persists WITHIN an age and not across one. This also repaired a
   regression the roster move introduced — seeding-once meant every Iron major stood unwalled with a
   stone-age larder and no gold at all, so caravans read "traded dry" the instant they launched.
-- **Slice 3 — Bronze's war party.** Bronze has `contact: "open"` and no scaled-down campaign
-  to go with it yet; it currently inherits the Iron machinery. A Bronze party should be a handful
-  of fighters with short reach, AoE-style but abstracted from individual units (owner framing).
+- [x] **Slice 3 — Bronze's war party** *(shipped 2026-08-24)*. `muster: { building, column }` is
+  the new era fact: Bronze gathers at a **War Camp** and marches **four**, Iron gathers at a Muster
+  Ground with no ceiling. This also closed a real hole — `contact: "open"` at Bronze was a promise
+  the era could not keep, since the only mustering building in the game was Iron's, so the March
+  button appeared and sat permanently disabled. Reach still needs no rule: `marchFactor` makes
+  distance the limit. Iron stays UNCAPPED, deliberately, so the war party feels as small as it is;
+  capping Iron would be a balance change nobody asked for.
 - **Anonymous raids become attributed at Bronze.** Stone's raiders belong to nobody; the beat is
   that at Bronze you learn who they were. `hostilityMultiplier()` already scales the conflict
   trigger by hostile warlike neighbours, and standing starts neutral (0; hostile is <= -2), so

@@ -2,7 +2,7 @@ import { active } from "../content/compile.js";
 import { CONFIG } from "../core/config.js";
 import { availableUnits, isRevealed, pluralize } from "../core/derived.js";
 import { S } from "../core/state.js";
-import { campaignPlan, campaignStrength, expeditionOut, findAdversary, hostileRouteRisk, launchCampaign, launchCaravan, riskAdversary, standingWord, wallPower } from "../sim/expeditions.js";
+import { campaignPlan, campaignStrength, columnCap, columnSize, expeditionOut, findAdversary, hostileRouteRisk, launchCampaign, launchCaravan, riskAdversary, standingWord, wallPower } from "../sim/expeditions.js";
 import { closeModal, openModal } from "./modal.js";
 
 // The Expeditions panel is gone (the flip, 2026-08-22): the map's Selected
@@ -55,7 +55,11 @@ export function musterRowsHTML(prefix) {
 export function wireMusterRows(bodyEl, refresh) {
   bodyEl.querySelectorAll(".stepper").forEach((b) => b.addEventListener("click", () => {
     const id = b.dataset.mid, d = Number(b.dataset.d);
-    muster[id] = Math.max(0, Math.min(availableUnits(id), (muster[id] || 0) + d));
+    // Room left under the age's column cap, counting everyone ALREADY mustered
+    // except this row. Bronze marches a war party of four; Iron has no ceiling.
+    const others = columnSize(muster) - (muster[id] || 0);
+    const room = columnCap() - others;
+    muster[id] = Math.max(0, Math.min(availableUnits(id), room, (muster[id] || 0) + d));
     refresh();
   }));
 }
@@ -113,8 +117,15 @@ export function openCampaignModal(ref) {
         const wallsBit = wallsNow > 0
           ? ` Their walls stand at ${Math.ceil(wallsNow)} — your column brings wall-power ${wallPower(muster).toFixed(1)}.`
           : "";
-        est.textContent = total < 1 ? "Muster at least one fighter."
-          : `Your ${total} march at strength ${campaignStrength(muster, { strength: t.strength, fightsAs: t.fightsAs }).toFixed(1)}, against theirs of ${t.strength}.${wallsBit}`;
+        const cap = columnCap();
+        // A stepper that stops moving with no explanation reads as a bug. The
+        // ceiling is an era fact, so it is stated as one.
+        const capBit = Number.isFinite(cap)
+          ? ` This age musters a war party, never a column — ${cap} at most.`
+          : "";
+        est.textContent = total < 1 ? "Muster at least one fighter." + capBit
+          : `Your ${total} march at strength ${campaignStrength(muster, { strength: t.strength, fightsAs: t.fightsAs }).toFixed(1)}, against theirs of ${t.strength}.${wallsBit}` +
+            (Number.isFinite(cap) && total >= cap ? ` That is the whole party — ${cap} is all this age can send.` : "");
       }
       const march = confirmButton();
       if (march) march.disabled = S.dead || total < 1 ||

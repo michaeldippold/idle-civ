@@ -11,6 +11,37 @@
 
 ---
 
+## 2026-08-24 — Bronze musters a war party, not a column
+
+**What an age can send is now an era fact.** `muster: { building, column }` names the building a
+column gathers at and how many fighters it carries. Bronze gathers at a **War Camp** and marches
+**four**; Iron gathers at a Muster Ground and has no ceiling. That single number is the whole of
+how the age's outward verb scales — *"it won't be legions or platoons, but a few soldiers"*.
+
+**Reach needed no rule at all.** `marchFactor` already multiplies provisions and march time by the
+route, so four people can cross a valley and could never cross a country. The far people stay hard
+because they are far, which is the same mechanism that already keeps distance honest everywhere
+else on this map.
+
+**It also closed a hole opened two commits ago.** Giving Bronze `contact: "open"` was a promise the
+era could not keep: the only mustering building in the game was Iron's Muster Ground, so at Bronze
+the March button appeared and sat permanently disabled behind a building three eras of content
+away. That is the same incoherence the ruling was meant to fix, merely relocated. Refusals now name
+the building that exists in the age you are standing in.
+
+The cap is enforced in `launchCampaign`, not only in the modal — the stepper stopping at four is a
+courtesy, the sim refusing a party of ten is the rule, and a stale UI or an edited save both route
+through the rule. The Chronicle follows the fact too: an age that musters four announces *a war
+party*, never *a column*.
+
+The War Camp retires at Iron. It was priced in bronze, and a ring of hide tents does not stage a
+legion.
+
+Thirteen new checks (595), including an end-to-end Bronze march: ten refused, four accepted, and
+the column that actually left carrying exactly the party mustered.
+
+---
+
 ## 2026-08-24 — Larders that grow and refill, and grudges that do not
 
 **An adversary's stock is a drainable larder, and a fixed one was quietly broken by an asymmetry:**

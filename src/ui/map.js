@@ -5,7 +5,7 @@ import { save } from "../core/persist.js";
 import { launchSettle, pendingSettle, settlePlan } from "../core/actions.js";
 import { world, isOwned, isCharted, isVisible, capOf, hexPop, atDominionCap, dominionCap, holdsUsed } from "../map/map.js";
 import { hexDistance, hexPoints, toPixel } from "../map/model.js";
-import { campaignPlan, expeditionOut, standingWord } from "../sim/expeditions.js";
+import { campaignPlan, expeditionOut, musterBuilt, standingWord } from "../sim/expeditions.js";
 import { attachTip, tipHide, tipMove, tipShow } from "./dom.js";
 import { openCampaignModal, openCaravanModal, stockLine } from "./expeditions.js";
 
@@ -161,6 +161,15 @@ function tipFor(p) {
 // kings in the Stone Age, only people with spears.
 function canReachOut() { return active().contact === "open"; }
 
+// The age's mustering building, by name, so a refusal names the thing you
+// actually have to build rather than one from a different century.
+function musterName() {
+  const m = active().muster;
+  if (!m) return "A mustering ground";
+  const def = active().buildings.find((b) => b.id === m.building);
+  return def ? `A ${def.name}` : "A mustering ground";
+}
+
 // What the Stone Age says instead of offering a button. A tile you cannot act
 // on should still tell you something true about the world, rather than greying
 // out and going quiet -- the refusal is the flavour.
@@ -178,12 +187,12 @@ export function detailHTML(p) {
       if (!canReachOut()) { parts.push(noReachLine()); return parts.join(""); }
       // The same refusals the Expeditions panel carried, or the buttons
       // silently no-op and read as broken (found in play).
-      const noGround = (S.builds.musterGround || 0) < 1;
+      const noGround = !musterBuilt();
       const marchOut = expeditionOut("campaign"), caravanOut = expeditionOut("caravan");
       const acts = [`<button class="map-act" data-act="march" data-adv="${adv.id}"${noGround || marchOut ? " disabled" : ""}>March</button>`];
       if (adv.buys) acts.push(`<button class="map-act" data-act="caravan" data-adv="${adv.id}"${noGround || caravanOut ? " disabled" : ""}>Caravan</button>`);
       parts.push(`<div class="map-actions">${acts.join("")}</div>`);
-      if (noGround) parts.push(`<span class="map-noworks">A Muster Ground must stand before columns or caravans can leave.</span>`);
+      if (noGround) parts.push(`<span class="map-noworks">${musterName()} must stand before columns or caravans can leave.</span>`);
       else if (marchOut || caravanOut) parts.push(`<span class="map-noworks">${marchOut ? "A campaign is already in the field." : "A caravan is already on the road."}</span>`);
       return parts.join("");
     }
@@ -193,12 +202,12 @@ export function detailHTML(p) {
     parts.push(`<b>${capWord(p.minor.name)}</b><br>${minorBand(p.minor.strength)} ${minorWalls(p)}`);
     if (!canReachOut()) { parts.push(noReachLine()); return parts.join(""); }
     const plan = campaignPlan("tile:" + p.id);
-    const noGround = (S.builds.musterGround || 0) < 1;
+    const noGround = !musterBuilt();
     const marchOut = expeditionOut("campaign");
     const scopeFull = atDominionCap();
     parts.push(`<div class="map-actions"><button class="map-act" data-act="march" data-adv="tile:${p.id}"${noGround || marchOut || scopeFull ? " disabled" : ""}>March</button></div>`);
     if (plan && plan.tilesOff != null) parts.push(`<span class="map-noworks">${plan.tilesOff} tiles off · ${plan.provisions} food · ${plan.time}s there and back. Win, and it swears fealty — one more holdfast.</span>`);
-    if (noGround) parts.push(`<span class="map-noworks">A Muster Ground must stand first.</span>`);
+    if (noGround) parts.push(`<span class="map-noworks">${musterName()} must stand first.</span>`);
     else if (marchOut) parts.push(`<span class="map-noworks">A campaign is already in the field.</span>`);
     else if (scopeFull) parts.push(`<span class="map-noworks">Victory would win ground this age cannot govern — the dominion is at its full scope.</span>`);
     return parts.join("");

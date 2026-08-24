@@ -18,6 +18,28 @@ import { log } from "../ui/log.js";
 // in the Chronicle. Resolution lines always log, same rule as migration
 // narrates: rare and story-critical, they belong in the record.
 export function findAdversary(id) { return active().adversaries.find((a) => a.id === id); }
+
+// ---------- What this age can muster --------------------------------
+// The building a column gathers at is an ERA FACT, not a hard-coded id. It
+// was `musterGround` everywhere until 2026-08-24, which was fine while Iron
+// was the only age with an outward verb and became a lie the moment Bronze
+// got one: the March button appeared and sat forever disabled behind a
+// building three eras of content away.
+export function musterSpec() { return active().muster || null; }
+export function musterBuilt() {
+  const m = musterSpec();
+  return !!m && (S.builds[m.building] || 0) >= 1;
+}
+// How many fighters one column carries. null means no cap -- Iron musters
+// columns; Bronze musters a war party of four. This IS the scaling of the
+// age's outward verb, and the only one it needs.
+export function columnCap() {
+  const m = musterSpec();
+  return m && m.column != null ? m.column : Infinity;
+}
+export function columnSize(unitCounts) {
+  return Object.values(unitCounts || {}).reduce((a, b) => a + b, 0);
+}
 export function expeditionOut(type) { return S.expeditions.some((e) => e.type === type); }
 
 export function standingWord(n) {
@@ -135,7 +157,10 @@ export function launchCampaign(advId, unitCounts) {
   // (dominionCap) -- you cannot subdue what the age cannot hold. Campaigns
   // against MAJORS are plunder, not conquest, and stay ungated.
   if (typeof arguments[0] === "string" && arguments[0].startsWith("tile:") && atDominionCap()) return;
-  if (S.dead || expeditionOut("campaign") || (S.builds.musterGround || 0) < 1) return;
+  if (S.dead || expeditionOut("campaign") || !musterBuilt()) return;
+  // The age's column cap, enforced HERE and not only in the modal: the modal
+  // is a convenience, this is the rule.
+  if (columnSize(unitCounts) > columnCap()) return;
   const plan = campaignPlan(advId);
   if (!plan) return;
   const total = Object.values(unitCounts).reduce((a, b) => a + b, 0);
@@ -144,7 +169,10 @@ export function launchCampaign(advId, unitCounts) {
   S.res.food -= plan.provisions;
   S.expeditions.push({ uid: ++S.buildSeq, type: "campaign", adversary: plan.target.ref,
     units: Object.assign({}, unitCounts), total: plan.time, remaining: plan.time });
-  log(`A column of ${total} marches against ${plan.target.name}. The walls are thinner until they return.`);
+  // An age that musters four does not send a COLUMN. The word follows the
+  // era fact, so the Chronicle never promises an army you cannot raise.
+  const band = Number.isFinite(columnCap()) ? "A war party of" : "A column of";
+  log(`${band} ${total} marches against ${plan.target.name}. The walls are thinner until they return.`);
   save();
   renderAll();
 }
@@ -152,7 +180,7 @@ export function launchCampaign(advId, unitCounts) {
 // `escort` is optional: units riding with the cargo. Escorts don't lower the
 // odds of an ambush -- they decide how one ENDS (see resolveCaravan).
 export function launchCaravan(advId, escort) {
-  if (S.dead || expeditionOut("caravan") || (S.builds.musterGround || 0) < 1) return;
+  if (S.dead || expeditionOut("caravan") || !musterBuilt()) return;
   const adv = findAdversary(advId);
   const st = S.adversaries[advId];
   if (!adv || !adv.buys || !st) return;

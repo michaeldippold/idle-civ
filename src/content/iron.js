@@ -89,6 +89,8 @@ export const IRON_DELTA = {
     // (its jobs left the game entirely in E2 -- nothing to remove)
     "oreYard",                            // its storage
     "bronzeTools", "bronzeWeapons", "scouting",  // stranded: priced in a dead resource
+    "warCamp",                            // superseded: a ring of hide tents does not
+                                          // stage a legion, and it was priced in bronze
     "flintSpears",                        // superseded twice over
     "ironAge",                            // a capstone exists only in the era it ends
     "granary", "woodshed", "stoneYard",   // storage caps retire at Iron (user ruling, in the
@@ -238,6 +240,10 @@ export const IRON_DELTA = {
 
   // Full war, in both directions: campaigns, sieges, conquest.
   contact: "open",
+  // Iron musters COLUMNS: no size cap, which is what makes the Bronze war
+  // party feel like the small thing it is. The Muster Ground's cap of 1 is
+  // still the real pacing -- one outbound column at a time, whatever its size.
+  muster: { building: "musterGround", column: null },
 
   events: ["greatHunt", "trader", "sickness", "conflict", "scoutFindIron", "scoutWarning"],
   // No rot hints: caps retired with the storage line. directHoldfasts is the

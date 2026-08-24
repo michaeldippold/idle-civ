@@ -783,8 +783,22 @@ over between ages — wood gives way to bronze gives way to iron and gold.
 | era | contact | what it means |
 |---|---|---|
 | Stone | `none` | You can see them and scout them. You cannot touch them — not because a rule forbids war, but because nobody exists who could declare one. There are no kings in the Stone Age. |
-| Bronze | `open` | War parties, both directions. The age hands you bronze spears and hide armour, so it must let you carry them somewhere. Small scale: a handful of fighters, short reach. |
+| Bronze | `open` | War parties, both directions. The age hands you bronze spears and hide armour, so it must let you carry them somewhere. Gathers at a **War Camp**; a column carries **four**. |
 | Iron | `open` | Campaigns, sieges, conquest, and trade — trade arrives with coinage, since caravan payment is gold-denominated at its root. |
+
+**What an age can muster is an era fact**, carried on `muster: { building, column }`. The building
+a column gathers at was hard-coded to `musterGround` everywhere, which was fine while Iron was the
+only age with an outward verb and became a lie the moment Bronze had one — the March button appeared
+at Bronze and sat permanently disabled behind a building three eras of content away, which is the
+same incoherence relocated. Bronze gathers at a **War Camp** (cheaper, quicker, retired at Iron
+because it was priced in bronze and a ring of hide tents does not stage a legion).
+
+`column` is the whole of how an age's outward verb scales: Bronze carries **four**, Iron has no
+ceiling. **Reach needs no rule of its own** — `marchFactor` already multiplies provisions and march
+time by the route, so four people can cross a valley and could never cross a country. The cap is
+enforced in `launchCampaign`, not only in the modal: the modal's stepper stopping at four is a
+courtesy, the sim refusing a party of ten is the rule. And the Chronicle follows the fact — an age
+that musters four announces *a war party*, never *a column*.
 
 Stone still has DANGER, and always did: all three raid types roll and the `conflict` event fires.
 That danger is simply **anonymous** — a warband out of the dark, belonging to nobody on your map.

@@ -101,6 +101,8 @@ export function compileBase(raw) {
     // What this age can DO about its neighbours, either direction. "none"
     // means no one exists who could send or receive a war -- see stone.js.
     contact: raw.contact || "none",
+    // The building a column gathers at, and how many it can carry.
+    muster: raw.muster ? Object.assign({}, raw.muster) : null,
     // The map spec INHERITS, like popNoun -- deliberately, because the map
     // regenerates only when the tile noun changes (design.md, Scale: The
     // Tile Ladder). An era that keeps the noun keeps the world; an era that
@@ -131,6 +133,9 @@ export function extendEra(parent, delta) {
     consolidate: delta.consolidate ? Object.assign({}, delta.consolidate) : null,
     adversaries: (delta.adversaries || []).map((a) => Object.assign({}, a)),
     contact: delta.contact || parent.contact,
+    muster: delta.muster !== undefined
+      ? (delta.muster ? Object.assign({}, delta.muster) : null)
+      : (parent.muster ? Object.assign({}, parent.muster) : null),
     // COPIED, never shared. Inheriting the parent's map object by reference
     // meant a child could reach back and mutate its parent's spec -- and one
     // did: attachSeatTerrain() below writes onto m.map, so a silent delta

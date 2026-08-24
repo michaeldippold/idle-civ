@@ -1352,7 +1352,10 @@ console.log("\n--- Phase B: the cross-reference validator ---");
 console.log("\n--- Phase B: manifestDiff ---");
 {
   const d = api.manifestDiff(api.MANIFESTS.stone, api.MANIFESTS.bronze);
-  check("ten additions across buildings/units/upgrades (incl. the iron capstone)", d.added.length === 10);
+  // Eleven since the War Camp joined (2026-08-24): Bronze can reach outward,
+  // so Bronze needs somewhere for a war party to gather.
+  check("eleven additions across buildings/units/upgrades (incl. the iron capstone)",
+    d.added.length === 11 && d.added.some((a) => a.id === "warCamp"));
   check("exactly one removal: the capstone", d.removed.length === 1 && d.removed[0].id === "bronzeAge");
   check("one rename: the infirmary (the hut died in E3)", d.renamed.length === 1 &&
     d.renamed.some(r => r.from.name === "Medicine Tent" && r.to.name === "Infirmary"));
@@ -1452,9 +1455,12 @@ console.log("\n--- C1: the iron manifest ---");
   check("bronze manifest gained the ironAge capstone",
     api.MANIFESTS.bronze.upgrades.some(u => u.id === "ironAge"));
   const d = api.manifestDiff(api.MANIFESTS.bronze, m);
-  check("diff: 6 added, 9 removed (the storage line among them; the hut predeceased), 0 renamed",
-    d.added.length === 6 && d.removed.length === 9 && d.renamed.length === 0 &&
+  // Ten removed since the War Camp retires here: it was priced in bronze, and
+  // a ring of hide tents does not stage a legion. The Muster Ground succeeds it.
+  check("diff: 6 added, 10 removed (the storage line among them; the hut predeceased), 0 renamed",
+    d.added.length === 6 && d.removed.length === 10 && d.renamed.length === 0 &&
     d.removed.some((r) => r.id === "granary") &&
+    d.removed.some((r) => r.id === "warCamp") &&
     !d.added.some((r) => r.id === "ironYard"));
 }
 
@@ -1638,6 +1644,70 @@ console.log("\n--- C2: adversaries in the manifest, validated ---");
     throws(() => tryAdv(Object.assign({}, ok, { disposition: "warlike" }))));
   check("a malformed exchange is caught",
     throws(() => tryAdv(Object.assign({}, ok, { buys: { res: "gold", amount: 0, pays: 1 } }))));
+}
+
+console.log("\n--- C2: what an age can muster ---");
+{
+  reset();
+  // WHAT AN AGE SENDS is an era fact: which building a column gathers at, and
+  // how many it can carry. Bronze sends a war party of four; Iron sends a
+  // column with no ceiling. That difference IS the scaling of the outward
+  // verb -- reach needs no rule, because marchFactor already multiplies
+  // provisions and time by the route.
+  check("stone musters nothing at all -- there is no one to send",
+    api.MANIFESTS.stone.muster === null);
+  check("bronze gathers at a War Camp and marches four",
+    api.MANIFESTS.bronze.muster.building === "warCamp" &&
+    api.MANIFESTS.bronze.muster.column === 4);
+  check("iron gathers at a Muster Ground and has no ceiling",
+    api.MANIFESTS.iron.muster.building === "musterGround" &&
+    api.MANIFESTS.iron.muster.column === null);
+  // The War Camp must EXIST in bronze, or `contact: "open"` is a promise the
+  // era cannot keep -- which is precisely the bug this slice fixes: a March
+  // button appearing at Bronze, permanently disabled behind an Iron building.
+  check("and the building each age names is actually buildable in it",
+    api.MANIFESTS.bronze.buildings.some((b) => b.id === "warCamp") &&
+    api.MANIFESTS.iron.buildings.some((b) => b.id === "musterGround"));
+  check("the war camp retires at iron -- hide tents do not stage a legion",
+    !api.MANIFESTS.iron.buildings.some((b) => b.id === "warCamp"));
+
+  api.S.era = "bronze";
+  check("columnCap reads the age", api.columnCap() === 4);
+  check("and nothing musters until the camp stands", !api.musterBuilt());
+  api.S.builds.warCamp = 1;
+  check("...but it does once it does", api.musterBuilt());
+
+  api.S.era = "iron";
+  api.S.builds.warCamp = 1; api.S.builds.musterGround = 0;
+  check("a war camp does not muster an iron column", !api.musterBuilt());
+  check("iron's cap is no cap", api.columnCap() === Infinity);
+}
+
+console.log("\n--- C2: a bronze war party marches, and only four go ---");
+{
+  reset();
+  api.S.era = "bronze";
+  api.initAdversaries(); api.ensureMap();
+  api.S.builds.warCamp = 1;
+  api.S.units.soldier = 10;          // ten at home...
+  api.S.res.food = 5000;
+  api.syncPopMirror();
+
+  const target = Object.values(api.world.places).find((p) => p.minor);
+  const ref = "tile:" + target.id;
+
+  // The sim refuses an oversized column outright. The modal's stepper stops
+  // at four as a courtesy; THIS is the rule, and it is the one that matters
+  // because a save editor and a stale UI both route through here.
+  api.launchCampaign(ref, { soldier: 10 });
+  check("ten cannot march in an age that musters four",
+    !api.expeditionOut("campaign"));
+
+  api.launchCampaign(ref, { soldier: 4 });
+  check("four can", api.expeditionOut("campaign"));
+  const ex = api.S.expeditions.find((e) => e.type === "campaign");
+  check("and the column that left is exactly the party mustered",
+    ex && api.columnSize(ex.units) === 4);
 }
 
 console.log("\n--- C2: larders refill per age, grudges do not ---");

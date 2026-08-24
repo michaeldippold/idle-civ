@@ -75,6 +75,18 @@ export const BRONZE_DELTA = {
     ],
     buildings: [
       {
+        // Bronze's answer to the Muster Ground, and deliberately smaller in
+        // every dimension: cheaper, quicker, and it sends four people rather
+        // than an army. Without it, `contact: "open"` was a lie -- the March
+        // button appeared at Bronze and sat permanently disabled behind a
+        // building that does not exist until Iron, which is the same
+        // incoherence the owner objected to, merely relocated.
+        id: "warCamp", name: "War Camp", kind: "building", cap: 1,
+        desc: "A ring of hide tents and a fire kept lit. Enough to send a few spears over the hill and expect most of them back.",
+        base: { wood: 35, stone: 15, bronze: 8 }, scale: 1.5, buildTime: 24,
+        reveal: () => S.builds.barracks >= 1,
+      },
+      {
         id: "archeryRange", name: "Archery Range", kind: "building", cap: 1,
         desc: "Lets your people train as Archers.",
         base: { wood: 50, stone: 20 }, scale: 1.5, buildTime: 28,
@@ -163,6 +175,14 @@ export const BRONZE_DELTA = {
   // distance the limit, so a Bronze party can bloody the camp over the hill
   // and could never dream of crossing the continent.
   contact: "open",
+
+  // WHAT AN AGE SENDS. The building that must stand before anything marches,
+  // and how many fighters a single column can carry. Bronze sends a WAR PARTY
+  // -- "it won't be legions or platoons, but a few soldiers" (owner, 2026-08-24)
+  // -- which is the whole of how the age is scaled down. Reach needs no rule
+  // of its own: marchFactor already multiplies provisions and time by the
+  // route, so four people can cross a valley and could never cross a country.
+  muster: { building: "warCamp", column: 4 },
 
   // The neighbours, one age on: peoples now, not camps. Walls appear because
   // masonry does. Still strictly above the Bronze minor band ([2,5]).

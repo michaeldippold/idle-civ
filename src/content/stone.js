@@ -236,6 +236,8 @@ export const STONE = {
   // of the dark, belonging to no one on your map. Bronze is where it gets a
   // name and an address.
   contact: "none",
+  // Nothing to muster with, and no one to muster. See `contact` above.
+  muster: null,
 
   // The neighbours as they are in an age without metal: camps. Same ids, same
   // ground, same people as the Iron Age powers they become -- an era slate is

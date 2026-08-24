@@ -6,7 +6,7 @@ import { S, setLoops } from "./core/state.js";
 import { step } from "./core/step.js";
 import { cycleSpeed, modalHold, paused, preGame, renderAll, renderSpeed, setPaused, setPreGame, setSpeed, speed } from "./ui/chrome.js";
 import { ensureMap, revealAll, setRevealAll, setPickedContinent } from "./map/map.js";
-import { initMapStage, invalidateMapStage } from "./ui/map.js";
+import { devRedress, initMapStage, invalidateMapStage } from "./ui/map.js";
 import { checkReveals, log } from "./ui/log.js";
 import { closeModal, modalIsOpen, openInfoPanel, openResetModal } from "./ui/modal.js";
 import { setUpgradeTab } from "./ui/panels-buy.js";
@@ -92,6 +92,12 @@ export function boot() {
     btn.classList.toggle("fast", revealAll);   // the same "a lens is on" weight speed uses
     invalidateMapStage();
     renderAll();
+  });
+  // DEV TOOL, TEMPORARY (2026-08-25) — index.html carries the removal list.
+  const redressBtn = document.getElementById("redressBtn");
+  if (redressBtn) redressBtn.addEventListener("click", () => {
+    const n = devRedress();
+    console.log(`[dev] re-dress replayed across ${n} charted hexes`);
   });
   document.getElementById("infoBtn").addEventListener("click", openInfoPanel);
   initMapStage();

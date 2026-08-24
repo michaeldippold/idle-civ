@@ -50,6 +50,13 @@
         <button id="pauseBtn" class="chrome-btn transport" title="Freeze the world and think (Space)">Pause</button>
         <button id="speedBtn" class="chrome-btn transport" title="How fast the world runs — click to cycle, keys 1–5 to set. Everything resolves normally, just sooner.">1×</button>
       </span>
+      <!-- DEV TOOL, TEMPORARY (2026-08-25). To remove it, delete four things
+           together: this button, its listener in main.js, devRedress() in
+           ui/map.js, and the .chrome-btn.dev rule in styles.css. It exists
+           because the sink-and-rise is the one thing about the board a check
+           cannot judge — ?perf=1 can prove the numbers, only an eye can say
+           whether it feels right. -->
+      <button id="redressBtn" class="chrome-btn dev" title="DEV: replay the era re-dress animation across every charted hex. Changes nothing — the same props sink and come back up.">Redress</button>
       <button id="revealBtn" class="chrome-btn" title="QA: show the whole board, including country you have not charted. A lens only — it changes nothing.">Reveal</button>
       <button id="infoBtn" class="chrome-btn" title="Reference: everything in the game, by era">Info</button>
       <button id="saveBtn" class="chrome-btn" title="Progress also saves automatically, and on every action">Save</button>

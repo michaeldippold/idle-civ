@@ -76,7 +76,10 @@ is off-thesis.
 They share the infrastructure above, so they can ship in any order. All three need **content and
 taste**, which is why none of them was built today.
 
-- **5a — The era re-dress** *(map arc slice 7)*. Prop-sets, palette, light, camera pull-back. The
+- **5a — The era re-dress** *(map arc slice 7)*. **A `Redress` button sits in the header** (dashed
+  border, DEV TOOL): it replays the sink-and-rise across every charted hex while changing nothing,
+  so the MOTION can be judged before any content exists. **Delete it and its three companions when
+  the re-dress is real** — `index.html` carries the removal list. Prop-sets, palette, light, camera pull-back. The
   owner has ideas and has not given them yet; **ask first.** Needs playtesting, so it wants a session
   at the desk.
 - **5b — Building on hexes.** Design settled (`design.md` → *Building on a Hex*): one use per hex,

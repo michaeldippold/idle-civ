@@ -369,6 +369,21 @@ export function changedHexes(ids) {
   stage3d.changeHexes(Array.isArray(ids) ? ids : [ids]);
 }
 
+// DEV TOOL, TEMPORARY (2026-08-25). Plays the sink-and-rise across every
+// charted hex while changing nothing: the props go down, and the identical
+// props come back up. It is the era re-dress with the re-dress left out, which
+// is exactly what you want to look at when you are judging the MOTION rather
+// than the content.
+//
+// Delete alongside the button in index.html, its listener in main.js, and the
+// .chrome-btn.dev rule in styles.css.
+export function devRedress() {
+  if (!world) return 0;
+  const ids = Object.values(world.places).filter((p) => isCharted(p.id)).map((p) => p.id);
+  changedHexes(ids);
+  return ids.length;
+}
+
 // THE RIM A TILE WEARS -- the same question the mark ladder answers, asked of
 // the hex edge instead of the glyph above it (owner request, 2026-08-25: give
 // foreign ground a rim so the little house stops carrying the whole job on its

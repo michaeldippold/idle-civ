@@ -947,6 +947,11 @@ body.dead #mainArea .block { filter: saturate(.25); }
    long enough to push the join onto the same line. */
 .tile-pop { display: block; margin-top: 6px; }
 
+/* DEV TOOL, TEMPORARY (2026-08-25). A dashed edge, which appears nowhere else
+   in this interface, so the button never reads as a game control. Delete with
+   the Redress button. */
+.chrome-btn.dev { border-style: dashed; }
+
 #startSetup {
   border-top: 1px solid var(--hair);
   padding-top: 18px;

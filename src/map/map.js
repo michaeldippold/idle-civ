@@ -305,6 +305,49 @@ export function hexPop(id) {
 }
 
 // The odometer: total population is the SUM of real per-hex numbers.
+// ---------- What a hex IS (the use seam) ----------
+// ONE HEX, ONE USE -- and this is where that law is stated rather than assumed.
+// `S.map.work[id]` has always held a single value, so the law already existed;
+// what did not exist was a name for it, and every reader poked the raw string
+// and inferred what it meant. That is the shape of drift the mark ladder taught
+// us about (ui/map.js): N places deciding the same question is N places to
+// disagree.
+//
+// This is deliberately built BEFORE the content that needs it (owner, 2026-08-25:
+// "prep the infrastructure ... like we did when we preemptively separated the
+// visual layer from the map logic layer"). A hex's use is a RESOURCE or a
+// STRUCTURE, never both and never a parallel town -- see design.md, Building on
+// a Hex.
+//
+// Structures are stored with a prefix rather than in a second field, which keeps
+// the one-slot law true by construction: there is nowhere to put a second use.
+// The prefixed-ref idiom is already the codebase's (campaign targets are
+// "tile:q,r"), so this reads as house style rather than a trick.
+export const STRUCTURE = "build:";
+
+export function hexUse(id) {
+  const w = (S.map && S.map.work) ? S.map.work[id] : null;
+  if (!w) return { kind: "rest" };
+  if (typeof w === "string" && w.startsWith(STRUCTURE)) {
+    return { kind: "structure", id: w.slice(STRUCTURE.length) };
+  }
+  return { kind: "resource", res: w };
+}
+
+// Does this hex yield anything into the ledger? Only worked ground does: a
+// structure occupies the hex instead of producing from it, and a resting hex
+// produces nothing by choice. rates() has always got this right by ACCIDENT --
+// an unknown work value fails its `resId in prod` test and falls through -- so
+// this replaces a silent fallthrough with a stated rule.
+export function hexProduces(id) { return hexUse(id).kind === "resource"; }
+
+// The resource a hex is turned to, or null if it is resting or built on. The
+// one accessor every producer, glyph and panel should ask.
+export function hexResource(id) {
+  const u = hexUse(id);
+  return u.kind === "resource" ? u.res : null;
+}
+
 export function hexPopSum() {
   if (!S.map || !S.map.pop) return 0;
   let sum = 0;

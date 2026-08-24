@@ -3,7 +3,7 @@ import { S } from "../core/state.js";
 import { capWord, seatIsNamed, seatName } from "../core/derived.js";
 import { save } from "../core/persist.js";
 import { launchSettle, pendingSettle, settlePlan } from "../core/actions.js";
-import { world, isOwned, isCharted, isVisible, capOf, hexPop, atDominionCap, dominionCap, holdsUsed } from "../map/map.js";
+import { world, isOwned, isCharted, isVisible, capOf, hexPop, hexResource, hexUse, atDominionCap, dominionCap, holdsUsed } from "../map/map.js";
 import { FOREIGN, FOREIGN_MINOR, playerColor } from "../core/palette.js";
 import { hexDistance, hexPoints, toPixel } from "../map/model.js";
 import { campaignPlan, expeditionOut, musterBuilt, standingWord } from "../sim/expeditions.js";
@@ -36,6 +36,10 @@ import { openCampaignModal, openCaravanModal, stockLine } from "./expeditions.js
 
 const HEX = 30;
 const WORK_GLYPH = { food: "F", wood: "W", stone: "S", iron: "I" };
+// The mark a BUILT hex wears. Empty until structures exist as content; the
+// fallback is a filled block, so an unmapped structure reads as "something is
+// here" rather than as a missing glyph. See design.md, Building on a Hex.
+const STRUCTURE_GLYPH = {};
 
 const TERRAIN_FLAVOR = {
   plains: "Open ground. Workable, unremarkable, waiting.",
@@ -141,11 +145,13 @@ function tipFor(p) {
     };
   }
   if (isOwned(p.id)) {
-    const w = (S.map.work || {})[p.id];
+    const u = hexUse(p.id);
     return {
       title: `Your ${spec().tileNoun.singular} · ${p.terrain}`,
       stat: `${hexPop(p.id)} of ${capOf(p.id)} people`,
-      body: w ? `Turned to ${w}.` : "Resting — producing nothing.",
+      body: u.kind === "structure" ? `Built: ${u.id}.`
+        : u.kind === "resource" ? `Turned to ${u.res}.`
+        : "Resting — producing nothing.",
       why: tilesEra() ? "Click to direct it." : null,
     };
   }
@@ -238,7 +244,7 @@ export function detailHTML(p) {
   if (mine && tilesEra()) {
     const works = worksFor(p.terrain);
     const resIds = Object.keys(works);
-    const current = (S.map.work || {})[p.id] || null;
+    const current = hexResource(p.id);
     if (resIds.length) {
       // Every ground works everything; the rate is the trade-off.
       const btns = resIds.map((r) =>
@@ -306,7 +312,12 @@ function signature() {
 // it is resting. Lifted out because two tiles need it now -- an ordinary
 // holding, and your seat, which wears a house AND reports its work.
 function workMark(id) {
-  const w = (S.map.work || {})[id];
+  // Asks the use seam (map/map.js) rather than reading the slot, so the day a
+  // hex can carry a STRUCTURE this returns the structure's mark instead of
+  // silently printing a raw id as though it were a resource letter.
+  const u = hexUse(id);
+  if (u.kind === "structure") return { glyph: STRUCTURE_GLYPH[u.id] || "\u25A0", cls: "built" };
+  const w = u.kind === "resource" ? u.res : null;
   // A resting hex says so (owner request, 2026-08-23): the old ledger's red
   // "N idle" died with the jobs system, and unworked ground was invisible
   // until clicked. The dash is quiet on purpose -- resting is sometimes a

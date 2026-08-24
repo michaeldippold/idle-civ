@@ -11,6 +11,40 @@
 
 ---
 
+## 2026-08-25 — One hex, one use: the seam before the content
+
+**Infrastructure for building on hexes, built deliberately ahead of any structure to build.** The
+owner's brief was the standard set by an earlier decision: *"prep the infrastructure for it ... like
+we did when we preemptively separated the visual layer from the map logic layer. It made doing 3D
+very easy."*
+
+**The law already existed; what was missing was a name for it.** `S.map.work[id]` has always held a
+single value, so "a hex is exactly one thing" was true — but every reader poked the raw string and
+inferred what it meant, which is the same shape of drift the mark ladder taught us about: N places
+deciding one question is N places to disagree. There is one accessor now — `hexUse(id)` answers
+`rest`, `resource` or `structure`, with `hexProduces()` and `hexResource()` beside it, and the
+producers, glyphs and panels all ask it instead of the slot.
+
+**Structures live in the same slot, behind a prefix, and that is the point.** `build:farm` rather
+than a second field, so a second simultaneous use is *unrepresentable* rather than merely forbidden —
+there is nowhere to put one. The prefixed-ref idiom is already house style (campaign targets are
+`tile:q,r`).
+
+**One behaviour was right only by accident and is now right on purpose.** `rates()` skipped unknown
+work values because they failed an `in prod` test and fell through. A structure now answers `null`
+from `hexResource()` and is skipped by rule. Same outcome today, a stated reason for it, and no
+chance of a future refactor "fixing" the fallthrough into a bug.
+
+**The checks pin a use the game does not have.** Fourteen of them exercise `build:farm` and
+`build:fortification` — classification, zero yield, no resource leaking to a producer, replacement
+rather than coexistence, and that no era's resource id could impersonate a structure. That a
+nonexistent feature behaves correctly is the only way to know a seam is real rather than
+aspirational. Mutation-tested: making the seam stop recognising the prefix fails four of them.
+
+691 -> 705 checks.
+
+---
+
 ## 2026-08-25 — SUBJECTS 5,800
 
 **The odometer ships, and it replaces the topline population count rather than joining it.** Iron now

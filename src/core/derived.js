@@ -1,5 +1,5 @@
 import { BOOST_BUILDING, DEF_INDEX, active } from "../content/compile.js";
-import { ensurePop, hexPopSum, syncDominion, world } from "../map/map.js";
+import { ensurePop, hexPopSum, hexResource, syncDominion, world } from "../map/map.js";
 import { CONFIG, TICK_SECONDS } from "./config.js";
 import { S } from "./state.js";
 import { log } from "../ui/log.js";
@@ -150,8 +150,10 @@ export function rates() {
   const works = (active().map && active().map.works) || {};
   for (const tid in work) {
     if (!owned.includes(tid)) continue;
-    const resId = work[tid];
-    if (!(resId in prod)) continue;
+    // Ask the seam, not the raw slot: a hex turned to a STRUCTURE answers null
+    // and yields nothing, which is the rule rather than a fallthrough.
+    const resId = hexResource(tid);
+    if (resId == null || !(resId in prod)) continue;
     const people = Math.floor(pops[tid] || 0);
     if (people <= 0) continue;
     const terrain = world && world.places[tid] ? world.places[tid].terrain : null;

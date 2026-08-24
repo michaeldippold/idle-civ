@@ -2756,6 +2756,69 @@ console.log("\n--- The dominion cap: what one age can hold ---");
   api.setRngSource(null);
 }
 
+console.log("\n--- One hex, one use: the seam before the content ---");
+{
+  // Built ahead of the structures that need it (design.md, Building on a Hex).
+  // The point of these checks is that a use the game does not yet HAVE behaves
+  // correctly the moment it appears -- which is the only way to know a seam is
+  // real rather than aspirational.
+  reset();
+  api.S.era = "iron";
+  api.ensureMap();
+  const home = api.world.home;
+
+  api.S.map.work[home] = "food";
+  check("a worked hex reports the resource it is turned to",
+    api.hexUse(home).kind === "resource" && api.hexUse(home).res === "food");
+  check("...and it produces", api.hexProduces(home) === true);
+  check("...and hexResource answers with it", api.hexResource(home) === "food");
+
+  delete api.S.map.work[home];
+  check("a resting hex is its own answer, not a missing one",
+    api.hexUse(home).kind === "rest");
+  check("a resting hex produces nothing", api.hexProduces(home) === false);
+  check("...and has no resource", api.hexResource(home) === null);
+
+  // THE USE THE GAME DOES NOT HAVE YET. No structure content exists; the seam
+  // must still classify one correctly, refuse to produce from it, and keep it
+  // out of the resource path entirely.
+  api.S.map.work[home] = api.STRUCTURE + "farm";
+  const u = api.hexUse(home);
+  check("a built hex reads as a structure, not as a resource called 'build:farm'",
+    u.kind === "structure" && u.id === "farm");
+  check("a built hex produces nothing", api.hexProduces(home) === false);
+  check("...and answers no resource, so no producer can pick it up",
+    api.hexResource(home) === null);
+
+  // The real test: the LEDGER must not earn anything from a built hex. This is
+  // the behaviour that used to be right only by accident -- an unknown work
+  // value failed an `in prod` test and fell through.
+  // Rest every other holding, so the food line can only come from this hex and
+  // the comparison means what it says.
+  for (const tid of api.S.map.owned) if (tid !== home) delete api.S.map.work[tid];
+  api.S.map.pop[home] = 20;
+  api.S.map.work[home] = api.STRUCTURE + "farm";
+  const built = api.rates().food;
+  api.S.map.work[home] = "food";
+  const worked = api.rates().food;
+  check("a hex turned to a structure yields EXACTLY nothing", built === 0);
+  check("...while the same hex worked yields plenty", worked > 0);
+
+  // ONE SLOT, so a second use is unrepresentable rather than merely forbidden.
+  api.S.map.work[home] = api.STRUCTURE + "fortification";
+  check("building over a worked hex replaces the use -- there is nowhere to put both",
+    api.hexResource(home) === null && api.hexUse(home).id === "fortification");
+  api.S.map.work[home] = "wood";
+  check("and reverting restores a plain resource hex",
+    api.hexUse(home).kind === "resource" && api.hexResource(home) === "wood");
+
+  // The prefix is the discriminator, so a resource must never be able to
+  // impersonate a structure or vice versa.
+  check("no era's resource id could be mistaken for a structure",
+    Object.values(api.MANIFESTS).every((m) =>
+      (m.resources || []).every((r) => !r.id.startsWith(api.STRUCTURE))));
+}
+
 console.log("\n--- The odometer: the topline number is a fiction, and stays one ---");
 {
   // The odometer REPLACES the topline population count rather than joining it

@@ -22,33 +22,27 @@ discussed; this section is the only place that says **when**.
 The owner set this sequence explicitly on pausing. It reorders the tiers below: tech debt first
 because *"tech debt is real"*, then the unsexy-but-unfinished thing, then the map picker.
 
-**Where things stand:** harness green at **610 checks**, working tree clean, everything pushed
-through `2f481d0`. The last session shipped the adversary arc (roster from the Stone Age, larders
-that refill per age, provisions per fighter), fixed four bugs found in play, and caught the docs up
-to two weeks of work. Nothing is half-done. There is no fire.
+**Where things stand *(updated 2026-08-25, mid-session)*:** harness green at **614 checks**, working
+tree clean, everything pushed. Item 1 below is done; **item 2 is the live one, item 3 is the stop
+sign.** The session before shipped the adversary arc (roster from the Stone Age, larders that refill
+per age, provisions per fighter), fixed four bugs found in play, and caught the docs up to two weeks
+of work. Nothing is half-done. There is no fire.
 
-#### 1. Clear the vestigial code *(one sitting, genuinely small)*
+#### 1. Clear the vestigial code — ✅ **SHIPPED 2026-08-25**
 
-All three are scoped to the line and none breaks anything today; every one of them will mislead
-whoever greps for it next. (Two came from the docs pass, the third from the README pass after it.)
+`housingPerHut()`, `CONFIG.baseHousing` and `CONFIG.settlerIntervalSeconds` are gone, along with the
+stale hut-upgrade comment above the accessor and a dangling cross-reference in `popGrowthRate`'s
+comment to "the settler cadence above." Six harness fixtures dropped their inert `housingPerHut: 1`,
+and the E3 tombstone block now pins all three deaths beside `accrueGrowth()` and `housing()`.
+611 → 614 checks. See `CHANGELOG.md`.
 
-- **`housingPerHut()`** — `src/core/derived.js:14`. Housing died in the engine rework. **Simpler than
-  it looks: no manifest declares the field at all**, so `active().housingPerHut` already returns
-  `undefined` and the accessor returns undefined to nobody. Delete the export. Six harness fixtures
-  still pass `housingPerHut: 1`; those are inert once the accessor is gone and can be tidied in the
-  same pass.
-- **`CONFIG.settlerIntervalSeconds`** — `src/core/config.js:19`. Dead since E3, when `accrueGrowth`
-  became `growPopulation` and people started being born where they will live. One line. The harness
-  already carries a comment saying it died.
-- **`CONFIG.baseHousing`** — `src/core/config.js:18`. *(Found 2026-08-25 during the README pass, not
-  by the docs pass — same vintage and same cause as the two above.)* Housing died in E3; this
-  survived it. Read by nothing in `src/` at all. One line. **While you are in `derived.js` for
-  `housingPerHut()`, the three-line comment directly above it goes too** — it explains how advancing
-  an era retroactively upgrades every hut into a Stone House, describing a building that no longer
-  exists.
-
-*Checked and NOT vestigial, so leave it alone:* `arrivalLine` looks the same vintage and is
-validator-required, but it is genuinely live — printed at `map/map.js:346` when a hex grows.
+**Worth keeping from it, because the pattern will recur.** The two failures were opposite and both
+invisible to a grep. `housingPerHut()` had a live caller chain and a dead *era-fact* — it ran,
+returned `undefined`, and handed it to nobody, so "is anything calling this?" answered yes and moved
+on. `CONFIG.baseHousing` was referenced by nothing whatsoever, so every search came back empty and
+read as a clean bill of health. Neither is findable by asking about callers; both are findable by
+reading. *(`arrivalLine` was checked and is genuinely live — validator-required, printed at
+`map/map.js:346` when a hex grows. Leave it alone.)*
 
 #### 2. Raid attribution *(carry-over C3)*
 
@@ -886,7 +880,8 @@ These survive the pivot unchanged.
       now fit a sitting — so this is due a fresh look after phase 5.
       *Known dials, if pacing feels off:* `consolidate.keep` (iron delta) is THE population dial;
       each adversary's `walls`, `CONFIG.siegeWallBonus` and `CONFIG.wallRetreatLoss` govern siege
-      feel; `CONFIG.settlerIntervalSeconds` governs early growth.
+      feel; `CONFIG.popGrowthRate` governs early growth (it replaced `settlerIntervalSeconds`, which
+      was deleted 2026-08-25).
 - [ ] **A rare "special" event with no counter** (the asteroid-style 0.5%-chance idea). The engine
       already supports the shape; it's content. Now also a candidate for the first *decision* event.
 - [ ] **Additional person-types.** Priests arrive with G3. "Citizen" as a Settler rename is saved for
@@ -911,20 +906,20 @@ These survive the pivot unchanged.
 
 ---
 
-## Vestigial code, found by the docs and README passes (2026-08-25)
+## Vestigial code, found by the docs and README passes — ✅ all cleared 2026-08-25
 
 All three are exported or declared, referenced by nothing in `src/`, and outlived the system they
 belonged to. None breaks anything; each will mislead the next person who greps for it, which is
 exactly what the docs pass was for — and the third is proof the sweep was worth repeating.
 
-- [ ] **`housingPerHut()`** in `core/derived.js`. Housing died in the engine rework; the accessor
+- [x] **`housingPerHut()`** in `core/derived.js` *(done 2026-08-25)*. Housing died in the engine rework; the accessor
       did not. The `housingPerHut` era-fact is still declared in the manifests and still passed by
       six harness fixtures, so removing it is a small three-file change (manifest field, accessor,
       fixtures) rather than a one-liner.
-- [ ] **`CONFIG.settlerIntervalSeconds`**. Dead since E3, when `accrueGrowth` was replaced by
+- [x] **`CONFIG.settlerIntervalSeconds`** *(done 2026-08-25)*. Dead since E3, when `accrueGrowth` was replaced by
       `growPopulation` and people started being born where they will live. The harness already
       carries a comment saying so. This one IS a one-liner.
-- [ ] **`CONFIG.baseHousing`** *(added 2026-08-25, README pass)*. The third of the set, and the docs
+- [x] **`CONFIG.baseHousing`** *(added and done 2026-08-25)*. The third of the set, and the docs
       pass missed it because it is referenced by literally nothing — not `src/`, not the harness, not
       a manifest, so no grep for a live caller turns it up. Housing died in E3. One line.
       **Also in this pass:** the stale comment block above `housingPerHut()` in `derived.js`, which

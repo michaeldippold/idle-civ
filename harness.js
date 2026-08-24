@@ -711,6 +711,16 @@ console.log("\n--- E3: the timer, the hut and the lockstep are gone, and stay go
 
   check("accrueGrowth() is gone", api.accrueGrowth === undefined);
   check("housing() is gone", api.housing === undefined);
+  // The three that outlived the systems they served, swept 2026-08-25. The
+  // accessor is the instructive one: no manifest had declared housingPerHut
+  // for two reworks, so it was returning undefined to nobody -- dead code that
+  // no "is anything still calling this?" grep could find, because the answer
+  // was yes, and the caller was equally dead.
+  check("housingPerHut() is gone -- its era-fact had already stopped existing",
+    api.housingPerHut === undefined);
+  check("CONFIG.baseHousing is gone", !("baseHousing" in api.CONFIG));
+  check("CONFIG.settlerIntervalSeconds is gone -- growth is local to hexes and paid for",
+    !("settlerIntervalSeconds" in api.CONFIG));
   check("the 3-hex start: seat plus two neighbours, owner-ratified",
     S().map.owned.length === 3 && S().map.owned[0] === api.world.home);
 
@@ -1274,7 +1284,7 @@ console.log("\n--- Phase A: the compiler is loud about authoring mistakes ---");
 {
   const throws = (fn) => { try { fn(); return false; } catch (e) { return true; } };
   const mini = api.compileBase({
-    name: "T", housingPerHut: 1, panelTitles: {}, popNoun: { singular: "p", plural: "ps" }, arrivalLine: "x", raidTypes: [],
+    name: "T", panelTitles: {}, popNoun: { singular: "p", plural: "ps" }, arrivalLine: "x", raidTypes: [],
     resources: [], upgrades: [], units: [],
     buildings: [{ id: "x", name: "X", kind: "building", base: {}, scale: 1, buildTime: 1, reveal: () => true }],
     events: [], hints: [],
@@ -1305,7 +1315,7 @@ console.log("\n--- Phase B: the cross-reference validator ---");
 {
   const throws = (fn) => { try { fn(); return false; } catch (e) { return true; } };
   const okBase = () => ({
-    name: "V", housingPerHut: 1, panelTitles: {}, popNoun: { singular: "p", plural: "ps" }, arrivalLine: "x", raidTypes: [{ id: "raid", name: "raid", weight: 1 }],
+    name: "V", panelTitles: {}, popNoun: { singular: "p", plural: "ps" }, arrivalLine: "x", raidTypes: [{ id: "raid", name: "raid", weight: 1 }],
     resources: [{ id: "gold", name: "Gold", baseCap: 10, capBuilding: null }],
     buildings: [{ id: "mint", name: "Mint", kind: "building", base: { gold: 1 }, scale: 1, buildTime: 1, reveal: () => true }],
     upgrades: [], units: [], events: [], hints: [],
@@ -1369,7 +1379,7 @@ console.log("\n--- Phase B: the migration runner ---");
   // Two synthetic eras: OLD has a job and resources that NEW retires, plus
   // every migration primitive exercised at once.
   const OLD = api.compileBase({
-    name: "Old", housingPerHut: 1, panelTitles: {}, raidTypes: [],
+    name: "Old", panelTitles: {}, raidTypes: [],
     resources: [
       { id: "wood", name: "Wood", baseCap: 99, capBuilding: null },
       { id: "bronze", name: "Bronze", baseCap: 99, capBuilding: null },
@@ -1633,7 +1643,7 @@ console.log("\n--- C2: adversaries in the manifest, validated ---");
     advs.every(a => !a.buys || a.disposition === "peaceful"));
   const throws = (fn) => { try { fn(); return false; } catch (e) { return true; } };
   const base = () => ({
-    name: "T", housingPerHut: 1, panelTitles: {}, popNoun: { singular: "p", plural: "ps" }, arrivalLine: "x", raidTypes: [{ id: "raid", name: "raid", weight: 1 }],
+    name: "T", panelTitles: {}, popNoun: { singular: "p", plural: "ps" }, arrivalLine: "x", raidTypes: [{ id: "raid", name: "raid", weight: 1 }],
     resources: [{ id: "gold", name: "Gold", baseCap: 10, capBuilding: null }],
     jobs: [], buildings: [], upgrades: [], units: [], events: [], hints: [],
   });
@@ -2006,7 +2016,7 @@ console.log("\n--- Re-denomination: nouns, inheritance, consolidation ---");
   check("consolidation is per-border, never inherited", quiet.consolidate === null);
   const throws = (fn) => { try { fn(); return false; } catch (e) { return true; } };
   check("a base era without popNoun fails validation", throws(() => {
-    const raw = { name: "N", housingPerHut: 1, panelTitles: {}, raidTypes: [],
+    const raw = { name: "N", panelTitles: {}, raidTypes: [],
       resources: [], jobs: [], buildings: [], upgrades: [], units: [], events: [], hints: [] };
     api.validateManifests({ test: api.compileBase(raw) });
   }));
@@ -2038,7 +2048,7 @@ console.log("\n--- Siege: the machinery of the engine itself ---");
     m.units.find(u => u.id === "siegeEngine").reveal.toString().includes("siegeWorkshop"));
   const throws = (fn) => { try { fn(); return false; } catch (e) { return true; } };
   check("malformed walls are caught by the validator", throws(() => {
-    const raw = { name: "W", housingPerHut: 1, panelTitles: {}, popNoun: { singular: "p", plural: "ps" }, arrivalLine: "x", raidTypes: [{ id: "r", name: "r", weight: 1 }],
+    const raw = { name: "W", panelTitles: {}, popNoun: { singular: "p", plural: "ps" }, arrivalLine: "x", raidTypes: [{ id: "r", name: "r", weight: 1 }],
       resources: [], jobs: [], buildings: [], upgrades: [], units: [], events: [], hints: [],
       adversaries: [{ id: "x", name: "x", disposition: "warlike", strength: 5, walls: -3, campaignTime: 10 }] };
     api.validateManifests({ test: api.compileBase(raw) });

@@ -15,15 +15,14 @@ export const CONFIG = {
   upkeep: 0.04,           // food/sec eaten by EACH settler (idle or working)
   startPop: 3,
   startFood: 12,          // small buffer so you have time to assign a forager
-  baseHousing: 3,
-  settlerIntervalSeconds: 45,  // a new settler arrives this often while housing has room -- free.
-                               // THE growth-pacing dial; first guess, tune in play.
-                               // (Retires in engine-rework E2/E3; logistic hex growth below
-                               // is its successor and both run during E1's observation window.)
+  // (baseHousing and settlerIntervalSeconds died here in E3, with housing and
+  // the free-settler timer. Growth is local to hexes and paid for by claiming;
+  // popGrowthRate below is the successor to both.)
   popGrowthRate: 0.015,   // r in the logistic dP/dt = r*P*(1 - P/cap), per hex per second.
-                          // At 3-of-8 that is a first arrival in ~35s, near the settler
-                          // cadence above; growth visibly slows as a hex fills. The ONE
-                          // growth knob (engine rework E1).
+                          // At 3-of-8 that is a first arrival in ~35s -- deliberately close
+                          // to the 45s cadence of the settler timer it replaced, so E3
+                          // changed WHERE people are born without changing how fast.
+                          // Growth visibly slows as a hex fills. The ONE growth knob.
   starveCost: 5,          // food-equivalent of one starvation death (E4): while the larder
                           // is empty, every 5 food of unpaid upkeep kills one person at the
                           // frontier. Deficit-proportional -- a deep shortfall kills fast, a

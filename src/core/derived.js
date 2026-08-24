@@ -5,17 +5,13 @@ import { S } from "./state.js";
 import { log } from "../ui/log.js";
 
 // ---------- Derived values ----------------------------------
-// Housing per hut is era-keyed, so advancing retroactively upgrades every hut
-// you already own into a Stone House -- an immediate, visible jump rather than
-// a new building sitting next to an obsolete one. See design.md.
 // The play clock, derived: the tick count is the master record, seconds are
 // a display. Old saves that carried seconds are converted once at load().
 export function playtime() { return S.tick * TICK_SECONDS; }
-export function housingPerHut() { return active().housingPerHut; }
-// Housing is a timer-growth concept; under conquest growth there is no cap
-// on holdings, only on what you have taken. Infinity keeps every comparison
-// honest without a special case.
-// housing() died in E3: the land's carrying capacity is the only ceiling.
+// housing() died in E3, and housingPerHut() followed it in the same grave one
+// sweep later: the land's carrying capacity is the only ceiling there is. The
+// accessor outlived its era-fact by so long that no manifest declared the
+// field any more -- it had been returning undefined to nobody.
 export function totalUnits() { return Object.values(S.units).reduce((a, b) => a + b, 0); }
 // Under a levy (Iron onward) population SUPPORTS the army instead of
 // containing it: every holdfast stays in the assignable pool, and the war

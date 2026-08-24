@@ -11,6 +11,35 @@
 
 ---
 
+## 2026-08-25 — Three fields that outlived their systems
+
+**A sweep, not a fix — nothing here was broken, which is exactly the problem.** `housingPerHut()`,
+`CONFIG.baseHousing` and `CONFIG.settlerIntervalSeconds` all died in E3 when housing and the
+free-settler timer were deleted, and all three survived the funeral. They cost nothing at runtime
+and misled every reader.
+
+**The accessor is the instructive one.** `housingPerHut()` read `active().housingPerHut` — a field
+no manifest has declared for two reworks. So it was not "a function with no callers"; it was a
+function that ran, returned `undefined`, and handed it to nobody. A grep for live callers finds one
+and moves on. The only thing that catches this is reading it.
+
+`CONFIG.baseHousing` was the opposite failure and the reason the previous docs pass missed it: it is
+referenced by *nothing at all* — not `src/`, not a manifest, not even a harness fixture — so every
+search for a live use comes back empty and reads as a clean bill of health.
+
+Went with them: the three-line comment above the accessor explaining how an era advance retroactively
+upgrades every hut into a Stone House (a building that has not existed since E3), and a dangling
+cross-reference in `popGrowthRate`'s comment to "the settler cadence above." Deleting a mechanic and
+leaving the paragraph that explains it is how vestigial code grows back.
+
+Six harness fixtures stopped passing an inert `housingPerHut: 1`, and the E3 tombstone block now
+pins all three deaths the way it already pins `accrueGrowth()` and `housing()`. 611 -> 614 checks.
+
+*Not vestigial, checked and left alone:* `arrivalLine` is the same vintage and looks identical from
+a distance, but it is validator-required and genuinely live — printed when a hex grows.
+
+---
+
 ## 2026-08-25 — An army eats in proportion to itself
 
 **The flat column cap is gone after one day.** It was the wrong lever, caught in play: *"I had 4 of

@@ -8,186 +8,85 @@
 
 ---
 
-## STATUS — the engine rework is COMPLETE; test it, then back to the map (2026-08-24)
+## THE WORKING ORDER — read this first on a cold start *(owner priority, 2026-08-25)*
 
-**READ THIS FIRST on a cold start.** All six engine-rework slices (E1–E6) are shipped, green (520
-checks), committed and pushed. The owner tested through E3; **E4 and E5 are untested** — the next
-session opens with the combined test brief below, then the map arc resumes at slice 4 (the frame
-generator), finally with a known economy to size the board against.
+**This is the queue. Everything else in this file is the SPEC for one of these items.**
 
-### The E4+E5 test brief (owner, start here)
+The work had accumulated as a mix of *phases*, *slices* and *named changes* — three numbering schemes
+from three different plans, interleaved — and the owner correctly called it unreadable as a list of
+what happens next. The old labels survive below because they are how each item is specced and
+discussed; this section is the only place that says **when**.
 
-1. **Famine is geography now.** Overextend on purpose: claim past what your food supports, let the
-   larder empty. You should see "Famine. The stores are empty, and the frontier feels it first," and
-   your FURTHEST hex bleeding people while the seat holds. Each hex that empties is narrated — and
-   the ground stays yours (ghost hexes, still ringed). Refill food: ghost hexes quietly rekindle.
-   The run ends only if the SEAT empties.
-2. **No one is born during a famine** — hex counts freeze while food is zero.
-3. **Claims escalate.** Each hex beyond the trio costs ~1.18× the last (the 10th ≈ 3× base).
-   Combined with distance scaling — does expansion pacing feel better than "trivial" now?
-4. **Sickness and raids are real again.** A fever names the terrain it struck and takes a fifth of
-   that hex; a failed defense torches a FRONTIER hex. Click the struck hex — its people count
-   actually dropped. Infirmaries still negate globally.
-5. **The muster is the land**: army cap = hexes × 2, every era (unit cards show "muster N/cap").
-   Training draws a real person from your seat — watch the seat's count drop when a soldier
-   completes. Armies eat now, Stone included.
-6. **Judgment calls to bring back:** does the frontier-first famine read fairly? Is 1.18 claim
-   escalation right? Is a fifth-per-fever too spiky or too soft? Iron-era prices are KNOWN to be
-   trivial against the new economy — deliberately untouched for you to tune against play.
+### 1 — NOW: officially next in line
 
-### What the rework was, in one paragraph
+- **The map picker** *(map arc, slice 5)*. Named continents plus Random; the save stores
+  `{continent, seed}`; Random draws the continent from the seed so a bare number reproduces a random
+  run. **The owner has additions to this that raise its importance — ask before starting.**
+  Finishes the map arc, which is currently only reachable through a URL flag.
+- **Raid attribution** *(carry-over, C3)*. "The Hill Clans test your defenses" instead of an
+  anonymous warband. This is the anonymous-to-named beat the Stone-Age roster was built for: Stone's
+  raiders belong to nobody, and at Bronze you learn who they were. `hostilityMultiplier()` already
+  scales the conflict trigger by hostile warlike neighbours, so much of the wiring exists.
 
-Population lives on hexes and is a variable the world writes to; production is people × per-capita
-rate × terrain from the first minute; expansion is a paid, escalating claim; famine drains the
+### 2 — MAYBE AHEAD OF BOTH: the odometer
+
+The owner asked whether it is cheap enough to jump the queue. **Verdict: yes, the cheapest thing on
+this list** — a derived sum, an era multiplier, one formatter, one display slot. No new state, no save
+migration, nothing else reads it (rule 1: it never appears in a cost, cap, rate, requirement or
+stepper). Two decisions sit inside it, both small:
+
+- **It should multiply PEOPLE, not tiles.** The spec says `souls = Sum(tiles) x soulsPerTile(era)`,
+  written when tiles were the only lever at Iron. The engine rework made population a real per-hex
+  variable, so `Sum(hexPop) x soulsPerPerson(era)` is the honest version — and it satisfies the spec's
+  own requirement that "in Stone and Bronze the odometer and the lever are the same small number",
+  since Stone's multiplier is 1 and the display literally *is* your population.
+- **Where it lives on screen** is genuinely open. It is flavour, it must never look like a resource,
+  and it wants room to be long.
+
+One part deserves care rather than speed: the per-era multipliers *"want choosing deliberately once
+[...] cheap now, annoying to retrofit"*. Pick the whole ladder in one pass, not a rung at a time.
+
+### 3 — SOON AFTER: the era re-dress *(map arc, slice 7)*
+
+Prop-sets, palette, light and the camera pull-back — the revealed board changing clothes while the
+player watches. **The owner has ideas here too.** Wants it sooner rather than later, but behind
+everything above.
+
+### 4 — HELD, DELIBERATELY, AND NOT TO BE LOST
+
+- **The decision queue** *(phase 7)*. Held until wanted; the spec is complete and the pause-on-ask
+  seam is already built. Confirmed 2026-08-25 that this is exactly what it sounds like — the world
+  presents a choice and the player picks — and that it is the headline feature the time pivot
+  unlocked, because a choice can only wait for free once the clock stops when you look away.
+- **Scouting** *(map arc, slice 6)*. Back seat: still needs addressing, not urgent. Carries a live
+  constraint found in play — it must not delete the settle-blind gamble.
+
+### 5 — THE BIG ONE, GATED ON PURPOSE: the tech tree
+
+**What the owner is most excited about, and deliberately not next.** It is a major change, and the
+gate is that the open threads above should close first. Also the reason not to touch the dominion
+cap yet: a tree is a large new resource sink by design, and whether expansion self-limits is exactly
+what a new sink changes.
+
+### 6 — THE BACK SEAT, EXPLICITLY
+
+- **Priests and the envoy** *(6e)*, and anything else Enlightenment-shaped.
+- **STANDING RULE (owner, 2026-08-25): no more eras, and no more era-scale features, until the core
+  game is settled.** The tech tree comes before any of this. An age is not a thing to add to a game
+  whose fundamentals are still moving.
+
+---
+
+### What the engine rework was, in one paragraph *(shipped; kept for cold starts)*
+
+Population lives on hexes and is a variable the world writes to; production is people x per-capita
+rate x terrain from the first minute; expansion is a paid, escalating claim; famine drains the
 frontier inward toward the seat; sickness and raids strike hexes; the army answers to the land and
 recruits from the capital. Deleted whole: steppers, jobs, housing, the hut, the settler timer, the
 lockstep, consolidation, the levy, `outputMult`, `allocation`, `growth`, instant starvation, and
-`removeSettler`. `S.pop` survives only as a mirror (hex sum + army). Canon: `design.md` →
-*Population Lives Somewhere*; spatial half in `map.md` §2.7; numbers in the phase plan below.
-
-### The order from here
-
-1. **Owner tests E4+E5** (brief above); feel-tuning knobs: `starveCost` 5, `claimScale` 1.18,
-   sickness fifth, `armyPerHex` 2.
-2. **Map arc slice 4 — the frame generator** (coastline → hex packing → islands → named
-   sub-streams, ~120 land hexes). Then 5 (the picker), 6 (scouting-as-intelligence — the claiming
-   half already shipped in E3), 7 (the era re-dress).
-3. Behind those: the balance pass (iron re-pricing, the E3/E4/E5 judgment flags, stone-age minors
-   as expansion's long-term cost), the tech tree (parked, specced), 6e priests & envoy, phase 7
-   decision queue, and the Claude Design panel pass against the diorama.
-
-**The all-food dominance run and its fix (owner + Claude, 2026-08-24):** going pure food was
-functionally invincible — claims were priced in the one flow every hex produces best, food had no
-competing sink, storage caps limit stock not rate, and an all-food empire is famine-proof, which
-neutralized E4's entire brake. Two rulings came out of it:
-
-- **Claims are multi-resource, era-signed** *(shipped)*: every claim costs food + wood + stone,
-  and from Bronze onward the age's SIGNATURE resource rides along (bronze 3, iron 5, and one day
-  electricity) — the capstone pricing rule applied to the frontier. The party carries provisions,
-  timber, tools, and the age's technology. No era's economy can be skipped while the dominion
-  keeps growing. (A claims-cost-people proposal was considered and rejected on the math: a
-  2-person party regrows in ~90 seconds — a rounding error, not a brake.)
-- **Sim speed becomes a tech-tree unlock** *(logged in the tech tree spec, deliberately NOT
-  implemented)*: 12× at Stone is the power to take the continent in the first age. The free
-  toggle stays as the QA tool; the owner test-plays at 1× by hand.
-
-Still ahead on the same problem: **stone-age minors** (contested land — and all-food means no
-military, which those punish hard).
-
-**Balance scoping ruling (owner, 2026-08-24): tune to CLOSE ENOUGH, then move on.** Three
-unbuilt systems will each reshape the economy anyway, so perfecting it now is polishing sand:
-(1) buildings are the game's oldest content, now reflavored as the capital (Luthadel) — they get
-a real rework when they start holding us back; (2) the tech tree is an entire resource sink that
-will compete with growth and expansion; (3) real adversaries bring campaigns, caravans and being
-looted — all economic weather. Current numbers need only to make the ARC feel right (expand →
-wall → develop → era), not to survive contact with systems that don't exist yet.
-
-**Dominion cap playtest (owner, 2026-08-24, mid-test):** hit the 7-cap at ~5 minutes and it
-"feels like plenty — maybe even generous"; the wall forced the intended refocus onto buildings and
-upgrades; selection ran on visibility + resource needs. Two tuning signals held for the balance
-pass rather than acted on: (1) **7 may be a notch high** — 6 would bite a minute earlier; (2)
-**production still runs above the old Bureau baseline** even inside the cap, so if the whole
-economy wants tightening later, the lever is per-capita rate or terrain caps, not more expansion
-nerfs — expansion is now governed.
-
-**Neighbours from the Stone Age (owner ruling, 2026-08-24) — slice 1 of 3, SHIPPED.**
-The roster is fixed at generation and exists in every age; the era only redresses it. Three majors
-on their home terrain plus the minor tier by density, present from the first minute, visible when
-charted, unsettleable, and untouchable at Stone. `contact` is the new era-fact: Stone `none`
-(nobody exists who could send an army), Bronze/Iron `open`. Majors strictly outrank minors within
-an age, and each people strengthens every age it survives. Minor names became bare LANDSCAPE
-places with the era supplying the noun (camp / steading / freehold), because the old pool baked
-settlement nouns in and "the Broken Tower" cannot be redressed backwards into the Stone Age.
-
-*Still open on this arc:*
-- [x] **Slice 2 — larders that grow and refill per age** *(shipped 2026-08-24)*. Stock and
-  walls now follow the age: they refill at every era flip and are larger each time, while `standing`
-  is never re-seeded. Depletion persists WITHIN an age and not across one. This also repaired a
-  regression the roster move introduced — seeding-once meant every Iron major stood unwalled with a
-  stone-age larder and no gold at all, so caravans read "traded dry" the instant they launched.
-- [x] **Slice 3 — Bronze's war party** *(shipped 2026-08-24)*. `muster: { building, column }` is
-  the new era fact: Bronze gathers at a **War Camp**, Iron at a Muster
-  Ground with no ceiling. This also closed a real hole — `contact: "open"` at Bronze was a promise
-  the era could not keep, since the only mustering building in the game was Iron's, so the March
-  button appeared and sat permanently disabled. Reach still needs no rule: `marchFactor` makes
-  distance the limit. Iron stays UNCAPPED, deliberately, so the war party feels as small as it is;
-  capping Iron would be a balance change nobody asked for.
-- **Anonymous raids become attributed at Bronze.** Stone's raiders belong to nobody; the beat is
-  that at Bronze you learn who they were. `hostilityMultiplier()` already scales the conflict
-  trigger by hostile warlike neighbours, and standing starts neutral (0; hostile is <= -2), so
-  nothing spiked when the roster moved to Stone. Unbuilt.
-- **Minors sit as close as distance 2** (138 of 300 seeds), so with the Stone cap at 7 hexes,
-  roughly half of runs have a blocked hex inside the opening bubble from minute one. Intended
-  friction — it is what makes terrain routing matter at Stone — but it is the first number to
-  read off a playtest.
-- **A camp reports "Known stock: 30 food, 20 wood" before you have ever been near it.** Free
-  intelligence, and it should probably be scouting's job (slice 6).
-
-**Full run to Iron (owner playtest, 2026-08-25).** Two bugs found and fixed on the spot (the Forge
-throughput, the column cap), and one confirmation worth keeping: **a minor was subdued in Bronze,
-swore fealty, and joined** — the conquest-growth loop works end to end at the era it now unlocks in.
-
-**THE DOMINION CAP NEVER BIT, and that is the finding.** The owner stopped expanding at 7 hexes
-*"because I didn't need more resources for what stone wants, only realizing I'd hit the cap later."*
-The cap was introduced (2026-08-24) to brake an expansion that felt free. It has since been joined
-by multi-resource era-signed claims that escalate per claim — and those, plus Stone's short list of
-things to spend on, now stop expansion on their own. Demand ran out before the ceiling did.
-
-That is the *good* outcome (the economy self-limits rather than a rule saying no), but it makes the
-cap's status a real question rather than a tuning one:
-
-- It may be **redundant at Stone** and worth testing without, since the thing it was built to stop
-  no longer happens.
-- It may still be doing necessary work at **Bronze and Iron**, where the sink list is longer and the
-  economy compounds harder — untested either way.
-- Earlier signal pointed the other way (*"7 may be a notch high"*, same day). Both readings are now
-  on the table and neither has been run.
-
-*Do not tune this before the tech tree lands.* A tree is a large new resource sink by design, and
-whether expansion self-limits is exactly the thing a new sink changes.
-
-**Parked (owner observation, 2026-08-25): a march and a build advance at the same time, in one
-panel.** Spotted in play — a column marching on the steading at Larkmoor sitting at 65% while an
-Archer built to 25% beside it. Owner's own read: *"thinking about this I am not sure I object, we
-may just need to find a new way to depict campaigns in progress."* Not urgent; recorded before it
-was forgotten.
-
-**The behaviour is correct and deliberate.** `resolveExpeditions(dt)` runs unconditionally in
-`step()`, entirely independent of `buildQueue[0]`. They are two separate single-slot pipelines: one
-campaign out at a time (`expeditionOut`), one building under construction at a time (the queue is
-the scarcity). A column on the road does not occupy your builders, and it should not — the people
-who marched are units, not labour. Nothing to fix in the sim.
-
-**The mismatch is purely in the depiction.** Two independent tracks are rendered as one list under a
-panel whose default title is *Build Queue*, which implies a single pipeline where a march is
-somehow "ahead of" an Archer. Expedition cards already carry their own class (`queue-card
-expedition`, dashed) so the visual language is half there.
-
-*The cheapest fix already exists in the codebase, one era too late:* `iron.js` renames this panel
-via `panelTitles` to **"Underway"** — a neutral word that covers both tracks honestly. Promoting that
-name to the base manifest is a one-line change and probably most of the answer. Beyond that, if the
-two tracks want real separation, the options are a divider inside the panel or giving expeditions
-their own strip above the builds (the renderer already sorts them to the top).
-
-**QA affordances (2026-08-24), so testing a map does not mean playing to it:**
-`?continent=broadwater|longreach|thescatter` forces a continent (standing in for slice 5's
-picker); the header's **Reveal** button toggles the whole board visible and back, as a lens that
-touches no state; and `?map=2d` now shows every tile's TRUE terrain with uncharted ground marked
-only by a hairline edge — a debug surface sees everything. Existing flags unchanged: `?glcheck=1`
-(readable canvas), `?map=2d` (SVG renderer).
-
-`?era=iron` (added 2026-08-24) jumps the run's era before the world is built, and it exists for one
-reason: **adversaries only exist at Iron**, so judging where a seed puts your neighbours otherwise
-meant playing two full eras to find out. Reveal alone could not answer the question the owner was
-asking it — there was nothing on a Stone board to reveal. It is a lens on GENERATION, not a
-legitimate advance: it sets the era and nothing else, so unlocks, costs and the log all read as
-though you arrived by magic. Pair it with `?continent=` and Reveal to read a seed in one glance.
-
-**Open flake, recorded verbatim per policy (2026-08-24):** one harness run in ~80 failed TWO
-checks together, post-E5, identity not captured (the run scrolled past). 70+ consecutive greens
-since. Most likely another fixture where E5's own fevers strike an unpinned window — the
-capital-musters fixture had exactly that shape and is now pinned. Next failure: capture the check
-names before re-running.
+`removeSettler`. `S.pop` survives only as a mirror (hex sum + army). Canon: `design.md` —
+*Population Lives Somewhere*; spatial half in `map.md` 2.7; numbers in the phase plan below.
+**Tested through Iron by the owner on 2026-08-25** — see the playtest notes below.
 
 ### Standing notes
 
@@ -238,6 +137,10 @@ the map for the engine: *"it's clear it was right to do this first."*
 
 ### Next up, decided (2026-08-22, evening): the 3D map spike
 
+> **Superseded as an ORDERING by THE WORKING ORDER at the top of this file (2026-08-25).**
+> Kept for the reasoning; it no longer says what happens next.
+
+
 **The fork:** the evocative-art ruling opened two routes for the map's paint layer. Route A (in
 `map.md` §8 today): 2D SVG + commissioned painterly tilesets — art cost scales linearly with 12
 eras. Route B (proposed via `spikes/threejs-hex-map-guide.md`, a technically sound external guide):
@@ -272,7 +175,7 @@ import maps; "a canvas is a bag of pixels" was overstated: the scene graph is qu
 semantic pixel-checks fall to human review) and `map.md` §8. If it loses, delete the branch;
 nothing else was touched.
 
-### Phase 10 — 3D map integration *(next build phase; sequencing vs the UI talk is the owner's call)*
+### Phase 10 — 3D map integration *(slices 1-4 shipped; 5, 6 and 7 are queued in THE WORKING ORDER)*
 
 **The build order (owner: "organizing implementation entirely to you", 2026-08-22).** One thing
 changes per slice, every slice ends playable, and the riskiest work happens in a slice where
@@ -446,7 +349,11 @@ Port the map stage from SVG to the spike's renderer, for real:
 - [ ] Verification: keep readPixels smoke checks + the 2D debug view as the assertable surface;
       owner-eye QA for aesthetics, per the revised tech.md contract.
 
-### Held until the UI conversation (in intended order)
+### Held until the UI conversation
+
+> **Superseded as an ORDERING by THE WORKING ORDER at the top of this file (2026-08-25).**
+> Kept for the reasoning; it no longer says what happens next.
+
 1. **The design-thread verdict** — panel juggling/legibility against the diorama. The identity
    itself is no longer on the table: paper is out (war-table candidate killed same-day; see
    `interface.md`) and the successor is ruled — **the digital tabletop**, the lit 3D board

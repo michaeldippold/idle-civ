@@ -11,6 +11,19 @@
 
 ---
 
+## 2026-08-25 — Purple by default
+
+Owner ruling, and the reasoning is the whole entry: *"it is my game and I am the only player right
+now."* A default colour is a preference until there is somebody to negotiate with.
+
+Four places had green baked in as the fallback -- , , the renderer's
+pre-hook fallback, and two CSS  defaults -- and the check pinning 
+against  is what guarantees the first two can never drift apart again. It was written
+for exactly this: one fact living in two files because palette reads  and importing the constant
+would be a cycle.
+
+---
+
 ## 2026-08-25 — One rim, one width, one colour at a time
 
 **Caught by the owner in play, and it was three bugs wearing one coat.** Rims changed width as the

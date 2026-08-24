@@ -66,7 +66,9 @@ const RIM_OUTER = 0.94, RIM_INNER = 0.82;
 // rings at an identical height would z-fight.
 export const RIM_Y = { owned: 0.03, hover: 0.045, select: 0.06 };
 
-const FALLBACK = { ring: "#6fbf47", hover: "#8ad45c", focus: "#a6ec72" };
+// Mirrors palette.js DEFAULT_COLOR; only reached if a rim is drawn before the
+// palette arrives through the hooks.
+const FALLBACK = { ring: "#8a5fd0", hover: "#9f76e3", focus: "#b48cf5" };
 function ringHex(pal, key) { return new THREE.Color((pal || FALLBACK)[key] || FALLBACK[key]); }
 
 export function elevationOf(place) {

@@ -1062,7 +1062,7 @@ body.dead #mainArea .block { filter: saturate(.25); }
   font-size: 15px; font-weight: 700; letter-spacing: 0;
   color: #fdf8ec;
 }
-.map3d-glyph.home  { font-size: 22px; color: var(--player-glyph, #6fbf47); }
+.map3d-glyph.home  { font-size: 22px; color: var(--player-glyph, #c3a3ff); }
 /* A HOUSE MEANS A HOME; the colour says whose. YOURS is the colour you picked
    on the start screen, THEIRS is white -- which makes "who else lives on this
    board" answerable at a glance, without reading a single label. Size grades
@@ -1097,7 +1097,7 @@ body.dead #mainArea .block { filter: saturate(.25); }
   text-shadow: var(--player-halo, 0 0 3px rgba(8, 10, 14, .95), 0 1px 2px rgba(8, 10, 14, .9));
 }
 .map3d-glyph .part { font-family: var(--mono); font-weight: 700; line-height: 1; }
-.map3d-glyph .part.home { font-size: 22px; color: var(--player-glyph, #6fbf47); }
+.map3d-glyph .part.home { font-size: 22px; color: var(--player-glyph, #c3a3ff); }
 /* The work letter stays a fixed neutral parchment and does NOT follow the
    player's colour, deliberately: it is a READOUT, not an identity. Tying it to
    the player would collapse ring, house and letter into one hue for whoever

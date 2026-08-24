@@ -61,7 +61,9 @@ export const PLAYER_COLORS = [
   { id: "black",  name: "Black",  ring: "#1b1f27", hover: "#39414e", focus: "#5a6474", glyph: "#23272f", halo: "light" },
 ];
 
-export const DEFAULT_COLOR = "green";
+// Purple, on the owner's rule: "it's my game and I am the only player right
+// now." A default is a preference until there is somebody to negotiate with.
+export const DEFAULT_COLOR = "purple";
 
 // THEIRS. A power and a steading are the same kind of thing at different
 // sizes, exactly as they were when both were red -- the size grading in
@@ -88,8 +90,8 @@ export function colorById(id) {
 }
 
 // The run's colour. Reads through a lookup rather than trusting the save: a
-// hand-edited or future-dated `playerColor` falls back to green instead of
-// painting the board with `undefined`.
+// hand-edited or future-dated `playerColor` falls back to the default instead
+// of painting the board with `undefined`.
 export function playerColor() {
   return colorById(S && S.playerColor);
 }

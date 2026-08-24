@@ -39,7 +39,7 @@ export function freshState() {
     // here would make state and palette a cycle for one string. The harness
     // asserts this equals palette's DEFAULT_COLOR instead, which is the cheaper
     // of the two ways to keep one fact in two files honest.
-    playerColor: "green",
+    playerColor: "purple",
     // What the player calls their capital. Optional by design -- empty means
     // the game's own words ("Your Seat"), which is a perfectly good answer and
     // the reason naming is never a gate on starting a run.

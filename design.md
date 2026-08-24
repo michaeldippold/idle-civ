@@ -1031,6 +1031,30 @@ never whether**: the trigger roll and `hostilityMultiplier()` upstream already m
 *rate*, so standing only weights which warlike neighbour gets named. Attribution adds no danger; it
 adds a subject to the sentence.
 
+**Where raids are going: a name, a home, and a road** *(owner intent, 2026-08-25 — previewed, not
+scheduled)*. *"Raids being fairly random is probably going to die when named adversaries arrive in
+Bronze. I eventually want you to be able to see which adversary raided you, and what path they took
+from their home hex to get there."*
+
+**Half of it already shipped, the same day.** `raidAttribution()` names the raider from Bronze on, so
+the Chronicle already says *the Hill Clans* rather than *a warband*. What is missing is the spatial
+half, and recording the pieces now because they are not obvious:
+
+- **It is not only a drawing — it should move where raids LAND.** `strikeHex("raid")` currently picks
+  its target exposure-weighted by `population × adminDistance`, i.e. distance from *your* seat. If a
+  raid comes from a named people, exposure should be measured from *their* seat instead. Raids would
+  then fall on the ground nearest the raider rather than merely on your frontier, which is what makes
+  geography defensive — and it is the mechanic that gives **Build Fortifications** something real to
+  protect against (see *Building on a Hex*).
+- **`routeCost()` returns a COST, not a route.** It is a multi-source Dijkstra from your whole
+  dominion; drawing the road a raid took needs a path *from one seat to one hex*, which means
+  retaining predecessors. Small, but it is a new function rather than a caller of an existing one.
+- **It does not breach the pathing ban, and the reason is worth writing down once.** *Out of Scope*
+  forbids rendered units and movement along routes — a raid's road is a **diagram drawn after the
+  fact**, the same information the muster sheet already prints as text, with nothing travelling along
+  it. The motion law governs the rest: drawing itself once as the raid lands shows a CHANGE, which is
+  allowed; anything that pulses or crawls afterwards would be a STATE, which is not.
+
 **Campaigns:** pick a target, allocate units with the same steppers jobs use (send some, keep some —
 the split is the decision), pay a provision, and the column marches. Resolution is the raid math
 pointed outward, as a ratio. Win and you carry home a large fraction of their remaining stock; they are

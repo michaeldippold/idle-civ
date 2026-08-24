@@ -48,8 +48,8 @@ const WET = new Set(["water", "river"]);
 // Passed in, never imported -- same rule as `isOwnedFn` below, and for the
 // same reason: this module draws, it does not know whose board it is drawing.
 // `pal` is a core/palette.js entry; the fallback keeps a bare call working.
-const FALLBACK = { ring: "#6fbf47", focus: "#a6ec72" };
-function ringColor(pal, key) { return new THREE.Color((pal || FALLBACK)[key] || FALLBACK[key]); }
+const FALLBACK = { focus: "#a6ec72" };
+function focusColor(pal) { return new THREE.Color((pal || FALLBACK).focus || FALLBACK.focus); }
 
 export function elevationOf(place) {
   const base = ELEV[place.terrain] != null ? ELEV[place.terrain] : 0.1;
@@ -61,7 +61,7 @@ export function elevationOf(place) {
 
 // `places` is the already-filtered list the stage wants drawn; `isOwnedFn` is
 // passed in rather than imported so this module stays ignorant of game state.
-export function buildTerrain(places, isOwnedFn, isRevealedFn, pal) {
+export function buildTerrain(places, rimFn, isRevealedFn) {
   const land = new SoupBuilder();
   const wet = new SoupBuilder();
   const rings = new SoupBuilder();
@@ -71,6 +71,9 @@ export function buildTerrain(places, isOwnedFn, isRevealedFn, pal) {
 
   const topColor = new THREE.Color();
   const wallColor = new THREE.Color();
+  // Reused: ringInto copies the value into the vertex buffer immediately, so
+  // one scratch colour serves every rim on the board.
+  const rimColor = new THREE.Color();
 
   for (const p of places) {
     if (!shown(p.id)) continue;   // the unknown world is not drawn
@@ -106,9 +109,15 @@ export function buildTerrain(places, isOwnedFn, isRevealedFn, pal) {
       soup.tri(a, b2, a2, wallColor);
     }
 
-    // Owned country wears a rim. One merged mesh for all of them, so dominion
-    // costs one draw call however far it spreads.
-    if (isOwnedFn(p.id)) ringInto(rings, cx, e + 0.03, cz, ringColor(pal, "ring"), 0.94, 0.82);
+    // INHABITED ground wears a rim, and its colour says whose -- your colour on
+    // your country, white on a power's, a shade below that on a steading. The
+    // decision is made upstream by `rimFor` (ui/map.js) off the mark ladder;
+    // this module is handed a colour or a null and draws accordingly, which is
+    // the same ignorance rule `isRevealedFn` follows.
+    // One merged mesh for all of them, so a board full of rims still costs one
+    // draw call however far dominion spreads.
+    const rim = rimFn(p);
+    if (rim) ringInto(rings, cx, e + 0.03, cz, rimColor.set(rim), 0.94, 0.82);
   }
 
   const landMesh = new THREE.Mesh(land.build(), new THREE.MeshStandardMaterial({
@@ -138,7 +147,7 @@ export function buildRing(kind, pal) {
   // Hover and selection are the player's colour at FULL strength while owned
   // country wears it quieted -- the tile under the cursor should come forward,
   // and a darker ring reads as recessive on a board this bright.
-  const col = ringColor(pal, "focus");
+  const col = focusColor(pal);
   const [outer, inner] = kind === "select" ? [1.0, 0.84] : [0.97, 0.87];
   ringInto(soup, 0, 0, 0, col, outer, inner);
   const mesh = new THREE.Mesh(soup.build(), new THREE.MeshBasicMaterial({

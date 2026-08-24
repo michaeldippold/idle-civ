@@ -11,6 +11,31 @@
 
 ---
 
+## 2026-08-25 — Foreign ground wears a rim too
+
+**A one-line request with a good instinct behind it (owner's): give adversary hexes a white rim like
+your hexes have yours, "to make the little house icon slightly less load bearing."** Exactly right —
+a single 22px glyph was carrying "somebody lives here" on its own, at tile scale, over lit terrain.
+The rim states it at the scale of the thing being stated, and the house becomes confirmation rather
+than sole evidence.
+
+**Built through the mark ladder rather than beside it.** `rimFor()` asks `markFor()` what a tile is
+and colours the rim from the answer — your colour on your country, white on a power's, a shade below
+on a steading. Deriving ownership and adversary-ness locally would have been fewer lines and exactly
+the duplication that let the 2D stage drift into drawing diamonds where the 3D board drew houses. A
+check now walks every tile and fails if the two ladders disagree about who lives there.
+
+**The honesty rule comes along free, and that is the reason for the routing.** `markFor()` returns
+null for uncharted ground, so a rim cannot appear on merely *sighted* land — sight reveals the board
+and never the pieces, and a rim announcing "someone lives here" is a piece. Mutation-tested:
+re-deriving the rim from `p.adversary` directly fails both the leak check and the agreement check.
+
+`buildTerrain()` got simpler on the way. It took an `isOwnedFn` and a palette and decided the rim
+colour itself; it now takes a rim function and draws whatever colour it is handed, which is the same
+ignorance rule the rest of the module already followed. 653 -> 661 checks.
+
+---
+
 ## 2026-08-25 — Yours, theirs, and the colours the board shouts in
 
 **Slice A of the start-screen work: the colour plumbing, ahead of the picker that uses it.** A

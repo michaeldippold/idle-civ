@@ -106,8 +106,22 @@ the harness.
 | Job | Colour | Where it appears |
 |---|---|---|
 | **Yours** | the player's pick, chosen on the start screen | owned hex rims, your seat's house, hover + selection rings |
-| **Theirs** | **white** (steadings a shade below) | every power and steading on the board |
+| **Theirs** | **white** (steadings a shade below) | foreign hex rims, powers' and steadings' houses |
 | **Reserved** | **red, orange, yellow** | status only — nothing that means *who* may use them |
+
+**Inhabited ground wears a rim, and the rim says whose** *(owner request, 2026-08-25)*. Foreign
+seats used to be identified by their house glyph alone, which made one small mark carry the entire
+job; a rim in the same colour states it at tile scale and lets the house be confirmation rather than
+the only evidence.
+
+`rimFor()` is routed **through `markFor()`** rather than re-deriving ownership and adversary-ness,
+which is the whole point: the rim and the glyph cannot disagree about who lives on a tile. That is
+the same duplication that let the 2D stage drift into drawing diamonds, and a harness check now
+compares the two ladders across every tile on the board.
+
+Charting comes along free. `markFor()` returns null for anything uncharted, so a rim can never
+appear on merely-**sighted** ground — which matters, because sight reveals the *board* and never the
+*pieces* (`map.md`, slice 4b), and a rim saying *someone lives here* is a piece.
 
 **Powers were red until this ruling, and the argument that moved them is a design one, not a palette
 one.** Most neighbours are not enemies: `riverKingdom` and `saltNomads` ship

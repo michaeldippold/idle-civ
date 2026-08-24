@@ -22,7 +22,7 @@ discussed; this section is the only place that says **when**.
 The owner set this sequence explicitly on pausing. It reorders the tiers below: tech debt first
 because *"tech debt is real"*, then the unsexy-but-unfinished thing, then the map picker.
 
-**Where things stand *(updated 2026-08-25, mid-session)*:** harness green at **653 checks**, working
+**Where things stand *(updated 2026-08-25, mid-session)*:** harness green at **661 checks**, working
 tree clean, everything pushed. **Items 1 and 2 below are done, plus a display pass off the owner's
 ideation doc (the seat now reports its work; houses got bigger; the 2D stage stopped drifting from
 the mark ladder). Item 3 is the stop sign — ask the owner before starting it.** The session before shipped the adversary arc (roster from the Stone Age,

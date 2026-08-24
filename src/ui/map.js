@@ -4,7 +4,7 @@ import { capWord } from "../core/derived.js";
 import { save } from "../core/persist.js";
 import { launchSettle, pendingSettle, settlePlan } from "../core/actions.js";
 import { world, isOwned, isCharted, isVisible, capOf, hexPop, atDominionCap, dominionCap, holdsUsed } from "../map/map.js";
-import { playerColor } from "../core/palette.js";
+import { FOREIGN, FOREIGN_MINOR, playerColor } from "../core/palette.js";
 import { hexDistance, hexPoints, toPixel } from "../map/model.js";
 import { campaignPlan, expeditionOut, musterBuilt, standingWord } from "../sim/expeditions.js";
 import { attachTip, tipHide, tipMove, tipShow } from "./dom.js";
@@ -336,6 +336,26 @@ export function markFor(p) {
   return null;
 }
 
+// THE RIM A TILE WEARS -- the same question the mark ladder answers, asked of
+// the hex edge instead of the glyph above it (owner request, 2026-08-25: give
+// foreign ground a rim so the little house stops carrying the whole job on its
+// own). Deliberately routed THROUGH markFor rather than re-deriving ownership
+// and adversary-ness here: that is exactly the duplication that let the 2D
+// stage drift into drawing diamonds, and one ladder is the fix that stuck.
+//
+// Charting comes along free. markFor() returns null for anything not charted,
+// so a rim can never appear on merely-SIGHTED ground -- which matters, because
+// sight reveals the BOARD and never the PIECES (map.md, slice 4b), and a rim
+// saying "someone lives here" is a piece.
+export function rimFor(p) {
+  if (isOwned(p.id)) return playerColor().ring;
+  const m = markFor(p);
+  if (!m) return null;                       // uncharted, or empty country
+  if (m.cls === "seat") return FOREIGN;
+  if (m.cls === "minor") return FOREIGN_MINOR;
+  return null;
+}
+
 export function renderMapStage() {
   const stage = document.getElementById("mapStage");
   if (!stage) return;
@@ -440,6 +460,7 @@ async function init3d(stage) {
       // The renderer draws; it does not know whose board it is. Same rule the
       // mark ladder follows -- state arrives through hooks.
       palette: playerColor(),
+      rimFor,
       onPick: (id) => selectTile(id),
       onHoverChange: (p, ev) => {
         if (!p || !ev) { tipHide(); return; }

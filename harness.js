@@ -2473,6 +2473,43 @@ console.log("\n--- Phase 10: the renderer port keeps the marks ---");
   check("ordinary owned country is not composite", !api.markFor(P(ownedId)).sub);
   check("a rival's hall is not composite", !api.markFor(seat).sub);
   check("a steading is not composite", !api.markFor(minor).sub);
+
+  // THE RIM LADDER (owner request, 2026-08-25). Inhabited ground wears a rim
+  // and its colour says whose. It is routed through markFor() rather than
+  // re-deriving ownership, so the rim and the glyph can never disagree about
+  // who lives on a tile -- the drift that produced diamonds in the 2D stage.
+  const pal = api.playerColor();
+  check("your country wears your colour", api.rimFor(P(homeId)) === pal.ring);
+  check("...on every holding, not just the seat", api.rimFor(P(ownedId)) === pal.ring);
+  check("a power's ground wears the foreign rim", api.rimFor(seat) === api.FOREIGN);
+  check("a steading wears the quieter foreign rim", api.rimFor(minor) === api.FOREIGN_MINOR);
+  check("empty country wears no rim at all", api.rimFor(wild) === null);
+
+  // THE HONESTY RULE, and the reason this went through markFor. Sight reveals
+  // the BOARD, never the PIECES -- so ground you can see across water but have
+  // not charted must not wear a rim announcing that somebody lives on it.
+  // Target the actual leak: an INHABITED tile that has not been charted. Any
+  // old uncharted tile is usually empty country, which would pass this check
+  // without ever exercising it.
+  const hiddenHome = Object.values(api.world.places)
+    .find((x) => !api.isCharted(x.id) && (x.adversary || x.minor));
+  check("there is somebody out there still uncharted (the check has something to bite on)",
+    !!hiddenHome);
+  check("uncharted ground wears no rim -- a rim is a piece, and sight shows only board",
+    !hiddenHome || api.rimFor(hiddenHome) === null);
+
+  // The two ladders agree by construction; this is the check that fails if
+  // someone re-derives one of them locally again.
+  const disagree = Object.values(api.world.places).filter((x) => {
+    const m = api.markFor(x), r = api.rimFor(x);
+    if (!m) return r !== null;                       // no mark -> no rim
+    if (api.isOwned(x.id)) return r !== pal.ring;
+    if (m.cls === "seat")  return r !== api.FOREIGN;
+    if (m.cls === "minor") return r !== api.FOREIGN_MINOR;
+    return false;
+  });
+  check("the rim and the mark never disagree about who lives on a tile", disagree.length === 0);
+
 }
 
 console.log("\n--- Slice 4c: neighbours by density, seated on their own ground ---");

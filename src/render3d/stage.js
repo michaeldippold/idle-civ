@@ -215,7 +215,7 @@ export function setWorld(list, opts) {
   // reveals the board, never the pieces.
   isVisible = o.isVisible || (() => true);
   isCharted = o.isCharted || isVisible;
-  const built = buildTerrain(list, o.isOwned || (() => false), isVisible, hooks.palette);
+  const built = buildTerrain(list, hooks.rimFor || (() => null), isVisible);
   elev = built.elev;
   worldGroup.add(built.landMesh, built.wetMesh, built.ringMesh);
   worldGroup.add(buildProps(list, elev, o.homeId, isCharted));

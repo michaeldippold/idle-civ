@@ -467,6 +467,49 @@ seconds; hex allocation is a decision every few minutes, with expeditions and wa
 filling the gaps. That is probably the right rhythm for the era, but the *density never falls* pillar
 is the one most at risk here, and it is measurable.
 
+### Building on a Hex — the design space, and its one law
+
+*(Owner direction, 2026-08-25. The CONTENT — which structures exist — is deliberately not specced
+here. What is settled is the shape, because the shape is what the code has to be ready for.)*
+
+**A hex is exactly one thing, and that is not a new rule.** `S.map.work[id]` already holds a single
+value: a hex is turned to food *or* wood *or* stone, never several, with mutually-exclusive controls
+and a `rest` state. Building on a hex widens that same slot rather than adding a second one — a
+hex's use is a **resource or a structure**, never both, and never a parallel town alongside its
+fields. *"You are not building a parallel town there, it's either a resource hex or a farm or a
+fortification. Never mixed."*
+
+Worked examples, illustrative rather than committed: **Build Fortifications** turns a producing hex
+into a fortified one that lowers strike chance on its neighbours; **Build Farm** turns the ground
+golden and stands a haybale on it. In both cases the resource props sink and the structure rises —
+see the animation ruling in *Explicitly Out of Scope*.
+
+**The rulings, settled:**
+
+- **A built hex still holds its people.** The fiction is that the people are doing the new thing
+  rather than having left: build a farm and they are all farming, build a fortification and they are
+  manning the walls. Population, terrain caps and the famine drain are untouched — only what the
+  hex PRODUCES changes.
+- **It shares the build queue.** Not for realism but for pacing: the queue is one of the strongest
+  anti-speedrun instruments the game has, and a structure competing with a Forge for the front of it
+  is friction worth keeping.
+- **It re-dresses like everything else, when it makes sense** — not on a schedule. A farm is a farm
+  and can hold that word to the end of Earth; a fortification cannot, because *"a mechanized total
+  warfare society can't have stone palisades."* Same rule as every other noun (see *The Noun Table*).
+- **It is reversible, and the reversal costs.** A built hex carries a control that destroys the
+  structure and returns the hex to being a resource hex. **No refund** — so converting is a real
+  trade rather than a free toggle you flip per situation.
+
+**The seats are not an exception.** Your capital and the neighbours' seats stay RESOURCE hexes that
+merely *show* buildings; their houses are decoration, not a use.
+
+**Why this is specced before it is built.** The owner's instruction is to prepare the ground rather
+than the content: *"the most important thing to me right now is not that we build specifically a farm
+and a fortification, but rather that we prep the infrastructure for it, since this will be a big
+design space going forward — like we did when we preemptively separated the visual layer from the map
+logic layer. It made doing 3D very easy."* That separation is the precedent and the standard: the
+right preparation is a seam, not a feature.
+
 ### Resources & Storage
 
 Resources accumulate from job assignment. Every resource has a storage cap; surplus past it is lost,
@@ -1164,7 +1207,31 @@ motivation for the final act.
 
 ## Explicitly Out of Scope
 
-- **Rendered units, animation, or pathing.** Never, in any age.
+- **Rendered units and pathing.** Never, in any age. No armies on the board, no movement along
+  routes, no tile-by-tile marching.
+- **Animation as an ambient state** — swaying trees, idle pulses, drifting anything. See the scoped
+  ruling below; the board is still at rest.
+
+> **SCOPE CORRECTED (owner, 2026-08-25).** This entry read *"Rendered units, animation, or pathing.
+> Never, in any age"*, and that flat ban was an over-compression of the Premise, which scopes the
+> whole clause to UNITS: *"strip out everything that requires graphical fidelity of **units**. No
+> rendered armies. No pathing, no animation, no unit micro."* The premise never banned motion as
+> such; it banned simulating armies. The owner's ruling restores the narrower reading — *"I am sure
+> I want that as an option, but it must be used LIGHTLY. Like for a re-dress, but otherwise the hex
+> objects are immobile."*
+>
+> **The law that replaces the flat ban, in two halves:**
+>
+> 1. **Motion happens only at the moment of a change, and only to the thing that changed.** Nothing
+>    on the board moves on its own, ever. No ambient drift, no idle motion, no attract loop.
+> 2. **Motion may show a CHANGE, never a STATE.** This is the sibling of the opacity law
+>    (`interface.md`): when the movement settles, the board must read exactly as it would if you had
+>    blinked and missed it. Nothing may be legible only by having watched it move.
+>
+> The worked example is the **era re-dress**: old props sink into the ground, new ones rise in their
+> place. It plays during the era ceremony, which already holds the world under a modal — so the
+> simulation is stopped while the board changes clothes, which is the right register for it. Props
+> sinking below a hex's top face are occluded by the slab for free; no clipping plane is involved.
 - **Real-time reflex or twitch mechanics.** This is a numbers game.
 - **Unit micromanagement.** Assigning a headcount to a job is the floor and the ceiling. Not because we
   couldn't, but because it isn't the game.

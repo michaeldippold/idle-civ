@@ -222,7 +222,12 @@ verified stop and a test brief.
 - [ ] **5 — The picker.** Three continents as outlines, filling the shell from slice 1. Outlines are
       SVG paths, so this needs no 3D at all.
 - [ ] **6 — Scouting**, priced through `routeCost`; Chronicle flavor as the reward, systems still
-      era-gated behind it.
+      era-gated behind it. **Design constraint found in play (2026-08-24): scouting must not
+      delete the settle-blind gamble.** The owner reported genuine tension from settling toward
+      hoped-for mountains and drawing plains — the invisible world, terrain stakes and the cap
+      compounding. If scouting is cheap, every player scouts first and that moment dies. Price it
+      so LOOKING FIRST vs SETTLING BLIND is itself the decision: the scout costs time and food the
+      gambler saves, and the gambler risks a cap slot the scout protects.
 - [ ] **7 — Re-dress and the ceremony.** Era prop-sets, palette, light, and the camera pull-back —
       the whole revealed board changing clothes while the player watches.
 

@@ -74,6 +74,14 @@ neutralized E4's entire brake. Two rulings came out of it:
 Still ahead on the same problem: **stone-age minors** (contested land — and all-food means no
 military, which those punish hard).
 
+**Balance scoping ruling (owner, 2026-08-24): tune to CLOSE ENOUGH, then move on.** Three
+unbuilt systems will each reshape the economy anyway, so perfecting it now is polishing sand:
+(1) buildings are the game's oldest content, now reflavored as the capital (Luthadel) — they get
+a real rework when they start holding us back; (2) the tech tree is an entire resource sink that
+will compete with growth and expansion; (3) real adversaries bring campaigns, caravans and being
+looted — all economic weather. Current numbers need only to make the ARC feel right (expand →
+wall → develop → era), not to survive contact with systems that don't exist yet.
+
 **Dominion cap playtest (owner, 2026-08-24, mid-test):** hit the 7-cap at ~5 minutes and it
 "feels like plenty — maybe even generous"; the wall forced the intended refocus onto buildings and
 upgrades; selection ran on visibility + resource needs. Two tuning signals held for the balance

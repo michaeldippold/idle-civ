@@ -20,7 +20,7 @@ const EDGE_BASE = -0.5;   // the board's slab bottom, shown at the map rim
 const COLORS = {
   plains: new THREE.Color(0x8aa64e),
   forest: new THREE.Color(0x3c703a),
-  hills:  new THREE.Color(0x9a8058),
+  hills:  new THREE.Color(0xa6aca6),   // tin-grey (owner request: high country reads as bare rock)
   river:  new THREE.Color(0x4d89c4),
   water:  new THREE.Color(0x2d5f8f),
 };

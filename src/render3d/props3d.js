@@ -66,7 +66,7 @@ export function buildProps(places, elev, homeId, isRevealedFn) {
 
   const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6b4a33, roughness: 0.95 });
   const canopyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85 });
-  const rockMat = new THREE.MeshStandardMaterial({ color: 0x8b8578, roughness: 0.9, flatShading: true });
+  const rockMat = new THREE.MeshStandardMaterial({ color: 0x7d6a52, roughness: 0.9, flatShading: true });   // warm brown: boulders must read against tin-grey hills
   const wallMat = new THREE.MeshStandardMaterial({ color: 0xd8c6a2, roughness: 0.85 });
   const roofMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, flatShading: true });
   const stoneMat = new THREE.MeshStandardMaterial({ color: 0x7d7568, roughness: 0.88 });

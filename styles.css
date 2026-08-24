@@ -238,7 +238,7 @@ button { font-family: inherit; cursor: pointer; }
 :root {
   --map-plains: #ece6d2;
   --map-forest: #d0dcc0;
-  --map-hills:  #e0d3bc;
+  --map-hills:  #ccd1cc;   /* tin-grey, matching the 3D board */
   --map-river:  #d2e0e5;
   --map-water:  #c2d2d9;
 }

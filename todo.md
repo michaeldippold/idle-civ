@@ -76,15 +76,46 @@ is off-thesis.
 They share the infrastructure above, so they can ship in any order. All three need **content and
 taste**, which is why none of them was built today.
 
-- **5a — The era re-dress** *(map arc slice 7)*. **A `Redress` button sits in the header** (dashed
+- **5a — The era re-dress** — ⏸ **PARKED DELIBERATELY 2026-08-25, as a finished proof of concept.**
+  The mechanism works and the owner has seen it across a full board: *"seeing new stuff rise out of
+  the slab of hexes feels like a more expensive animation done on the cheap."* It is parked for two
+  reasons, both his: **re-dress only what actually needs to change** (a hex gets a new model, not
+  every hex on a schedule), and **the rest of set dressing is a shopping trip** — which asset packs
+  to buy, which to use, and when — which is a session of its own and not gameplay. Unpark it when
+  the models are chosen.
+
+  *Not wired to the era border on purpose.* `changedHexes()` has no caller at an era advance, and
+  should not get one until there is something different to come back up.
+
+  **A `Redress` button sits in the header** (dashed
   border, DEV TOOL): it replays the sink-and-rise across every charted hex while changing nothing,
   so the MOTION can be judged before any content exists. **Delete it and its three companions when
   the re-dress is real** — `index.html` carries the removal list. Prop-sets, palette, light, camera pull-back. The
   owner has ideas and has not given them yet; **ask first.** Needs playtesting, so it wants a session
   at the desk.
-- **5b — Building on hexes.** Design settled (`design.md` → *Building on a Hex*): one use per hex,
+- **5b — Building on hexes** ← **NEXT.** Design settled (`design.md` → *Building on a Hex*): one use per hex,
   keeps its people, shares the build queue, re-dresses when it makes sense, reversible with no
   refund. **What is undecided is the content** — which structures exist and what they do.
+**SEQUENCING, ASKED AND ANSWERED (owner, 2026-08-25): does building fortifications now conflict with
+5c?** In the FORMULA, yes; in the system, no — so 5c does not have to come first.
+
+Ring-protection is direction-agnostic, and 5c makes raids **directional**: a raid arrives from a
+specific neighbour along a specific route, so a fort should protect what is *behind* it on the
+approach rather than a symmetric ring. Those are different designs, not the same rule retuned. And
+`strikeHex("raid")` weights by distance from YOUR seat, which is precisely the half 5c inverts.
+
+**The seam that survives it:** `exposureOf(hexId)` — one function for "how likely is this hex to be
+struck". Today `pop × (1 + adminDistance)` modified by nearby forts; under 5c `pop × f(route from the
+raider's seat)` with forts in the route cost. Name the question, and the answer can change — the same
+move `hexUse()` made.
+
+**But the cost code cannot fix, and it decides the design:** ring-protection *teaches* the player that
+forts protect a radius, and directional raids then contradict that lesson. Re-teaching is worse than
+teaching once. **So the fortification's v1 effect should be DAMAGE REDUCTION, not targeting
+reduction** — raids that reach nearby hexes take fewer people, because the garrison fights them off.
+Direction-agnostic, so it stays true verbatim once raids become directional, and 5c then *adds*
+routing on top rather than replacing it. Two effects that compose.
+
 - **5c — Raid roads.** Intent logged (`design.md` → *Adversaries & Expeditions*). Three known
   prerequisites: raids should weight exposure from the RAIDER's seat rather than yours; `routeCost()`
   returns a cost and would need to retain predecessors to yield a path; and **the Chronicle is pure

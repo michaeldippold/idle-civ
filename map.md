@@ -1067,6 +1067,32 @@ version of that judgement needs play, not a guess.
 **It does not collide with the settle-blind gamble** that slice 6's scouting has to protect. A rim
 reveals **who**, never **what terrain** — wanting the forest you did not get is untouched.
 
+### The thesis behind set-dressing, hex builds and raid paths *(owner, 2026-08-25)*
+
+Three features arrived in one conversation — the era re-dress, building on hexes, and drawing the
+road a raid took — and the owner named the single goal underneath them:
+
+> *"The point of this and set re-dressings and build-on-hexes is all aimed at livening up the board.
+> If it's just a few home hexes for you and adversaries and a bunch of resource hexes, it really
+> constrains what we can do late game to make it feel alive — without animating movement, as we've
+> settled as a law for now."*
+
+**This is the answer to a risk the design already had on the books.** `design.md` states the late
+game's danger plainly: every playable number stays between 3 and 50 and the interface never changes
+shape, so the threat is *sameness*. The odometer was one answer to it — make scale FELT without
+making numbers big. These three are the other, aimed at the board rather than the ledger: make the
+ground itself carry difference.
+
+**And the animation law is what forces the approach to be good.** Movement is the cheap way to make a
+board feel alive, and it is ruled out for everything except a change happening. So aliveness has to
+come from the board being *different* — a hex that is a fortress and not a field, a country that
+changes clothes at an era border, a road that appears to explain where the last raid came from. That
+is a harder constraint and a better one: it produces information rather than motion.
+
+**The through-line, so none of the three drifts:** every one of them makes a hex say more about
+itself. Set-dressing says what age it is in; a build says what it is FOR; a raid road says what it is
+exposed to. A feature in this family that adds motion without adding information is off-thesis.
+
 ### Deliberately not on this list
 
 Terrain yield modifiers, per-tile buildings, tile-level unit stationing, movement. Each is a

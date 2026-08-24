@@ -1055,6 +1055,33 @@ half, and recording the pieces now because they are not obvious:
   it. The motion law governs the rest: drawing itself once as the raid lands shows a CHANGE, which is
   allowed; anything that pulses or crawls afterwards would be a STATE, which is not.
 
+**The shape, elaborated by the owner** *(2026-08-25)*: something moves an adversary to raid; they
+choose a target **and a route**, and the route has terrain costs — plains cheap, high ground dearer,
+wetland dear, **a fortification dear** — so the path bends around what you have built. The player
+does not watch it happen. **A raid is a thing that HAPPENED**, and afterwards you click the event and
+the board shows it: the raiders' home hex, and a line of hexes to the one they struck. *"I DO want
+the path to be legible because it's useful information that tells you if you need more defenses."*
+**Symmetrical by intent** — your own campaigns should be able to draw the same road.
+
+Three things that are not in that sentence and are cheap to know now:
+
+- **The owner predicted this himself, three days earlier.** `map.md` → *Observed: the board writes
+  fiction before the rules do* records him reading a defensible position off a fresh Stone board —
+  three sides mountains, one side water — and wanting to hold it, when no mechanic supported any of
+  it. The note concluded that this *"points at the most natural next rule for routes — **terrain-aware
+  movement cost** — because the player already assumes it exists. A rule that merely confirms an
+  instinct the map already created is much cheaper to learn than one that has to be taught."* That is
+  this feature, arrived at from the other end.
+- **Two of the named terrains do not exist.** The generator ships `plains`, `forest`, `hills`,
+  `river`, `water` — there is no *wetland* and no *mountain*; `hills` is the high ground. Route costs
+  can be authored per existing terrain today, but marsh and mountain are generator work, not a
+  routing table entry.
+- **The Chronicle is pure text, and clicking an event is the real architectural change here.** `log()`
+  takes a string and a severity; entries carry no identity and no payload. "Click the raid to see its
+  road" means Chronicle lines become records with data attached rather than sentences. That is the
+  one part of this that is cheap to design for now and annoying to retrofit — the same shape as
+  tagging each prop instance with its tile before the animation needed it.
+
 **Campaigns:** pick a target, allocate units with the same steppers jobs use (send some, keep some —
 the split is the decision), pay a provision, and the column marches. Resolution is the raid math
 pointed outward, as a ratio. Win and you carry home a large fraction of their remaining stock; they are

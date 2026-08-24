@@ -404,13 +404,21 @@ place you can see. Everything you know stays fully legible; the Info panel is un
 The board's glyph vocabulary answers **"who lives here"** before it answers **"who are they"**,
 because that is the order a player actually needs when the whole map is in view at once.
 
+*(Table current as of 2026-08-25: powers moved off red, the houses grew, and your seat wears your
+colour rather than white. See `interface.md` → **The board's colour law**.)*
+
 | mark | who | glyph | colour | label |
 |---|---|---|---|---|
-| `home` | your seat | house | white, 19px | none (it is where you are) |
-| `seat` | a major power | house | **red**, 19px | its name |
-| `minor` | a lesser steading | house | red, 14px | none |
-| `work` | your ground, assigned | resource letter | green | none |
+| `home` | your seat | house **+ its work glyph** | **your colour**, 22px | none (it is where you are) |
+| `seat` | a major power | house | **white**, 22px | its name |
+| `minor` | a lesser steading | house | silver, 16px | none |
+| `work` | your ground, assigned | resource letter | parchment | none |
 | `rest` | your ground, resting | dash | quiet grey | none |
+
+**Every inhabited hex also wears a RIM in the same colour** — your colour on your country, white on a
+power's, silver on a steading — so "who lives here" is answerable at tile scale and the glyph is
+confirmation rather than the sole evidence. `rimFor()` routes through `markFor()` so the two can
+never disagree.
 
 **Your seat and a rival's wear the same glyph** (owner ruling, 2026-08-24), because they are the
 same kind of thing: a place people live from. Only the colour differs, and size grades the two

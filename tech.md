@@ -14,20 +14,24 @@ How the game is actually built. **Docs map:** `design.md` is why any of this exi
 
 ## The phase plan
 
-**Status: authoritative order. Phase 0 (docs) is this pass.**
+**Status: authoritative order.** *(Table corrected 2026-08-25 — it had said the map was pending
+months after it shipped, and predated phase 10 and the engine rework entirely. `todo.md` → THE
+WORKING ORDER is the queue; this is the phase index.)*
 
 | # | Phase | State | Where it's specced |
 |---|---|---|---|
-| 0 | Docs | in progress | — |
+| 0 | Docs | **shipped 2026-08-22**, kept current | — |
 | 1 | Module structure (file split) | **shipped 2026-08-22** | *Module Structure*, below |
 | 2 | Seeded RNG | **shipped 2026-08-22** | *Determinism & the Seeded RNG* |
 | 3 | Kill offline | **shipped 2026-08-22** | *Time, Presence & Pause (implementation)* |
 | 4 | Fixed ticks | **shipped 2026-08-22** | *Simulation Model* |
 | 5 | Player controls (pause/speed, modal pause flag) | **shipped 2026-08-22** | *Time, Presence & Pause (implementation)* |
-| 6 | Conquest Growth + the map | **6a–6c shipped**; 6d–6e pending | *Conquest Growth — implementation contract*, `map.md`, `todo.md` |
-| 7 | Decision queue (interactive events) | pending | *The Decision Queue* |
-| 8 | Map | pending | `map.md` |
-| 9 | Interface re-architecture around the map | open | `design.md`, Open Questions |
+| 6 | Conquest Growth + the map | **6a–6d shipped**; 6e held | *Conquest Growth — implementation contract*, `map.md` |
+| 7 | Decision queue (interactive events) | **held deliberately** — spec complete, seam built | *The Decision Queue* |
+| 8 | Map | **shipped** (landed inside 6 and 10) | `map.md` |
+| 9 | Interface re-architecture around the map | **structural half shipped** ("the flip"); reskin queued | `interface.md` |
+| 10 | 3D map integration | **slices 1–5 shipped**; 6 (scouting) and 7 (re-dress) queued | `map.md`, `todo.md` |
+| E1–E6 | The engine rework (population lives on hexes) | **shipped 2026-08-23/24** | `design.md`, *Population Lives Somewhere* |
 
 **The harness stays green at every boundary from 1 through 5.** That rail is the whole difference between a refactor and a rewrite: phase 1 is mechanical with zero behaviour change, phase 2 changes which numbers come out but not which code paths run, phase 3 deletes code, phase 4 changes the unit of time under an unchanged economy. Any phase that cannot leave the harness green needs its own decomposition before it starts.
 
@@ -442,8 +446,10 @@ Population is **not** `jobs` summed plus idle. A person is in one of three state
 6. Clamp every resource to `caps()` — silently; a one-time Chronicle hint covers the concept.
 7. **Famine, not instant death** *(rewritten E4)*: `food <= 0` and net food negative runs
    `starveTick()`, which drains the peopled hex FURTHEST from the seat and returns true only when
-   the seat itself empties. Refill the larder and `endFamine()` lets the ghost hexes rekindle. An
-   empty larder used to kill in one tick, which was unsurvivable at any fast-forward speed.
+   the seat itself empties. An empty larder used to kill in one tick, which was unsurvivable at any
+   fast-forward speed. **A hex that empties is LOST** (2026-08-25): `loseHexIfEmpty()` drops it from
+   the dominion, deletes its use and its people, and destroys anything built on it. Ghost hexes and
+   the 0.2-soul rekindle are gone — see `design.md` rule 9, reversed.
 8. Advance `buildQueue[0]` by `CONFIG.buildSpeed * dt`; on completion `shift()` and `completeConstruction()`. **Only the front item advances** — the queue itself is the scarcity.
 9. `growPopulation(dt)` — every owned hex grows toward its terrain carrying cap. **Growth is a background process, deliberately not an event** (`design.md`), and since E3 it is also LOCAL: people are born where they will live. *(This was `accrueGrowth` — a free settler on a timer while housing had room — until the engine rework deleted housing, the timer and the hut together.)*
 10. `resolveEvents(dt)` — whatever the active manifest's slate holds.
@@ -735,7 +741,7 @@ Conflict is the one hazard allowed to end a run (`design.md`, *Failure*), which 
 
 **Status: shipped (C2, C2.1, plus siege).** Design canon in `design.md`, *Adversaries & Expeditions* and *Siege & Fortifications*.
 
-**`adversaries` is a manifest category declared wholesale per era, never inherited** (stone and bronze: `[]`). Shape: `{id, name, disposition: "peaceful"|"warlike", strength, walls?, fightsAs: raidTypeId, stock: {resId: n}, buys?: {res, amount, pays}, campaignTime, caravanTime?, desc}`.
+**`adversaries` is a manifest category declared wholesale per era, never inherited.** *(Stone and Bronze used to declare `[]`; since 2026-08-25 all three eras seat the SAME three peoples, re-dressed per age — the roster is fixed at generation and only the era changes what they have grown into. `contact` is what gates whether you can act on them, not their existence.)* Shape: `{id, name, disposition: "peaceful"|"warlike", strength, walls?, fightsAs: raidTypeId, stock: {resId: n}, buys?: {res, amount, pays}, campaignTime, caravanTime?, desc}`.
 
 **State** (additive, defensively merged): `S.adversaries = {[id]: {stock, standing, walls}}`. The manifest entry is the *template*; the state entry is the *living remnant* that depletes. `S.expeditions` holds at most one campaign and one caravan (`expeditionOut(type)` guards per type — never two of a kind).
 
@@ -769,6 +775,49 @@ Conflict is the one hazard allowed to end a run (`design.md`, *Failure*), which 
 
 **The panel is gated on era, not progress**: `expeditionsUnlocked()` is `active().adversaries.length > 0`, so it stands in any era whose manifest declares an outside world. The Muster Ground gates the *actions* on the cards (with a tooltip reason on each disabled button), not the panel — reading your neighbours before you can act on them is the point, since the cards are the recruiting poster for the building.
 
+## What a Hex Is — the use seam
+
+**Status: shipped 2026-08-25.** Design canon in `design.md`, *Building on a Hex*.
+
+`S.map.work[id]` holds **one value per hex** and always has, so "a hex is exactly one thing" was
+already true — what did not exist was a name for it, and every reader poked the raw string and
+inferred meaning. `map/map.js` now owns three accessors and nothing else should read the slot:
+
+- **`hexUse(id)`** → `{kind: "rest"}` | `{kind: "resource", res}` | `{kind: "structure", id}`
+- **`hexProduces(id)`** → does this hex yield into the ledger at all
+- **`hexResource(id)`** → the resource, or `null` if resting or built on
+
+**Structures live in the same slot behind a `build:` prefix** rather than in a second field, which
+makes a second simultaneous use *unrepresentable* rather than merely forbidden — there is nowhere to
+put one. The prefixed-ref idiom is house style already (campaign targets are `tile:q,r`).
+
+**One behaviour was right by accident and is now right by rule.** `rates()` skipped unknown work
+values because they failed an `in prod` test and fell through; a structure answers `null` from
+`hexResource()` and is skipped deliberately. Same outcome, a stated reason, and no chance of a later
+refactor "fixing" the fallthrough into a bug.
+
+**No structure content exists yet.** Fourteen harness checks exercise `build:farm` and
+`build:fortification` anyway, because a use the game does not have behaving correctly is the only
+way to know a seam is real rather than aspirational.
+
+## Losing Ground
+
+**Status: shipped 2026-08-25.** Reverses `design.md` rule 9 — see it for the reasoning.
+
+**`loseHexIfEmpty(id)`** drops a hex from the dominion the moment nobody is left on it: removed from
+`owned`, its population and use deleted, anything built on it destroyed with no refund. It is called
+from **every** path that can empty a hex — the famine drain and `killAt()` (sickness, raids) — because
+losing ground is a property of the hex being empty, not of what emptied it. **The seat is the one
+exception**: it ends the run instead.
+
+Ghost hexes and the 0.2-soul rekindle are deleted. Ordinary regrowth is untouched — a hex struck but
+not emptied still climbs its logistic back toward its cap.
+
+*Known sharp edge, recorded for play rather than tuned:* a new hex enters at 2 people and a raid
+takes 1–2, so a freshly claimed hex can be lost within seconds — measured at 0.3% inside five
+seconds. Raids also pick exposure-weighted by population × administrative distance, so a new frontier
+hex is both the likeliest target and the most fragile.
+
 ## Rendering
 
 **Status: shipped.**
@@ -800,6 +849,46 @@ No framework — direct DOM manipulation, with one law used everywhere something
 **Descriptions live only in the tooltip.** `attachTip(el, getter)` stashes a *getter* on the element rather than a snapshot, because cards update in place and a snapshot taken at creation goes stale immediately — the same class of mistake as the time-capsule click, caught early. The tooltip carries a title, a body that can afford to be verbose, and the refusal reason (`shortfallLine()` → "Short 24 wood."), so there is exactly one place to look when something won't buy.
 
 `log()` prepends rather than appends, so the newest Chronicle line is always the first child and `el.scrollTop = 0` keeps it in view; the 60-entry trim accordingly removes from `lastChild`. Each entry is a 28px row: a mark in a 32px gutter (`+` good, `!` danger, `★` milestone, `·` neutral) whose right edge *is* the legal pad's red margin rule, then the text. The mark repeats what colour already says, deliberately — it survives skimming and it survives colour blindness. Severity is passed explicitly at the call site, never inferred from the text.
+
+## The Sink-and-Rise, and the Stage's Three States
+
+**Status: shipped 2026-08-25.** The motion law is in `design.md`, *Explicitly Out of Scope*: motion
+happens only at the moment of a change, only to the thing that changed, and may show a CHANGE, never
+a STATE.
+
+**`changedHexes(ids)`** (`ui/map.js` → `stage.changeHexes`) is the one entry point, and it is general
+by construction — the era re-dress, building a structure, demolishing one and losing a hex to famine
+are all *"this hex's contents changed"*.
+
+Three pieces make it work:
+
+- **`props3d.js` records the TILE each instance stands on.** One string per instance, and it is the
+  difference between a general per-hex primitive and an era-ceremony special case: without it, moving
+  one hex's props means rebuilding the whole board.
+- **`setPropPhase(group, tiles, phase)`** rewrites only the matching instance matrices. `phase` 0 is
+  standing, 1 is fully underground. The ground hides the descent for free — a hex is a solid slab, so
+  anything below its top face is occluded at every angle the camera is clamped to. No clipping plane.
+- **The rebuild is held, and that is the hard part.** `setWorld()` arriving mid-sink would swap the
+  very meshes being animated, so it is stashed in `pendingWorld` and applied at the *bottom* of the
+  descent, unseen, before the rise begins.
+
+**The stage also has three boot states, not two.** `mode` starts at **`pending`** (unless `?map=2d`),
+`renderMapStage()` draws nothing while it is undecided, and a `stage-waiting` class hides the stage
+until `init3d()` settles. Before this, a hard refresh showed the 2D fallback board for one to two
+seconds and then replaced it. **Two invariants keep that from becoming a blank rectangle:** every exit
+from `init3d()` must *decide* `mode` (it used to start at `2d` and only move up, so failures needed
+no handling), and the CSS is keyed so the default is VISIBLE and only script can hide it.
+
+**QA lenses on the renderer:** `?glcheck=1` makes the drawing buffer readable; **`?perf=1`** publishes
+`window.__mapPerf` (draw calls, triangles, instance count, median frame time) and `window.__mapDebug`
+(the live prop group and the transition trigger), because the one moving thing on the board is the one
+thing a screenshot cannot check. `renderer.info` accumulates across the whole frame under that flag —
+it self-resets per render call, and the composer makes several, so reading it afterwards reports the
+last post pass rather than the board.
+
+**Measured prop budget** (`map.md` §7.5): 68,716 instances at 28 draw calls and a locked 60fps. Prop
+*density* is not a budget worth managing; unique prop *kinds* are, because each kind is another
+InstancedMesh.
 
 ## Modals
 

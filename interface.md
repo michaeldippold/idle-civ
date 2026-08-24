@@ -152,7 +152,7 @@ not the reverse. A darker ring reads as recessive, and the tile under the cursor
 forward.
 
 **The reserved set is a reservation, not a system.** No per-hex status visual exists yet — famine,
-sickness, raids and ghost hexes are all Chronicle-only. It is declared now so the player palette can
+sickness, raids and lost ground are all Chronicle-only. It is declared now so the player palette can
 never quietly grow into the colours a warning will need. Severity is intended to ride on ring
 **pattern** (solid vs dashed) rather than on more hues, because pattern is independent of hue and so
 stays legible whatever colour the player picked.
@@ -401,6 +401,11 @@ game, including all future eras, which are authored as data against this same gr
    (storage full = waste). **Population leads the strip** — it has a value, a cap and a rate, so it is
    a resource; idle count rides in the same cell in red, because idle labor is a problem the player
    should fix. Two sentences died for this: "Housing is full" and the standalone idle readout.
+   **The POP row is the ODOMETER since 2026-08-25** — it prints real beings (`people × soulsPerPerson`)
+   and its label re-denominates with the era: SETTLERS, then FAMILIES, then SUBJECTS. The true count
+   retreats to the tile, where it is a lever; the tooltip is the one place the two scales are
+   reconciled. *Historical note follows.*
+
    **Era-scoped (shipped 6b):** under conquest growth the POP row is a bare count — no cap (there is
    none) and no rate (nothing ticks). The number stays load-bearing — it is the levy base and the
    workforce — but its growth is a verb now, and the row stops promising math it no longer has.

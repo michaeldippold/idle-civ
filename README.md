@@ -29,13 +29,16 @@ what follows is what actually runs.)*
 - **Your people live on the ground they work.** You begin holding three hexes — your seat and two
   beside it — on a board whose edges you cannot see. Population is not a pool you spend; it is a
   number that lives *on a hex*, grows toward what that terrain can carry, and cannot move.
+- **A hex is exactly one thing.** Turn it to a resource, leave it resting, or (coming) build on it —
+  never two at once. There is no parallel town beside your fields.
 - **Turn each hex to one thing.** Every ground works every resource, at rates the terrain sets:
   plains favour food, forest timber, hills stone and ore. Output is people x per-capita rate, so a
   hex matters in proportion to how many live there. Choosing the suboptimal route on purpose is a
   real option and sometimes the right one.
 - **Everyone eats.** Empty the larder and a **famine** drains your dominion from the frontier
-  inward, hex by hex, toward the seat. The land stays yours and rekindles when food returns; the run
-  ends only if the seat itself empties.
+  inward, hex by hex, toward the seat. **A hex that empties is lost** — it reverts to unsettled
+  ground you would have to claim again — so famine costs you the investment, not only the people.
+  The run ends only when the seat itself empties.
 - **Expansion is a claim you pay for.** Settling adjacent land costs food, timber, stone and — from
   Bronze on — the age's signature metal, escalating with every claim and scaling with distance from
   the ground you already hold. Each age also caps how much land it can govern at all.
@@ -126,9 +129,9 @@ framework, no dependencies — and exercises the simulation through its real exp
 
 | File | What's in it |
 |---|---|
-| `design.md` | Game design canon: pillars, systems, the age list, settled questions |
+| `design.md` | Game design canon: pillars, systems, **The Noun Table**, the age list, settled questions |
 | `tech.md` | Architecture: simulation model, manifests, rendering, what's shipped vs pending |
-| `map.md` | The map arc: place-graph model, hexes, procedural generation, art strategy |
+| `map.md` | The map arc: place-graph model, hexes, procedural generation, art strategy, the prop budget |
 | `interface.md` | The interface system: layout, components, presentation rules, the interim Bureau skin |
 | `todo.md` | **Start here.** THE WORKING ORDER says what happens next; the rest is the spec for each item |
 | `CHANGELOG.md` | The shipped-feature record, newest first |

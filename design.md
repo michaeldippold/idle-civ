@@ -629,8 +629,9 @@ some future age, that's a sign the age needs its own mechanic, not a forced fit.
 ### Failure
 
 > **Amended 2026-08-23/24 (*Population Lives Somewhere*, shipped E4+E5).** Starvation drains the
-> empire from its frontier inward, hex by hex; the run ends when the **seat** empties. Land is
-> never lost — an emptied holding is a ghost that rekindles when fed. The Sickness/Conflict
+> empire from its frontier inward, hex by hex; the run ends when the **seat** empties. **Land IS
+> lost** — an emptied hex reverts to unsettled ground (rule 9, reversed 2026-08-25; ghosts and the
+> rekindle are deleted). The Sickness/Conflict
 > asymmetry survives in per-hex form: a fever takes a fifth of ONE hex (min one) and can never
 > wipe a run in a blow; conflict can still overrun outright. Sickness strikes person-weighted
 > (dense hexes host more fevers), raids exposure-weighted (the frontier burns first) — the two

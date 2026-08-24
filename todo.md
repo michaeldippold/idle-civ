@@ -441,6 +441,13 @@ buildings and units alone stop absorbing income. If a points economy is ever wan
 the gap can be felt rather than predicted. A late node priced at *500 iridium* is the intended
 flavour of the thing.
 
+**Sim speed lives in this tree** *(owner ruling, 2026-08-24, from the all-food dominance run)*:
+fast-forward is functionally a resource multiplier — 12× at Stone is the power to take the
+continent in the first age — so speed notches become tech-tree unlocks, earned with time invested.
+An era-gated version was briefly implemented and deliberately reverted the same hour: the free
+toggle stays until the tree exists, as the QA tool, and the owner test-plays locked at 1× by hand
+to match the eventual player experience.
+
 **Migration looks cheap:** the existing upgrades import fairly cleanly into two or three small
 trees. The one real design question is how tree nodes interact with the era manifest model, since
 upgrades are currently declared per era and revealed by predicate, while a tree spans eras by

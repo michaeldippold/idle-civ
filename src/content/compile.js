@@ -3,6 +3,7 @@ import { IRON_DELTA } from "./iron.js";
 import { EVENT_LIB, HINT_LIB } from "./lib.js";
 import { STONE } from "./stone.js";
 import { S } from "../core/state.js";
+import { CONFIG } from "../core/config.js";
 
 // ---------- Eras: the manifest model ------------------------
 // Each era is a MANIFEST: the complete set of resources, jobs, buildings,

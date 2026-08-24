@@ -67,6 +67,10 @@ export let preGame = true;
 export function setPreGame(v) { preGame = v; }
 
 // Set a specific notch (the 1-5 keys); cycleSpeed remains the click path.
+// DESIGN NOTE (owner ruling, 2026-08-24, implementation deferred): sim speed
+// will become a TECH TREE unlock -- fast-forward is functionally a resource
+// multiplier, so the pace you may set should be earned. The free toggle stays
+// for now as the QA tool; the owner test-plays locked at 1x by hand.
 export function setSpeed(n) {
   if (!CONFIG.speeds.includes(n)) return;
   speed = n;

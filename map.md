@@ -1255,6 +1255,25 @@ runs at full speed. What would actually cost something, and is worth watching in
 and should be careful about how MANY DIFFERENT THINGS are. That is the opposite of the intuition, and
 it is why this was measured before the set dressing was designed rather than after.
 
+### The board's own geometry is the cheapest effect it has *(observed 2026-08-25)*
+
+Owner, on seeing the re-dress run across a fully revealed board: *"Seeing new stuff rise out of the
+slab of hexes feels like a more expensive animation done on the cheap."*
+
+**Worth naming as a principle, because it is the same bet this whole route was chosen on.** §8 picked
+3D because **lighting does the heavy lifting** — terrain is geometry plus a good rig, so the art
+budget buys prop kits instead of painted tilesets. The sink-and-rise is that argument applied to
+MOTION: the effect reads as expensive because the props are genuinely occluded by the board's own
+slab, not because anything clever is happening. A hex is solid, so anything below its top face is
+hidden at every angle the camera is clamped to. **No clipping plane, no stencil, no masking pass.**
+The geometry that already existed for looks is doing the work.
+
+**The generalisation, for future visual work:** prefer effects the board's existing geometry and
+lighting already make true over effects that need a new mechanism. The three that have paid off so
+far — flat-shaded facets from `computeVertexNormals`, AO doing the depth reading, and now occlusion
+doing the reveal — all cost nothing per frame and none of them can look "wrong", because they are not
+imitating anything.
+
 ## 8. Art strategy
 
 **Direction re-ruled the same evening (supersedes the paragraph below): ROUTE B — the lit 3D

@@ -1190,6 +1190,37 @@ capture, the state shape), `mapgen.js` (the generator — seeded, kind-specific,
 
 ---
 
+## 7.5 The prop budget, measured *(2026-08-25)*
+
+**Question from the owner, before designing set dressing: does prop count cost anything? If every hex
+had ten trees forever, across ~150 hexes, does 1,500 trees hurt?**
+
+**Measured, not argued** —  publishes the renderer counters and a rolling frame time:
+
+| board | instances | draw calls | triangles | frame |
+|---|---|---|---|---|
+| shipped density (2–4 trees on forest only) | 266 | 28 | ~30k | 16.7ms · 60fps |
+| 10 props on **every** hex, ocean included | 11,516 | **28** | 444k | 16.7ms · 60fps |
+| 60 props on **every** hex | 68,716 | **28** | 2.6M | 16.6ms · 60fps |
+
+**The draw call count does not move.** That is the whole point of  holding one
+InstancedMesh per PART rather than per prop: every tree on the board is two calls (trunk, canopy)
+whether there are four of them or thirty-four thousand. Frame time stayed pinned at vsync in all
+three, so the ceiling was never found — the GPU is idle-waiting, not struggling.
+
+**So prop DENSITY is not a budget worth managing.** 1,500 trees is roughly 2% of a load that already
+runs at full speed. What would actually cost something, and is worth watching instead:
+
+- **Unique geometry per prop kind.** Each new *kind* adds an InstancedMesh, i.e. draw calls. Thirty
+  kinds costs more than thirty thousand instances of one kind.
+- **Rebuild frequency, not render cost.** The props mesh is rebuilt on the chunk-dirty signature, and
+  building 68k instances is real CPU work. Density is free to DRAW and not free to REBUILD.
+- **Shadow casting**, which is per-instance and already on for props.
+
+**Design consequence:** the era re-dress can be as generous as it likes with how MUCH is on a tile,
+and should be careful about how MANY DIFFERENT THINGS are. That is the opposite of the intuition, and
+it is why this was measured before the set dressing was designed rather than after.
+
 ## 8. Art strategy
 
 **Direction re-ruled the same evening (supersedes the paragraph below): ROUTE B — the lit 3D

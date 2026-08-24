@@ -446,13 +446,55 @@ function resize() {
   if (composer) composer.setSize(w, h);
 }
 
+// `?perf=1` publishes the renderer's own counters plus a rolling frame time on
+// `window.__mapPerf`. It exists because "can the board afford more set
+// dressing?" is a question this project will keep asking, and the honest answer
+// is a measurement rather than an argument about instancing. Sits beside
+// ?glcheck=1, ?map=2d, ?era=, ?continent= -- a lens, never a game surface.
+let perfOn = false;
+try { perfOn = new URLSearchParams(location.search).get("perf") === "1"; } catch (e) {}
+const frameMs = [];
+let lastFrame = 0;
+
+function publishPerf(now) {
+  if (frameMs.length > 120) frameMs.shift();
+  if (lastFrame) frameMs.push(now - lastFrame);
+  lastFrame = now;
+  const sorted = frameMs.slice().sort((a, b) => a - b);
+  const med = sorted.length ? sorted[Math.floor(sorted.length / 2)] : 0;
+  // Instance counts are the number that actually matters for set dressing:
+  // draw calls stay flat as props multiply (one InstancedMesh per PART), so
+  // the cost shows up in instances and triangles, never in the call count.
+  let instances = 0, meshes = 0;
+  if (worldGroup) {
+    worldGroup.traverse((o) => {
+      if (o.isInstancedMesh) { instances += o.count; meshes++; }
+    });
+  }
+  window.__mapPerf = {
+    drawCalls: renderer.info.render.calls,
+    triangles: renderer.info.render.triangles,
+    instancedMeshes: meshes,
+    instances,
+    medianFrameMs: Math.round(med * 100) / 100,
+    fps: med > 0 ? Math.round(1000 / med) : 0,
+    postprocessing: !!composer,
+  };
+}
+
 function loop() {
   rafId = requestAnimationFrame(loop);
   controls.update();
   clampPan();
+  // renderer.info resets itself on every render CALL, and the composer makes
+  // several per frame -- so reading it afterwards reports the last post pass
+  // (1 call, 1 triangle) rather than the board. Accumulate across the whole
+  // frame instead, and reset by hand.
+  if (perfOn) { renderer.info.autoReset = false; renderer.info.reset(); }
   if (composer) composer.render();
   else renderer.render(scene, camera);
   positionLabels();
+  if (perfOn) publishPerf(performance.now());
 }
 
 function disposeTree(root) {

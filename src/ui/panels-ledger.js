@@ -2,7 +2,7 @@ import { active } from "../content/compile.js";
 import { CONFIG } from "../core/config.js";
 import { capWord, caps, ledgerRates } from "../core/derived.js";
 import { S } from "../core/state.js";
-import { hexPopSum } from "../map/map.js";
+import { atDominionCap, capOf, hexPopSum } from "../map/map.js";
 import { attachTip, fmt, fmtRate } from "./dom.js";
 
 export function renderPopRow(bar) {
@@ -44,17 +44,30 @@ export function renderPopRow(bar) {
   const noteEl = document.getElementById("note-pop");
   noteEl.textContent = "";   // "idle" died in E2: people work where they live
 
-  attachTip(row, () => ({
-    title: capWord(noun.plural),
-    body: conquest
-      ? `No one arrives unbidden now. Your ${noun.plural} grow by conquest and fealty — and each raises the levy that guards them all.`
-      : full
-      ? `Every roof is taken. Raise more housing and the next ${noun.singular} will have somewhere to sleep.`
-      : `New ${noun.plural} arrive on their own while there is housing to spare. Everyone eats, whether working or not.`,
-    why: idleNow === 1
-      ? "One of them stands idle — put them to work."
-      : idleNow > 1 ? `${idleNow} of them stand idle — put them to work.` : null,
-  }));
+  // This tooltip described HOUSING, and housing died in the engine rework: it
+  // read three variables (`conquest`, `full`, `idleNow`) that no longer exist
+  // anywhere, so it threw a ReferenceError on every hover and the row simply
+  // had no tooltip. Rewritten to the law that actually runs now -- population
+  // lives on hexes, terrain sets the ceiling, and EXPANSION is the growth verb.
+  attachTip(row, () => {
+    const owned = S.map && S.map.owned ? S.map.owned : [];
+    let ceiling = 0;
+    for (const id of owned) ceiling += capOf(id);
+    const room = ceiling - shown;
+    return {
+      title: capWord(noun.plural),
+      body: `Your ${noun.plural} live on the ground they work, and every ${
+        noun.singular} counted here stands on one of your ${owned.length} ${
+        owned.length === 1 ? "hex" : "hexes"}. They arrive on their own while ` +
+        `that ground has room for them. Everyone eats.`,
+      // The ceiling is the whole story of when to expand, so it is the WHY.
+      why: room > 0
+        ? `Room for ${fmt(room)} more on the ground you hold (${fmt(shown)} of ${fmt(ceiling)}).`
+        : atDominionCap()
+        ? "Your ground is full, and you may hold no more of it this era. Build, and advance."
+        : "Your ground is full. Claim more, and the ceiling rises with it.",
+    };
+  });
 }
 
 // Rows are built from the manifest's resource list on first appearance rather

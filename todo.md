@@ -97,6 +97,13 @@ touches no state; and `?map=2d` now shows every tile's TRUE terrain with unchart
 only by a hairline edge — a debug surface sees everything. Existing flags unchanged: `?glcheck=1`
 (readable canvas), `?map=2d` (SVG renderer).
 
+`?era=iron` (added 2026-08-24) jumps the run's era before the world is built, and it exists for one
+reason: **adversaries only exist at Iron**, so judging where a seed puts your neighbours otherwise
+meant playing two full eras to find out. Reveal alone could not answer the question the owner was
+asking it — there was nothing on a Stone board to reveal. It is a lens on GENERATION, not a
+legitimate advance: it sets the era and nothing else, so unlocks, costs and the log all read as
+though you arrived by magic. Pair it with `?continent=` and Reveal to read a seed in one glance.
+
 **Open flake, recorded verbatim per policy (2026-08-24):** one harness run in ~80 failed TWO
 checks together, post-E5, identity not captured (the run scrolled past). 70+ consecutive greens
 since. Most likely another fixture where E5's own fevers strike an unpinned window — the

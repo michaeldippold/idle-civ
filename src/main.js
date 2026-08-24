@@ -1,4 +1,4 @@
-import "./content/compile.js";  // side-effect first: build + validate the manifests before anything else evaluates
+import { ERA_ORDER } from "./content/compile.js";  // side-effect first: build + validate the manifests before anything else evaluates
 import { CONFIG } from "./core/config.js";
 import { initAdversaries, load, save } from "./core/persist.js";
 import { S, setLoops } from "./core/state.js";
@@ -12,9 +12,28 @@ import { setUpgradeTab } from "./ui/panels-buy.js";
 import { initStartScreen, pendingAutostart } from "./ui/start.js";
 
 
+// `?era=iron` jumps the run's era before the world is built. It exists for one
+// reason: ADVERSARIES ONLY EXIST AT IRON -- Stone and Bronze declare no seats
+// and no minor tier -- so judging where a seed puts your neighbours meant
+// playing two full eras to find out. This is a lens on generation, not a
+// legitimate advance: it sets the era and nothing else, so unlocks, costs and
+// the log will all read as though you arrived there by magic, which you did.
+// Sits beside ?continent=, ?map=2d, ?glcheck=1.
+function forcedEra() {
+  try {
+    const want = new URLSearchParams(location.search).get("era");
+    return ERA_ORDER.includes(want) ? want : null;
+  } catch (e) { return null; }
+}
+
 // ---------- Boot --------------------------------------------
 export function boot() {
   const had = load();
+  const era = forcedEra();
+  if (era) {
+    S.era = era;
+    console.log(`[qa] era forced to ${era} -- generation preview, not a real advance`);
+  }
   initAdversaries();
   ensureMap();
   // Same channel as the [pacing] telemetry: the seed is how a mid-run bug

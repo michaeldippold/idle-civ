@@ -274,9 +274,13 @@ export function markFor(p) {
   // on it is a separate layer that simply is not known yet.
   if (!isCharted(p.id)) return null;
   if (p.id === world.home) return { glyph: "\u2302", cls: "home" };
+  // A HOUSE MEANS A HOME, and the colour says whose (owner request): white
+  // for your seat, red for someone else's. A power gets a house and a name;
+  // a steading gets a smaller house and no name, because minors are numerous
+  // and their names live on hover -- the map stays a map, not a directory.
   if (p.adversary) {
     const adv = active().adversaries.find((a) => a.id === p.adversary);
-    return { glyph: "\u25c6", cls: "seat", label: adv ? advName(adv) : p.adversary };
+    return { glyph: "\u2302", cls: "seat", label: adv ? advName(adv) : p.adversary };
   }
   if (isOwned(p.id)) {
     const w = (S.map.work || {})[p.id];
@@ -288,7 +292,7 @@ export function markFor(p) {
   }
   // Minors get a mark and no label: they are numerous, and their names live on
   // hover. The map stays a map rather than becoming a directory.
-  if (p.minor) return { glyph: "\u25aa", cls: "minor" };
+  if (p.minor) return { glyph: "\u2302", cls: "minor" };
   return null;
 }
 

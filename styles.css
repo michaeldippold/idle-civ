@@ -970,8 +970,12 @@ body.dead #mainArea .block { filter: saturate(.25); }
   color: #fdf8ec;
 }
 .map3d-glyph.home  { font-size: 19px; color: #ffffff; }
-.map3d-glyph.seat  { color: #ffb4a2; }
-.map3d-glyph.minor { color: #e6dcc6; font-size: 13px; }
+/* A HOUSE MEANS A HOME; the colour says whose. White is yours, red is not --
+   which makes "who else lives on this board" answerable at a glance, without
+   reading a single label. Size grades the two kinds of stranger: a power's
+   hall matches your own seat, a steading sits below it. */
+.map3d-glyph.seat  { color: #ff4a3d; font-size: 19px; }
+.map3d-glyph.minor { color: #ff8a7a; font-size: 14px; }
 .map3d-glyph.work  { color: #bff29a; }
 .map3d-glyph.rest  { color: #c9bfa8; opacity: 1; }   /* quiet: resting is legal */
 .map3d-label {

@@ -66,8 +66,16 @@ function fakeEl() {
     get firstChild() { return this.children[0]; }, get lastChild() { return this.children[this.children.length - 1]; },
     scrollTop: 0, scrollHeight: 0,
   };
+  ALL_ELS.push(el);
   return el;
 }
+// Every element the render ever built. Only one check reads it (the tooltip
+// sweep below), and it exists because a tooltip's content is computed LAZILY,
+// at hover time -- so a getter referencing a variable that no longer exists is
+// invisible to every other check in this file and to the page itself until a
+// human puts a mouse on it. That is exactly how `conquest`, `full` and
+// `idleNow` survived the engine rework inside the population tooltip.
+const ALL_ELS = [];
 const store = {};
 globalThis.document = { getElementById: () => fakeEl(), createElement: () => fakeEl(), querySelector: () => fakeEl() };
 globalThis.localStorage = {
@@ -407,6 +415,32 @@ reset();
   api.renderAll();
   globalThis.document.getElementById = realGetById;
   check("no panel hides itself on a fresh game", hidden.length === 0);
+}
+
+// EVERY tooltip getter must survive being called. attachTip stores a closure
+// and calls it on mouseenter, so a stale variable reference throws into a DOM
+// event handler, where it is swallowed as an uncaught error and the tooltip
+// silently does not appear. Nothing else here would notice.
+{
+  ALL_ELS.length = 0;
+  api.renderAll();
+  const tipped = ALL_ELS.filter((el) => typeof el.__tip === "function");
+  const broken = [];
+  for (const el of tipped) {
+    try {
+      const t = el.__tip();
+      if (!t || typeof t !== "object") broken.push("returned " + typeof t);
+    } catch (e) {
+      broken.push(e.message);
+    }
+  }
+  check("the render attaches tooltips at all (the sweep has something to sweep)",
+    tipped.length > 0);
+  // The failure message carries the thrown text, because "a tooltip is broken"
+  // without saying WHICH is a check that costs more to diagnose than it saves.
+  check("every tooltip getter evaluates without throwing" +
+    (broken.length ? ` -- ${broken.length} threw: ${broken.slice(0, 3).join(" | ")}` : ""),
+    broken.length === 0);
 }
 check("queueUsed is gone -- it was write-only state in every save", !("queueUsed" in S().seen));
 // The E2 economy end to end: the seat feeds everyone, a second hex is turned
@@ -2119,13 +2153,24 @@ console.log("\n--- Phase 10: the renderer port keeps the marks ---");
   // test here, and scouting is not built until slice 6.
   api.S.map.revealed.push(seat.id);
   const sm = api.markFor(seat);
-  check("a seat wears a diamond AND its name -- the label is the map's only prose",
-    sm.glyph === "\u25c6" && typeof sm.label === "string" && sm.label.length > 0);
+  // A HOUSE MEANS A HOME, and colour says whose: your seat and a rival's seat
+  // wear the SAME glyph, because they are the same kind of thing. The board
+  // reads "someone lives here" before it reads "who", which is the order a
+  // player actually needs. Colour lives in styles.css (.home white, .seat and
+  // .minor red) and cannot be asserted from here -- what CAN be asserted is
+  // that the glyph is shared, which is the half a refactor would break.
+  const homeMark = api.markFor(api.world.places[api.world.home]);
+  check("a seat wears a house, the same glyph your own seat wears",
+    sm.glyph === "\u2302" && homeMark.glyph === "\u2302");
+  check("a seat carries its name -- the label is the map's only prose",
+    typeof sm.label === "string" && sm.label.length > 0);
+  check("your seat and a rival's are told apart by class, not by glyph",
+    homeMark.cls === "home" && sm.cls === "seat");
 
   const minor = Object.values(api.world.places).find((x) => x.minor && !api.isOwned(x.id));
   api.S.map.revealed.push(minor.id);
-  check("a minor wears a dot and no label (a map, not a directory)",
-    api.markFor(minor).glyph === "\u25aa" && !api.markFor(minor).label);
+  check("a minor wears a house too, and no label (a map, not a directory)",
+    api.markFor(minor).glyph === "\u2302" && !api.markFor(minor).label);
 
   // Owned country reports what it is WORKING, and every resource letter is
   // distinct -- a collision here would be invisible on screen and wrong.

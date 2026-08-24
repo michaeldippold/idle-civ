@@ -11,6 +11,41 @@
 
 ---
 
+## 2026-08-24 — A house means a home, and Reveal can finally answer the question
+
+**Rivals wear a red house now, the same glyph your own seat wears.** The owner asked for it
+directly, and it is the better reading: your seat and a rival's are the same kind of thing, a place
+people live from, so the board should say "someone lives here" before it says "who". The diamond
+made an adversary read as an abstraction — a game-piece marker rather than somebody's home — and
+made rival settlements hard to pick out when scanning for who else is on the map. White is yours,
+red is not; size grades the two kinds of stranger, a power's hall matching your own seat and a
+minor steading sitting below it.
+
+**But the actual reason Reveal looked broken was that there was nothing to reveal.** Adversaries
+only exist at Iron: Stone and Bronze declare no seats and no minor tier, so a Stone test run has an
+empty board however hard the lens is pressed. The mark code was already correct and always had
+been. `?era=iron` fixes the real problem — it jumps the run's era before the world is built, so a
+seed can be read in one glance instead of two eras of play. It is a lens on GENERATION, not a
+legitimate advance: it sets the era and nothing else, which the console says out loud.
+
+**A crash surfaced on the way, and it had been live for the whole engine rework.** The population
+row's tooltip still referenced `conquest`, `full` and `idleNow` — three variables from the housing
+economy that the rework deleted — so it threw a ReferenceError on every hover, into a DOM event
+handler where it was swallowed as an uncaught error and the tooltip simply never appeared. It has
+been rewritten to the law that actually runs (people live on the ground they work, terrain sets the
+ceiling, expansion raises it) and now reports the headroom that tells you when to expand.
+
+That bug is a CLASS, not an incident: tooltip content is computed lazily at hover time, so a stale
+reference is invisible to every other check in the harness and to the page itself until a human
+puts a mouse on it. The harness now sweeps **every** attached tooltip getter after a render and
+calls it, which was verified by reintroducing the fault and watching it fail. Two mark checks were
+also rewritten to pin the shared glyph rather than the old diamond — the half a refactor would
+silently break, since colour lives in CSS and cannot be asserted from here.
+
+Four new checks (563).
+
+---
+
 ## 2026-08-24 — Slice 4c: neighbours by density, seated on their own ground
 
 **The minor tier scales with the world.** Every eligible hex now rolls for a steading (density

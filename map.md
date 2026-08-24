@@ -399,6 +399,33 @@ ignoring: fog was rejected for fighting the reading-your-neighbours rule and the
 show-everything stance. It does not, because it hides *unvisited country*, never the stats of a
 place you can see. Everything you know stays fully legible; the Info panel is untouched.
 
+#### Marks: a house means a home
+
+The board's glyph vocabulary answers **"who lives here"** before it answers **"who are they"**,
+because that is the order a player actually needs when the whole map is in view at once.
+
+| mark | who | glyph | colour | label |
+|---|---|---|---|---|
+| `home` | your seat | house | white, 19px | none (it is where you are) |
+| `seat` | a major power | house | **red**, 19px | its name |
+| `minor` | a lesser steading | house | red, 14px | none |
+| `work` | your ground, assigned | resource letter | green | none |
+| `rest` | your ground, resting | dash | quiet grey | none |
+
+**Your seat and a rival's wear the same glyph** (owner ruling, 2026-08-24), because they are the
+same kind of thing: a place people live from. Only the colour differs, and size grades the two
+kinds of stranger. The earlier diamond-for-adversary made a rival read as an abstraction — a
+game-piece marker rather than somebody's home — and it was also invisible as a *settlement* when
+scanning the board for who else is out there.
+
+Colour lives in `styles.css`, so the harness cannot assert it; what the harness asserts instead is
+that the glyph is SHARED between `home` and `seat`, which is the half a refactor would silently
+break.
+
+Marks remain gated on **charted**, never on sighted — sight reveals the board, never the pieces
+(see the fog section above). Reveal forces charted, so it shows every house on the map, which is
+what makes it a seed-reading tool.
+
 #### Terrain drives settlement, which turns the one real objection into a mechanic
 
 The obvious worry — *I scouted an empty hex, the era flipped, now there's a village on it* —

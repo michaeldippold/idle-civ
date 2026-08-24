@@ -1195,7 +1195,7 @@ capture, the state shape), `mapgen.js` (the generator — seeded, kind-specific,
 **Question from the owner, before designing set dressing: does prop count cost anything? If every hex
 had ten trees forever, across ~150 hexes, does 1,500 trees hurt?**
 
-**Measured, not argued** —  publishes the renderer counters and a rolling frame time:
+**Measured, not argued** — `?perf=1` publishes the renderer counters and a rolling frame time:
 
 | board | instances | draw calls | triangles | frame |
 |---|---|---|---|---|
@@ -1203,7 +1203,7 @@ had ten trees forever, across ~150 hexes, does 1,500 trees hurt?**
 | 10 props on **every** hex, ocean included | 11,516 | **28** | 444k | 16.7ms · 60fps |
 | 60 props on **every** hex | 68,716 | **28** | 2.6M | 16.6ms · 60fps |
 
-**The draw call count does not move.** That is the whole point of  holding one
+**The draw call count does not move.** That is the whole point of `props3d.js` holding one
 InstancedMesh per PART rather than per prop: every tree on the board is two calls (trunk, canopy)
 whether there are four of them or thirty-four thousand. Frame time stayed pinned at vsync in all
 three, so the ceiling was never found — the GPU is idle-waiting, not struggling.

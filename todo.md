@@ -19,7 +19,7 @@ discussed; this section is the only place that says **when**.
 
 ### START HERE — ✅ next up is **5, the era re-dress** *(set dressing)*.
 
-**Where things stand *(end of session, 2026-08-25)*:** harness green at **710 checks**, working tree
+**Where things stand *(end of session, 2026-08-25)*:** harness green at **713 checks**, working tree
 clean, everything pushed. **All three items the owner queued for this session shipped, plus a
 display pass off his ideation doc and a colour system that was not on any list.** Nothing is
 half-done. There is no fire.

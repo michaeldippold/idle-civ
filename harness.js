@@ -160,7 +160,14 @@ S().map.work[api.world.home] = "food";    // stay fed for the reveal window
 const fourth = Object.values(api.world.places)
   .find((x) => x.terrain !== "water" && !x.adversary && !x.minor && !api.isOwned(x.id));
 api.captureTile(fourth.id);
+// Pin the dice across the window. Since an empty hex is LOST (2026-08-25), a
+// raid or a plague landing on the freshly claimed tile takes the dominion back
+// below the trio and the reveal never fires -- which is a real behaviour of the
+// game, measured at ~0.3% over these five seconds, and nothing to do with what
+// this check is about. Found as a 1-in-40 flake here rather than in play.
+api.setRngSource(() => 0.99);
 run(5);
+api.setRngSource(null);
 S().res.wood = 200; S().res.stone = 200;  // skip the grind, just testing cap behavior
 snap("fourth hex claimed; barracks should be revealed");
 check("barracks revealed once the dominion grows past the trio", api.isRevealed(findB("barracks")));
@@ -3227,6 +3234,39 @@ console.log("\n--- Engine rework E4: the frontier starves first ---");
   run(400);
   check("the seat starves last, and its fall ends the run",
     S().dead === true && api.hexPop(api.world.home) === 0);
+
+  // REGROWTH AFTER A PARTIAL LOSS SURVIVED THE GHOST REMOVAL, and the owner
+  // asked specifically: only revival from ZERO was deleted. A hex that is
+  // struck but not emptied still climbs its logistic back toward its cap, which
+  // is what makes a raid a setback rather than a permanent scar.
+  //
+  // EVERY NUMBER HERE IS DERIVED FROM THE HEX, and that is not fussiness. The
+  // first version set pop to a hardcoded 6 -- fine on plains (cap 8), above the
+  // cap on hills (cap 3), where growth correctly refuses to run. The starting
+  // trio's terrain is rolled per world, so it failed about one run in eight.
+  // Same tell as the route-cost flake: a value assumed about generated geometry
+  // rather than read from it.
+  {
+    reset(); api.closeModal(); api.ensureMap();
+    const hex = api.S.map.owned.find((id) => id !== api.world.home);
+    const cap = api.capOf(hex);
+    api.S.map.work[api.world.home] = "food";
+    api.S.res.food = 500;
+    api.S.map.pop[hex] = cap;                // full, whatever this ground holds
+    api.syncPopMirror();
+    api.killAt(hex, 1);                      // struck, not emptied
+    check("a struck hex keeps its ground", api.isOwned(hex) && api.hexPop(hex) === cap - 1);
+    const dipped = api.S.map.pop[hex];
+    // Pin the dice across the run: 120 seconds is long enough for a real
+    // sickness or raid to hit this same hex, which would push it below the dip
+    // and fail a check that is about growth, not about weather.
+    api.setRngSource(() => 0.99);
+    run(120);
+    api.setRngSource(null);
+    check("...and grows back on its own afterwards", api.S.map.pop[hex] > dipped);
+    check("...without ever exceeding what the ground supports",
+      api.S.map.pop[hex] <= cap);
+  }
 
   // GHOSTS ARE GONE. Emptied land used to rekindle from 0.2 souls with a full
   // larder; it is unsettled ground now, and getting it back means claiming it

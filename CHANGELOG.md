@@ -11,6 +11,39 @@
 
 ---
 
+## 2026-08-25 — Regrowth survived, and the harness found the sharp edge
+
+**Owner question: did deleting ghosts also delete population growing back after a hit?** No. Only
+revival from *exactly zero* went; a hex knocked 8 -> 6 still climbs its logistic back toward 8, and
+nothing refills population at an era border either. Pinned by a check now, since the owner said he
+likes the behaviour and it sits next to code that changed.
+
+**At current tuning, strikes cannot overpower regrowth by attrition** — a person returns in ~33-44s
+at Stone and ~11s at Iron, while sickness runs ~11min and conflict ~6-7min apart. The danger is not
+attrition; it is the instant loss the reversion rule introduced.
+
+**And the harness demonstrated it by accident, which is the useful part.** A pre-existing check —
+"barracks revealed once the dominion grows past the trio" — started failing about 1 run in 40. The
+cause was not the check: a raid or plague landing on the *freshly claimed* fourth hex now takes the
+dominion back below the trio, so the reveal never fires. Measured directly at **0.3% within five
+seconds of claiming**, because a new hex enters at 2 people and a raid takes 1-2. Raids pick
+exposure-weighted by population x administrative distance, so a new frontier hex is simultaneously
+the likeliest target and the most fragile.
+
+That is either exactly the punishment for over-extension the rule was written for, or it is
+arbitrary. It is a play judgement, so it is recorded rather than tuned. Two dials if it reads wrong:
+new hexes entering at 3 instead of 2, or a grace period before an empty hex reverts.
+
+**Two flakes fixed, and one of them was mine.** The new regrowth check set population to a hardcoded
+6 — fine on plains (cap 8), *above the cap* on hills (cap 3), where growth correctly refuses to run,
+so it failed about one run in eight. The starting trio's terrain is rolled per world. Same tell as
+the route-cost flake earlier today: **a value assumed about generated geometry rather than read from
+it.** Every number in that check is derived from the hex now. 0 failures in 50 runs.
+
+710 -> 713 checks.
+
+---
+
 ## 2026-08-25 — Ground you can lose, and props that sink into it
 
 **Two halves of the same infrastructure, built together because they are the same event: a hex's

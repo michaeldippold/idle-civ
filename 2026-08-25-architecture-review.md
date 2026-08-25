@@ -552,11 +552,11 @@ Rulings:
 - **One group = one piece, and it's a banner.** A banner flies for every army regardless of
   size; composition is never depicted on the board. Strength shows as a badge via the
   existing label layer (the A&A "plastic + chip" read). Click the banner for composition.
-- **Sockets.** Each hex reserves fixed anchor points the prop scatter never fills: center
-  socket for the structure, a ring of 2-3 sockets for pieces. Forest decoration survives —
-  scatter is authored around the standing room, and may thin near an occupied socket. The
-  sockets are also the physical occupancy cap if shared occupancy ever exists (post-1.0
-  alliances).
+- **Sockets.** Each hex reserves fixed anchor points the prop scatter never fills: one
+  center socket for the structure, a ring of 3-4 sockets for pieces — enough for one piece
+  per player at max seats. Forest decoration survives — scatter is authored around the
+  standing room, and may thin near an occupied socket. The sockets are also the physical
+  occupancy cap if shared occupancy ever exists (post-1.0 alliances).
 - **Combat staging.** Opposing armies occupy ring sockets angled to face each other across
   the hex; the dice roll-off plays out overhead. Two banners squared up over disputed
   ground is the tabletop image.
@@ -569,6 +569,10 @@ Rulings:
 - **Fog gates banners on the stricter tier**: armies render only in **sighted** hexes (live
   vision), never merely charted ones. Charted-but-unsighted shows remembered terrain, no
   armies — which makes watchtowers and scouting stances do competitive work.
+- **Sight is emitted only by things you currently have**: your units, your structures, and
+  settled/owned hexes. Scouting a hex charts it permanently but confers **no lasting
+  vision** — otherwise scouting becomes a race to permanently reveal the map for perfect
+  vision. Charted is memory; sighted is presence.
 
 Technically cheap: pieces are a separate instanced render layer fed by closures like
 everything else (`stage.setWorld` already takes this shape), sockets are constants in the
@@ -577,7 +581,11 @@ hex layout, badges are the existing label layer. The one-way sim→render seam i
 ### X.6 Army stacking laws
 
 - **One army per player per hex** — garrisoned or field, the law counts it the same
-  (garrisoning is a *stance* of the one army, not a second army). Want more force on a hex?
+  (garrisoning is a *stance* of the one army, not a second army). The garrison stance's
+  combat effect follows the AoE/Empire Earth castle feeling: garrisoned troops are either
+  sheltered from the fight entirely or add their strength to the structure they occupy —
+  exact mechanics settled when combat is built, but the *intent* is locked: garrisonable
+  structures are one more reason to build forward outposts. Want more force on a hex?
   Disband armies to the global pool and dispatch one bigger force: manpower comes home
   free, but projecting it again costs the full march. Concentration takes planning and buys
   the opponent time. Dispatch validation refuses a destination you already stand on.

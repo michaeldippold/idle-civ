@@ -153,6 +153,42 @@ Old docs may still state these as canon. They are all dead:
 
 ---
 
+## Addendum — decisions from the 8/25 design discussion
+
+*Settled the same day the brief was written, in the conversation that followed the
+architecture review. Full reasoning lives in
+[2026-08-25-architecture-review.md](2026-08-25-architecture-review.md) Part X; these are
+the canon statements.*
+
+- **One resource per hex.** A forest makes wood, period — the fractional multi-resource
+  yield system dies. Yields are modified only by tech and by resource-specific hex builds
+  (lumber mill on forest). Bad map luck is handled by three one-dial release valves:
+  a generator floor guarantee at every seat, the market (a hex build unlocking lossy bank
+  trade), and era recipes that keep the opening runnable on food and wood alone.
+- **The construction panel dies.** Everything you construct sorts by a three-way test:
+  capturable/burnable → hex build; knowledge → tech tree; central capacity → **capital
+  tier** (the home hex itself levels, Camp → Village → Town → City, on the board where
+  rivals can scout it). The build *menu* becomes a contextual verb on the hex; the build
+  *queue* survives as the unified timeline.
+- **No player-to-player trade or diplomacy at 1.0.** Bank trade via the market only — but
+  the exchange action is written generally, so a future multiplayer trade offer is the
+  same verb with a different counterparty and a consent step.
+- **Caravans are post-1.0, and they're logistics, not diplomacy**: physical wagons serving
+  your own economy, interceptable on the board. Parked deliberately so the concept reads
+  as surviving, not as dead civ-flavor.
+- **Armies are banners.** One group = one banner piece in player color, strength as a
+  badge, composition on click. Each hex reserves sockets the decoration scatter never
+  fills: one center socket for the structure, a ring of 3-4 for pieces. Scenery is low and
+  muted; pieces are tall and player-colored. Travel is pick-up-and-plop, hex by hex.
+- **One army per player per hex.** Garrisoning is a stance of that one army (sheltered in
+  the structure or strengthening it — the AoE castle feeling), not a second army.
+  Concentrating force means disbanding to the pool and dispatching one bigger group —
+  disband is legal only on your own territory and never mid-combat. No cap on players per
+  hex is needed: with no alliances, combat is the cap.
+- **Charted is memory; sighted is presence.** Sight is emitted only by what you currently
+  have — units, structures, settled hexes. Scouting charts terrain permanently but grants
+  no lasting vision, and armies are visible only in sighted hexes.
+
 ## Scope fences
 
 - **1.0 is single-human.** Bot adversaries only. Multiplayer is a someday-option we are

@@ -861,8 +861,9 @@ soldier is thematically wrong. The no-costless-toggle principle survives both mo
 
 Equipment tiers are one-time **Upgrades**: a weapon tier raises the odds a fight is won, an armor tier
 raises the odds your people survive one that goes badly. Two different jobs, deliberately separate.
-*(Superseded in design 2026-08-25 for weapon tiers — under unit persistence they fold into per-era
-unit defs; see* Armies Take the Field*. Armor's fate is an open sub-ruling there.)*
+*(Amended in design 2026-08-25: under unit persistence both tiers become **era-scoped** — Bronze
+Weapons boosts Bronze-era units only, each era sells its own, skippable — a recurring per-era sink
+and a pacing bet rather than a buy-once boost. See* Armies Take the Field*.)*
 
 **Conflict resolves in stages**, so it is never fully predictable and never fully safe: raid size rolls
 first, then a success check weighing your defense against the raid as a *ratio* (never a threshold —
@@ -917,11 +918,19 @@ military, thriving" is a viable build: a number that is nowhere can have no job.
   only ever a consequence of the single global era. With era-per-civ that constraint dies: units
   keep the era they were built in, new eras mint new defs, and you field **mixed nonsense armies**
   — the last spearman, some knights, the one tank you somehow built. What falls out:
-  - **Rebuilding the army every era is a real, recurring resource sink** — and the equipment-tier
-    upgrades (`bronzeWeapons`, `ironWeapons`) were this feature done flat: one payment aging up the
-    whole army at once. Weapon tiers fold into the unit defs — a bronze swordsman IS bronze weapons.
-    *Open sub-ruling:* whether armor tiers stay global upgrades (everyone gets the new shields, old
-    units included) or fold in too.
+  - **Rebuilding the army every era is a real, recurring resource sink** — and equipment tiers
+    survive as a second, sharper one *(owner ruling, 2026-08-25, overriding the fold-into-defs idea
+    from earlier the same night)*: **a weapon tier is era-scoped** — Bronze Weapons upgrades
+    BRONZE-era units by X%, Iron buys its own, or you skip it if you think you can reach the next
+    era fast enough. What dies is only buy-once-boost-forever. The question the purchase asks:
+    *"how many adversaries have I found and do I feel threatened?"* — which makes the upgrade a
+    **bet on your own pace**: buying is a statement you'll stay in this era long enough to amortize
+    it, skipping is a rush commitment, and the speedster next door changes the correct answer. Era
+    clock, scouting and the upgrade panel become one connected decision. **Armor tiers take the same
+    shape** (era-scoped), preserving the weapons/armor two-jobs split. *Lean, flagged:* a tier stays
+    purchasable after its era passes while you still field its units — self-limiting, since it only
+    helps aging units — which retires the stranded-dead-resource handling Iron currently applies to
+    `bronzeWeapons`.
   - **No disband verb, and existing canon already rules it:** *a soldier is a commitment, never a
     reassignable stat.* You clear levy slots the way the owner already plays board games — by
     spending the men. The desperate attack that exists partly to retire obsolete units is intended
@@ -933,8 +942,10 @@ military, thriving" is a viable build: a number that is nowhere can have no job.
     `manifestFor(era)` — the exact seam the era clock already forces. The wholesale rule survives:
     each era still declares its *trainable* roster wholesale; legacy is state, not inheritance, and
     `manifestDiff`'s unit-rename machinery retires.
-  - **One asymmetry, deliberate:** adversary armies materialize per campaign at their current era —
-    nothing persistent to carry, so no legacy units. The no-sim rule doing its job.
+  - **One asymmetry, deliberate and owner-endorsed:** adversary armies materialize per campaign at
+    their current era — nothing persistent to carry, so no legacy units. Your army can be charming
+    and mixed; theirs arrives uniformly of their era. More pressure to keep up with the AIs — and an
+    asymmetry that fixes itself if multiplayer ever happens.
 - **Scouting buys WARNING TIME, not just map knowledge.** Fog is built and load-bearing
   (`syncCharted()`: you see what you hold plus one ring, sticky) — which today means an approaching
   army would be invisible until adjacent. A scouted ring three hexes out is three hexes of notice;

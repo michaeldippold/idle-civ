@@ -680,12 +680,17 @@ and grows into the place, so a claim stays an investment.
 **Known and accepted:** storage caps fill quickly once the camps and pits are up. That is
 *the era is the budget* working — spend it or waste it.
 
-**Open, flagged not scheduled:** famine now **converges** rather than killing. Each death shrinks
-the deficit and emptied frontier hexes fall out of the dominion, so an over-spread realm shrinks
-back to what its ground can feed and stabilises. Total extinction needs the seat itself to feed
-nobody, and the seat is always food terrain by generation — so starvation is a punishing
-correction, not a loss condition. Whether the game should still *have* a starvation loss is an
-open design question.
+**Famine converges, and that is the design** *(owner ruling, 2026-08-25, closing the question the
+same day it opened)*. Each death shrinks the deficit and emptied frontier hexes fall out of the
+dominion, so an over-spread realm shrinks back to what its ground can feed and stabilises. Total
+extinction needs the seat itself to feed nobody, and the seat is always food terrain by
+generation — so starvation is a **punishing correction, not a loss condition**.
+
+The owner's framing, and it is the right one: *if you want a big empire, make sure you can sustain
+it.* Overreach is self-correcting. The realm you are left with is the realm your ground could
+actually carry, and losing the frontier is the lesson. Death by starvation remains reachable only
+where it should be — a realm whose every hex gives no bread — and the loss condition proper is
+military.
 
 ### Building on a Hex — the design space, and its one law
 

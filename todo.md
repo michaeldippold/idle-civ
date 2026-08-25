@@ -112,6 +112,10 @@ cold start **before** this file's older sections:
      capstone's population gate (25) is now within sight of a fresh start** — a generous trio
      (two rivers and a forest) opens at 25 people, since the starting ground arrives full. The
      Soldier half of the gate still holds it shut, but the pop half has stopped meaning much.
+     *(Owner ruling 2026-08-25: leave it. The gate may want replacing with something else
+     entirely, but that is a balance question and most of the game model it would be balanced
+     against — armies, per-player eras, the capital — is not built yet. Not worth tearing out
+     now to re-derive later.)*
 5. **The per-player refactor (review Part I), as one campaign** ← **NEXT** — `players[]`, `tile.owner`,
    per-player fog, seats, `active(civ)`, module-local state onto the player object, with the
    `map/map.js` split and the sim→UI event-bus inversion in the same pass. **This is 4d's real

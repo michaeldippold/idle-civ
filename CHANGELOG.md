@@ -11,6 +11,34 @@
 
 ---
 
+## 2026-08-25 — The march-hold was an Escher figure
+
+**Reported from play: the wall rendered as disconnected panels that did not line up, and the pieces
+moved independently as the camera turned.** It looked like a modelling mistake and was a normals
+mistake — I emitted the wall's triangles by hand and the **winding was inconsistent between faces**,
+so backface culling dropped a different subset at every angle. Nothing was missing from the geometry;
+different parts of it were being discarded as the view moved.
+
+**Rebuilt as an extruded hex ring**, which is the owner's own suggestion — reuse the shape the
+selection ring already proves, smaller, taller and grey. A `THREE.Shape` outline with a reversed
+inner `Path` as its hole, extruded and laid flat: THREE handles winding, capping and triangulation,
+and none of it can be got wrong by hand. The outline still comes from the game's own `corner()`, so
+alignment with the tile stays structural rather than depending on where a primitive starts its
+segments.
+
+One detail that is easy to get wrong and silently wrong: **the hole must run the opposite way round
+to its shape.** An inner path with the same winding is not a hole, it is a coincidence, and
+triangulates to nonsense.
+
+Also thicker and taller — 0.80/0.63 radii at 0.58 high, from 0.74/0.62 at 0.42 — because the first
+one read as a fence rather than a wall. It still sits inside the selection ring (0.94/0.82), so the
+two never fight.
+
+Verified through a 90-degree orbit: solid and closed from every angle, which is the exact test the
+old one failed.
+
+---
+
 ## 2026-08-25 — A price you can never meet says so
 
 **Both balance flags came back approved, and one of them exposed a gap in the fix that approved it.**

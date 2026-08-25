@@ -60,33 +60,36 @@ class Part {
 
 // DEV ART: a march-hold is a hexagonal wall standing inside the tile.
 //
-// Built from the game's own corner() rather than a six-sided CylinderGeometry,
-// which would be one line shorter and misaligned -- THREE starts its radial
-// segments on a different axis than this board's pointy-top hexes, so the wall
-// would sit rotated against the tile it stands on. Using corner() makes
-// alignment structural instead of a magic rotation constant.
+// REBUILT 2026-08-25 after the first version rendered as an Escher figure --
+// disconnected panels that changed as the camera moved. The cause was mine:
+// I emitted the triangles by hand and the WINDING was inconsistent between
+// faces, so backface culling dropped a different subset at every angle. It
+// looked like a modelling mistake and was really a normals mistake.
 //
-// Outer and inner faces plus a capped top, so it reads as a wall with thickness
-// from the low camera angles this board lives at.
+// This version extrudes a hex ring instead, which hands winding, capping and
+// triangulation to THREE and cannot be got wrong by hand. The outline still
+// comes from the game's own corner(), so it stays aligned with the tile rather
+// than with whatever axis a primitive happens to start on.
 function hexWallGeometry(outer, inner, height) {
-  const pos = [];
-  const tri = (a, b, c) => pos.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]);
-  for (let k = 0; k < 6; k++) {
-    const o1 = corner(k, outer), o2 = corner((k + 1) % 6, outer);
-    const i1 = corner(k, inner), i2 = corner((k + 1) % 6, inner);
-    const O1 = [o1.x, 0, o1.z], O2 = [o2.x, 0, o2.z];
-    const I1 = [i1.x, 0, i1.z], I2 = [i2.x, 0, i2.z];
-    const O1t = [o1.x, height, o1.z], O2t = [o2.x, height, o2.z];
-    const I1t = [i1.x, height, i1.z], I2t = [i2.x, height, i2.z];
-    tri(O1, O2, O2t); tri(O1, O2t, O1t);        // outer face
-    tri(I2, I1, I1t); tri(I2, I1t, I2t);        // inner face
-    tri(O1t, O2t, I2t); tri(O1t, I2t, I1t);     // the walkway on top
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-  g.computeVertexNormals();
-  g.computeBoundingSphere();
-  return g;
+  const ring = (r) => {
+    const pts = [];
+    for (let k = 0; k < 6; k++) { const c = corner(k, r); pts.push(new THREE.Vector2(c.x, c.z)); }
+    return pts;
+  };
+  const shape = new THREE.Shape(ring(outer));
+  // The hole runs the OTHER WAY round: an inner path with the same winding as
+  // its shape is not a hole, it is a coincidence, and triangulates to nonsense.
+  const hole = new THREE.Path(ring(inner).reverse());
+  shape.holes.push(hole);
+
+  const geo = new THREE.ExtrudeGeometry(shape, { depth: height, bevelEnabled: false, curveSegments: 1 });
+  // Shapes are authored in XY and extruded along +Z; the board is XZ with
+  // height in +Y. One rotation puts the wall upright with its base at y = 0,
+  // which is where Part.add() expects to place it.
+  geo.rotateX(-Math.PI / 2);
+  geo.computeVertexNormals();
+  geo.computeBoundingSphere();
+  return geo;
 }
 
 // Deterministic offset inside a hex: ring of precomputed anchor slots,
@@ -169,8 +172,10 @@ export function buildProps(places, elev, homeId, isRevealedFn, builtOn) {
   // Inside the ownership rim (0.94/0.82) so the two never fight, and about as
   // tall as the dev tower, which is the height the board already reads as "a
   // building" at this camera.
+  // Smaller than the selection ring (0.94/0.82) so the two never fight, and
+  // thicker and taller than the first attempt, which read as a fence.
   const wall = new Part(
-    hexWallGeometry(0.74 * HEX_SIZE, 0.62 * HEX_SIZE, 0.42),
+    hexWallGeometry(0.80 * HEX_SIZE, 0.63 * HEX_SIZE, 0.58),
     new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.9, flatShading: true }));
   const hutWall = new Part(new THREE.BoxGeometry(0.26, 0.16, 0.22), wallMat);
   const hutRoof = new Part(new THREE.ConeGeometry(0.21, 0.16, 4), roofMat);

@@ -5,6 +5,10 @@
 > interface system, `CHANGELOG.md` the shipped-feature record. Those documents describe a game
 > that is partly *intended* rather than *implemented* — when they disagree with reality, this
 > file and the code win.
+>
+> **Read first on a cold start:** [`2026-08-25-design-brief.md`](2026-08-25-design-brief.md) —
+> what the game actually is now, and which old "laws" are dead. `map.md` and `interface.md` are
+> slated for harvest-and-delete (see THE 8/25 REVIEW below); treat their back halves as history.
 
 ---
 
@@ -55,9 +59,58 @@ friction is the economy's job and it currently isn't doing it.
 **The queue: ~~4b correction~~ → ~~4c caps~~ → 4d era clock → slice 6 scouting → 6c armies.**
 **4b and 4c SHIPPED the same night** (see their sections and the CHANGELOG), plus two live-playtest
 bug fixes: the ledger's food rate now subtracts growth spending (it printed accrual over a falling
-stock) and no resource ever ends a tick below zero (the "-1 food" float-residual display). **Next
-session starts at 4d, the era clock, on a feature branch** — the civs refactor spans sessions, and
-the branch ruling (2026-08-25) is: one-session work lands on main; multi-session work branches.
+stock) and no resource ever ends a tick below zero (the "-1 food" float-residual display).
+
+---
+
+## THE 8/25 REVIEW AND ITS QUEUE *(added 2026-08-25, evening)*
+
+A full-repo architecture review ran against the settled direction, and the design conversation
+after it closed four more questions. Two new documents are now canon and should be read on a
+cold start **before** this file's older sections:
+
+- **[`2026-08-25-design-brief.md`](2026-08-25-design-brief.md)** — the story of the three games
+  built in place, the six settled pillars, and a **graveyard table of struck-down laws**. When an
+  older doc contradicts it, the brief wins.
+- **[`2026-08-25-architecture-review.md`](2026-08-25-architecture-review.md)** — the findings,
+  ranked, plus **Part X**, the design decisions from that evening (hex economy, the construction
+  panel's death, trade at 1.0, caravans, army banners and sockets, stacking laws).
+
+**The review's sequencing, with what has landed:**
+
+1. ~~**Priority-1 doc poison**~~ **DONE.** `map.md`'s "era is a shared world clock" (the worst
+   line in the repo — the exact opposite of 4d, which is next), the units bans, the reversed
+   Closed Question on map regeneration, three `todo.md` items, and the un-bannered `redesign/`
+   briefs. The pre-pivot interface brief was deleted outright.
+2. ~~**Fix-now bugs + the vestigial sweep**~~ **DONE.** Two ReferenceError landmines (a call to
+   the deleted `applyConsolidation`, and an undefined `n`), a self-XSS on the seat name, a
+   soldier mintable from nobody, stale player-facing strings, `stage.dispose()` not disposing,
+   and `S.bought` never counting. `spike3d/` and `sim-4b.mjs` deleted; dead state fields, CSS
+   and DOM swept.
+3. ~~**Close the action layer + the journal**~~ **DONE.** `setWork` is a verb; `setHexWork` is
+   the only writer of `S.map.work`; `core/journal.js` records every accepted verb as
+   `{tick, pid, verb, args}`.
+4. **The hex economy refactor (Part X.1) + the construction panel's death (X.2).** ← **NEXT.**
+   One resource per hex; the generator floor guarantee; the market and bank trade; the
+   three-bucket sort of every building; the capital as a levelling hex build. Do this *before*
+   the per-player refactor: it simplifies `rates()`/`hexYield` before the `pid` threading
+   touches them, and a dead panel is fewer call sites to convert.
+5. **The per-player refactor (review Part I), as one campaign** — `players[]`, `tile.owner`,
+   per-player fog, seats, `active(civ)`, module-local state onto the player object, with the
+   `map/map.js` split and the sim→UI event-bus inversion in the same pass. **This is 4d's real
+   shape, and it must land BEFORE armies-on-hexes** — armies are the next big state object, and
+   born singleton they grow the refactor by the size of the military system. Multi-session, so
+   it branches per the branch ruling.
+6. **Armies, combat, per-player era content** — built on the new shape, so bots and the human
+   share the systems from birth. Slice 6 scouting is still the prerequisite.
+7. **The docs collapse, ten → four** (review IX.0): harvest `map.md` and `interface.md` into
+   `design.md`/`tech.md`, then delete them; prune `todo.md`'s archive. Best done at a hold near
+   the refactor, since the refactor obsoletes more passages and `tech.md`'s rewrite should
+   describe the new state shape.
+8. **Performance (review Part V)** — set-based fog, one cached seat Dijkstra. Measure first.
+
+**The branch ruling (2026-08-25) still stands:** one-session work lands on main; multi-session
+work branches. Steps 1–3 were one session and landed on main.
 
 ---
 

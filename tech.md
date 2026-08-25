@@ -47,7 +47,7 @@ Plain HTML/CSS/JS as ES modules. No build step, no bundler, no dependencies, no 
 - `index.html` — structure/markup only (one `<script type="module" src="src/main.js">` at the end of `<body>`)
 - `styles.css` — all styling
 - `src/` — 26 modules, ~3,570 lines; see *Module Structure*
-- `harness.js` — the headless Node test harness, 420 checks, importing the same modules
+- `harness.js` — the headless Node test harness, 791 checks, importing the same modules
 - `package.json` — `{"type": "module"}` plus `npm test`; exists so Node parses `.js` as ESM (the browser never needed it), deliberately dependency-free
 
 **The `file://` double-click era is over** — ES modules only load over http. This was already true in practice (development runs `npx http-server` via `.claude/launch.json` on port 8123; the game ships to GitHub Pages), and the promise's only remaining effect had been forcing everything into one 3,409-line `game.js`. Run it locally with any static server:
@@ -959,7 +959,7 @@ Bureau is dense administrative paper — ledger sheets, ink tab headers, monospa
 
 ## Testing Approach
 
-**Status: shipped at 420 checks, 0 failures; the replay superpower is pending — phases 2 and 4.**
+**Status: shipped at 791 checks, 0 failures. Phases 2 and 4 shipped; the action journal that makes replay real landed 2026-08-25 (`src/core/journal.js`), though nothing consumes the tape yet.**
 
 No test framework. Verification is `harness.js`, checked into the repo, run with `node harness.js` (or `npm test`) from the repo root. Since phase 1 it **imports the same 25 modules the game runs** (everything except `main.js`, whose body is `boot()`), stubs `document`/`localStorage`/`window` on `globalThis` — module evaluation touches neither, so static imports are safe — and exposes every export through one Proxy (`api`), whose single legal write is `api.S`, routed through `setS()`. The vm sandbox and the appended-text export hook that preceded it are gone; what `boot()` did for the harness's purposes is now two lines: `setS(freshState()); initAdversaries()`.
 

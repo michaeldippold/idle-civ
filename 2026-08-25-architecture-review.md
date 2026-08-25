@@ -3,8 +3,22 @@
 *Produced by a full-repo review (every file in `src/`, `harness.js`, `sim-4b.mjs`, all docs)
 judged against the settled direction in [2026-08-25-design-brief.md](2026-08-25-design-brief.md):
 competitive 4X, symmetric players, per-player eras, dispatch armies, someday-multiplayer-by-
-subtraction. This is a planning document. No code or doc was modified. Line numbers are as of
-commit `a26881a`.*
+subtraction. Line numbers are as of commit `a26881a`.*
+
+> **STATUS (updated 2026-08-25, evening).** This began as a planning document; steps 1–3 of the
+> sequencing in Part XI have since been **implemented and pushed**. Items marked ✅ below are
+> done — kept in place because the reasoning is the record of *why*, and because the unmarked
+> items around them are still the plan. `todo.md` carries the live queue.
+>
+> - ✅ **Part IX Priority 1** — the doc poison, including the shared-world-clock line.
+> - ✅ **Part III** — every fix-now bug.
+> - ✅ **Part IV** — the vestigial sweep (`spike3d/`, `sim-4b.mjs`, dead state, dead CSS).
+> - ✅ **Part II.1 / II.2** — `setWork` as a verb, `setHexWork` as the only writer, and the
+>   action journal. (**II.3**, the sim→UI event-bus inversion, is NOT done — it rides with the
+>   per-player refactor.)
+> - ✅ **Part V.3** — the 5Hz `JSON.stringify` in the stage signature, replaced by a work stamp.
+>
+> Everything else stands as written.
 
 ---
 
@@ -603,13 +617,13 @@ hex layout, badges are the existing label layer. The one-way sim→render seam i
 
 ## Part XI — Suggested sequencing
 
-1. **Docs Priority 1** — an hour of edits, removes the passages most likely to poison the
+1. ✅ **Docs Priority 1** — an hour of edits, removes the passages most likely to poison the
    next session (including any Claude Design thread reading from GitHub). If the IX.0
    consolidation happens promptly it covers most of this; if not, at minimum fix
    `map.md:761` and banner `interface-brief.md` immediately.
-2. **Fix-now bugs (Part III)** + **vestigial sweep (Part IV)** — an afternoon; removes the
+2. ✅ **Fix-now bugs (Part III)** + **vestigial sweep (Part IV)** — an afternoon; removes the
    two ReferenceError landmines, the grep traps, and the player-visible stale fiction.
-3. **Close the action layer (II.1) and add the journal (II.2)** — small, and it fences the
+3. ✅ **Close the action layer (II.1) and add the journal (II.2)** — small, and it fences the
    seam before more verbs appear.
 4. **The hex economy refactor (X.1) + construction panel verdict (X.2)** — one resource per
    hex, the generator floor, the market, the three-bucket building sort, the capital tier.

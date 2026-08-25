@@ -1,5 +1,6 @@
 import { active } from "../content/compile.js";
 import { rng } from "../core/rng.js";
+import { CONFIG } from "../core/config.js";
 import { caps } from "../core/derived.js";
 import { S } from "../core/state.js";
 import { negateChance, pick } from "./combat.js";
@@ -26,7 +27,12 @@ export function resolveEvents(dt) {
     }
 
     if (ev.chancePerSecond) {
-      const p = 1 - Math.pow(1 - ev.chancePerSecond, dt);
+      // A HAZARD THAT DOES NOT GROW WITH YOU IS ONE YOU OUTGROW. Conflict has
+      // always scaled with population; `popScaled` gives any event the same
+      // treatment, and sickness is the first to need it -- at a flat rate it
+      // became a rounding error against a large settlement.
+      const scale = ev.popScaled ? (1 + S.pop * CONFIG.sicknessPopScale) : 1;
+      const p = 1 - Math.pow(1 - ev.chancePerSecond * scale, dt);
       if (rng() < p) {
         if (rng() < negateChance(ev)) {
           log(pick(ev.flavor.negated), "good");

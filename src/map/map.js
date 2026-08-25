@@ -444,6 +444,12 @@ export function growPopulation(dt) {
   if (S.res.food <= 0) return;
   const r = CONFIG.popGrowthRate;
   const before = hexPopSum();
+  // What the larder can actually raise this tick. Growth is BOUGHT, not free
+  // (CONFIG.growthFoodCost), so a thin surplus grows slowly and a full one
+  // grows fast -- and a settlement that is only just feeding itself cannot
+  // replace what a raid took.
+  const perHead = CONFIG.growthFoodCost * (1 + (S.pop || 0) / CONFIG.growthCostPopScale);
+  let budget = S.res.food / perHead;
   for (const id of S.map.owned) {
     const cap = capOf(id);
     if (cap <= 0) continue;
@@ -453,7 +459,12 @@ export function growPopulation(dt) {
     // 0.2-soul revival died with rule 9 on 2026-08-25.
     if (p <= 0) continue;
     if (p >= cap) continue;
-    const next = p + r * p * (1 - p / cap) * dt;
+    if (budget <= 0) break;                       // the larder is spent for now
+    let gain = r * p * (1 - p / cap) * dt;
+    if (gain > budget) gain = budget;             // grow only what you can feed
+    budget -= gain;
+    S.res.food -= gain * perHead;
+    const next = p + gain;
     // The logistic APPROACHES its cap and never attains it; snap the last
     // hundredth so a full hex eventually reads "8 of 8" instead of hovering
     // at 7 forever. (~7 minutes from the far side of the curve at r=0.015.)
@@ -527,6 +538,34 @@ export function killAt(id, n) {
   // hex being empty rather than of what emptied it.
   loseHexIfEmpty(id);
   return killed;
+}
+
+// WHAT THE EMPIRE COSTS TO HOLD, in mouths-equivalent.
+//
+// Every person eats `CONFIG.upkeep`; a person living FAR from the seat eats
+// more, because getting anything to them costs more. The multiplier is
+// `1 + upkeepPerDistance x adminDistance`, so the seat itself is at par and the
+// frontier is dear.
+//
+// The shape is what matters, not the number: this makes upkeep grow with
+// dominion SPREAD as well as size, which is the only way a sink outruns a
+// per-capita source. A compact realm of forty is cheap; a stretched realm of
+// forty is not. Geography becomes an economic decision rather than only a
+// logistical one.
+//
+// The army is charged at par -- it lives with you, not out on the frontier --
+// and returns as a plain headcount so callers that only want mouths still work.
+export function upkeepMouths() {
+  if (!S.map || !S.map.pop || !world) return 0;
+  let mouths = 0;
+  for (const id of S.map.owned) {
+    const people = Math.floor(S.map.pop[id] || 0);
+    if (people <= 0) continue;
+    const d = adminDistance(id);
+    const far = Number.isFinite(d) ? d : 0;
+    mouths += people * (1 + CONFIG.upkeepPerDistance * far);
+  }
+  return mouths;
 }
 
 // ---------- Administrative distance & the famine drain (E4) ----------

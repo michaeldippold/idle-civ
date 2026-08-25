@@ -75,6 +75,10 @@ export const EVENT_LIB = {
     },
   },
   sickness: {
+    // SCALES WITH POPULATION (2026-08-25), the same way conflict always has: a
+    // hazard with a flat rate is one you outgrow, and three infirmaries used to
+    // retire it permanently. See design.md, The Economy Must Be Able To Break You.
+    popScaled: true,
     sev: "bad",
     condition: (S) => S.pop >= 4,
     chancePerSecond: 0.0015,                        // ~11 real minutes average, unmitigated
@@ -166,7 +170,17 @@ export const EVENT_LIB = {
           // Only a thin defence lets them reach the people. The hex was chosen
           // during selection; this is simply whether they got that far.
           if (at) {
-            const died = killAt(at, 1 + Math.floor(raidSize / 8));
+            // A SHARE of the hex, floored at one so a raid always costs
+            // somebody. Scale-invariant by construction: a big realm loses
+            // proportionally as much as a small one, which is what stops the
+            // danger decaying into a rounding error as the map fills.
+            const here = hexPop(at);
+            // Capped, so no single blow empties a hex outright -- losing ground
+            // should take a campaign of raids, or a raid on a hex already thin,
+            // rather than one unlucky roll.
+            const share = Math.min(CONFIG.raidTollMax, CONFIG.raidTollShare * raidSize);
+            const toll = Math.max(1, Math.round(here * share));
+            const died = killAt(at, toll);
             reconcileReservations();
             if (died) {
               // The same attribution, on the line that names a PLACE. An

@@ -1,5 +1,5 @@
 import { BOOST_BUILDING, DEF_INDEX, active } from "../content/compile.js";
-import { ensurePop, hexPopSum, hexYield, syncDominion, world } from "../map/map.js";
+import { ensurePop, hexPopSum, hexYield, syncDominion, upkeepMouths, world } from "../map/map.js";
 import { CONFIG, TICK_SECONDS } from "./config.js";
 import { S } from "./state.js";
 import { log } from "../ui/log.js";
@@ -164,7 +164,12 @@ export function rates() {
   // Armies eat in EVERY era now: units live outside the hex populations, so
   // they are always extra mouths. (They were free at Stone/Bronze during the
   // E2-E4 window, which was a known quirk, not a design.)
-  const mouths = hexPopSum() + totalUnits();
+  // DISTANCE-WEIGHTED (2026-08-25). Hex population is charged by how far it
+  // lives from the seat; the army is charged at par, since it musters with you
+  // rather than sitting out on the frontier. Harness fixtures with no map fall
+  // back to the plain headcount so nothing off-board changes behaviour.
+  const held = S.map && world ? upkeepMouths() : hexPopSum();
+  const mouths = held + totalUnits();
   const upkeep = mouths * CONFIG.upkeep * (S.upgrades.fireMastery ? 0.85 : 1);
   return Object.assign(prod, { upkeep, foodNet: prod.food - upkeep });
 }

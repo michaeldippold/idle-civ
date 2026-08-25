@@ -1240,13 +1240,41 @@ console.log("\n--- Free growth: the purchase model is fully excised ---");
     api.growthCost === undefined &&
     api.CONFIG.growthBase === undefined && api.CONFIG.growthScale === undefined);
   // (settlerIntervalSeconds and accrueGrowth died in E3 -- growth is local
-  // to hexes and free; the E3 tombstone block owns those assertions now.)
-  check("hex growth never touches food either", (() => {
+  // to hexes; the E3 tombstone block owns those assertions now.)
+  //
+  // GROWTH IS NO LONGER FREE (2026-08-25). This check used to assert that hex
+  // growth never touched food, and that WAS the invariant -- it is also what
+  // made the game unlosable: a raided hex refilled itself in minutes at no
+  // cost, so nothing could hurt the settlement faster than it healed, and
+  // surplus food had no consumer at all. Food's natural sink is growth. See
+  // design.md, The Economy Must Be Able To Break You.
+  check("raising a person costs food", (() => {
     reset(); api.ensureMap();
     S().res.food = api.caps().food;
     const foodBefore = S().res.food;
     api.growPopulation(1);
-    return S().res.food === foodBefore;
+    return S().res.food < foodBefore;
+  })());
+  check("a settlement with an empty larder cannot grow at all", (() => {
+    reset(); api.ensureMap();
+    const hex = S().map.owned.find((id) => id !== api.world.home);
+    S().map.pop[hex] = 2;
+    S().res.food = 0;
+    const before = S().map.pop[hex];
+    api.growPopulation(5);
+    return S().map.pop[hex] === before;
+  })());
+  check("...and a thin larder grows less than a full one", (() => {
+    const gain = (food) => {
+      reset(); api.ensureMap();
+      const hex = S().map.owned.find((id) => id !== api.world.home);
+      S().map.pop[hex] = 2;
+      S().res.food = food;
+      const before = S().map.pop[hex];
+      api.growPopulation(30);
+      return S().map.pop[hex] - before;
+    };
+    return gain(4) < gain(400);
   })());
 }
 {

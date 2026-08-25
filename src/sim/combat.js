@@ -79,11 +79,18 @@ export const RAID_SIZES = [
   { weight: 30, size: 5 },
   { weight: 10, size: 10 },
 ];
+// The authored sizes are the SHAPE of the distribution -- usually a scouting
+// party, rarely a host. What scales is the whole curve, with the settlement:
+// see CONFIG.raidSizePopScale.
+export function raidSizeScale() {
+  return 1 + (S.pop || 0) / CONFIG.raidSizePopScale;
+}
 export function rollRaidSize() {
   const total = RAID_SIZES.reduce((s, r) => s + r.weight, 0);
+  const scale = raidSizeScale();
   let roll = rng() * total;
   for (const r of RAID_SIZES) {
-    if (roll < r.weight) return r.size;
+    if (roll < r.weight) return r.size * scale;
     roll -= r.weight;
   }
   return RAID_SIZES[0].size;
@@ -156,12 +163,19 @@ export function pick(arr) { return arr[Math.floor(rng() * arr.length)]; }
 // How likely a landed hazard is deflected, based on its counter-building count.
 // `reducePerUnit` may be a flat number or (S) => number, for counters whose
 // strength itself can be upgraded (e.g. Herbal Medicine boosting Infirmary).
+// A COUNTER SOFTENS; IT NEVER RETIRES THE THREAT (2026-08-25).
+//
+// This used to clamp at 1, so enough infirmaries negated sickness OUTRIGHT --
+// two or three huts and the hazard was permanently solved, which is a standing
+// cost turning into a one-time purchase. Anything that reduces a PROBABILITY
+// can be out-built; the fix is a floor that no amount of building crosses.
+// See design.md, The Economy Must Be Able To Break You.
 export function negateChance(ev) {
   if (!ev.counter) return 0;
   const n = S.builds[ev.counter.building] || 0;
   const reduce = typeof ev.counter.reducePerUnit === "function"
     ? ev.counter.reducePerUnit(S) : ev.counter.reducePerUnit;
-  return Math.min(1, n * reduce);
+  return Math.min(1 - CONFIG.counterFloor, n * reduce);
 }
 
 // A civilian dies: population drops, and if that leaves more workers assigned

@@ -653,6 +653,49 @@ once-bought tech cannot be.
 hexes makes the next tech cheaper. That matches claim costs, which already read `owned.length`, and it
 means setbacks bend a run rather than snapping it.
 
+#### What the simulations found, which changed the plan twice
+
+**The five changes were written before any of them were measured, and measuring moved two of them.**
+Recorded because the errors are the same shape as the original bug, and that shape will recur.
+
+**Distance-weighted upkeep alone was far too weak.** `adminDistance()` charges half a step through
+your own country, so a contiguous realm of twenty hexes averages barely 1.0 — a 30% surcharge against
+a 5:1 margin. It bends the curve only once the player *diversifies*: at a realistic third-on-food mix
+net food now rises to +9 at fourteen hexes and falls to +6 at twenty, which is an equilibrium
+forming. An all-food empire still runs away, and that is accepted: it wins the food number while
+producing no wood, stone or iron, which is a degenerate configuration rather than a strategy.
+
+**Percentage raid damage did not scale either, and the reason is the original bug again.** Raid
+FREQUENCY scaled with population; raid SIZE never did — 2/5/10 forever. So damage per raid was
+O(one hex) while the realm was O(hexes), and *the share you lose shrinks as you grow.* Raid size now
+scales with the settlement, which does a second job worth having: `repelChance` is
+`defense / (defense + raidSize)`, so bigger hosts make an army **necessary** at scale rather than
+optional.
+
+**And the real culprit was neither: recovery was free.** Isolated from regrowth, 83 raids took a
+realm from 360 people to 77. In the live run the same hour moved it by 25. Logistic regrowth refilled
+every hex in minutes **at no cost at all** — so nothing could hurt the settlement faster than it
+healed, and surplus food had no consumer, which is why it piled up forever.
+
+**Food's natural sink is growth**, and growth was not using it. Raising a person now costs food, and
+that cost rises with the realm — a flat price is trivial late and unpayable early. This is the loop
+the economy was missing: surplus becomes people, people become upkeep, and a raided realm *pays* to
+recover.
+
+#### Where it now sits, honestly
+
+At a third-on-food, an unattended hour at fourteen hexes with no army runs the larder to **zero** and
+the population down. But **neglect does not kill you — it shrinks you.** Food hits zero, growth
+stops, famine trims the frontier, upkeep falls with the population, and the realm settles at a size
+the land can feed. That is E4's documented behaviour working as designed (*famine converges on what
+the land can actually feed*), and it is self-correcting by construction.
+
+**So the open question is whether shrinking is punishment enough**, or whether neglect should be able
+to end a run outright. Making it lethal means letting the famine drain outrun its own equilibrium, or
+letting raids take hexes faster than they can be held — both are real levers and neither is obviously
+right. **This is now a play question rather than an arithmetic one, which is the whole point of the
+tuning rule.**
+
 #### What this is a sink for, and what it is not
 
 **Tech-as-flow paces; upkeep equilibrates.** A tree is finite: research everything an era offers and

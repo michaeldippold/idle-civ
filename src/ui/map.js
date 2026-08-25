@@ -1,6 +1,6 @@
 import { active } from "../content/compile.js";
 import { S } from "../core/state.js";
-import { canAfford, capWord, seatIsNamed, seatName } from "../core/derived.js";
+import { canAfford, caps, capWord, seatIsNamed, seatName } from "../core/derived.js";
 import { save } from "../core/persist.js";
 import { canBuildOn, demolishStructure, launchSettle, launchStructure, pendingBuild, pendingSettle, settlePlan, structurePlan, structureUnlocked } from "../core/actions.js";
 import { world, isOwned, isCharted, isVisible, capOf, hexPop, hexResource, hexUse, hexYield, structureDef, atDominionCap, dominionCap, holdsUsed } from "../map/map.js";
@@ -77,6 +77,27 @@ function advName(adv) { return adv.name.charAt(0).toUpperCase() + adv.name.slice
 function costLine(cost) {
   return Object.keys(cost).map((k) =>
     `<span class="${(S.res[k] || 0) < cost[k] ? "short" : ""}">${cost[k]} ${k}</span>`).join(", ");
+}
+
+// A PRICE YOU CANNOT EVER MEET, as opposed to one you have not met YET.
+//
+// Red says "not enough wood". It does not say "your stores cannot hold that
+// much wood", and those are different problems with different answers: one you
+// solve by waiting, the other you solve by building. A Bronze farm costs 55
+// wood against a base cap of 50, so a player reading only red waits for wood
+// that will never arrive. Storage caps retire at Iron, so this is a Stone and
+// Bronze problem and it is exactly when a player is least equipped to diagnose
+// it.
+function cappedOut(cost) {
+  const c = caps();
+  return Object.keys(cost).filter((k) => c[k] != null && cost[k] > c[k]);
+}
+
+function cappedNote(cost) {
+  const over = cappedOut(cost);
+  if (!over.length) return "";
+  const list = over.map((k) => `${k} (holds ${caps()[k]})`).join(", ");
+  return ` <span class="short">Your stores cannot hold this much ${list} — raise storage first.</span>`;
 }
 function spec() { return active().map; }
 function tilesEra() { return true; }   // every era allocates hexes since E2
@@ -304,7 +325,7 @@ export function detailHTML(p) {
         queued || broke ? " disabled" : ""}>Build ${def.name}</button></div>`);
       parts.push(`<span class="map-noworks">${
         queued ? "Work is already under way on this hex."
-        : `${costLine(plan.cost)} · ${plan.time}s. ${def.desc}`}</span>`);
+        : `${costLine(plan.cost)} · ${plan.time}s. ${def.desc}${cappedNote(plan.cost)}`}</span>`);
     }
   } else if (!mine && tilesEra() && p.terrain !== "water") {
     const best = specialties(p.terrain);
@@ -321,7 +342,7 @@ export function detailHTML(p) {
         ? "A party is already on its way."
         : capped
         ? `Your people hold all ${dominionCap()} lands this age can govern. A new age must dawn before the banner spreads further.`
-        : `${costLine(plan.cost)} · ${plan.time}s${plan.tilesOff != null ? ` · ${plan.tilesOff} tiles off` : ""}${best.length ? ` · best worked for ${best.join(" or ")}` : ""}. Stake the ground, raise a hearth — one more ${spec().tileNoun.singular}.`}</span>`);
+        : `${costLine(plan.cost)} · ${plan.time}s${plan.tilesOff != null ? ` · ${plan.tilesOff} tiles off` : ""}${best.length ? ` · best worked for ${best.join(" or ")}` : ""}. Stake the ground, raise a hearth — one more ${spec().tileNoun.singular}.${cappedNote(plan.cost)}`}</span>`);
     } else {
       parts.push(`<span class="map-noworks">Not yours${best.length ? ` — best worked for ${best.join(" or ")}` : ""}. Growth is conquest and fealty.</span>`);
     }

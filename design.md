@@ -130,6 +130,24 @@ would have filled anyway.
 
 ---
 
+### "If you are not paying attention, pause the game" *(owner ruling, 2026-08-25)*
+
+Told that an unattended Bronze settlement had shrunk to its seat — two of three starting hexes lost
+to raids while nobody was watching — the owner's answer was the whole pivot in one line:
+
+> *"If you are not paying attention, pause the game. This is the polar opposite of what I would have
+> said ages ago, but the game is a completely different beast now."*
+
+**This is the new contract stated at its sharpest.** The old one was *the game never needs you*, which
+banned every interesting decision. The new one is *the game never punishes you for leaving* — and
+leaving means **pausing**, not walking away from a running clock. Nothing expires, nothing is missed,
+and the world holds still the moment you stop looking; but a world you left RUNNING is a world you
+chose to leave running.
+
+That is why losing ground while inattentive is not a failure of the design — it is the design
+working. Pause is not a convenience feature bolted onto an idle game. It is the thing that makes
+consequences fair.
+
 ## Design Philosophy
 
 **Unravel the contents, not the board.** The board is **whole from the first frame**: every panel the

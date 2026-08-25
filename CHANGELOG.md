@@ -11,6 +11,29 @@
 
 ---
 
+## 2026-08-25 — A price you can never meet says so
+
+**Both balance flags came back approved, and one of them exposed a gap in the fix that approved it.**
+
+The owner liked the farm costing 55 wood against Bronze's 50 cap — *"I like making you engage"* — and
+said the red price should make him think *"OH I'm capped, better build a thing first."* It would not
+have. **Red says "not enough wood"; it does not say "your stores cannot hold that much wood",** and
+those are different problems with different answers: one you solve by waiting, the other only by
+building. A player reading red alone waits for wood that will never arrive.
+
+Prices now name that case outright — *"Your stores cannot hold this much wood (holds 50) — raise
+storage first."* Storage caps retire at Iron, so this is a Stone and Bronze problem, which is exactly
+when a player is least equipped to diagnose it.
+
+**And the pause ruling is now canon** (`design.md`). Told that an unattended settlement had shrunk to
+its seat, the owner said: *"If you are not paying attention, pause the game. This is the polar
+opposite of what I would have said ages ago, but the game is a completely different beast now."* The
+old contract was *the game never needs you*; the new one is *the game never punishes you for leaving*
+— and leaving means pausing. A world you left **running** is a world you chose to leave running.
+Losing ground while inattentive is the design working, not failing.
+
+---
+
 ## 2026-08-25 — Two bugs from play: a silent refusal, and hay that did not rise
 
 **1. Settle printed a price it never marked, then did nothing when clicked.** The buy cards have shown

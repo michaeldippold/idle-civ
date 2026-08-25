@@ -438,7 +438,15 @@ export function ensurePop() {
 // Fractional population is stored; every reader floors for display. Growth
 // only -- this function never lowers a number (loss belongs to the world's
 // events, in later slices), so a hex above a shrunken cap simply holds.
+// What the larder spent on growth LAST TICK, per second -- display only.
+// Published by growPopulation so the ledger can show the TRUE food line
+// (owner bug report, 2026-08-25 late: "+0.22/s" printed while the stock fell,
+// because growth's spending was invisible to the rate). One source of truth:
+// this is measured from the actual deduction, never re-derived.
+export let growthSpendRate = 0;
+
 export function growPopulation(dt) {
+  growthSpendRate = 0;
   if (!S.map || !S.map.pop || !world) return;
   // No one is born during a famine: growth waits for the larder.
   if (S.res.food <= 0) return;
@@ -464,6 +472,7 @@ export function growPopulation(dt) {
     if (gain > budget) gain = budget;             // grow only what you can feed
     budget -= gain;
     S.res.food -= gain * perHead;
+    growthSpendRate += (gain * perHead) / dt;
     const next = p + gain;
     // The logistic APPROACHES its cap and never attains it; snap the last
     // hundredth so a full hex eventually reads "8 of 8" instead of hovering

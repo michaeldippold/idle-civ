@@ -77,6 +77,15 @@ export function step() {
   if (S.pop <= 0) {
     die("conflict");
   }
+
+  // NOTHING ENDS A TICK BELOW ZERO. growPopulation's budget math can leave a
+  // float residual like -1e-16 (x - (x/p)*p), and fmt() floors -- so the
+  // owner watched the larder read "-1" (2026-08-25). The mid-tick food clamp
+  // above runs BEFORE growth and events; this sweep is the one that guards
+  // what actually gets displayed and saved.
+  for (const res of active().resources) {
+    if (S.res[res.id] < 0) S.res[res.id] = 0;
+  }
 }
 
 export function die(cause) {

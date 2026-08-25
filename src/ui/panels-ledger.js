@@ -139,7 +139,9 @@ export function renderResources() {
 
     const rateEl = document.getElementById("rate-" + res.id);
     const rate = (res.id === "food" ? r.foodNet : r[res.id]) || 0;
-    rateEl.textContent = rate !== 0 ? fmtRate(rate) : "";
+    // Below half a display-digit reads as +0.00/s -- an honest zero shows as
+    // nothing, same as a true zero.
+    rateEl.textContent = Math.abs(rate) >= 0.005 ? fmtRate(rate) : "";
     rateEl.classList.toggle("pos", rate > 0);
     rateEl.classList.toggle("neg", rate < 0);
 

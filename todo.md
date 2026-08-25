@@ -52,7 +52,12 @@ is closed; building starts at the queue below.
 correction under 4b. That fix comes FIRST, because the clock only punishes falling behind; on-pace
 friction is the economy's job and it currently isn't doing it.
 
-**The queue: 4b correction → 4c caps → 4d era clock → slice 6 scouting → 6c armies.**
+**The queue: ~~4b correction~~ → ~~4c caps~~ → 4d era clock → slice 6 scouting → 6c armies.**
+**4b and 4c SHIPPED the same night** (see their sections and the CHANGELOG), plus two live-playtest
+bug fixes: the ledger's food rate now subtracts growth spending (it printed accrual over a falling
+stock) and no resource ever ends a tick below zero (the "-1 food" float-residual display). **Next
+session starts at 4d, the era clock, on a feature branch** — the civs refactor spans sessions, and
+the branch ruling (2026-08-25) is: one-session work lands on main; multi-session work branches.
 
 ---
 

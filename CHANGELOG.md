@@ -11,6 +11,26 @@
 
 ---
 
+## 2026-08-25 — The ledger stops lying about food
+
+**Two bugs from the owner's live playtest, one screenshot each.** The food rate printed the accrual
+line ("+0.22/s") while the stock fell or held at zero, because **growth's spending was invisible**:
+`growPopulation` buys people straight from the larder, and no rate ever subtracted it. Now
+`growPopulation` publishes what it actually spent (`growthSpendRate`, measured from the real
+deduction, never re-derived) and `ledgerRates()` subtracts it — the engine's own `foodNet` stays
+growth-free on purpose, since step() applies growth separately and folding it in would spend the
+food twice. Verified live: a settlement pouring its whole surplus into growth now reads +0.00/s
+over a flat stock, and sub-half-digit rates display as nothing rather than "+0.00/s".
+
+**And the larder read "-1"**: `growPopulation`'s budget math can end a tick at -1e-16 (x - (x/p)*p),
+and `fmt()` floors. step() now ends every tick with a floor-at-zero sweep across all resources —
+nothing displayed, saved, or read by the next tick is ever negative.
+
+Both fixes carry harness checks, both mutation-tested: dropping the growth term fails the
+"ledger matches what the pile actually does" check (predicted vs measured Δstock over a real tick);
+removing the sweep fails the negative-residual check. Also fixed on the way: a comment in
+`derived.js` still claimed "settlers are FREE -- no food price" -- two rewrites out of date.
+
 ## 2026-08-25 — The era is the budget: storage buildings die, caps go flat
 
 **4c shipped, hours after its consensus.** The Granary, Woodshed, Stone Yard and Ore Yard leave

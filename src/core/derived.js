@@ -1,5 +1,5 @@
 import { BOOST_BUILDING, DEF_INDEX, active } from "../content/compile.js";
-import { ensurePop, hexPopSum, hexYield, syncDominion, upkeepMouths, world } from "../map/map.js";
+import { ensurePop, growthSpendRate, hexPopSum, hexYield, syncDominion, upkeepMouths, world } from "../map/map.js";
 import { CONFIG, TICK_SECONDS } from "./config.js";
 import { S } from "./state.js";
 import { log } from "../ui/log.js";
@@ -210,16 +210,20 @@ export function ledgerRates() {
   const r = rates();
   const flows = converterFlows(r);
   for (const k in flows) r[k] += flows[k];
-  r.foodNet = r.food - r.upkeep;
+  // ...and net of what the larder is spending on GROWTH, which the engine
+  // deducts inside growPopulation. Without this term the ledger printed
+  // "+0.22/s" over a falling stock (owner, 2026-08-25). The engine's own
+  // rates().foodNet stays growth-free on purpose: step() applies growth
+  // separately, and folding it in would spend the food twice.
+  r.foodNet = r.food - r.upkeep - growthSpendRate;
   return r;
 }
 
-// Population growth is a background process, not an event, and settlers are
-// FREE -- no food price (the old lump-sum purchase model is gone; see
-// design.md, "Settled: population growth is not an event"). Progress accrues
-// only while housing has room, and FREEZES (not resets) while full, so
-// building a hut lets a partially-waited arrival land soon after. Housing is
-// the sole lever on population; food's pressure is entirely upkeep.
+// Population growth is a background process, not an event -- and since the
+// economy rework (2026-08-25) it is BOUGHT: growPopulation pays
+// CONFIG.growthFoodCost per head, scaling with realm size, straight from the
+// larder. (The sentence that stood here -- "settlers are FREE, no food
+// price" -- described the E3 model and survived two rewrites unread.)
 // accrueGrowth() -- the free settler timer -- died in E3. Growth is local
 // (people grow toward each hex's cap) and expansion is a claim you pay for.
 

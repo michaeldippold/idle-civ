@@ -857,6 +857,35 @@ reset();
   check("legacy storage counts are inert: caps identical", JSON.stringify(api.caps()) === before);
 }
 
+// ---- The ledger tells the truth, and nothing ends a tick below zero ----
+// Owner bug report (2026-08-25, late): "+0.22/s" printed over a falling
+// stock -- growth's spending was invisible to the displayed rate -- and the
+// larder briefly read "-1", a float residual of growPopulation's budget math
+// meeting fmt()'s floor.
+console.log("\n--- the food line is honest; no resource ends a tick negative ---");
+reset(); api.ensureMap();
+{
+  api.setRngSource(() => 0.99);            // no events: measure only the flows
+  for (const id of S().map.owned) { S().map.pop[id] = 3; S().map.work[id] = "food"; }
+  api.syncPopMirror();
+  S().res.food = 100;
+  api.step();                              // prime growthSpendRate from a real tick
+  check("growth visibly spends the larder", api.growthSpendRate > 0);
+  const predicted = api.ledgerRates().foodNet;
+  const before = S().res.food;
+  api.step();
+  const actual = (S().res.food - before) / api.TICK_SECONDS;
+  check("the ledger's food line matches what the pile actually does",
+    Math.abs(predicted - actual) < 0.02);
+  // The residual guard: a tick may compute a hair below zero, but nothing --
+  // display, save, or the next tick -- may ever see it.
+  S().res.wood = -1e-12; S().res.food = -1e-12;
+  api.step();
+  check("no resource ends a tick below zero (the -1 display bug)",
+    S().res.wood >= 0 && S().res.food >= 0);
+  api.setRngSource(null);
+}
+
 console.log("\n--- P2: the Forge converts, throttles, and idles ---");
 reset();
 S().era = "bronze";

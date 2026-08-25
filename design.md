@@ -677,12 +677,27 @@ load-bearing idle beat in the game: "a wanderer joins your settlement" was how y
 production, which made the opening a *wait*. Ground taken later still arrives as a settling party
 and grows into the place, so a claim stays an investment.
 
-**It self-balances, and that was not designed in** *(owner, from play, 2026-08-25)*. The
-improvement you build is almost always the one for the resource you have **least** ground for.
-One forest hex is not enough timber on its own — but one forest hex with a Lumber Camp on it is,
-and the hex you gave up to build it was one you had a surplus of. Scarcity creates the pressure,
-the structure answers it, and the hex budget prices the answer. Nothing in the system had to be
-told to do that; it falls out of one-resource-per-terrain meeting a finite dominion.
+**Surplus corrects itself, and that was not designed in** *(owner, from play, 2026-08-25)*.
+Over-investing in one terrain used to break the economy: claim too many plains, run a runaway food
+surplus, and the game had no answer. Two of these changes together turn that into a **negative
+feedback loop**, and neither was built to do it:
+
+1. **Caps mean a surplus is not stored power.** The era is the budget, so an overflowing larder
+   stops converting into unlimited spending — it just overflows.
+2. **Non-yielding structures get sited on the ground you can most afford to lose.** A Medicine
+   Tent, a Forge, a Market and a March-hold all produce nothing, so raising one costs a specific
+   hex its output — and you will put it on the plains you have too many of, never on your one
+   forest. **That directly lowers food income.** The surplus that made the hex expendable is the
+   thing the building spends.
+
+The corollary is the sharp half: *if you are desperate for wood, you will never build a Medicine
+Tent on your forest.* Placement pressure always points at whatever is in surplus, so income slides
+back toward balance on its own. It falls out of one-resource-per-terrain meeting one-hex-one-use
+meeting a finite dominion — three rules that were each written for other reasons.
+
+*(An earlier draft of this note recorded a different loop — building a Lumber Camp on scarce
+forest — which is a real effect but not this one, and not the one that fixes runaway surplus.
+The mechanism above is about the structures that yield **nothing**.)*
 
 **Known and accepted:** storage caps fill quickly once the camps and pits are up. That is
 *the era is the budget* working — spend it or waste it.

@@ -148,6 +148,20 @@ constants (or per-era scaling of them), not a new mechanism** — and it stays n
 clock ships, because the clock only punishes falling behind; on-pace friction lives here. A raid
 today costs ~40 seconds of food income; that number is the target to tune against.
 
+**MEASURED AND PARTLY DISSOLVED (2026-08-25, late — `sim-4b.mjs`, the headless replica of the
+owner's screenshot realm: Bronze, 10 hexes at capacity, zero military, unattended).** Shipped:
+`raidSizePopScale` 400 → 120 (Bronze now sees ×1.8, Iron ×4+) and `raidTollShare` 0.05 → 0.075.
+But the sweep's real finding is structural: **no raid dial at any sane setting makes the unattended
+realm decline.** Six candidates, 8 runs × 2 hours each — every one equilibrates at 75–95 souls, no
+hex ever lost, food never below 214/350. The realm is **homeostatic**: raid frequency and growth
+cost both scale DOWN as it shrinks, and the food engine rebuys 15–60 souls/min against raids' ~1.5.
+Recovery is free at equilibrium, and only gutting the food engine (global pacing) could change
+that. **The resolution is the era clock: raid damage is tempo damage, and tempo only hurts when
+there is a race.** Souls lost = capstone delayed = a rival advances first. The shipped constants
+make the hit legible at Bronze; 4d makes it matter. Unattended shrink-not-die is canon anyway
+(*A Game That Cannot Be Lost*, problem 1). **Do not spend more sessions tuning raid dials before
+4d ships; re-verdict difficulty after.**
+
 ### 4c — THE CAPS COME BACK, FLAT AND FREE *(consensus 2026-08-25; small, do with the 4b correction)*
 
 Full ruling: `design.md` → *Resources & Storage*. The work: delete the storage buildings (Granary,

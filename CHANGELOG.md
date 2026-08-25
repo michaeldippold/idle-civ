@@ -11,6 +11,21 @@
 
 ---
 
+## 2026-08-25 — The Bronze raids learn to count, and the homeostat is measured
+
+**The 4b calibration correction, done by measurement** (`sim-4b.mjs`, a headless replica of the
+owner's thriving-at-Bronze screenshot realm). Shipped: `raidSizePopScale` 400 → 120 — the old value
+was tuned against Iron's ~400 population and delivered ×1.25 at Bronze's ~100, a multiplier
+shipping as a rounding nudge — and `raidTollShare` 0.05 → 0.075.
+
+**The finding that outranks the fix:** six candidate retunes, 8 runs × 2 simulated hours each, and
+**no raid dial makes an unattended zero-military Bronze realm decline** — every pressure scales
+down as the realm shrinks, so it equilibrates at 75–95 souls with the larder never below 214/350.
+Recovery is free, structurally: the food engine rebuys souls an order of magnitude faster than
+raids take them. Raid damage is *tempo* damage, and tempo only hurts when there is a race — which
+is the era clock's job (todo 4d). The constants make the hit legible; the clock will make it
+matter. Recorded in `todo.md` 4b with a standing instruction not to re-tune before 4d.
+
 ## 2026-08-25 — The night the game stopped being idle *(no code shipped)*
 
 **A design-only session that started as "one balancing thing" and redefined the game.** Everything

@@ -101,7 +101,7 @@ export const CONFIG = {
   // run continues. A fraction of the struck hex stays meaningful at every scale,
   // which is the whole point: nothing about the danger may decay as you grow.
   // Scaled by raid size, so a scouting party stings and a host is a catastrophe.
-  raidTollShare: 0.05,         // share of the struck hex taken, PER POINT of raid size
+  raidTollShare: 0.075,        // share of the struck hex taken, PER POINT of raid size
   raidTollMax: 0.6,            // ...but never more than this of one hex in one blow
   // A RICH REALM ATTRACTS A HOST (2026-08-25). Raid FREQUENCY already scaled
   // with population; raid SIZE did not, and that was the same error as the
@@ -112,7 +112,23 @@ export const CONFIG = {
   // It also does a second job worth having: repelChance is
   // defense/(defense + raidSize), so bigger hosts make an ARMY necessary at
   // scale rather than optional. Population at which raids roughly double.
-  raidSizePopScale: 400,
+  //
+  // RECALIBRATED 400 -> 120 (2026-08-25, measured): 400 was tuned against
+  // Iron's ~400 population and delivered x1.25 at Bronze's ~100 -- a
+  // multiplier designed as "multiples" shipping as a rounding nudge. At 120,
+  // Bronze tops out near x1.8 and Iron reaches x4+, which is the curve the
+  // comment above always claimed.
+  //
+  // MEASURED HONESTLY THE SAME NIGHT (sim-4b.mjs, 8 runs x 2 hours per
+  // candidate): no raid dial, at any sane setting, makes an unattended
+  // zero-military Bronze realm DECLINE. The realm is homeostatic -- raids
+  // kill ~1.5 souls/min at the hardest settings while the food engine can
+  // rebuy 15-60/min, so every pressure equilibrates near capacity. Recovery
+  // is free, structurally: raid damage is TEMPO damage, and tempo only hurts
+  // when there is a race. The era clock (todo 4d) is what creates the race;
+  // these constants make the hit legible at Bronze scale, and the clock makes
+  // it matter. Re-verdict difficulty after 4d, not before.
+  raidSizePopScale: 120,
   // Sickness scales with population for the same reason conflict does: a threat
   // that does not grow with you is a threat you outgrow.
   sicknessPopScale: 0.02,

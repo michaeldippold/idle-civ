@@ -381,6 +381,27 @@ export function hexResource(id) {
   return y ? y.res : null;
 }
 
+// THE WALLS THAT COVER THIS HEX. Sums every march-hold within `fortRange`,
+// including one standing on the hex itself. Flat strength, added to the army
+// rather than scaling it -- see CONFIG.fortStrength.
+//
+// This is a RESOLUTION input and never a selection one (design.md: selection and
+// resolution are separate phases). Nothing here may influence whether a raid
+// happens or where it lands; it only changes what happens when one arrives.
+export function fortStrength(hexId) {
+  if (!S.map || !world || !world.places[hexId]) return 0;
+  let n = 0;
+  for (const id of S.map.owned) {
+    const u = hexUse(id);
+    if (u.kind !== "structure") continue;
+    const def = structureDef(u.id);
+    if (!def || !def.fortifies) continue;
+    const a = world.places[id], b = world.places[hexId];
+    if (hexDistance(a.q, a.r, b.q, b.r) <= CONFIG.fortRange) n++;
+  }
+  return n * CONFIG.fortStrength;
+}
+
 // How many hexes already carry this structure -- the per-copy cost escalator,
 // derived rather than stored so it can never drift from the board.
 export function structureCount(sid) {

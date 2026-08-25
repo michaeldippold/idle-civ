@@ -11,6 +11,47 @@
 
 ---
 
+## 2026-08-25 — The march-hold, and raids resolve where they land
+
+**Iron learns Fortification; a holding can then become a March-hold** — walls, a gate, and people who
+watch the road. It **yields nothing at all**, which is both the point and the price: you are trading
+a hex's entire output for defence.
+
+**The conflict resolver was reordered, and that is the real change.** The struck hex used to be
+chosen *last*, inside the failure branch, so the place was a consequence of the outcome. Now:
+
+- **SELECTION** — that a raid happens, who sends it, **and where it lands**
+- **RESOLUTION** — what it costs, and the only phase anything you build may touch
+
+That is the owner's ruling made structural, and it is what lets raid-roads (5c) change selection later
+without ever colliding with fortifications.
+
+**Defence is now the army PLUS the walls covering the hex that was actually struck.** Flat addition,
+not a multiplier, and deliberately: a multiplier on an army of zero is still zero, and walls have to
+fight for a player who has no soldiers. `CONFIG.fortStrength` (9) and `CONFIG.fortRange` (1) are the
+dials; a march-hold covers itself and the ring around it.
+
+**The seat cannot be built on** (owner ruling), and the reason names a line the docs had never drawn:
+**the Construction panel raises things in your SEAT**, while **building on a hex is you instructing a
+HOLDING**. Letting the capital be farmed would collapse two verbs into one. It also protects a
+landmark — the three-house cluster is how the board says *you are here*.
+
+**Visually** the hex keeps its terrain colour (unlike the farm) and raises a grey hexagonal wall
+inside the ownership rim, built from the game's own `corner()` rather than a six-sided cylinder —
+which would have been shorter and *misaligned*, since THREE starts its radial segments on a different
+axis than this board's pointy-top hexes. Alignment is structural instead of a magic rotation constant.
+
+**A check that looked right and was vacuous, caught by mutation.** "A march-hold does not change where
+raids land" passed against a deliberate mutation that made forts steer raids. The reason is worth
+keeping: **the starting trio is mutually adjacent, so one march-hold covers all three equally — and a
+uniform factor cancels out of a weighted pick.** The check now takes distant ground first, so the
+fort covers some hexes and not others and the weights can actually diverge. It fails against the
+mutation now.
+
+733 -> 746 checks, 0 flakes in 25 runs.
+
+---
+
 ## 2026-08-25 — The farm: a hex can be something other than its ground
 
 **5b, first structure, and the proof of the whole build-on-hex pipeline.** Bronze learns **Farming**;

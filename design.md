@@ -507,8 +507,21 @@ see the animation ruling in *Explicitly Out of Scope*.
   structure and returns the hex to being a resource hex. **No refund** — so converting is a real
   trade rather than a free toggle you flip per situation.
 
-**The seats are not an exception.** Your capital and the neighbours' seats stay RESOURCE hexes that
-merely *show* buildings; their houses are decoration, not a use.
+**YOUR SEAT CANNOT BE BUILT ON** *(owner ruling, 2026-08-25)*, and the reason names the line between
+the game's two build systems — which nothing had said out loud until now:
+
+- **The Construction panel raises things in your SEAT.** Granaries, forges, barracks: the capital you
+  personally rule from, and the small empire you build inside it.
+- **Building on a hex is you instructing a HOLDING** what to become. You are not there; you are
+  telling a dominance what to do with its ground.
+
+Letting the seat be farmed or fortified would collapse those two verbs into one confusing thing. It
+also protects a landmark: the three-house cluster on your seat is how the board says *you are here*,
+and a board where that can be replaced by a wall is a board where you can lose your own capital in
+the fog.
+
+**The neighbours' seats are not an exception either** — they stay RESOURCE hexes that merely *show*
+buildings; their houses are decoration, not a use.
 
 **Why this is specced before it is built.** The owner's instruction is to prepare the ground rather
 than the content: *"the most important thing to me right now is not that we build specifically a farm

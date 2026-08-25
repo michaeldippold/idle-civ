@@ -13,7 +13,7 @@
 // several-hundred-tile board free.
 
 import * as THREE from "three";
-import { axialToWorld, hash01 } from "./hex3d.js";
+import { axialToWorld, corner, hash01, HEX_SIZE } from "./hex3d.js";
 
 const _m = new THREE.Matrix4();
 const _p = new THREE.Vector3();
@@ -56,6 +56,37 @@ class Part {
     mesh.userData.items = this.items;
     return mesh;
   }
+}
+
+// DEV ART: a march-hold is a hexagonal wall standing inside the tile.
+//
+// Built from the game's own corner() rather than a six-sided CylinderGeometry,
+// which would be one line shorter and misaligned -- THREE starts its radial
+// segments on a different axis than this board's pointy-top hexes, so the wall
+// would sit rotated against the tile it stands on. Using corner() makes
+// alignment structural instead of a magic rotation constant.
+//
+// Outer and inner faces plus a capped top, so it reads as a wall with thickness
+// from the low camera angles this board lives at.
+function hexWallGeometry(outer, inner, height) {
+  const pos = [];
+  const tri = (a, b, c) => pos.push(a[0], a[1], a[2], b[0], b[1], b[2], c[0], c[1], c[2]);
+  for (let k = 0; k < 6; k++) {
+    const o1 = corner(k, outer), o2 = corner((k + 1) % 6, outer);
+    const i1 = corner(k, inner), i2 = corner((k + 1) % 6, inner);
+    const O1 = [o1.x, 0, o1.z], O2 = [o2.x, 0, o2.z];
+    const I1 = [i1.x, 0, i1.z], I2 = [i2.x, 0, i2.z];
+    const O1t = [o1.x, height, o1.z], O2t = [o2.x, height, o2.z];
+    const I1t = [i1.x, height, i1.z], I2t = [i2.x, height, i2.z];
+    tri(O1, O2, O2t); tri(O1, O2t, O1t);        // outer face
+    tri(I2, I1, I1t); tri(I2, I1t, I2t);        // inner face
+    tri(O1t, O2t, I2t); tri(O1t, I2t, I1t);     // the walkway on top
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  g.computeVertexNormals();
+  g.computeBoundingSphere();
+  return g;
 }
 
 // Deterministic offset inside a hex: ring of precomputed anchor slots,
@@ -135,6 +166,12 @@ export function buildProps(places, elev, homeId, isRevealedFn, builtOn) {
   const baleGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.24, 8);
   baleGeo.rotateZ(Math.PI / 2);
   const bale = new Part(baleGeo, hayMat);
+  // Inside the ownership rim (0.94/0.82) so the two never fight, and about as
+  // tall as the dev tower, which is the height the board already reads as "a
+  // building" at this camera.
+  const wall = new Part(
+    hexWallGeometry(0.74 * HEX_SIZE, 0.62 * HEX_SIZE, 0.42),
+    new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.9, flatShading: true }));
   const hutWall = new Part(new THREE.BoxGeometry(0.26, 0.16, 0.22), wallMat);
   const hutRoof = new Part(new THREE.ConeGeometry(0.21, 0.16, 4), roofMat);
   const tower = new Part(new THREE.BoxGeometry(0.2, 0.44, 0.2), stoneMat);
@@ -165,6 +202,12 @@ export function buildProps(places, elev, homeId, isRevealedFn, builtOn) {
     // sink-and-rise read correctly: the old growth goes down, the works come up.
     const structure = builtOn ? builtOn(p.id) : null;
     if (structure) {
+      if (structure === "marchHold") {
+        // One wall, centred: the hex IS the building. No jitter and no slot --
+        // a fortification that wobbled would read as a prop rather than as
+        // works, and it is the one thing on this board that should look placed.
+        wall.add(cx, y, cz, 0, 1, null, id);
+      }
       if (structure === "farm") {
         // Three bales, deterministically placed like every other prop.
         for (let i = 0; i < 3; i++) {
@@ -224,7 +267,7 @@ export function buildProps(places, elev, homeId, isRevealedFn, builtOn) {
     }
   }
 
-  for (const part of [trunk, canopy, rock, bale, hutWall, hutRoof, tower, towerRoof]) {
+  for (const part of [trunk, canopy, rock, bale, wall, hutWall, hutRoof, tower, towerRoof]) {
     group.add(part.build());
   }
   return group;

@@ -2,7 +2,7 @@ import { active } from "../content/compile.js";
 import { S } from "../core/state.js";
 import { capWord, seatIsNamed, seatName } from "../core/derived.js";
 import { save } from "../core/persist.js";
-import { demolishStructure, launchSettle, launchStructure, pendingBuild, pendingSettle, settlePlan, structurePlan, structureUnlocked } from "../core/actions.js";
+import { canBuildOn, demolishStructure, launchSettle, launchStructure, pendingBuild, pendingSettle, settlePlan, structurePlan, structureUnlocked } from "../core/actions.js";
 import { world, isOwned, isCharted, isVisible, capOf, hexPop, hexResource, hexUse, hexYield, structureDef, atDominionCap, dominionCap, holdsUsed } from "../map/map.js";
 import { FOREIGN, FOREIGN_MINOR, playerColor } from "../core/palette.js";
 import { hexDistance, hexPoints, toPixel } from "../map/model.js";
@@ -269,7 +269,8 @@ export function detailHTML(p) {
     // WHAT CAN BE RAISED HERE. Only structures this era declares and whose
     // unlock is owned; the price is printed, and the refusal reason with it,
     // because a card you cannot afford still has to be readable (interface.md).
-    for (const def of (active().structures || [])) {
+    // Never on the seat: the Construction panel is what you build THERE.
+    for (const def of (canBuildOn(p.id) ? (active().structures || []) : [])) {
       if (!structureUnlocked(def.id)) continue;
       const plan = structurePlan(def.id);
       if (!plan) continue;

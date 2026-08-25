@@ -28,6 +28,13 @@ export const CONFIG = {
                           // frontier. Deficit-proportional -- a deep shortfall kills fast, a
                           // near-balance kills slowly, and each death shrinks the deficit,
                           // so famine converges on what the land can actually feed.
+  // MARCH-HOLDS (2026-08-25). A fortified hex adds FLAT defensive strength to
+  // itself and its neighbours -- flat and not a multiplier, deliberately: a
+  // multiplier on an army of zero is still zero, and walls have to fight for a
+  // player who has no soldiers. That is most of what you are buying when you
+  // give up a hex's entire output.
+  fortStrength: 9,        // strength each march-hold contributes in range
+  fortRange: 1,           // hex distance it reaches: itself and the ring around it
   armyPerHex: 2,          // the army cap (E5): each held hex supports this many standing
                           // units, in every era -- the levy re-homed to the land, per the
                           // owner's ruling ("make it serve the hex"). Territory is what

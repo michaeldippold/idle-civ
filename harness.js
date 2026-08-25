@@ -1476,8 +1476,11 @@ console.log("\n--- C1: the iron manifest ---");
   const d = api.manifestDiff(api.MANIFESTS.bronze, m);
   // Ten removed since the War Camp retires here: it was priced in bronze, and
   // a ring of hide tents does not stage a legion. The Muster Ground succeeds it.
-  check("diff: 6 added, 10 removed (the storage line among them; the hut predeceased), 0 renamed",
-    d.added.length === 6 && d.removed.length === 10 && d.renamed.length === 0 &&
+  // Seven added since Fortification joined (2026-08-25) -- Iron is where a hex
+  // can be given over entirely to holding a border.
+  check("diff: 7 added, 10 removed (the storage line among them; the hut predeceased), 0 renamed",
+    d.added.length === 7 && d.removed.length === 10 && d.renamed.length === 0 &&
+    d.added.some((a) => a.id === "fortification") &&
     d.removed.some((r) => r.id === "granary") &&
     d.removed.some((r) => r.id === "warCamp") &&
     !d.added.some((r) => r.id === "ironYard"));
@@ -2762,6 +2765,99 @@ console.log("\n--- The dominion cap: what one age can hold ---");
   check("a subdual that would exceed the age's scope refuses to march",
     S().expeditions.length === 0);
   api.setRngSource(null);
+}
+
+console.log("\n--- The march-hold: walls act on resolution, never selection ---");
+{
+  reset();
+  api.S.era = "iron";
+  api.initAdversaries();
+  api.ensureMap();
+  api.S.res.wood = 9999; api.S.res.stone = 9999; api.S.res.iron = 9999; api.S.res.food = 9999;
+  const home = api.world.home;
+  const hex = api.S.map.owned.find((id) => id !== home);
+
+  check("Iron declares the march-hold; Bronze does not",
+    !!api.MANIFESTS.iron.structures.find((d) => d.id === "marchHold") &&
+    !api.MANIFESTS.bronze.structures.find((d) => d.id === "marchHold"));
+  check("it yields nothing at all -- that is the price of the hex",
+    !api.MANIFESTS.iron.structures.find((d) => d.id === "marchHold").yield);
+
+  // THE SEAT IS NOT BUILDABLE. The Construction panel is what you raise THERE.
+  api.S.upgrades.fortification = true;
+  check("the seat refuses every structure", api.canBuildOn(home) === false);
+  api.launchStructure(home, "marchHold");
+  check("...and the build is refused, not merely hidden", api.S.buildQueue.length === 0);
+  check("an ordinary holding accepts one", api.canBuildOn(hex) === true);
+
+  // A built march-hold produces nothing and covers its neighbourhood.
+  api.S.map.work[hex] = api.STRUCTURE + "marchHold";
+  check("a fortified hex is out of the ledger entirely",
+    api.hexProduces(hex) === false && api.hexResource(hex) === null);
+  check("it defends the ground it stands on", api.fortStrength(hex) >= api.CONFIG.fortStrength);
+  const neighbour = api.world.places[hex].adj.find((n) => api.S.map.owned.includes(n));
+  if (neighbour) {
+    check("...and the ground beside it", api.fortStrength(neighbour) >= api.CONFIG.fortStrength);
+  }
+  // The starting trio all sits within one ring, so there is no distant hex to
+  // test against until we take one. Claim the furthest land on the board --
+  // otherwise this check would silently never run, which is not a check.
+  let faraway = null, best = -1;
+  for (const p2 of Object.values(api.world.places)) {
+    if (p2.terrain === "water" || p2.adversary || p2.minor || api.isOwned(p2.id)) continue;
+    const b = api.world.places[hex];
+    const d = (Math.abs(p2.q - b.q) + Math.abs(p2.r - b.r) + Math.abs((p2.q + p2.r) - (b.q + b.r))) / 2;
+    if (d > best) { best = d; faraway = p2.id; }
+  }
+  api.captureTile(faraway);
+  check("there is distant ground to test against", best > api.CONFIG.fortRange && api.isOwned(faraway));
+  check("but the walls do not reach the far side of the country",
+    api.fortStrength(faraway) === 0);
+
+  // FLAT, NOT A MULTIPLIER: walls have to fight for a player with no army,
+  // and a multiplier on zero is zero.
+  api.S.units = { soldier: 0, archer: 0, horseman: 0, siegeEngine: 0 };
+  check("walls defend a settlement with no soldiers in it", api.fortStrength(hex) > 0);
+
+  // SELECTION IS UNTOUCHED. A fort changes no odds about WHETHER a raid comes
+  // or WHERE it lands -- only what happens when it arrives. This is the check
+  // that fails if fortification ever creeps into strikeHex.
+  reset(); api.S.era = "iron"; api.initAdversaries(); api.ensureMap();
+  // THE BOARD HAS TO BE ABLE TO SHOW THE DIFFERENCE. The starting trio is
+  // mutually adjacent, so one march-hold covers all three EQUALLY -- and a
+  // uniform factor cancels out of a weighted pick, which made the first version
+  // of this check unable to detect a fort leaking into selection at all. It
+  // passed against a deliberate mutation, which is the only reason it was
+  // caught. Take distant ground first, so the fort covers some hexes and not
+  // others and the weights can actually diverge.
+  let outpost = null, far = -1;
+  for (const p2 of Object.values(api.world.places)) {
+    if (p2.terrain === "water" || p2.adversary || p2.minor || api.isOwned(p2.id)) continue;
+    const h = api.world.places[api.world.home];
+    const d = (Math.abs(p2.q - h.q) + Math.abs(p2.r - h.r) + Math.abs((p2.q + p2.r) - (h.q + h.r))) / 2;
+    if (d > far) { far = d; outpost = p2.id; }
+  }
+  api.captureTile(outpost);
+  check("the test board has ground a single march-hold cannot cover",
+    far > api.CONFIG.fortRange + 1);
+  for (const id of api.S.map.owned) api.S.map.pop[id] = 6;
+  api.syncPopMirror();
+  const tally = (fortified) => {
+    const counts = {};
+    for (const id of api.S.map.owned) counts[id] = 0;
+    for (let i = 0; i < 600; i++) {
+      api.setRngSource(null);
+      api.S.rngState = 1000 + i;
+      if (fortified) api.S.map.work[fortified] = api.STRUCTURE + "marchHold";
+      const at = api.strikeHex("raid");
+      if (at) counts[at] = (counts[at] || 0) + 1;
+    }
+    return counts;
+  };
+  const plain = tally(null);
+  const walled = tally(api.S.map.owned.find((id) => id !== api.world.home));
+  check("a march-hold does not change where raids land -- selection is untouched",
+    Object.keys(plain).every((id) => plain[id] === walled[id]));
 }
 
 console.log("\n--- Building on a hex: the farm ---");

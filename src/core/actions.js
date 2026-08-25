@@ -146,8 +146,21 @@ export function pendingBuild(tileId) {
   return S.buildQueue.some((q) => q.kind === "structure" && q.tile === tileId);
 }
 
+// THE SEAT IS NOT BUILDABLE (owner ruling, 2026-08-25). Two build systems
+// exist and this is the line between them: the Construction panel raises things
+// in YOUR SEAT -- the capital you rule from -- while building on a hex is you
+// instructing one of your holdings what to become. Turning the seat itself into
+// a farm would collapse the two into one confusing verb.
+//
+// It also protects a landmark: the three-house cluster on your seat is how the
+// board says "you are here", and a board where that can be replaced by a wall
+// is a board where you can lose your own capital in the fog.
+export function canBuildOn(tileId) {
+  return isOwned(tileId) && !!world && tileId !== world.home;
+}
+
 export function launchStructure(tileId, sid) {
-  if (S.dead || !isOwned(tileId)) return;
+  if (S.dead || !canBuildOn(tileId)) return;
   if (!structureUnlocked(sid) || pendingBuild(tileId)) return;
   if (hexUse(tileId).kind === "structure") return;   // one use, and it is taken
   const plan = structurePlan(sid);

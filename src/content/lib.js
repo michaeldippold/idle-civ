@@ -3,7 +3,7 @@ import { rng } from "../core/rng.js";
 import { caps, totalUnits } from "../core/derived.js";
 import { S } from "../core/state.js";
 import { CONFLICT_FLAVOR, armorFactor, counterCoverage, militaryStrength, pick, raidGround, removeRandomUnit, reconcileReservations, rollRaidSize, rollRaidType, sentenceCase, stealResources } from "../sim/combat.js";
-import { hexPop, killAt, strikeHex, world } from "../map/map.js";
+import { fortStrength, hexPop, killAt, strikeHex, world } from "../map/map.js";
 import { hostilityMultiplier, raidAttribution } from "../sim/expeditions.js";
 import { log } from "../ui/log.js";
 
@@ -118,7 +118,21 @@ export const EVENT_LIB = {
 
       const raidSize = rollRaidSize();
       const raid = rollRaidType();
-      const defense = militaryStrength(raid);
+
+      // ---- SELECTION: that it happens, who sends it, and WHERE IT LANDS ----
+      // The hex is chosen here, before anything is resolved. It used to be
+      // picked last, inside the failure branch, which made the place a
+      // consequence of the outcome; a raid arrives somewhere and THEN is
+      // fought. Nothing the player builds may touch this phase (design.md:
+      // selection and resolution are separate).
+      const at = strikeHex("raid");
+
+      // ---- RESOLUTION: what it costs, and this is where walls act ----
+      // Defence is the army (global -- units are not stationed, and unit
+      // micromanagement is out of scope) PLUS the walls covering the hex that
+      // was actually struck. Flat addition, so a march-hold defends a player
+      // with no soldiers at all.
+      const defense = militaryStrength(raid) + (at ? fortStrength(at) : 0);
       const repelChance = defense / (defense + raidSize);
       // WHOSE raid this is (C3). Null at Stone by era-fact, which selects the
       // anonymous pool -- the danger is identical, only the attribution
@@ -149,9 +163,8 @@ export const EVENT_LIB = {
         stealResources(raidSize);
         say(CONFLICT_FLAVOR.raidSucceeds, CONFLICT_FLAVOR.raidSucceedsNamed, "bad");
         if (defense === 0 || defense < raidSize / 2) {
-          // E5: the raid lands SOMEWHERE -- exposure-weighted, so the frontier
-          // burns first. Bigger warbands take more people with them.
-          const at = strikeHex("raid");
+          // Only a thin defence lets them reach the people. The hex was chosen
+          // during selection; this is simply whether they got that far.
           if (at) {
             const died = killAt(at, 1 + Math.floor(raidSize / 8));
             reconcileReservations();

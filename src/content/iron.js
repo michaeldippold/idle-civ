@@ -182,6 +182,12 @@ export const IRON_DELTA = {
         reveal: () => S.builds.barracks >= 1,
       },
       {
+        id: "fortification", name: "Fortification", kind: "upgrade",
+        desc: "Cut stone, raise walls, and hold a border properly. Lets a holding be turned over entirely to defence.",
+        base: { wood: 160, stone: 220, iron: 60 }, buildTime: 60,
+        reveal: () => S.pop >= 30,
+      },
+      {
         id: "steelArmor", name: "Steel Armor", kind: "upgrade",
         desc: "Plate over hide. Improves your fighters' odds of surviving a fight, again.",
         base: { steel: 30, gold: 25 }, buildTime: 30,
@@ -263,6 +269,29 @@ export const IRON_DELTA = {
   ],
 
   // Full war, in both directions: campaigns, sieges, conquest.
+  // The march-hold: a hex given over entirely to holding a border. Named from
+  // the medieval "march" -- a contested borderland -- where a marcher keep held
+  // off incursions before the kingdom's armies could move (owner's pick).
+  //
+  // It YIELDS NOTHING, which is the point and the price: you are trading a
+  // hex's whole output for defence. `fortifies` is what fortStrength() reads.
+  structures: [
+    {
+      id: "farm", name: "Farm",
+      requires: "farming",
+      yield: { res: "food", rate: 1.7 },
+      base: { wood: 55, stone: 30 }, scale: 1.4, buildTime: 40,
+      desc: "Break the ground and work it properly. Feeds far better than bare land — and the hex gives up everything else it could have produced.",
+    },
+    {
+      id: "marchHold", name: "March-hold",
+      requires: "fortification",
+      fortifies: true,
+      base: { wood: 120, stone: 200, iron: 40 }, scale: 1.35, buildTime: 75,
+      desc: "Walls, a gate, and people who watch the road. Produces nothing at all — it holds this ground and the ground beside it, and raids that come here break on it instead of on your people.",
+    },
+  ],
+
   contact: "open",
   // The Muster Ground's cap of 1 is the real pacing: one outbound column at a
   // time, whatever its size. How big that column can be is answered by what

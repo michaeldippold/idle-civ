@@ -173,9 +173,15 @@ export function buildProps(places, elev, homeId, isRevealedFn, builtOn) {
   // tall as the dev tower, which is the height the board already reads as "a
   // building" at this camera.
   // Smaller than the selection ring (0.94/0.82) so the two never fight, and
-  // thicker and taller than the first attempt, which read as a fence.
+  // thicker than the first attempt, which read as a fence.
+  //
+  // HEIGHT HALVED 0.58 -> 0.29 (owner, 2026-08-25): at full height it competed
+  // with the TERRAIN for read. Hills stand at 0.55 against plains at 0.12, so a
+  // 0.58 wall was taller than the entire elevation range of the board and a
+  // fortified lowland hex looked like high ground. A structure must read as
+  // something standing ON the country, never as the country's own relief.
   const wall = new Part(
-    hexWallGeometry(0.80 * HEX_SIZE, 0.63 * HEX_SIZE, 0.58),
+    hexWallGeometry(0.80 * HEX_SIZE, 0.63 * HEX_SIZE, 0.29),
     new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.9, flatShading: true }));
   const hutWall = new Part(new THREE.BoxGeometry(0.26, 0.16, 0.22), wallMat);
   const hutRoof = new Part(new THREE.ConeGeometry(0.21, 0.16, 4), roofMat);

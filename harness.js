@@ -1538,7 +1538,7 @@ console.log("\n--- C1: the iron manifest ---");
   check("growth and levy are not era-facts any more (E5: growth is local, the muster is the land)",
     m.growth === undefined && m.levy === undefined);
   check("consolidation is gone from the iron manifest (died in E2)",
-    m.consolidate == null);
+    m.consolidate === undefined);
   check("the Village is now a Town", m.panelTitles["panel-holdings"] === "Town");
   const forge = m.buildings.find(b => b.id === "forge");
   check("the Forge persists, retargeted to steel",
@@ -1611,7 +1611,8 @@ console.log("\n--- C1: capstone gating and the real transition ---");
     S().map.owned.length >= 1 && S().pop >= S().map.owned.length);
   check("the fighting bands carry whole across a levy border",
     S().units.soldier === 2 && S().units.archer === 1 && S().units.horseman === 1);
-  check("stepper workers walked home when their jobs left the manifest", S().jobs.forager === 0);
+  // (The walked-home check died with the S.jobs bucket on 2026-08-25: the jobs
+  // system left in E2, and the bucket it swept stopped being seeded.)
   // (levyMigrated and the border bread-default died in E5 with the levy --
   // allocation exists from frame one and captures default to food themselves.)
   check("the noun re-denominates at the border", api.active().popNoun.singular === "subject");
@@ -2174,13 +2175,21 @@ console.log("\n--- Re-denomination: nouns, inheritance, consolidation ---");
     M.bronze.arrivalLine.includes("family") && M.iron.arrivalLine.includes("fealty"));
   check("no era consolidates any more -- borders re-denominate, they never take (E2)",
     !M.stone.consolidate && !M.bronze.consolidate && !M.iron.consolidate);
+  check("the consolidate era-fact is gone from the compiler entirely (2026-08-25)",
+    M.iron.consolidate === undefined && M.stone.consolidate === undefined);
   // An era that says nothing inherits the noun (the Silicon-keeps-Bloc rule).
   const quiet = api.extendEra(M.iron, { events: [], hints: [] });
   check("popNoun inherits when a delta is silent", quiet.popNoun.singular === "subject" &&
     quiet.arrivalLine === M.iron.arrivalLine);
   check("the odometer's scale inherits too -- an age that says nothing keeps it",
     quiet.soulsPerPerson === M.iron.soulsPerPerson);
-  check("consolidation is per-border, never inherited", quiet.consolidate === null);
+  check("a delta never grows a consolidate field back", quiet.consolidate === undefined);
+  check("declaring consolidate is now a load error, not a silent no-op", (() => {
+    try {
+      api.validateManifests({ test: api.extendEra(M.iron, { consolidate: { keep: 0.5 } }) });
+      return false;
+    } catch (e) { return true; }
+  })());
   const throws = (fn) => { try { fn(); return false; } catch (e) { return true; } };
   check("a base era without popNoun fails validation", throws(() => {
     const raw = { name: "N", panelTitles: {}, raidTypes: [],
@@ -2271,7 +2280,6 @@ console.log("\n--- C2: expeditions resolve through step() ---");
   S().pop = 10; S().units.soldier = 2;
   S().builds.musterGround = 1;
   S().res.food = 300;
-  S().jobs.forager = 3;
   api.launchCaravan("saltNomads");   // needs 40 iron -- wait, nomads buy iron
   check("caravan needs its cargo in store", S().expeditions.length === 0);
   S().res.iron = 50;
@@ -3705,6 +3713,11 @@ console.log("\n--- Engine rework E1: population lives on hexes ---");
     api.S.map.pop[api.world.home] <= cap && api.hexPop(api.world.home) === Math.floor(cap));
   check("the odometer is the sum of the hexes",
     api.hexPopSum() === api.S.map.owned.reduce((n, id) => n + api.hexPop(id), 0));
+  // The game-over screen reads S.bought. It was declared in E1 and never
+  // incremented, so every run ever played ended on "Arrivals welcomed: 0".
+  check("lifetime arrivals are actually counted (S.bought)", api.S.bought > 0);
+  check("arrivals counted are whole people, never the fractional curve",
+    Number.isInteger(api.S.bought));
 
   // Determinism: the growth curve is pure math on fixed ticks -- two runs
   // from the same reset must land on bit-identical populations.
@@ -3809,7 +3822,7 @@ console.log("\n--- Phase 6b: Conquest Growth G1 -- levy, output, no housing ---"
   // Growth is a verb at iron: the timer does nothing.
   reset();
   S().era = "iron"; api.initAdversaries(); S().seen.levyMigrated = true;
-  S().pop = 5; S().res.food = 500; S().jobs.forager = 2;
+  S().pop = 5; S().res.food = 500;
   const popBefore = S().pop;
   api.setRngSource(() => 0.999999);   // hazards hold their breath; growth is what's on trial
   run(120);

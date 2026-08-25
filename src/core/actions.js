@@ -224,7 +224,15 @@ export function completeConstruction(site) {
           if ((S.map.pop[id] || 0) > best) { best = S.map.pop[id]; from = id; }
         }
       }
-      if (from) S.map.pop[from] = Math.max(0, S.map.pop[from] - def.popCost);
+      // If every holding is empty there is nobody to draw, and training
+      // anyway would mint a soldier from nothing -- the books desync the
+      // player can't see. Refuse instead: the order is spent, the recruit
+      // never appears. (Guarded 2026-08-25.)
+      if (!from) {
+        log(`There is no one left to answer the muster. The order lapses.`, "bad");
+        return;
+      }
+      S.map.pop[from] = Math.max(0, S.map.pop[from] - def.popCost);
       syncPopMirror();
     }
     S.units[def.id] = (S.units[def.id] || 0) + 1;
@@ -240,10 +248,11 @@ export const CAPSTONES = { bronzeAge: "bronze", ironAge: "iron" };
 export function onComplete(def) {
   if (CAPSTONES[def.id]) { advanceEra(CAPSTONES[def.id]); return; }
 
-  if (def.id === "hut") {
-    // (the hut housing announcement died in E3 with the hut)
-    if (n === 3) log("A cluster of rooftops — this is becoming a real place.", "big");
-  } else if (def.kind === "unit") {
+  // (The hut's housing announcement died in E3 with the hut itself. Its
+  // branch outlived it referencing an undefined `n` -- a ReferenceError
+  // waiting for the first manifest to name a building "hut". Removed
+  // 2026-08-25.)
+  if (def.kind === "unit") {
     log(`A settler trains as a ${def.name}. You now field ${S.units[def.id]}.`, "good");
   } else {
     log(`${def.name} complete. ${def.desc}`, "good");

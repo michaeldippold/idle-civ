@@ -118,10 +118,11 @@ export function ensureMap() {
   syncDominion();
   ensurePop();
   syncCharted();
-  if (S.seen.needsDefaultWork) {
-    delete S.seen.needsDefaultWork;
-    defaultAssignments();
-  }
+  // (A `S.seen.needsDefaultWork` gate stood here reading a flag NOTHING ever
+  // set -- the border bread-default that set it died in E5. Removed
+  // 2026-08-25; defaultAssignments() survives as a callable verb, since new
+  // ground defaults to food at capture and the sweep is still the right
+  // answer if a hex is ever left unassigned.)
 }
 
 // The pop-tiles LOCKSTEP died in E3 (it was the E2 bridge, and its runaway
@@ -482,6 +483,12 @@ export function growPopulation(dt) {
   const after = hexPopSum();
   if (after !== before) {
     syncPopMirror();
+    // Lifetime arrivals, for the game-over screen. Counted in WHOLE people
+    // crossing an integer, so the stat matches what the Chronicle announced
+    // rather than the fractional curve underneath it. (S.bought was declared
+    // in E1 and never incremented until 2026-08-25 -- the end screen read
+    // "Arrivals welcomed: 0" for every run ever played.)
+    if (after > before) S.bought += Math.max(0, Math.floor(after) - Math.floor(before));
     // The Chronicle keeps its pulse: each whole arrival is told in the era's
     // own words -- but only while the settlement is SMALL. A hundred-soul
     // dominion gaining a person a second would drown the Chronicle in birth
@@ -736,10 +743,11 @@ export function captureTile(id, viaSettle) {
   if (!world || !S.map || S.map.owned.includes(id)) return false;
   S.map.owned.push(id);
   delete S.map.minors[id];
-  S.pop += 1;
   S.map.work[id] = "food";   // the designed default: bread first
   ensurePop();               // the new holding enters the books with its party
-  syncPopMirror();
+  syncPopMirror();           // S.pop is a MIRROR: recomputed here, never bumped
+                             // by hand (a stray += 1 lived on this line until
+                             // 2026-08-25, dead but misleading).
   syncCharted();              // taking ground shows you what borders it
   return true;
 }

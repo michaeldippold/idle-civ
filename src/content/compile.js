@@ -94,7 +94,9 @@ export function compileBase(raw) {
 
     raidTypes: raw.raidTypes.slice(),
     migrations: [],   // a base era is never entered FROM anywhere
-    consolidate: null,
+    // (`consolidate` retired 2026-08-25: applyConsolidation died in E5 and its
+    // last caller went with it. Declaring one is now a load error -- see the
+    // validator -- rather than a field nothing reads.)
     // Wholesale like the slates, never inherited: each age's world arrives
     // fresh, with fresh stocks, by construction.
     adversaries: (raw.adversaries || []).map((a) => Object.assign({}, a)),
@@ -140,8 +142,6 @@ export function extendEra(parent, delta) {
     // ENTERED (see runEraMigrations). Never inherited: a migration describes
     // one specific transition, not a standing rule.
     migrations: (delta.migrations || []).slice(),
-    // Consolidation is per-border, never inherited (see applyConsolidation).
-    consolidate: delta.consolidate ? Object.assign({}, delta.consolidate) : null,
     adversaries: (delta.adversaries || []).map((a) => Object.assign({}, a)),
     contact: delta.contact || parent.contact,
     soulsPerPerson: delta.soulsPerPerson != null ? delta.soulsPerPerson : parent.soulsPerPerson,
@@ -412,8 +412,12 @@ export function validateManifests(manifests) {
       bad(`missing or malformed popNoun`);
     }
     if (!m.arrivalLine) bad(`missing arrivalLine`);
-    if (m.consolidate && !(m.consolidate.keep > 0 && m.consolidate.keep <= 1)) {
-      bad(`consolidate.keep must be in (0, 1]`);
+    if (m.consolidate !== undefined) {
+      // Consolidation died in E5 and its caller on 2026-08-25. A manifest that
+      // declares one would take population at a border with nothing left to
+      // execute it -- silently, which is the failure mode this compiler exists
+      // to convert into a loud one.
+      bad(`era declares consolidate -- retired 2026-08-25: borders re-denominate, they never take`);
     }
     for (const a of m.adversaries) {
       if (!a.id || !a.name || !a.disposition || !(a.strength > 0)) bad(`adversary ${a.id || "?"} missing id/name/disposition/strength`);

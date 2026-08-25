@@ -242,7 +242,6 @@ button { font-family: inherit; cursor: pointer; }
   --map-river:  #d2e0e5;
   --map-water:  #c2d2d9;
 }
-#mapWrap { background: var(--card); border: 1px solid var(--hair); padding: 10px; }
 #mapSvg { display: block; width: 100%; height: auto; max-height: 60vh; }
 .tile { stroke: var(--hair); stroke-width: 1; cursor: pointer; }
 .t-plains { fill: var(--map-plains); }
@@ -256,11 +255,6 @@ button { font-family: inherit; cursor: pointer; }
 .tile-label {
   font-size: 8.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
   fill: var(--text-2); pointer-events: none;
-}
-.map-detail {
-  margin-top: 10px; padding: 9px 11px; min-height: 44px;
-  background: var(--card); border: 1px solid var(--hair);
-  font-size: 13px; line-height: 1.5;
 }
 
 /* 6c: the detail pane is where actions live. Allocation buttons follow the
@@ -338,9 +332,6 @@ button { font-family: inherit; cursor: pointer; }
 }
 .res-rate.pos { color: var(--good); }
 .res-rate.neg { color: var(--danger); }
-/* Idle labour is a problem the player should fix, so it is red, and it rides
-   in the population cell rather than getting a sentence of its own. */
-.res-note { font-family: var(--mono); font-size: 10.5px; font-weight: 700; color: var(--danger); }
 
 /* ---------- Fixed layout: 2 rows x 4 columns ---------- */
 /* Your People  | Settlement   | Build Queue | Chronicle
@@ -412,10 +403,6 @@ button { font-family: inherit; cursor: pointer; }
 }
 #panel-tile h2 { display: flex; justify-content: space-between; align-items: center; }
 
-/* The Chronicle spans both rows as a luxury until Expeditions unravels in
-   beneath it -- the same span idea, pointed the other way. */
-#panel-log.shrunk { grid-row: 1; }
-
 /* ---------- Block (panel) shell ---------- */
 .block {
   border: 1px solid var(--ink);
@@ -457,27 +444,14 @@ button { font-family: inherit; cursor: pointer; }
    field, not a ruling -- nothing crosses a letter -- so text can sit straight
    on it, and a white patch floating on a big cork field read as a stray label
    rather than as a note. It just needs a darker ink to hold contrast. */
-.ruled-cork .holdings-empty,
-.ruled-cork .growthline {
+.ruled-cork .holdings-empty {
   background: none;
   padding: 0;
   margin-left: 0;
   color: var(--text-cork);
 }
-.ruled-cork .growthline { margin-bottom: 11px; }
 
 /* ---------- People ---------- */
-/* Backed for the same reason as the empty states: it is loose prose, and the
-   cork behind it is a texture, not a ruling. */
-.growthline {
-  display: inline-block;
-  background: var(--paper);
-  padding: 2px 7px;
-  font-size: 12px; color: var(--text-2);
-  margin: 0 0 11px -7px; min-height: 16px;
-}
-.growthline .cost { font-family: var(--mono); color: var(--ink); font-weight: 700; }
-
 .job-list { display: flex; flex-direction: column; gap: 4px; }
 /* Two lines, deliberately: at this column width there is no honest way to fit
    name + rate + stepper on one, and the name is the control's primary label. */
@@ -497,7 +471,6 @@ button { font-family: inherit; cursor: pointer; }
   padding: 6px 7px 6px 10px;
 }
 .job-name { grid-column: 1; grid-row: 1; font-size: 12.5px; text-wrap: pretty; }
-.job-name.idle { color: var(--text-2); }
 .job-out {
   grid-column: 1; grid-row: 2;
   font-family: var(--mono); font-size: 11px; color: var(--text-2);
@@ -531,7 +504,6 @@ button { font-family: inherit; cursor: pointer; }
   font-family: var(--mono); font-weight: 700; font-size: 13.5px;
   font-variant-numeric: tabular-nums;
 }
-.job-count.zero { color: var(--text-3); }
 
 /* ---------- Settlement / holdings / person tiles ---------- */
 /* Icon and count side by side, no label: the old stacked icon/name/number
@@ -723,27 +695,8 @@ button { font-family: inherit; cursor: pointer; }
 .exp-status .cost { font-family: var(--mono); color: var(--ink); font-weight: 700; }
 .muster { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
 .muster .job-out { min-width: 0; white-space: nowrap; }
-.adv-list { display: flex; flex-direction: column; gap: 8px; }
-/* An adversary card is prose first: the description is load-bearing text that
-   carries strength, fighting style and fortification tier. It is the one card
-   in the game that keeps its description on the board rather than in a
-   tooltip, because reading it IS the decision. */
-.adv-card {
-  border: 1px solid var(--hair);
-  background: var(--card);
-  padding: 9px 11px;
-}
-.adv-card .b-top { display: flex; flex-direction: column; }
-.adv-card .b-name { font-size: 13px; font-weight: 700; }
-.adv-card .b-owned {
-  font-family: var(--mono); font-size: 10.5px; color: var(--text-2);
-  letter-spacing: .04em;
-}
-.adv-card .b-desc { font-size: 12.5px; line-height: 1.5; color: #332e24; margin-top: 5px; text-wrap: pretty; }
-.adv-stock { font-family: var(--mono); font-size: 11px; color: var(--text-2); }
-.adv-actions { display: flex; flex-direction: column; gap: 4px; margin-top: 7px; }
-.adv-actions .modal-btn { font-size: 11px; padding: 5px 9px; text-align: left; }
-.adv-actions .modal-btn:disabled { border-color: var(--hair-soft); color: var(--text-3); cursor: not-allowed; }
+/* (The .adv-* family -- the Expeditions panel adversary cards -- was removed
+   2026-08-25 with the panel itself. Adversaries live on the board now.) */
 
 /* ---------- Tooltip ---------- */
 /* Descriptions live here and nowhere else, and can therefore be MORE verbose

@@ -1,5 +1,5 @@
 import { BOOST_BUILDING, DEF_INDEX, active } from "../content/compile.js";
-import { ensurePop, growthSpendRate, hexPopSum, hexYield, syncDominion, upkeepMouths, world } from "../map/map.js";
+import { growthSpendRate, hexPopSum, hexYield, upkeepMouths, world } from "../map/map.js";
 import { CONFIG, TICK_SECONDS } from "./config.js";
 import { S } from "./state.js";
 import { log } from "../ui/log.js";
@@ -89,7 +89,9 @@ export function levyUsed() {
 // Anyone currently reserved by an in-progress (or still-waiting) unit order --
 // consumed the instant it's queued, not when it completes.
 export function reserved() {
-  if (active().levy) return 0;   // levied units never consume a civilian
+  // (The `levy` era-fact escape hatch was removed 2026-08-25: the levy died
+  // in E5 and no manifest has declared one since -- the compiler asserts the
+  // field is gone. Every era's recruits consume a real person.)
   return S.buildQueue.reduce((sum, q) => {
     const def = defById(q.id);
     return sum + (def && def.popCost ? def.popCost : 0);

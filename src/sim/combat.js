@@ -1,5 +1,5 @@
 import { active } from "../content/compile.js";
-import { syncDominion, syncPopMirror } from "../map/map.js";
+import { syncPopMirror } from "../map/map.js";
 import { rng } from "../core/rng.js";
 import { dropQueueItem } from "../core/actions.js";
 import { CONFIG } from "../core/config.js";

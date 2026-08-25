@@ -29,7 +29,6 @@ export function load() {
   // Merged against freshState() rather than a literal, so a resource or job
   // added later defaults to 0 in old saves without touching this line again.
   S.res = Object.assign(freshState().res, data.res);
-  S.jobs = Object.assign(freshState().jobs, data.jobs);
   S.builds = Object.assign(freshState().builds, data.builds);
   S.units = Object.assign(freshState().units, data.units);
   S.upgrades = data.upgrades || {};

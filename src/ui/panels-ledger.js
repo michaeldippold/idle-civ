@@ -14,8 +14,9 @@ export function renderPopRow(bar) {
     row.innerHTML =
       `<span class="res-name" id="name-pop">Pop</span>` +
       `<span class="res-val" id="val-pop">0</span>` +
-      `<span class="res-rate" id="rate-pop"></span>` +
-      `<span class="res-note" id="note-pop"></span>`;
+      `<span class="res-rate" id="rate-pop"></span>`;
+    // (The trailing res-note span held "idle", which died in E2. It was built
+    // and then blanked on every render until 2026-08-25.)
     // Always first: it is the resource every other one is in service of.
     bar.insertBefore(row, bar.firstChild);
   }
@@ -51,9 +52,6 @@ export function renderPopRow(bar) {
   const rateEl = document.getElementById("rate-pop");
   rateEl.textContent = "";
   rateEl.classList.toggle("pos", false);
-
-  const noteEl = document.getElementById("note-pop");
-  noteEl.textContent = "";   // "idle" died in E2: people work where they live
 
   // This tooltip described HOUSING, and housing died in the engine rework: it
   // read three variables (`conquest`, `full`, `idleNow`) that no longer exist

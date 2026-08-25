@@ -18,10 +18,10 @@ export function renderPeople() {
     renderTile(tiles, "ptile-", def.id, PERSON_ICONS[def.id] || "", def.name, S.units[def.id] || 0, "people", def.desc);
   }
 
-  // The settler-timer countdown died in E3: growth is visible on the hexes
-  // themselves ("People: 5 of 8"), which is a better countdown than a number.
-  const gl = document.getElementById("growthLine");
-  if (gl) { gl.classList.add("hidden"); gl.innerHTML = ""; }
+  // (The settler-timer countdown died in E3: growth is visible on the hexes
+  // themselves -- "People: 5 of 8" is a better countdown than a number. Its
+  // element was hidden-and-emptied on every render until 2026-08-25, when the
+  // div, this code and the .growthline rule were removed together.)
 
   // The standing sentence that says where the allocation verb went -- now
   // true in every era, phrased in the era's own noun.

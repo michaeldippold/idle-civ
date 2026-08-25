@@ -73,9 +73,9 @@
     <span id="emptyStores">— stores are nearly empty —</span>
   </div>
 
-  <!-- 2 rows x 4 columns: roster panels on top, action panels beneath each,
-       Chronicle spans both rows in the last column until Expeditions takes its
-       lower half (see updateSpans() in game.js).
+  <!-- Floating panels over the 3D board. (This was a 2 rows x 4 columns grid
+       whose spans were managed by an updateSpans() in a game.js that no longer
+       exists; the grid died in the flip and the comment outlived both.)
        Every panel the current era can fill is present from frame one, empty
        and waiting. What unravels is their CONTENTS, not the board itself --
        see design.md, "Unravel the contents, not the board". -->
@@ -136,7 +136,6 @@
         <h2>Your People</h2>
         <div class="block-body ruled-cork">
           <div id="personTiles" class="holdings-grid"></div>
-          <div class="growthline" id="growthLine"></div>
           <div id="jobList" class="job-list"></div>
         </div>
       </section>

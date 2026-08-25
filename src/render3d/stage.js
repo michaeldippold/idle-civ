@@ -29,7 +29,11 @@ import { buildRing, buildTerrain, RIM_Y } from "./terrain3d.js";
 const VOID = new THREE.Color(0x11161f);
 
 let renderer = null, scene = null, camera = null, controls = null, composer = null;
-let stageEl = null, labelLayer = null;
+let stageEl = null, labelLayer = null, canvasEl = null;
+// Held so dispose() can actually undo what initStage() wired up. Without
+// these, a disposed stage left an observer alive and its canvas in the DOM,
+// and re-initialising appended a SECOND canvas on top of the first.
+let resizeObs = null, resizeListener = null;
 let hoverRing = null, selectRing = null;
 let worldGroup = null;          // terrain + props for the current build
 let hooks = {};
@@ -132,6 +136,7 @@ export async function initStage(el, h) {
   const canvas = document.createElement("canvas");
   canvas.id = "mapGl";
   el.appendChild(canvas);
+  canvasEl = canvas;
 
   // `?glcheck=1` keeps the drawing buffer readable after compositing, which is
   // the only way an automated check can prove the board is actually being
@@ -151,6 +156,7 @@ export async function initStage(el, h) {
   } catch (e) {
     console.warn("[map3d] WebGL unavailable; keeping the 2D stage:", e);
     canvas.remove();
+    canvasEl = null;
     return false;
   }
 
@@ -201,8 +207,13 @@ export async function initStage(el, h) {
 
   wirePointer(canvas);
   resize();
-  if (typeof ResizeObserver !== "undefined") new ResizeObserver(resize).observe(el);
-  else window.addEventListener("resize", resize);
+  if (typeof ResizeObserver !== "undefined") {
+    resizeObs = new ResizeObserver(resize);
+    resizeObs.observe(el);
+  } else {
+    resizeListener = resize;
+    window.addEventListener("resize", resizeListener);
+  }
 
   started = true;
   loop();
@@ -595,10 +606,23 @@ function disposeTree(root) {
   });
 }
 
+// Undo initStage() completely, so a later init starts from a clean element
+// rather than layering a second canvas over a live one. Everything acquired
+// up there is released here, in reverse order.
 export function dispose() {
   if (rafId) cancelAnimationFrame(rafId);
+  rafId = 0;
+  if (resizeObs) { resizeObs.disconnect(); resizeObs = null; }
+  if (resizeListener) { window.removeEventListener("resize", resizeListener); resizeListener = null; }
+  if (controls && controls.dispose) controls.dispose();
   if (worldGroup) disposeTree(worldGroup);
+  if (composer && composer.dispose) composer.dispose();
   if (renderer) renderer.dispose();
+  if (canvasEl) canvasEl.remove();
+  if (labelLayer) labelLayer.remove();
+  renderer = scene = camera = controls = composer = null;
+  worldGroup = null;
+  canvasEl = labelLayer = stageEl = null;
   started = false;
 }
 

@@ -66,7 +66,6 @@ export function costPartsFor(def) {
 }
 
 export function renderBuildings() {
-  const panel = document.getElementById("panel-build");
   const list = document.getElementById("buildingList");
   let anyRevealed = false;
   const open = [], maxed = [];
@@ -135,7 +134,6 @@ export function renderBuildings() {
 // One-time upgrades: same card shell as renderBuildings, but a card locks
 // permanently once owned (or already queued) instead of re-pricing upward.
 export function renderUpgrades() {
-  const panel = document.getElementById("panel-upgrades");
   const list = document.getElementById("upgradeList");
   let anyRevealed = false;
   const buyable = [], ownedCards = [];
@@ -224,7 +222,6 @@ export function renderUpgrades() {
 // shows the settler(s) consumed, and unlike Construction/Upgrades this panel
 // is fully hidden (not just empty) until a Barracks exists.
 export function renderTraining() {
-  const panel = document.getElementById("panel-training");
   const list = document.getElementById("trainingList");
   let anyRevealed = false;
 
@@ -274,7 +271,7 @@ export function renderTraining() {
       why: levyFull
         ? `Your ${active().popNoun.plural} can levy no more. Grow your dominion, and the muster grows with it.`
         : (def.popCost && civilians() - reserved() < def.popCost)
-        ? `No one is free to train. A ${active().popNoun.singular} must be idle first.`
+        ? `There is no one to answer the muster — your holdings have no ${active().popNoun.plural} to spare.`
         : shortfallLine(cost),
     }));
   }

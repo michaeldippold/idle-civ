@@ -19,18 +19,23 @@ export function freshState() {
     rngState: seed,
     res:   { food: CONFIG.startFood, wood: 0, stone: 0, copper: 0, tin: 0, bronze: 0,
              iron: 0, steel: 0, gold: 0 },
-    jobs:  { forager: 0, woodcutter: 0, miner: 0, copperMiner: 0, tinMiner: 0, ironMiner: 0 },
+    // (`jobs` was removed 2026-08-25: the jobs system died in E2 and the bucket
+    // rode along in every save for two months. Saves that still carry one keep
+    // it -- state is inert, never deleted -- but nothing seeds or reads it.)
+    // `hut` stays seeded despite no manifest defining it: Iron's migration list
+    // vanishes it, so old saves need the key to land somewhere.
     builds:{ hut: 0, dryingRack: 0, lumberCamp: 0, stonePit: 0,
              infirmary: 0, barracks: 0, forge: 0, archeryRange: 0, stables: 0,
-             ironYard: 0, treasury: 0, warCamp: 0, musterGround: 0, siegeWorkshop: 0 },
+             warCamp: 0, musterGround: 0, siegeWorkshop: 0 },
     // Trained person-types owned; separate from builds -- renders in Your People.
     units: { soldier: 0, archer: 0, horseman: 0, siegeEngine: 0 },
     upgrades: {},     // { [upgradeId]: true } -- presence means owned, one-time
     buildQueue: [],   // FIFO: [{ id, kind, uid, total, remaining, cost }, ...] -- only [0] progresses
     buildSeq: 0,
     pop: CONFIG.startPop,
-    growth: 0,        // seconds accrued toward the next free settler; freezes while housing is full
-    bought: 0,        // lifetime settlers grown -- a stat for the game-over screen
+    // (`growth` was removed 2026-08-25 with the same sweep: the free-settler
+    // timer it accrued died in E3. Growth is logistic and per-hex now.)
+    bought: 0,        // lifetime arrivals -- the game-over screen's one stat
     // The player's colour on the board (core/palette.js). Chosen on the start
     // screen and fixed for the run by ruling, so nothing writes it after boot.
     // Old saves inherit the default through load()'s merge against freshState.

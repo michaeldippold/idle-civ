@@ -131,7 +131,11 @@ export const ERA_TRANSITIONS = {
   },
 };
 
-export function openEraModal(era, before) {
+// (The `before` parameter was removed 2026-08-25. It carried pre-transition
+// values for the modal to diff against; housing was the last of them and died
+// in E3, so callers had been passing an empty object ever since. What changed
+// is read from manifestDiff() instead.)
+export function openEraModal(era) {
   const t = ERA_TRANSITIONS[era];
   if (!t) return;
   const pi = ERA_ORDER.indexOf(era) - 1;

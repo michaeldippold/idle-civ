@@ -764,24 +764,26 @@ renderer plus the world model that renderer made possible. The additions, in dep
 - [ ] Board budget **~120 land hexes** including islands (bracket 100–200 — see §2.6's table);
       curate candidate frames at high density, ship them at low.
 
-**Flagged, not scheduled:** `applyConsolidation` reducing `S.pop` is correct for Bronze→Iron and
-wrong for every later border under a fixed board, where the board is already the cap. Post-Iron
-consolidation should re-denominate the tile noun and raise per-tile output while dominion stays
-put. Belongs to the balance pass, after the pop ladder past Iron is designed.
+~~**Flagged, not scheduled:** `applyConsolidation` reducing `S.pop`…~~ **Moot 2026-08-25:**
+`applyConsolidation` was deleted in E5, its last (unreachable) caller removed, and the
+`consolidate` era-fact is now a load error. Borders re-denominate; they never take.
 
-**The original port work follows.**
-Port the map stage from SVG to the spike's renderer, for real:
-- [ ] Move `spike3d/`'s pipeline into `src/render3d/` behind the existing stage seam: `renderMapStage`
+**The original port work — ALL SHIPPED** *(phase 10 slices 1–5; boxes closed 2026-08-25)*.
+The spike's pipeline lives in `src/render3d/` and `spike3d/` was deleted the same day — it had
+become a silent duplicate of the real renderer that still imported the live generator.
+- [x] Move the spike's pipeline into `src/render3d/` behind the stage seam: `renderMapStage`
       swaps implementations; the SVG stage survives as the 2D debug/fallback view (`?map=2d`).
-- [ ] Re-wire the shipped interaction pattern: plane-picking → `selectTile` (same Selected Tile
+- [x] Re-wire the shipped interaction pattern: plane-picking → `selectTile` (same Selected Tile
       panel), hover ring + DOM tooltip, work-glyph equivalents (3D markers or projected DOM labels),
       owned/selected state via materials — **never opacity**, the law follows the renderer.
-- [ ] Era-fact hooks: palette + light mood + prop-set keys in the `map` manifest spec.
-- [ ] View radii / fog, dominion growth, captures, settle — all state-driven re-mesh triggers
-      (chunk-dirty on the same signature the SVG stage already watches).
-- [ ] The §7 curvature shader (tabletop signature), WITH its depth-material and culling gotchas.
-- [ ] Vendor three/postprocessing/n8ao into the repo (pinned builds; no CDN at runtime).
-- [ ] Verification: keep readPixels smoke checks + the 2D debug view as the assertable surface;
+- [x] Era-fact hooks: palette + light mood + prop-set keys in the `map` manifest spec.
+- [x] Fog, dominion growth, captures, settle — all state-driven re-mesh triggers
+      (chunk-dirty on the same signature the SVG stage already watches). *(Era view radii were
+      retired rather than ported — one board, fog and camera do the work.)*
+- [x] The §7 curvature shader (tabletop signature), WITH its depth-material and culling gotchas.
+      *(Later dropped with the tabletop aesthetic itself — the world grows as it is scouted.)*
+- [x] Vendor three/postprocessing/n8ao into the repo (pinned builds; no CDN at runtime).
+- [x] Verification: keep readPixels smoke checks + the 2D debug view as the assertable surface;
       owner-eye QA for aesthetics, per the revised tech.md contract.
 
 ### Held until the UI conversation

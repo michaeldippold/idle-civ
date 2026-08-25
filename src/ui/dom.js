@@ -4,6 +4,17 @@ import { S } from "../core/state.js";
 export function fmt(n) { return Math.floor(n).toLocaleString(); }
 export function fmtRate(n) { return (n > 0 ? "+" : "") + n.toFixed(2) + "/s"; }
 
+// Escape anything PLAYER-AUTHORED before it reaches an innerHTML string. Today
+// that is one field -- the seat name -- and the stakes are self-harm only. The
+// habit is the point: the moment other players' names render on this board,
+// every unescaped concatenation becomes a real hole, and the seam to defend is
+// this one. Panels that build with textContent don't need it.
+export function esc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
 // ---------- Tooltips ----------------------------------------
 // Descriptions live here and nowhere else. Inline descriptions clogged the
 // board once eight panels were open; moving them to hover means they can be

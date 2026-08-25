@@ -257,7 +257,7 @@ export const EVENT_LIB = {
 export const HINT_LIB = {
   wood:  { when: () => S.res.wood  > 0, msg: "You have wood enough to notice its worth." },
   stone: { when: () => S.res.stone > 0, msg: "Stone piles up beside the wood." },
-  build: { when: () => S.res.wood >= 8, msg: "There is timber enough to build. Raise a hut for your people." },
+  build: { when: () => S.res.wood >= 8, msg: "There is timber enough to build. Put it to work on the land you hold." },
   tools: { when: () => S.map && S.map.owned.length >= 4, msg: "With new ground claimed, your people turn to better tools." },
   // Legacy saves hold storage-building counts from before 4c. The counts are
   // INERT (state is never implicitly destroyed) -- this line narrates the
@@ -278,7 +278,7 @@ export const HINT_LIB = {
   conflictWarn: { when: () => S.pop >= 4,
     msg: "Word of raiders reaches the settlement. A Barracks would let your people take up arms." },
   rotOre: { when: () => S.res.copper >= caps().copper - 0.01 || S.res.tin >= caps().tin - 0.01,
-    msg: "Ore is heaped up beyond what anyone can sort — the excess is lost. Build an Ore Yard." },
+    msg: "Ore is heaped up beyond what anyone can sort — the excess is lost. This age can hold no more: spend it, or outgrow the age." },
   firstBronze: { when: () => S.res.bronze > 0,
     msg: "The first ingots cool in the mould. Bronze is yours to work with." },
   bronzeAvailable: { when: () => S.pop >= 10 && (S.units.soldier || 0) >= 1,
@@ -286,7 +286,7 @@ export const HINT_LIB = {
   ironAvailable: { when: () => S.pop >= 16 && ((S.units.archer || 0) >= 1 || (S.units.horseman || 0) >= 1),
     msg: "The smiths grumble that tin grows dearer every season. There is a duller, stubborner metal in your own hills — if your people learn to work it." },
   rotIron: { when: () => S.res.iron >= caps().iron - 0.01,
-    msg: "Raw iron blooms are heaped up rusting in the open — the excess is lost. Build an Iron Yard." },
+    msg: "Raw iron blooms are heaped up rusting in the open — the excess is lost. This age can hold no more: spend it, or outgrow the age." },
   directHoldfasts: { when: (S_) => Object.keys((S.map && S.map.work) || {}).length === 0,
     msg: "Your holdfasts await direction — open the Map and set each to work its ground." },
   firstSteel: { when: () => S.res.steel > 0,

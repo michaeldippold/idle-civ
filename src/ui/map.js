@@ -7,7 +7,7 @@ import { world, isOwned, isCharted, isVisible, capOf, hexPop, hexResource, hexUs
 import { FOREIGN, FOREIGN_MINOR, playerColor } from "../core/palette.js";
 import { hexDistance, hexPoints, toPixel } from "../map/model.js";
 import { campaignPlan, expeditionOut, musterBuilt, standingWord } from "../sim/expeditions.js";
-import { attachTip, tipHide, tipMove, tipShow } from "./dom.js";
+import { attachTip, esc, tipHide, tipMove, tipShow } from "./dom.js";
 import { openCampaignModal, openCaravanModal, stockLine } from "./expeditions.js";
 
 // ---------- The map stage (the flip, 2026-08-22) ------------
@@ -275,7 +275,7 @@ export function detailHTML(p) {
     // most runs will never name anything, and that has to read as intended
     // rather than as a blank someone forgot to fill.
     parts.push(seatIsNamed()
-      ? `<b>${seatName()}.</b> Your seat — the ${noun} everything else is measured from.`
+      ? `<b>${esc(seatName())}.</b> Your seat — the ${noun} everything else is measured from.`
       : `<b>Your seat.</b> The ${noun} everything else is measured from.`);
   }
   else if (mine) parts.push(`<b>Your ${noun}</b> — ${p.terrain}. ${TERRAIN_FLAVOR[p.terrain] || ""}`);

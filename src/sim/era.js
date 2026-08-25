@@ -1,6 +1,6 @@
 import { DEF_CATEGORIES, active } from "../content/compile.js";
-import { civilians, deployedCount, playtime, totalUnits } from "../core/derived.js";
-import { defaultAssignments, ensureMap, syncDominion } from "../map/map.js";
+import { playtime } from "../core/derived.js";
+import { ensureMap, syncDominion } from "../map/map.js";
 import { initAdversaries } from "../core/persist.js";
 import { S } from "../core/state.js";
 
@@ -11,7 +11,6 @@ import { openEraModal } from "../ui/modal.js";
 export function advanceEra(era) {
   const fromEra = S.era;
   const fromM = active();
-  const before = {};   // housing died in E3; the era modal reads other changes
   const shallow = Object.assign({}, S);
   delete shallow.eraHistory;               // snapshots don't nest snapshots
   S.eraHistory[fromEra] = JSON.parse(JSON.stringify(shallow));
@@ -21,22 +20,14 @@ export function advanceEra(era) {
   // Pacing telemetry (console only), the bookend to the started line in build().
   console.log(`[pacing] ${toM.name} began at ${fmtTime(playtime())} (t${S.tick})`);
   initAdversaries();
-  // Consolidation runs BEFORE the map is touched, and the order is
-  // load-bearing now that dominion never shrinks (owner ruling: a border may
-  // change what a tile means, never how many you hold). ensureMap() syncs the
-  // dominion to whatever pop currently is, so consolidating afterwards would
-  // grant a block sized from the OLD population and then be unable to give it
-  // back. Population is decided first; the ground is matched to it second.
-  if (toM.consolidate) applyConsolidation(toM.consolidate);
+  // A border re-denominates what a tile MEANS; it never changes how many you
+  // hold (owner ruling). Consolidation -- which used to run here and take
+  // population at the border -- died in E5, and with it the arriving-dominion
+  // bread default: nothing arrives at a border any more, since every hex was
+  // claimed or captured and captures default to food on their own.
   ensureMap();
   runEraMigrations(fromM, toM, S.eraHistory[fromEra]);
-  syncDominion();   // the carried dominion block: owned tiles match the consolidated count
-  // The one-time allocation default: the FIRST levy border turns the arriving
-  // dominion to bread (allocation itself is universal since E2, so the old
-  // jobs->tiles trigger is now "the first border where the levy begins").
-  // (The border bread-default died in E5 with the levy: nothing arrives at a
-  // border any more -- every hex was claimed or captured, and captures default
-  // to food on their own.)
+  syncDominion();
   purgeDom(fromM, toM);
 
   // A new age begins at 1x (user ruling, after a 12x border starved a run
@@ -45,7 +36,7 @@ export function advanceEra(era) {
   // spin it back up the moment they've found their feet.
   setSpeed(1);
   log(`The ${toM.name} begins.`, "big");
-  openEraModal(era, before);
+  openEraModal(era);
 }
 
 // Applies an era's state migrations. Implicit default: everything carries.
@@ -78,15 +69,8 @@ export function runEraMigrations(fromM, toM, snapshot) {
   }
 }
 
-// The re-denomination consolidation (see design.md, Unit Re-denomination):
-// entering an era whose units mean more, your people gather into fewer of
-// them. Civilians and each unit type floor independently against the keep
-// ratio (units never below what's currently deployed -- a column abroad
-// can't be consolidated out from under its own expedition), pop is rebuilt
-// as their sum so the books can't desync, and job assignments floor along
-// with them; advanceEra's reconcileWorkforce() sweeps up any remainder.
-// applyConsolidation() died in E5 (dead code since E2, when consolidation
-// left every manifest): borders re-denominate, they never take.
+// (applyConsolidation() died in E5, and its last caller went with it on
+// 2026-08-25. Borders re-denominate; they never take.)
 
 // Remove the DOM nodes of every id that didn't survive the era hop -- cards,
 // holdings tiles, person tiles, job rows, resource rows. Renderers only ever

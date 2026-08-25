@@ -538,6 +538,59 @@ texture of the map — what is the terrain, where are the armies, how far must i
 Parked here deliberately so the word "caravan" in the codebase reads as a surviving concept
 awaiting its system, not dead civ-flavor. **Not 1.0.**
 
+### X.5 Armies on the board — the presentation ruling
+
+The board carries **two vocabularies of 3D object with different visual laws**, the way a
+physical board game does:
+- **Scenery** (trees, rocks, structures, the era re-dress) belongs to the *tile*: natural
+  muted colors, low to the ground, sunk-and-risen by the set-dressing system.
+- **Pieces** (armies) belong to *players*: deliberately oversized relative to scenery,
+  saturated player color (the `palette.js` THEIRS/RESERVED law already reserves this
+  channel). The only saturated player-colored vertical objects on the board are pieces.
+
+Rulings:
+- **One group = one piece, and it's a banner.** A banner flies for every army regardless of
+  size; composition is never depicted on the board. Strength shows as a badge via the
+  existing label layer (the A&A "plastic + chip" read). Click the banner for composition.
+- **Sockets.** Each hex reserves fixed anchor points the prop scatter never fills: center
+  socket for the structure, a ring of 2-3 sockets for pieces. Forest decoration survives —
+  scatter is authored around the standing room, and may thin near an occupied socket. The
+  sockets are also the physical occupancy cap if shared occupancy ever exists (post-1.0
+  alliances).
+- **Combat staging.** Opposing armies occupy ring sockets angled to face each other across
+  the hex; the dice roll-off plays out overhead. Two banners squared up over disputed
+  ground is the tabletop image.
+- **Garrison read.** A garrisoned army merges into the structure visually — the fort flies
+  the owner's flag and carries the badge; a field army stands at a ring socket. Siege scene:
+  flagged fort in the center, hostile banner at the rim.
+- **Travel is pick-up-and-plop**, hex by hex, pausing per hex exactly as the sim's travel
+  time does — the invisible hand moving a piece, same design language as the sink-and-rise
+  re-dress. A plop landing on a hostile hex *is* the fight starting.
+- **Fog gates banners on the stricter tier**: armies render only in **sighted** hexes (live
+  vision), never merely charted ones. Charted-but-unsighted shows remembered terrain, no
+  armies — which makes watchtowers and scouting stances do competitive work.
+
+Technically cheap: pieces are a separate instanced render layer fed by closures like
+everything else (`stage.setWorld` already takes this shape), sockets are constants in the
+hex layout, badges are the existing label layer. The one-way sim→render seam is untouched.
+
+### X.6 Army stacking laws
+
+- **One army per player per hex** — garrisoned or field, the law counts it the same
+  (garrisoning is a *stance* of the one army, not a second army). Want more force on a hex?
+  Disband armies to the global pool and dispatch one bigger force: manpower comes home
+  free, but projecting it again costs the full march. Concentration takes planning and buys
+  the opponent time. Dispatch validation refuses a destination you already stand on.
+- **No cap needed on players per hex — combat is the cap.** With no alliances at 1.0, all
+  co-occupancy between players is hostile and resolves by the dice roll-off until one side
+  holds. Stable multi-player occupancy is impossible by rule; transient overlap is the
+  battle itself.
+- **Disband legality (pinned to prevent combat-dodging):** disband only on your own
+  territory, never while in combat. Losing armies retreat or die; they don't evaporate to
+  the pool.
+- **Flagged open, settle when combat is built:** whether a third army arriving mid-battle
+  joins the ongoing fight or battles resolve pairwise sequential.
+
 ---
 
 ## Part XI — Suggested sequencing

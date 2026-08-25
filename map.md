@@ -758,12 +758,17 @@ This closed the last contradiction in the fog design. Adversaries used to arrive
 meant the world you spend most of a run looking at was uninhabited, and it meant a hex you scouted
 empty could sprout a village the moment the age turned.
 
-**Enemies that survive evolve alongside you.** Strength is a function of the ERA, never of your
-power — the distinction is the whole thing. Era is a shared world clock: rush ahead and you are
-genuinely ahead of your neighbours for a while; dawdle and they are ahead of you. Scale to the
-*player* instead and you get the Oblivion problem, where bandits appear in glass armour and
-advancement stops feeling like anything. Meeting a stone-age camp in the Iron Age makes no sense;
-neither does a neighbour who never grew.
+**Enemies that survive evolve on their own clock.** Strength is a function of the ERA, never of
+your power — the distinction is the whole thing. Scale to the *player* instead and you get the
+Oblivion problem, where bandits appear in glass armour and advancement stops feeling like
+anything. Meeting a stone-age camp in the Iron Age makes no sense; neither does a neighbour who
+never grew.
+
+*(Amended 2026-08-25: era is **per-player**, not a shared world clock. Every civilization —
+yours and every rival's — advances at its own pace, and a neighbour's strength comes from
+**their** era, never from yours. Rushing ahead genuinely puts you ahead of a specific rival;
+dawdling lets a specific rival pull ahead of you. This is the Empire Earth race, and it is the
+whole competitive axis. See the 8/25 design brief.)*
 
 Two consequences fall out without needing rules of their own:
 
@@ -1105,14 +1110,26 @@ is a harder constraint and a better one: it produces information rather than mot
 itself. Set-dressing says what age it is in; a build says what it is FOR; a raid road says what it is
 exposed to. A feature in this family that adds motion without adding information is off-thesis.
 
-### Deliberately not on this list
+### Deliberately not on this list *(SUPERSEDED 2026-08-25 — all four shipped or are the direction)*
+
+> The paragraph below banned terrain yield modifiers, per-tile buildings, tile-level unit
+> stationing and movement as "each a different game." Every one of them is now canon: terrain
+> yields shipped, per-tile buildings shipped (farm, fortification), and armies standing on and
+> marching between hexes is the settled military design. Kept only as the record of a scope
+> fence that fell. See the 8/25 design brief.
 
 Terrain yield modifiers, per-tile buildings, tile-level unit stationing, movement. Each is a
 plausible idea and each is a different game. See §10.6 for the one that's genuinely open.
 
 ---
 
-## 7. Rendering architecture
+## 7. Rendering architecture *(SUPERSEDED 2026-08-22 — the whole section describes the retired 2D renderer)*
+
+> **What actually shipped:** a three.js/WebGL stage (`src/render3d/`) rendering a 3D hex board,
+> with the SVG path surviving only as the degradation fallback (`src/ui/map.js`). Everything
+> below is the 2D design that preceded it. It is kept for the reasoning — the layer separation,
+> the state-by-fill-not-opacity rule and the hit-testing notes all carried forward — but no
+> ruling in this section is current architecture. See `tech.md` for the live render stack.
 
 **SVG for geometry and interaction; a DOM overlay for labels, tokens and popups. No canvas.**
 
@@ -1215,9 +1232,9 @@ Three stacked layers in one positioned container:
   geometry layers and keep the DOM overlay flat, or counter-rotate the labels. Worth prototyping
   before committing, and worth being willing to drop; a flat board is not a worse board.
 - **`offset-path` / `offset-distance`** animate an element along an arbitrary path in pure CSS.
-  **Not needed — no unit movement is planned, and rendered units stay out of scope.** It's noted
-  so the door stays open: if a caravan token should ever creep along its route as its timer runs,
-  the mechanism is one path string and one animated property, not a physics layer.
+  *(Amended 2026-08-25: this bullet used to say "no unit movement is planned, and rendered units
+  stay out of scope." Both are now canon — army banners stand on hexes and march between them.
+  The 3D stage supersedes the CSS mechanism anyway; travel is pick-up-and-plop, hex by hex.)*
 
 ### Module split (post phase 1)
 

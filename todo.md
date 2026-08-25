@@ -526,6 +526,12 @@ the map for the engine: *"it's clear it was right to do this first."*
 
 ### The playtest brief (what the user verifies during the hold)
 
+> **STALE 2026-08-25 — do not walk this script.** It was written for the pre-rework game and
+> verifies mechanics that no longer exist: steppers, the growth countdown, era view radii
+> ("the world widens to the ring"), consolidation at the Bronze→Iron border, and the dominion
+> block. Rewrite this brief the next time a playtest hold is called; keep it only as a model of
+> the *shape* a brief should take (correctness arc, then feel, then failure ladders).
+
 **Correctness — walk the whole arc on a fresh run:**
 1. *Stone:* one large hex; steppers work; growth countdown; hover/click the hex; all floating
    panels present; pause (Space), speed keys 1–5, tab-hide freezes the clock (t-counter stops).
@@ -692,8 +698,10 @@ verified stop and a test brief.
         land rather than leaving a people homeless. 6 new checks (559).
         *Still open from this slice:* spawn-on-charting (chart a region at Iron, find walled
         steadings rather than camps) — the populate-on-discovery idea, unbuilt.
-        **NOTE: adversaries still only exist at IRON.** Stone and Bronze declare no seats and no
-        minor tier, which is why early play is unopposed — see the stone-age-minors item above.
+        ~~**NOTE: adversaries still only exist at IRON.** Stone and Bronze declare no seats and no
+        minor tier, which is why early play is unopposed.~~ **Reversed 2026-08-24:** all three eras
+        seat the same three peoples, placed once at world generation and re-dressed per era. Early
+        play is opposed.
 - [x] **5 — The picker: BOTH, with Random** *(shipped 2026-08-25)*. **(owner ruling, 2026-08-24.)** Named continents you can
       choose, plus a Random option — know-then-not-know: new players learn the maps by choosing
       them, veterans roll Random for the where-am-I drama. Seeding survives intact: the save
@@ -1237,10 +1245,11 @@ These survive the pivot unchanged.
       too-hard per the standing rule. `conflictBaseChance` has been retuned once from real playtest
       data (tripled); expect others to move. The pivot changes the pacing target — everything must
       now fit a sitting — so this is due a fresh look after phase 5.
-      *Known dials, if pacing feels off:* `consolidate.keep` (iron delta) is THE population dial;
-      each adversary's `walls`, `CONFIG.siegeWallBonus` and `CONFIG.wallRetreatLoss` govern siege
-      feel; `CONFIG.popGrowthRate` governs early growth (it replaced `settlerIntervalSeconds`, which
-      was deleted 2026-08-25).
+      *Known dials, if pacing feels off:* `CONFIG.popGrowthRate` governs early growth (it replaced
+      `settlerIntervalSeconds`, which was deleted 2026-08-25); each adversary's `walls`,
+      `CONFIG.siegeWallBonus` and `CONFIG.wallRetreatLoss` govern siege feel.
+      *(Corrected 2026-08-25: this used to name `consolidate.keep` as THE population dial.
+      Consolidation was deleted in E5 — the dial does not exist. Don't reach for it.)*
 - [ ] **A rare "special" event with no counter** (the asteroid-style 0.5%-chance idea). The engine
       already supports the shape; it's content. Now also a candidate for the first *decision* event.
 - [ ] **Additional person-types.** Priests arrive with G3. "Citizen" as a Settler rename is saved for

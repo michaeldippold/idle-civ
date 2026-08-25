@@ -1158,9 +1158,19 @@ Iron.
 ## Eras
 
 Era progression is what carries the game from "feed the fire" to "decide the fate of star systems":
-new resources, new buildings, new events, new *vocabulary*. **The simulation never changes register** —
-no unit is ever drawn, no matter how far the tech tree goes; it is numbers, labels, prose, and (in
-time) a map of places.
+new resources, new buildings, new events, new *vocabulary*. What does **not** change is the
+register of the pieces: an age never gets more granular than the hex and the banner standing on
+it. No individual soldier is ever drawn, no matter how far the tech tree goes — an army is one
+banner in your colour whether it is a war party or a legion.
+
+*(Amended 2026-08-25: this paragraph used to read "no unit is ever drawn… it is numbers, labels,
+prose, and (in time) a map of places." The map shipped and armies now stand on it as banner
+pieces. What survives is the anti-micro half — the board shows presence, owner and weight, never
+individual units. See the 8/25 design brief.)*
+
+**Eras are per-player.** Each civilization — yours and every rival's — advances on its own clock,
+and advancing first is a real advantage. There is no shared world era. *(Settled 2026-08-25;
+Empire Earth is the reference.)*
 
 **The transition mechanism is settled:** advancing is a hidden, one-time capstone Upgrade that reveals
 once its prerequisites are quietly met and otherwise behaves like any other Upgrade — same queue, real
@@ -2025,12 +2035,16 @@ was never the danger.)*
   *Allocation — the permanent verb*. (Recorded briefly on the same day as a retirement; that was
   wrong, and the correction is kept because the hole it would have left — zero economic decision
   between conquests — is the kind a plausible-sounding ruling can open without anyone noticing.)
-- *Does the map regenerate at an era border, or persist and extend?* — It regenerates **when the tile
-  noun changes**, carrying your dominion forward as a pre-owned block sized from post-consolidation
-  holdings and narrated as an ordinary migration. Neither pure option worked: persist-and-extend
-  collides with consolidation (twelve holdfasts becoming three cities means the owned region must
-  *shrink* exactly as the world grows), and regenerate-every-era evaporates an age of conquest at the
-  border — the invisible-sink mistake this project already made once and wrote a rule against.
+- *Does the map regenerate at an era border, or persist and extend?* — **Neither. The map never
+  regenerates.** One board is generated at world birth and persists for the whole run; eras
+  *re-dress* it (the camp at Coldwater becomes the steading becomes the freehold) but never
+  rebuild it. *(Corrected 2026-08-25. The earlier answer here — "it regenerates when the tile noun
+  changes, carrying your dominion forward as a pre-owned block sized from post-consolidation
+  holdings" — was written when consolidation existed and the board was era-scoped. Consolidation
+  was deleted, era view radii were retired, and one-board-forever is now canon; see the ruling
+  under* One board, forever *above. The reasoning that killed regenerate-every-era still stands:
+  it evaporates an age of conquest at the border, the invisible-sink mistake this project already
+  wrote a rule against.)*
 - *Do captured tiles have an ongoing economic identity?* — Yes, via terrain yield. This reverses
   `map.md` §10.6's lean toward purely generic, because once population *is* tiles, terrain is the only
   thing left making one tile worth more than another.

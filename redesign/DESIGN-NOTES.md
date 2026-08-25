@@ -1,5 +1,16 @@
 # Idle Civ — Interface Decisions
 
+> **HISTORICAL — the record of the Bureau pass (2026-08-20). Not current canon.**
+> This documents a panel-game redesign that predates the pivot to a 3D hex-board 4X. The
+> "spreadsheet" identity below is retired, and the 4×2 grid it lays out no longer exists.
+>
+> **What outlived Bureau** (and is still canon, now recorded in `interface.md` §2): principle 1
+> (opacity is never used for state), principle 3 (text wraps, never truncates), principle 4
+> (descriptions live in hover), and principle 6 (colour is a three-value semantic channel).
+> Principles 2 and 5 were about paper stock and the desk, and went with them.
+>
+> Current canon: `2026-08-25-design-brief.md`, then `design.md`.
+
 Notes from the redesign session. Written for whoever implements this next; the reasoning matters more than the hex codes.
 
 ## Direction
@@ -7,8 +18,9 @@ Notes from the redesign session. Written for whoever implements this next; the r
 **Bureau.** Dense administrative paper — ledger sheets, ink tab headers, monospace numerals, hard 1px borders, no rounded corners, no shadows except the modal's hard offset. Two directions were rejected: an airy "Field Notes" layout (read as a retail product page, too much whitespace for a spreadsheet game) and a dark "Basalt" register (handsome but the evening register fought the paper metaphor). A chalkboard/post-it variant was also built and dropped — pastel panels plus semantic red/green overloaded the color channel.
 
 The game is a spreadsheet. The design should be proud of that rather than disguise it.
+*(Retired 2026-08-25 — the game is a 3D hex board, and the design is proud of that instead.)*
 
-## Locked principles
+## Locked principles *(as locked in the Bureau pass; see the banner for which four survive)*
 
 1. **Opacity is never used, for anything, ever.** It was previously doing double duty for "unaffordable", "queued", and "already owned", and players read all three as "you can't have this". Faded text is also just harder to read. State is now carried by border weight, border color, glyph color, and status words in the semantic palette.
 2. **Cards on patterned paper get an opaque fill.** Any panel with a graph or dot ruling must have its interior cards filled solid (white, or `#fffdf7` for job rows) so the pattern never runs behind text. This includes inactive tabs.

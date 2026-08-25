@@ -47,16 +47,7 @@ winding, so culling dropped a different subset at every angle); the wall out-top
 and March did nothing at all with an empty muster. **Three of those were the same bug** — a verb that
 refuses without saying why — and `interface.md` now carries that as a law.
 
-**Two lessons worth carrying, because each cost real time today:**
-
-- **A check that hardcodes what it should derive can only confirm what its author remembered.** Three
-  green checks turned out not to test their subject: a route comparison against a constant, a
-  fortification check a mutation walked straight through, and a work-glyph check that restated the
-  four resources it checked while two others had no glyph at all. **Mutate a new check before
-  trusting it.**
-- **A convention that is scoped is a convention that will be forgotten.** `.short` lived on
-  `.building .b-cost .short`, so every surface that grew an action reimplemented the verb without the
-  refusal — and fixing it per-surface produced the same bug twice in one day.
+**Standing lessons live in their own section below — see LESSONS THAT KEEP COSTING TIME.**
 
 ---
 
@@ -81,6 +72,8 @@ by a dev button. That ordering is the reason 5b took an afternoon rather than a 
 people and a raid takes 1–2, so a newly claimed hex can be lost within seconds — measured at 0.3%
 inside five seconds. Either the over-extension punishment the rule was written for, or arbitrary.
 Dials if it reads wrong: new hexes at 3, or a grace period before reversion.
+
+---
 
 ---
 
@@ -291,6 +284,42 @@ what a new sink changes.
 - **STANDING RULE (owner, 2026-08-25): no more eras, and no more era-scale features, until the core
   game is settled.** The tech tree comes before any of this. An age is not a thing to add to a game
   whose fundamentals are still moving.
+
+---
+
+## LESSONS THAT KEEP COSTING TIME
+
+**Standing, not session notes.** Each of these was learned by losing an hour or shipping a bug, and
+each has already recurred at least once. **This section is deliberately outside THE WORKING ORDER**:
+an earlier version lived inside START HERE and was silently dropped when that block was rewritten
+wholesale — by me, in a commit called *"the working order catches up"*. Notes that live inside a
+section that gets rewritten are notes with an expiry date.
+
+- **Dead code is not findable by asking about callers.** `housingPerHut()` had a live caller and a
+  dead era-fact — it ran, returned `undefined`, and handed it to nobody. `CONFIG.baseHousing` had no
+  references at all, so every search came back clean. Both were only findable by *reading*.
+
+- **A check that hardcodes what it should derive can only confirm what its author remembered.** Three
+  green checks turned out not to test their subject in a single day: a route comparison that measured
+  one route against a constant; a fortification check that a deliberate mutation walked straight
+  through (the starting trio is mutually adjacent, so a uniform factor cancels out of a weighted
+  pick); and a work-glyph check that restated the four resources it was checking while two others had
+  no glyph at all. **Mutate a new check before trusting it** — and if the mutation passes, the check
+  is the bug.
+
+- **Flavor is not verifiable by assertion alone; it has to be read.** Rendering every named raid line
+  caught two grammar bugs no check would have. Budget a render-and-read pass for anything that
+  substitutes into prose.
+
+- **A claim in a comment is not a mechanism.** `markFor()` said both renderers read one ladder for
+  weeks while the 2D stage quietly drew diamonds. If a comment asserts an invariant, something should
+  enforce it — a validator, a check, or a shape that makes the alternative unrepresentable.
+
+- **A convention that is scoped is a convention that will be forgotten.** `.short` lived on
+  `.building .b-cost .short`, so every surface that later grew an action reimplemented the verb
+  without the refusal. Fixing it per-surface produced the same silent failure twice in one day.
+
+- **A rewrite is a deletion unless you diff it.** This section exists because of one.
 
 ---
 

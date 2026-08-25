@@ -11,6 +11,34 @@
 
 ---
 
+## 2026-08-25 — A refusal always says why
+
+**Third silent failure found in play, and the third is the one that made the pattern obvious.**
+Pressing **March** with an empty muster did nothing at all — the modal even printed *"Muster at least
+one fighter"*, in ordinary text, beside a live button. The owner nearly filed it as a missing muster
+ground, which is exactly the wrong diagnosis a silent refusal invites.
+
+`campaignRefusal(ref, muster)` now answers **why a column cannot march, in words**, mirroring every
+guard `launchCampaign()` has: no muster ground, a campaign already out, the dominion at scope, an
+empty muster, fighters you do not have, and provisions you cannot cover. It lives beside those guards
+so the two cannot drift, and the modal disables March and prints the reason in semantic red.
+
+**The CSS fix is the real lesson, because I got it wrong twice in one day.** `.short` — the channel
+for *you cannot pay this* — was written `.building .b-cost .short`, so the convention existed **only
+on buy cards**. Every surface that later grew an action reimplemented the verb without the refusal:
+Settle printed a plain price, then March printed a plain reason. When I fixed Settle this morning I
+added `.map-noworks .short` — **scoped again** — so the modal was still grey an hour later.
+
+It is one unscoped rule now. The next surface inherits the convention instead of forgetting it.
+
+**Seven checks pin the contract**, including the two that matter most: when the refusal is `null` the
+column really does march, and when it is not, the launch refuses too. A modal that enables a button
+the sim will ignore is the original bug wearing a different coat.
+
+748 -> 755 checks, 0 flakes in 20 runs.
+
+---
+
 ## 2026-08-25 — The march-hold was an Escher figure
 
 **Reported from play: the wall rendered as disconnected panels that did not line up, and the pieces

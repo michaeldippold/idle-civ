@@ -664,11 +664,17 @@ button { font-family: inherit; cursor: pointer; }
 /* Each cost stays whole and the line breaks at the commas between them.
    "400 food" splitting across two lines is legible but reads as an error. */
 .building .b-costs > span { white-space: nowrap; }
-.building .b-cost .short { color: var(--danger); }
-/* The same semantic red in the map's Selected Tile panel. It only ever lived
-   on buy cards, so Settle printed a plain price and then did nothing when
-   clicked -- a silent refusal, which the interface laws forbid outright. */
-.map-noworks .short { color: var(--danger); font-weight: 700; }
+/* `.short` IS THE SEMANTIC CHANNEL FOR "you cannot pay this / cannot do this",
+   and it is deliberately UNSCOPED.
+
+   It used to be written `.building .b-cost .short`, which meant the convention
+   existed only on buy cards. Every other surface that grew an action -- the
+   map's Selected Tile panel, the muster modal -- reimplemented the verb without
+   the refusal, so Settle and March both printed a plain reason and then failed
+   in silence. Fixing it per-surface produced the same bug twice in one day.
+   One rule, everywhere, so the next surface inherits it instead of forgetting
+   it. */
+.short { color: var(--danger); font-weight: 700; }
 .building .b-time { flex: none; padding-left: 10px; color: var(--text-3); white-space: nowrap; }
 
 /* ---------- Tabs (Upgrades: Available / Owned) ---------- */

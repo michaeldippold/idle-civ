@@ -2,7 +2,7 @@ import { active } from "../content/compile.js";
 import { CONFIG } from "../core/config.js";
 import { availableUnits, isRevealed, pluralize } from "../core/derived.js";
 import { S } from "../core/state.js";
-import { campaignPlan, campaignStrength, columnSize, expeditionOut, findAdversary, hostileRouteRisk, launchCampaign, launchCaravan, provisionsFor, riskAdversary, standingWord, wallPower } from "../sim/expeditions.js";
+import { campaignPlan, campaignRefusal, campaignStrength, columnSize, expeditionOut, findAdversary, hostileRouteRisk, launchCampaign, launchCaravan, provisionsFor, riskAdversary, standingWord, wallPower } from "../sim/expeditions.js";
 import { closeModal, openModal } from "./modal.js";
 
 // The Expeditions panel is gone (the flip, 2026-08-22): the map's Selected
@@ -99,7 +99,8 @@ export function openCampaignModal(ref) {
     `<h3 class="info-h">Muster the column</h3>` +
     `<div class="muster">${musterRowsHTML("cm")}</div>` +
     `<div class="exp-status" id="cmEstimate"></div>` +
-    `<div class="exp-status" id="cmProvisions"></div>`;
+    `<div class="exp-status" id="cmProvisions"></div>` +
+    `<div class="exp-status hidden" id="cmRefusal"></div>`;
   openModal(`Campaign: ${t.name.charAt(0).toUpperCase() + t.name.slice(1)}`, body, [
     { label: "Stay home", onClick: closeModal },
     { label: "March", danger: true, onClick: () => {
@@ -115,12 +116,24 @@ export function openCampaignModal(ref) {
         const wallsBit = wallsNow > 0
           ? ` Their walls stand at ${Math.ceil(wallsNow)} — your column brings wall-power ${wallPower(muster).toFixed(1)}.`
           : "";
-        est.textContent = total < 1 ? "Muster at least one fighter."
+        est.innerHTML = total < 1 ? ""
           : `Your ${total} march at strength ${campaignStrength(muster, { strength: t.strength, fightsAs: t.fightsAs }).toFixed(1)}, against theirs of ${t.strength}.${wallsBit}`;
       }
       // AN ARMY EATS IN PROPORTION TO ITSELF, and the number has to move while
       // you decide -- a static cost printed above the steppers was the reason
       // column size needed an arbitrary cap to mean anything at all.
+      // THE BUTTON SAYS NO, AND SAYS WHY. Reads the same function launchCampaign
+      // guards on, so the modal cannot claim a march is possible that the sim
+      // will then silently refuse.
+      const refusal = campaignRefusal(ref, muster);
+      const goBtn = confirmButton();
+      if (goBtn) goBtn.disabled = !!refusal;
+      const why = document.getElementById("cmRefusal");
+      if (why) {
+        why.innerHTML = refusal ? `<span class="short">${refusal}</span>` : "";
+        why.classList.toggle("hidden", !refusal);
+      }
+
       const provisions = provisionsFor(plan, total);
       const prov = document.getElementById("cmProvisions");
       if (prov) {

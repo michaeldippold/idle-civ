@@ -170,6 +170,24 @@ real drawing buffer with `?glcheck=1`, white beat the old red on *every* tile te
 weakest case is a steading on bright plains at 2.49:1, carried by the dark text-shadow halo that
 every mark wears.
 
+### A refusal always says why *(hardened 2026-08-25, after three silent failures)*
+
+**Every verb that can refuse must say so in words, and disable its control.** Three were found
+failing silently in play on one day — **Settle**, **Build** and **March** — each with correct guards
+and no way to voice them. A button that does nothing when pressed is the worst failure this
+interface can produce, because the player's next move is to invent a reason: the owner's first guess
+at the March bug was a missing muster ground he had already built.
+
+**`.short` is the semantic channel for it, and it is deliberately UNSCOPED.** It began life as
+`.building .b-cost .short`, which meant the convention existed only on buy cards — so every surface
+that later grew an action reimplemented the verb without the refusal. Fixing that per-surface
+produced the same bug twice in one day. One rule, everywhere.
+
+**The refusal reason belongs beside the guards it mirrors**, not in the renderer: `campaignRefusal()`
+sits next to `launchCampaign()` so a new guard and its explanation are added in the same place. A
+modal that enables a button the simulation will ignore is the silent failure wearing a different
+coat, and there is a check for exactly that.
+
 ### The two load-bearing laws
 
 1. **Opacity is never used for state. Ever.** It previously did triple duty for *unaffordable*,

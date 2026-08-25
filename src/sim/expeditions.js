@@ -214,6 +214,33 @@ export function provisionsFor(plan, n) {
   return Math.round(plan.provisionBase + plan.provisionPerUnit * Math.max(0, n));
 }
 
+// WHY A COLUMN CANNOT MARCH, in words, or null if it can.
+//
+// launchCampaign() has always had these guards; what it did not have was a way
+// to SAY them, so pressing March with an empty muster did nothing at all and
+// the player was left to guess. That is the third time the same shape of bug
+// has been found in play -- a verb that refuses in silence -- after Settle and
+// Build. The refusal reason lives with the guards it mirrors so the two cannot
+// drift: anything added below should be added here.
+export function campaignRefusal(ref, unitCounts) {
+  if (S.dead) return "Your people are gone.";
+  if (!musterBuilt()) return "You have nowhere to muster a column. Raise the muster ground first.";
+  if (expeditionOut("campaign")) return "A campaign is already in the field.";
+  if (typeof ref === "string" && ref.startsWith("tile:") && atDominionCap()) {
+    return "Victory would win ground this age cannot govern — the dominion is at its full scope.";
+  }
+  const plan = campaignPlan(ref);
+  if (!plan) return "There is no one there to march on.";
+  const total = Object.values(unitCounts || {}).reduce((a, b) => a + b, 0);
+  if (total < 1) return "Muster at least one fighter.";
+  if (!validUnitCounts(unitCounts)) return "You cannot send fighters you do not have.";
+  const provisions = provisionsFor(plan, total);
+  if (S.res.food < provisions) {
+    return `Short ${Math.ceil(provisions - S.res.food)} food — a column eats on the road, and this one cannot be fed that far.`;
+  }
+  return null;
+}
+
 export function launchCampaign(advId, unitCounts) {
   // A campaign that would END in a new holding answers to the era's scope
   // (dominionCap) -- you cannot subdue what the age cannot hold. Campaigns

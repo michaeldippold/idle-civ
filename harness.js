@@ -1725,6 +1725,55 @@ console.log("\n--- C2: what an age can muster ---");
     api.MANIFESTS.bronze.map.dominionCap < api.MANIFESTS.iron.map.dominionCap);
 }
 
+console.log("\n--- A refusal always says why ---");
+{
+  // Three verbs have now been found failing SILENTLY in play -- Settle, Build
+  // and March. Each had correct guards and no way to voice them. This pins the
+  // one that is testable without a DOM: campaignRefusal() mirrors every guard
+  // launchCampaign() has, so the modal can never claim a march is possible that
+  // the sim will then quietly refuse.
+  reset();
+  api.S.era = "iron";
+  api.initAdversaries(); api.ensureMap();
+  const minor = Object.values(api.world.places).find((p) => p.minor);
+  const ref = "tile:" + minor.id;
+  api.S.builds.musterGround = 1;
+  api.S.units = { soldier: 3, archer: 0, horseman: 0, siegeEngine: 0 };
+  api.S.res.food = 9999;
+
+  check("a full muster is allowed to march", api.campaignRefusal(ref, { soldier: 1 }) === null);
+  check("an empty muster says so", /at least one fighter/i.test(api.campaignRefusal(ref, {}) || ""));
+  check("fighters you do not have are refused in words",
+    !!api.campaignRefusal(ref, { soldier: 99 }));
+
+  api.S.res.food = 1;
+  const hungry = api.campaignRefusal(ref, { soldier: 3 });
+  check("a column you cannot feed says how short you are", /short \d+ food/i.test(hungry || ""));
+  api.S.res.food = 9999;
+
+  api.S.builds.musterGround = 0;
+  check("no muster ground is named as the reason",
+    /muster ground/i.test(api.campaignRefusal(ref, { soldier: 1 }) || ""));
+  api.S.builds.musterGround = 1;
+
+  // THE GUARDS AND THE WORDS MUST AGREE. If the refusal says yes, the launch
+  // must actually happen -- otherwise the modal enables a button that does
+  // nothing, which is the original bug wearing a different coat.
+  const before = api.S.expeditions.length;
+  api.launchCampaign(ref, { soldier: 1 });
+  check("when the refusal is null, the column really marches",
+    api.S.expeditions.length === before + 1);
+
+  // ...and where it says no, nothing happens.
+  reset(); api.S.era = "iron"; api.initAdversaries(); api.ensureMap();
+  api.S.builds.musterGround = 1;
+  api.S.units = { soldier: 0, archer: 0, horseman: 0, siegeEngine: 0 };
+  const ref2 = "tile:" + Object.values(api.world.places).find((p) => p.minor).id;
+  check("and where it says no, the launch is refused too",
+    !!api.campaignRefusal(ref2, {}) &&
+    (api.launchCampaign(ref2, {}), api.S.expeditions.length === 0));
+}
+
 console.log("\n--- C2: you march on what you can feed ---");
 {
   reset();

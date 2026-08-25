@@ -11,6 +11,24 @@
 
 ---
 
+## 2026-08-25 — The era is the budget: storage buildings die, caps go flat
+
+**4c shipped, hours after its consensus.** The Granary, Woodshed, Stone Yard and Ore Yard leave
+every manifest; caps are flat and era-authored — Stone 400/350/350, Bronze 600/550/550 (ores 50,
+bronze 200), Iron 800/700/700 (iron 400, steel 300) — food higher everywhere by law, and **gold
+never capped in any era**: cap what accrues while you are not playing, never what acting earns.
+Iron's uncapped run retires without a reversal ("never a ruling so much as a temporary fix").
+
+The details that would have bitten later: the **rot hints still instructed building the dead
+granary** — rewritten to "spend it, or outgrow the age" and returned to Iron's slate with the caps;
+legacy saves keep their storage counts as **inert state**, narrated once by a new `oldStores` hint
+in every era's slate; and `capBuilding` is now a **compile error**, because a manifest field
+nothing reads is a lie in waiting. The law sheet lives in the harness — per era: no storage
+building anywhere, food caps above wood and stone, every capstone affordable under its own era's
+ceilings, gold boundless — and every new check was mutation-tested before being trusted (capped
+gold fails two checks; a 250 food cap fails the budget check; a revived capBuilding refuses to
+boot).
+
 ## 2026-08-25 — The Bronze raids learn to count, and the homeostat is measured
 
 **The 4b calibration correction, done by measurement** (`sim-4b.mjs`, a headless replica of the

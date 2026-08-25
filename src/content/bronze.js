@@ -62,6 +62,11 @@ export const BRONZE_DELTA = {
   remove: ["bronzeAge"],
 
   override: {
+    // THE ERA IS THE BUDGET (4c): flat caps sized just above this age's
+    // capstone (ironAge wants 400 of each), food higher by law.
+    food:  { baseCap: 600 },
+    wood:  { baseCap: 550 },
+    stone: { baseCap: 550 },
     infirmary:  { name: "Infirmary" },
     herbalMedicine: { desc: "Increases how much each Infirmary reduces the chance sickness claims a life." },
   },
@@ -70,11 +75,13 @@ export const BRONZE_DELTA = {
     resources: [
       // Present-in-era resources reveal immediately (`() => true`): the
       // manifest is the gate now, where an S.era check used to be.
-      { id: "copper", name: "Copper", baseCap: 50,  capBuilding: "oreYard", reveal: () => true },
-      { id: "tin",    name: "Tin",    baseCap: 50,  capBuilding: "oreYard", reveal: () => true },
+      // The ores buffer a converter rather than fund a budget -- small caps,
+      // no storage (the Ore Yard died with the rest of the line in 4c).
+      { id: "copper", name: "Copper", baseCap: 50,  reveal: () => true },
+      { id: "tin",    name: "Tin",    baseCap: 50,  reveal: () => true },
       // Bronze is spent on upgrades rather than stockpiled, so it gets a
-      // generous ceiling and no storage building of its own.
-      { id: "bronze", name: "Bronze", baseCap: 200, capBuilding: null,      reveal: () => true },
+      // generous ceiling.
+      { id: "bronze", name: "Bronze", baseCap: 200, reveal: () => true },
     ],
     buildings: [
       {
@@ -100,12 +107,6 @@ export const BRONZE_DELTA = {
         desc: "Lets your people train as Horsemen, and makes scouting possible.",
         base: { wood: 60, stone: 25, bronze: 10 }, scale: 1.5, buildTime: 34,
         reveal: () => S.builds.barracks >= 1,
-      },
-      {
-        id: "oreYard", name: "Ore Yard", kind: "building",
-        desc: "Store +100 copper and +100 tin (ores pile up unusable otherwise).",
-        base: { wood: 30, stone: 20 }, scale: 1.55, buildTime: 18,
-        reveal: () => true,
       },
       {
         // The first building that TRANSFORMS rather than produces or boosts.
@@ -266,7 +267,7 @@ export const BRONZE_DELTA = {
   ],
 
   events: ["greatHunt", "trader", "sickness", "conflict", "scoutFind", "scoutWarning"],
-  hints:  ["wood", "stone", "build", "tools", "rotFood", "rotWood", "rotStone",
+  hints:  ["wood", "stone", "build", "tools", "rotFood", "rotWood", "rotStone", "oldStores",
            "sicknessWarn", "conflictWarn", "rotOre", "firstBronze", "ironAvailable"],
 };
 

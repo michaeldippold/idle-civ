@@ -123,7 +123,10 @@ export function mults() {
 export function caps() {
   const out = {};
   for (const r of active().resources) {
-    out[r.id] = r.baseCap + (r.capBuilding ? (S.builds[r.capBuilding] || 0) * CONFIG.storageAdd : 0);
+    // FLAT AND ERA-AUTHORED (4c, 2026-08-25): the manifest is the whole
+    // answer. Nothing a player builds moves a ceiling any more -- the era is
+    // the budget -- and legacy storage counts in old saves are inert.
+    out[r.id] = r.baseCap;
   }
   return out;
 }

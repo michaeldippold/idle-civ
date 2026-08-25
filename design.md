@@ -819,18 +819,28 @@ the other.
 
 ### Resources & Storage
 
-Resources accumulate from job assignment. Every resource has a storage cap; surplus past it is lost,
-not stalled. That's literal rot for food and wood; for stone the justification is gameplay symmetry
-over realism, stated openly. Caps are what make storage buildings necessary rather than optional.
+Resources accumulate from allocation. Every resource has a cap; surplus past it is lost, not
+stalled — literal rot for food and wood; for stone the justification is gameplay symmetry over
+realism, stated openly. **Caps are FLAT, AUTOMATIC, and PER-ERA (4c, shipped 2026-08-25):** the era
+authors every ceiling, nothing a player builds moves one, and **the era is the budget** — caps sit
+just above the age's capstone, so the first real pull toward advancing is that the next age simply
+holds more. The shipped table: Stone 400/350/350 (food/wood/stone), Bronze 600/550/550 with the ore
+buffers at 50 and bronze at 200, Iron 800/700/700 with iron 400 and steel 300. **Gold is never
+capped, in any era** — *cap what accrues while you are not playing; never cap what you can only get
+by acting* — and the harness enforces the whole law sheet: no storage building in any manifest, no
+capBuilding field compiles, food above wood and stone everywhere, every capstone affordable under
+its own era's ceilings, gold boundless wherever it exists.
 
-*Retired at Iron (2026-08-22 — inside the scheduled window, moved up by user ruling: a king does
-not count sacks).* From Iron every resource runs uncapped and the storage line leaves the manifest,
-narrated. The friction handed off cleanly rather than being dropped: gold cannot be mined, growth is
-a designed budget, and the levy caps the army. Stone and Bronze keep their caps and their storage
-buildings — the early game's friction is untouched.
+**Legacy saves:** old storage-building counts are inert (state is never implicitly destroyed), the
+buildings vanish from every panel, and a one-time Chronicle line narrates the change.
 
-**SUPERSEDED (consensus 2026-08-25; not yet built): the storage buildings die, and caps become
-flat, automatic, and per-era.** Owner's proposal, and the evidence was his own save: Stone's
+*(History: storage buildings — Granary, Woodshed, Stone Yard, Ore Yard — carried the caps from the
+first commit until 4c. Reaching Bronze's 300-capstone required exactly three of each store, a
+prerequisite wearing a choice's clothes. Iron ran uncapped from 2026-08-22 — "a king does not count
+sacks" — which the owner later called a temporary fix for granary-spam and the
+20,000-of-everything walkaway; caps returned there the moment they cost nothing to maintain.)*
+
+**The consensus that shipped, kept for its reasoning (2026-08-25):** Owner's proposal, and the evidence was his own save: Stone's
 capstone costs 300 of each resource against a base cap of 50 + 100 per storage building, so every
 player builds *exactly* three granaries, three woodsheds and three stone yards to reach 350 — a
 prerequisite with extra steps, not a choice. The replacement:
@@ -1097,6 +1107,13 @@ neither way — it is a sandbox that runs out of content.
 Adversaries now advance on their own hidden countdowns, so the capstone becomes a race and losing it
 has teeth. Problems (1) and (2) remain open, though armies-on-the-field (see *Armies Take the
 Field*) bears on both. The paragraph below is kept as the diagnosis that led there.
+
+**Parked beside it (owner, 2026-08-25, logged not discussed): the FINAL era needs a true victory
+state.** A game that cannot end until someone clears the board of all enemies is not how most games
+resolve — TI4 as a fight to the death would run for weeks; even AoE enemies surrender. The floated
+shape: anyone left standing through all twelve eras enters a race to a final-era mega-project
+("multiverse escape" or the like) — the era clock's race, played one last time for the game itself.
+Deliberately not designed now.
 
 **On (3), the structure already exists and has been treated as plumbing: the era advance IS the win
 condition, repeated.** Each age is a run you win by reaching the next, and the seat falling is the

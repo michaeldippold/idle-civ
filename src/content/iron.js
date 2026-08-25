@@ -98,25 +98,25 @@ export const IRON_DELTA = {
 
   remove: [
     "copper", "tin", "bronze",            // the alloy economy, wholesale
-    // (its jobs left the game entirely in E2 -- nothing to remove)
-    "oreYard",                            // its storage
+    // (its jobs left the game entirely in E2 -- nothing to remove; its Ore
+    // Yard, and the whole storage line, predeceased in 4c)
     "bronzeTools", "bronzeWeapons", "scouting",  // stranded: priced in a dead resource
     "warCamp",                            // superseded: a ring of hide tents does not
                                           // stage a legion, and it was priced in bronze
     "flintSpears",                        // superseded twice over
     "ironAge",                            // a capstone exists only in the era it ends
-    "granary", "woodshed", "stoneYard",   // storage caps retire at Iron (user ruling, in the
-                                          // scheduled window): a king does not count sacks --
-                                          // that is delegated. The friction hands off to the
-                                          // conquest economy itself
   ],
 
   override: {
-    // Caps retire at Iron: every resource runs uncapped from here on. The
-    // ledger demotes capped rows to bare values, same as the POP row did.
-    food:  { baseCap: Infinity, capBuilding: null },
-    wood:  { baseCap: Infinity, capBuilding: null },
-    stone: { baseCap: Infinity, capBuilding: null },
+    // CAPS RETURN AT IRON (4c, 2026-08-25). Uncapped Iron "was never a ruling
+    // so much as a temporary fix" (owner) -- for granary-spam being a chore
+    // and for walking away and returning to 20,000 of everything. Both died
+    // with the storage buildings, so the era budget runs here too; it matters
+    // doubly once fast-forward ships. Sized generously for an era with no
+    // capstone yet -- tunable when Iron gets its exit.
+    food:  { baseCap: 800 },
+    wood:  { baseCap: 700 },
+    stone: { baseCap: 700 },
     forge: {
       desc: "Burns wood to work iron into steel — 3 iron + 2 wood into 1 steel, continuously.",
       // RATE 0.40, up from 0.05 (2026-08-25). The same disease as Bronze's
@@ -142,11 +142,13 @@ export const IRON_DELTA = {
 
   add: {
     resources: [
-      { id: "iron",  name: "Iron",  baseCap: Infinity, capBuilding: null, reveal: () => true },
+      { id: "iron",  name: "Iron",  baseCap: 400, reveal: () => true },
       // Steel, like bronze before it, is spent rather than stockpiled.
-      { id: "steel", name: "Steel", baseCap: Infinity, capBuilding: null,  reveal: () => true },
-      // Gold cannot be mined. It enters only from outside.
-      { id: "gold",  name: "Gold",  baseCap: Infinity, capBuilding: null,  reveal: () => true },
+      { id: "steel", name: "Steel", baseCap: 300, reveal: () => true },
+      // Gold cannot be mined. It enters only from outside -- and it is NEVER
+      // capped, this era or any other: cap what accrues while you are not
+      // playing, never what you can only get by acting (the 4c law).
+      { id: "gold",  name: "Gold",  baseCap: Infinity, reveal: () => true },
     ],
     // No jobs: the allocation verb lives on the map now. Iron ARRIVES as
     // terrain instead of as a job -- hills can be turned to it.
@@ -299,9 +301,10 @@ export const IRON_DELTA = {
   muster: { building: "musterGround" },
 
   events: ["greatHunt", "trader", "sickness", "conflict", "scoutFindIron", "scoutWarning"],
-  // No rot hints: caps retired with the storage line. directHoldfasts is the
+  // The rot hints RETURNED in 4c with the caps themselves; oldStores narrates
+  // a legacy save's dead storehouses exactly once. directHoldfasts is the
   // one-time pointer at the allocation flip.
-  hints:  ["wood", "stone", "build", "tools",
+  hints:  ["wood", "stone", "build", "tools", "rotFood", "rotWood", "rotStone", "oldStores",
            "sicknessWarn", "conflictWarn", "firstSteel", "firstGold", "neighbors", "directHoldfasts"],
 };
 

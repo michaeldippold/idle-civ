@@ -349,8 +349,10 @@ export function validateManifests(manifests) {
       }
     }
     for (const r of m.resources) {
-      if (r.capBuilding != null && !buildIds.has(r.capBuilding)) {
-        bad(`resource ${r.id} capBuilding "${r.capBuilding}" is not a building this era`);
+      if (r.capBuilding !== undefined) {
+        // A capBuilding would be a silent no-op now -- caps() stopped reading
+        // it in 4c -- and a manifest field nothing reads is a lie in waiting.
+        bad(`resource ${r.id} declares capBuilding -- retired in 4c (2026-08-25): caps are flat and era-authored`);
       }
       const boost = BOOST_BUILDING[r.id];
       if (boost && !buildIds.has(boost)) bad(`resource ${r.id} boost building "${boost}" is not a building this era`);

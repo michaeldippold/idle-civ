@@ -20,8 +20,8 @@ export function freshState() {
     res:   { food: CONFIG.startFood, wood: 0, stone: 0, copper: 0, tin: 0, bronze: 0,
              iron: 0, steel: 0, gold: 0 },
     jobs:  { forager: 0, woodcutter: 0, miner: 0, copperMiner: 0, tinMiner: 0, ironMiner: 0 },
-    builds:{ hut: 0, woodshed: 0, granary: 0, stoneYard: 0, dryingRack: 0, lumberCamp: 0, stonePit: 0,
-             infirmary: 0, barracks: 0, oreYard: 0, forge: 0, archeryRange: 0, stables: 0,
+    builds:{ hut: 0, dryingRack: 0, lumberCamp: 0, stonePit: 0,
+             infirmary: 0, barracks: 0, forge: 0, archeryRange: 0, stables: 0,
              ironYard: 0, treasury: 0, warCamp: 0, musterGround: 0, siegeWorkshop: 0 },
     // Trained person-types owned; separate from builds -- renders in Your People.
     units: { soldier: 0, archer: 0, horseman: 0, siegeEngine: 0 },

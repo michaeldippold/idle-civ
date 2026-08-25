@@ -85,7 +85,6 @@ export const CONFIG = {
                                // Integers only: speed is implemented as N ordinary steps per
                                // tick, not one big one -- see the loop in boot().
   // Per-resource base caps live on each era's resource list below, not here.
-  storageAdd: 100,        // extra cap per storage building
   stoneToolsBonus: 0.08,  // flat additive bump to ALL gather multipliers from the Stone Tools upgrade
   bronzeToolsBonus: 0.15, // ditto, Bronze Tools -- stacks additively on top of Stone Tools
   ironToolsBonus: 0.22,   // ditto, Iron Tools -- the tool tiers stack additively forever

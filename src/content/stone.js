@@ -106,9 +106,16 @@ export const STONE = {
   arrivalLine: "A wanderer joins your settlement.",
 
   resources: [
-    { id: "food",  name: "Food",  baseCap: 50, capBuilding: "granary"  },
-    { id: "wood",  name: "Wood",  baseCap: 50, capBuilding: "woodshed" },
-    { id: "stone", name: "Stone", baseCap: 50, capBuilding: "stoneYard" },
+    // FLAT, ERA-AUTHORED CAPS (4c, 2026-08-25). The storage buildings died the
+    // same night: reaching the Bronze capstone (300 of each) required exactly
+    // three of each store -- a prerequisite wearing a choice's clothes. Now
+    // THE ERA IS THE BUDGET: caps sit just above the capstone, nothing a
+    // player builds moves them, and advancing the age is what raises them.
+    // Food runs higher by law: population eats it continuously, where wood
+    // and stone are only ever spent in lumps.
+    { id: "food",  name: "Food",  baseCap: 400 },
+    { id: "wood",  name: "Wood",  baseCap: 350 },
+    { id: "stone", name: "Stone", baseCap: 350 },
   ],
 
   buildings: [
@@ -116,21 +123,9 @@ export const STONE = {
     // now, and the land's carrying capacity is the ceiling. The founding
     // building's reveal-spine role passed to THE CLAIM -- your dominion
     // growing is what opens the tree.
-    {
-      id: "woodshed", name: "Woodshed", kind: "building", desc: "Store +100 wood (else it rots in the rain).",
-      base: { wood: 20 }, scale: 1.55, buildTime: 16,
-      reveal: () => S.res.wood >= caps().wood * 0.7 || S.builds.woodshed > 0,
-    },
-    {
-      id: "granary", name: "Granary", kind: "building", desc: "Store +100 food (else it spoils in the open).",
-      base: { wood: 25 }, scale: 1.55, buildTime: 16,
-      reveal: () => S.res.food >= caps().food * 0.7 || S.builds.granary > 0,
-    },
-    {
-      id: "stoneYard", name: "Stone Yard", kind: "building", desc: "Store +100 stone (else the surplus is lost, unorganized).",
-      base: { wood: 25, stone: 10 }, scale: 1.55, buildTime: 16,
-      reveal: () => S.res.stone >= caps().stone * 0.7 || S.builds.stoneYard > 0,
-    },
+    // (The Woodshed, Granary and Stone Yard died here in 4c, 2026-08-25 --
+    // caps are era-authored now, and a cap you must build toward is a cap
+    // that was really a building requirement.)
     {
       id: "dryingRack", name: "Drying Racks", kind: "building", desc: "Foragers gather +12% food.",
       base: { wood: 22 }, scale: 1.5, buildTime: 20,
@@ -275,7 +270,7 @@ export const STONE = {
   ],
 
   events: ["greatHunt", "trader", "sickness", "conflict"],
-  hints:  ["wood", "stone", "build", "tools", "rotFood", "rotWood", "rotStone",
+  hints:  ["wood", "stone", "build", "tools", "rotFood", "rotWood", "rotStone", "oldStores",
            "sicknessWarn", "conflictWarn", "bronzeAvailable"],
 };
 

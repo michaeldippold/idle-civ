@@ -147,9 +147,9 @@ reset(); api.ensureMap();
 S().map.work[api.world.home] = "food";   // the E2 verb: turn the seat to food
 S().res.wood = 50;                        // timber up front; gathering has its own checks
 run(5);
-api.build(findB("granary"));              // the hut died in E3; the granary leads the tree now
-run(17);
-check("a building still completes with zero workers assigned", S().builds.granary === 1);
+api.build(findB("dryingRack"));           // the hut died in E3, the granary in 4c; racks lead now
+run(25);
+check("a building still completes with zero workers assigned", S().builds.dryingRack === 1);
 
 // ---- Barracks is capped at 1 ----
 console.log("\n--- Barracks: capped at 1 ---");
@@ -337,17 +337,18 @@ check("base Infirmary reducePerUnit is 0.2 (lowered from 0.35)",
 S().upgrades.herbalMedicine = true;
 check("Herbal Medicine raises it to 0.35", Math.abs(api.negateChance(sicknessEv) - 0.35) < 0.0001);
 
-// ---- v7: Stone Yard raises the stone cap; stone now actually clamps ----
+// ---- v7 (rewritten in 4c): flat era caps; stone still actually clamps ----
 console.log("\n--- v7: Stone Yard / stone storage cap ---");
 reset();
-check("base stone cap is 50 (previously Infinity)", api.caps().stone === 50);
+check("stone cap is the era-authored 350 (4c; was 50 + storage)", api.caps().stone === 350);
 // Post-E2 this tests the CLAMP alone -- gathering has its own hex-based
 // checks now, and a 600s mining window would need a fed settlement besides.
 S().res.stone = 200;
 run(1);
-check("stone clamps at 50 now", S().res.stone <= 50.001);
-S().builds.stoneYard = 1;
-check("Stone Yard raises the cap by 100", api.caps().stone === 150);
+check("stone clamps at the era cap now", S().res.stone <= api.caps().stone + 0.001);
+S().builds.stoneYard = 9;    // a legacy count from an old save: INERT since 4c
+check("no building moves a cap any more (4c)", api.caps().stone === 350);
+S().builds.stoneYard = 0;
 
 // ---- v7: Stone Tools bumps all three gather multipliers ----
 console.log("\n--- v7: Stone Tools ---");
@@ -461,11 +462,11 @@ const woodHex = S().map.owned.find((id) => id !== api.world.home);
 S().map.pop[woodHex] = 8;
 S().map.work[woodHex] = "wood";
 run(90);
-check("enough wood gathered to afford the granary", S().res.wood >= api.buildCost(findB("granary")).wood);
-api.build(findB("granary"));
-check("granary actually entered the queue", S().buildQueue.length === 1);
-run(17); // let it finish, queue drains back to empty
-check("granary finished, queue now empty again", S().buildQueue.length === 0);
+check("enough wood gathered to afford the racks", S().res.wood >= api.buildCost(findB("dryingRack")).wood);
+api.build(findB("dryingRack"));
+check("racks actually entered the queue", S().buildQueue.length === 1);
+run(25); // let it finish, queue drains back to empty
+check("racks finished, queue now empty again", S().buildQueue.length === 0);
 
 // ================= BRONZE AGE PHASE 1 =================
 const infDef = findB("infirmary");
@@ -488,8 +489,8 @@ check("overriding name does not disturb inherited fields (cost survives)",
   api.MANIFESTS.bronze.buildings.find(b => b.id === "infirmary").base.wood ===
   api.MANIFESTS.stone.buildings.find(b => b.id === "infirmary").base.wood);
 S().era = "stone";
-check("un-overridden defs read the same in both eras", api.defById("granary").name === "Granary" &&
-  api.MANIFESTS.bronze.buildings.find(b => b.id === "granary").name === "Granary");
+check("un-overridden defs read the same in both eras", api.defById("dryingRack").name === "Drying Racks" &&
+  api.MANIFESTS.bronze.buildings.find(b => b.id === "dryingRack").name === "Drying Racks");
 
 console.log("\n--- Bronze P1: carrying caps are retroactive (housing's heir) ---");
 reset(); api.ensureMap();
@@ -534,7 +535,6 @@ reset(); api.ensureMap();
 for (const id of S().map.owned) S().map.pop[id] = 10;
 S().units.soldier = 1; api.syncPopMirror();
 S().map.work[api.world.home] = "food";   // fed through the build: 2/s in, 1.2/s eaten
-S().builds.granary = 4;                   // headroom so the larder isn't clamped
 S().res.food = 400; S().res.wood = 400; S().res.stone = 400;
 check("era starts as stone", S().era === "stone");
 const peopleBeforeFlip = api.hexPopSum();
@@ -627,7 +627,7 @@ console.log("\n--- Bronze P1: old stone-age saves still load ---");
   merged.builds = Object.assign(api.freshState().builds, JSON.parse(legacy).builds);
   api.S = merged;
   check("legacy save keeps its era", S().era === "stone");
-  check("legacy save's missing buildings default to 0", S().builds.barracks === 0 && S().builds.stoneYard === 0);
+  check("legacy save's missing buildings default to 0", S().builds.barracks === 0 && S().builds.forge === 0);
   check("legacy save's real buildings survive", S().builds.hut === 2 && S().builds.infirmary === 1);
   // (the housing check died in E3 with housing itself)
   delete store[api.CONFIG.saveKey];
@@ -760,7 +760,7 @@ console.log("\n--- E3: the timer, the hut and the lockstep are gone, and stay go
   S().era = "stone";
 
   // And the claim actually grows the dominion, through the queue.
-  S().res.food = 400; S().res.wood = 200; S().res.stone = 200; S().builds.granary = 4;
+  S().res.food = 400; S().res.wood = 200; S().res.stone = 200;
   api.launchSettle(target.id);
   check("the claim entered the queue", S().buildQueue.some((q) => q.kind === "settle"));
   run(plan.time + 60);
@@ -774,7 +774,6 @@ console.log("\n--- E3: the timer, the hut and the lockstep are gone, and stay go
 // BRONZE-era recipe, and defById's DEF_INDEX fallback would hand back the
 // iron-era forge (latest identity) while the harness sits in stone.
 const forgeDef = api.MANIFESTS.bronze.buildings.find(b => b.id === "forge");
-const oreYardDef = api.MANIFESTS.bronze.buildings.find(b => b.id === "oreYard");
 
 console.log("\n--- P2: ores and their jobs are era-gated (by manifest membership) ---");
 reset();
@@ -797,12 +796,11 @@ reset();
     inRes("bronze", "copper") && inRes("bronze", "tin") && inRes("bronze", "bronze"));
   check("bronze hills can be turned to copper and tin",
     canWork("bronze", "hills", "copper") && canWork("bronze", "hills", "tin"));
-  check("forge and ore yard appear in bronze",
-    api.isRevealed(forgeDef) && api.isRevealed(oreYardDef));
+  check("forge appears in bronze", api.isRevealed(forgeDef));
   const copperRes = api.MANIFESTS.bronze.resources.find(r => r.id === "copper");
   const bronzeRes = api.MANIFESTS.bronze.resources.find(r => r.id === "bronze");
-  check("bronze has a generous cap and no storage building",
-    bronzeRes.capBuilding === null && bronzeRes.baseCap > copperRes.baseCap);
+  check("bronze runs a generous flat cap over its ore buffers",
+    bronzeRes.capBuilding === undefined && bronzeRes.baseCap > copperRes.baseCap);
 }
 
 console.log("\n--- P2: tin yields half of copper (same hill, same people) ---");
@@ -826,16 +824,37 @@ S().era = "bronze";
   check("both ores are actually produced", r.copper > 0 && r.tin > 0);
 }
 
-console.log("\n--- P2: Ore Yard lifts copper AND tin together ---");
+console.log("\n--- 4c: caps are flat, era-authored, and lawful ---");
 reset();
-S().era = "bronze";
 {
-  const before = api.caps();
-  S().builds.oreYard = 1;
-  const after = api.caps();
-  check("copper cap rose", after.copper === before.copper + api.CONFIG.storageAdd);
-  check("tin cap rose from the same building", after.tin === before.tin + api.CONFIG.storageAdd);
-  check("bronze cap unaffected by the ore yard", after.bronze === before.bronze);
+  const STORAGE = ["granary", "woodshed", "stoneYard", "oreYard"];
+  for (const era of Object.keys(api.MANIFESTS)) {
+    const m = api.MANIFESTS[era];
+    check(`${era}: no storage building survives anywhere`,
+      !m.buildings.some((b) => STORAGE.includes(b.id)));
+    check(`${era}: no resource declares capBuilding`,
+      m.resources.every((r) => r.capBuilding === undefined));
+    const cap = (id) => { const r = m.resources.find((x) => x.id === id); return r ? r.baseCap : undefined; };
+    check(`${era}: food caps above wood and stone (people eat food, not lumps)`,
+      cap("food") > cap("wood") && cap("food") > cap("stone"));
+    if (m.resources.some((r) => r.id === "gold")) {
+      check(`${era}: gold is never capped -- cap what accrues, never what acting earns`,
+        cap("gold") === Infinity);
+    }
+    // THE ERA IS THE BUDGET: every capstone must clear under its own era's
+    // ceilings, with headroom -- or the age is unwinnable by construction.
+    for (const u of m.upgrades) {
+      if (!(u.id in api.CAPSTONES)) continue;
+      for (const [res, cost] of Object.entries(u.base)) {
+        check(`${era}: cap on ${res} clears the ${u.id} capstone price`, cap(res) > cost);
+      }
+    }
+  }
+  // Legacy storage counts from an old save move nothing.
+  S().era = "bronze";
+  const before = JSON.stringify(api.caps());
+  S().builds.oreYard = 3; S().builds.granary = 3;
+  check("legacy storage counts are inert: caps identical", JSON.stringify(api.caps()) === before);
 }
 
 console.log("\n--- P2: the Forge converts, throttles, and idles ---");
@@ -1352,7 +1371,7 @@ console.log("\n--- Phase B: the cross-reference validator ---");
   const throws = (fn) => { try { fn(); return false; } catch (e) { return true; } };
   const okBase = () => ({
     name: "V", panelTitles: {}, popNoun: { singular: "p", plural: "ps" }, arrivalLine: "x", raidTypes: [{ id: "raid", name: "raid", weight: 1 }],
-    resources: [{ id: "gold", name: "Gold", baseCap: 10, capBuilding: null }],
+    resources: [{ id: "gold", name: "Gold", baseCap: 10 }],
     buildings: [{ id: "mint", name: "Mint", kind: "building", base: { gold: 1 }, scale: 1, buildTime: 1, reveal: () => true }],
     upgrades: [], units: [], events: [], hints: [],
   });
@@ -1367,8 +1386,9 @@ console.log("\n--- Phase B: the cross-reference validator ---");
     throws(() => compileAndValidate((r) => { r.buildings[0].base = { mithril: 5 }; })));
   check("a converter recipe naming a missing resource is caught",
     throws(() => compileAndValidate((r) => { r.buildings[0].converts = { in: { ore: 1 }, out: { gold: 1 }, rate: 1 }; })));
-  check("a capBuilding that isn't a building this era is caught",
-    throws(() => compileAndValidate((r) => { r.resources[0].capBuilding = "vault"; })));
+  check("a capBuilding is caught as retired (4c: caps are flat and era-authored)",
+    throws(() => compileAndValidate((r) => { r.resources[0].capBuilding = "vault"; })) &&
+    throws(() => compileAndValidate((r) => { r.resources[0].capBuilding = null; })));
   check("a works entry naming a missing resource is caught (the jobs validator's heir)",
     throws(() => compileAndValidate((r) => {
       r.map = { radius: 3, tileNoun: { singular: "t", plural: "ts" }, terrains: ["plains"],
@@ -1398,11 +1418,12 @@ console.log("\n--- Phase B: the cross-reference validator ---");
 console.log("\n--- Phase B: manifestDiff ---");
 {
   const d = api.manifestDiff(api.MANIFESTS.stone, api.MANIFESTS.bronze);
-  // Twelve since Farming joined (2026-08-25): Bronze is where a hex can first
-  // be turned into something other than the ground it stands on.
-  check("twelve additions across buildings/units/upgrades (incl. the iron capstone)",
-    d.added.length === 12 && d.added.some((a) => a.id === "warCamp") &&
-    d.added.some((a) => a.id === "farming"));
+  // Eleven since the Ore Yard predeceased in 4c (was twelve when Farming
+  // joined): Bronze is where a hex can first be turned into something other
+  // than the ground it stands on.
+  check("eleven additions across buildings/units/upgrades (incl. the iron capstone)",
+    d.added.length === 11 && d.added.some((a) => a.id === "warCamp") &&
+    d.added.some((a) => a.id === "farming") && !d.added.some((a) => a.id === "oreYard"));
   check("exactly one removal: the capstone", d.removed.length === 1 && d.removed[0].id === "bronzeAge");
   check("one rename: the infirmary (the hut died in E3)", d.renamed.length === 1 &&
     d.renamed.some(r => r.from.name === "Medicine Tent" && r.to.name === "Infirmary"));
@@ -1477,7 +1498,7 @@ console.log("\n--- C1: the iron manifest ---");
   check("iron/steel/gold arrived", has("resources", "iron") && has("resources", "steel") && has("resources", "gold"));
   check("no ground can be turned to gold or steel (they only arrive, never grow)",
     Object.values(m.map.works).every((w) => !("gold" in w) && !("steel" in w)));
-  check("new upgrades arrived; the storage line did NOT (caps retired, 6c)",
+  check("new upgrades arrived; the storage line did NOT (storage died era-wide in 4c)",
     has("upgrades", "ironTools") && has("upgrades", "ironWeapons") && has("upgrades", "steelArmor") &&
     !has("buildings", "ironYard") && !has("buildings", "treasury") &&
     !has("buildings", "granary") && !has("buildings", "woodshed") && !has("buildings", "stoneYard"));
@@ -1502,14 +1523,13 @@ console.log("\n--- C1: the iron manifest ---");
   check("bronze manifest gained the ironAge capstone",
     api.MANIFESTS.bronze.upgrades.some(u => u.id === "ironAge"));
   const d = api.manifestDiff(api.MANIFESTS.bronze, m);
-  // Ten removed since the War Camp retires here: it was priced in bronze, and
-  // a ring of hide tents does not stage a legion. The Muster Ground succeeds it.
-  // Seven added since Fortification joined (2026-08-25) -- Iron is where a hex
-  // can be given over entirely to holding a border.
-  check("diff: 7 added, 10 removed (the storage line among them; the hut predeceased), 0 renamed",
-    d.added.length === 7 && d.removed.length === 10 && d.renamed.length === 0 &&
+  // Six removed now that the storage line predeceased era-wide in 4c (the
+  // granary, woodshed, stone yard and ore yard no longer exist to retire
+  // here). The War Camp still retires: priced in bronze, and a ring of hide
+  // tents does not stage a legion. Seven added since Fortification joined.
+  check("diff: 7 added, 6 removed (storage predeceased in 4c), 0 renamed",
+    d.added.length === 7 && d.removed.length === 6 && d.renamed.length === 0 &&
     d.added.some((a) => a.id === "fortification") &&
-    d.removed.some((r) => r.id === "granary") &&
     d.removed.some((r) => r.id === "warCamp") &&
     !d.added.some((r) => r.id === "ironYard"));
 }
@@ -1536,9 +1556,8 @@ console.log("\n--- C1: capstone gating and the real transition ---");
   S().pop = 20; S().units = { soldier: 2, archer: 1, horseman: 1 };
   // No forge in this fixture: a running forge would keep smelting during the
   // 180s build and the bronze-at-flip number would drift off 70.
-  S().builds = Object.assign(S().builds, { hut: 4, barracks: 1, oreYard: 2,
-    granary: 20, woodshed: 4, stoneYard: 4 });   // deep larder: hex pops grow
-                                                 // and eat through the 185s build
+  S().builds = Object.assign(S().builds, { hut: 4, barracks: 1 });
+  // (storage died in 4c -- the era caps themselves carry the deep larder now)
   S().res = Object.assign(S().res, { food: 450, wood: 450, stone: 450, bronze: 120, copper: 33, tin: 12 });
   api.ensureMap();
   S().map.work[api.world.home] = "food";   // fed through the 185s build window
@@ -1605,9 +1624,9 @@ console.log("\n--- C1: iron-era economy runs ---");
   check("iron consumed at the recipe ratio",
     Math.abs(S().res.iron - (60 - 3 * batches)) < 1e-9);
   const c = api.caps();
-  check("caps retired at Iron: every resource runs uncapped (6c)",
-    !Number.isFinite(c.food) && !Number.isFinite(c.wood) && !Number.isFinite(c.stone) &&
-    !Number.isFinite(c.iron) && !Number.isFinite(c.steel) && !Number.isFinite(c.gold));
+  check("caps RETURN at Iron (4c) -- and gold alone stays boundless",
+    Number.isFinite(c.food) && Number.isFinite(c.wood) && Number.isFinite(c.stone) &&
+    Number.isFinite(c.iron) && Number.isFinite(c.steel) && !Number.isFinite(c.gold));
   api.setRngSource(null);
 }
 
@@ -1684,7 +1703,7 @@ console.log("\n--- C2: adversaries in the manifest, validated ---");
   const throws = (fn) => { try { fn(); return false; } catch (e) { return true; } };
   const base = () => ({
     name: "T", panelTitles: {}, popNoun: { singular: "p", plural: "ps" }, arrivalLine: "x", raidTypes: [{ id: "raid", name: "raid", weight: 1 }],
-    resources: [{ id: "gold", name: "Gold", baseCap: 10, capBuilding: null }],
+    resources: [{ id: "gold", name: "Gold", baseCap: 10 }],
     jobs: [], buildings: [], upgrades: [], units: [], events: [], hints: [],
   });
   const tryAdv = (adv) => {
@@ -1997,7 +2016,7 @@ console.log("\n--- C2.1: escorts decide how an ambush ends ---");
   S().builds.musterGround = 1;
   S().pop = 15; S().units = { soldier: 6, archer: 0, horseman: 0 };
   S().adversaries.hillClans.standing = -3;    // the roads are dangerous
-  S().res.food = 300; S().builds.granary = 3; S().builds.treasury = 1;
+  S().res.food = 300; S().builds.treasury = 1;
 
   // Unescorted + forced ambush: cargo gone, their books never move.
   api.launchCaravan("riverKingdom");
@@ -2046,7 +2065,7 @@ console.log("\n--- C2: campaign resolution -- victory (one-shot breach) ---");
   api.initAdversaries();
   S().pop = 12; S().units = { soldier: 6, archer: 0, horseman: 0 };
   S().builds.musterGround = 1; S().res.food = 100;
-  S().builds.granary = 5; S().builds.woodshed = 5; S().builds.ironYard = 2; S().builds.treasury = 1;
+  S().builds.treasury = 1;
   api.launchCampaign("hillClans", { soldier: 6 });   // wall-power 6 vs palisade 5: one assault
   const st = S().adversaries.hillClans;
   const stockBefore = Object.assign({}, st.stock);
@@ -2222,7 +2241,7 @@ console.log("\n--- C2: expeditions resolve through step() ---");
   api.initAdversaries();
   S().pop = 10; S().units.soldier = 2;
   S().builds.musterGround = 1;
-  S().res.food = 300; S().builds.granary = 3;
+  S().res.food = 300;
   S().jobs.forager = 3;
   api.launchCaravan("saltNomads");   // needs 40 iron -- wait, nomads buy iron
   check("caravan needs its cargo in store", S().expeditions.length === 0);
@@ -2350,7 +2369,7 @@ console.log("\n--- Phase 3: offline is gone; the save is load-bearing ---");
   // survives serialization verbatim and the revived save finishes the build.
   reset();
   S().res.wood = 100;
-  api.build(findB("granary"));
+  api.build(findB("dryingRack"));
   run(3);
   const midRemaining = S().buildQueue[0].remaining;
   api.save();
@@ -2359,8 +2378,8 @@ console.log("\n--- Phase 3: offline is gone; the save is load-bearing ---");
   check("save/load round-trips a build mid-construction",
     S().buildQueue.length === 1 && Math.abs(S().buildQueue[0].remaining - midRemaining) < 1e-9);
   check("load restores the saved copy, not live state", S().res.wood < 9999);
-  run(15);
-  check("the revived save finishes the build", S().builds.granary === 1 && S().buildQueue.length === 0);
+  run(25);
+  check("the revived save finishes the build", S().builds.dryingRack === 1 && S().buildQueue.length === 0);
 
   // Mid-flight expedition round-trip: a column in the field survives the
   // save, and the revived save resolves it on the world's schedule.
@@ -4091,7 +4110,7 @@ console.log("\n--- Seeded RNG: determinism and the source ban ---");
     S().map.work[api.world.home] = "food";
     S().map.work[S().map.owned[1]] = "wood";
     run(120);
-    api.build(findB("granary"));   // affordable or not, identically in both runs
+    api.build(findB("dryingRack"));   // affordable or not, identically in both runs
     run(240);
     return JSON.stringify(S());
   };

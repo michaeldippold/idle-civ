@@ -162,14 +162,16 @@ make the hit legible at Bronze; 4d makes it matter. Unattended shrink-not-die is
 (*A Game That Cannot Be Lost*, problem 1). **Do not spend more sessions tuning raid dials before
 4d ships; re-verdict difficulty after.**
 
-### 4c — THE CAPS COME BACK, FLAT AND FREE *(consensus 2026-08-25; small, do with the 4b correction)*
+### 4c — THE CAPS COME BACK, FLAT AND FREE ✅ *(shipped 2026-08-25, the same night as the consensus)*
 
-Full ruling: `design.md` → *Resources & Storage*. The work: delete the storage buildings (Granary,
-Woodshed, Stone Yard leave the manifests, narrated like the Iron handoff was), give every era
-automatic per-resource caps sized just above its capstone, food slightly higher, gold exempt
-forever, and Iron's caps return since they now cost nothing. Existing saves hold nine dead
-buildings — decide whether they refund, vanish, or stand as flavour. The `cappedNote()` /
-red-at-cap interface work already exists and carries over.
+Full ruling and the shipped numbers: `design.md` → *Resources & Storage*. Granary, Woodshed, Stone
+Yard and the Ore Yard are gone from every manifest; caps are era-authored (Stone 400/350/350,
+Bronze 600/550/550, Iron 800/700/700 + iron 400, steel 300); gold uncapped by law; the rot hints
+rewritten (they used to instruct building the dead granary — caught in this pass) and returned to
+Iron's slate along with the caps. **Saves: legacy counts are inert** (state is never implicitly
+destroyed) and a one-time `oldStores` hint narrates the quiet storehouses in every era's slate.
+**The law sheet is harness-enforced and mutation-tested**: capped gold fails two checks, a
+sub-capstone cap fails the era-is-the-budget check, and a revived capBuilding refuses to compile.
 
 ### 4d — EVERY CIVILIZATION KEEPS ITS OWN TIME *(consensus 2026-08-25; the headline feature)*
 

@@ -259,12 +259,20 @@ export const HINT_LIB = {
   stone: { when: () => S.res.stone > 0, msg: "Stone piles up beside the wood." },
   build: { when: () => S.res.wood >= 8, msg: "There is timber enough to build. Raise a hut for your people." },
   tools: { when: () => S.map && S.map.owned.length >= 4, msg: "With new ground claimed, your people turn to better tools." },
+  // Legacy saves hold storage-building counts from before 4c. The counts are
+  // INERT (state is never implicitly destroyed) -- this line narrates the
+  // change exactly once for anyone who built them.
+  oldStores: {
+    when: () => ((S.builds.granary || 0) + (S.builds.woodshed || 0) +
+                 (S.builds.stoneYard || 0) + (S.builds.oreYard || 0)) > 0,
+    msg: "The old storehouses fall quiet -- a realm keeps what its age can hold now, no more and no less.",
+  },
   rotFood: { when: () => S.res.food >= caps().food - 0.01,
-    msg: "Your food stores are full — the surplus spoils in the open. Build a Granary." },
+    msg: "Your food stores are full — the surplus spoils in the open. This age can hold no more: spend it, or outgrow the age." },
   rotWood: { when: () => S.res.wood >= caps().wood - 0.01,
-    msg: "Your woodpile is full — extra timber rots in the rain. Build a Woodshed." },
+    msg: "Your woodpile is full — extra timber rots in the rain. This age can hold no more: spend it, or outgrow the age." },
   rotStone: { when: () => S.res.stone >= caps().stone - 0.01,
-    msg: "Loose stone is piling up faster than anyone can stack it — the excess is lost. Build a Stone Yard." },
+    msg: "Loose stone is piling up faster than anyone can stack it — the excess is lost. This age can hold no more: spend it, or outgrow the age." },
   sicknessWarn: { when: () => S.pop >= 4,
     msg: "More mouths, more risk — crowded camps invite sickness. An infirmary would ease their fears." },
   conflictWarn: { when: () => S.pop >= 4,

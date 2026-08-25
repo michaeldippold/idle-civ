@@ -178,15 +178,19 @@ real-time 4X, speed controls, adversaries on their own tech clocks, armies as pi
 and no one has ever accused it of demanding APM. They solved the reaction-pressure question with
 pause and never looked back.
 
-**The standing law that guards the identity:**
+**The standing law that guards the identity** *(sharpened 2026-08-25 after the owner caught the
+first wording banning too much — a late interception IS worse, and should be)*:
 
-> **No order ever gets better by being issued faster.**
+> **No order ever gets better by being issued with faster hands. Every order may get better by
+> being issued at the right tick — that judgment is the game.** Corollary, which is what makes it
+> enforceable: **anything time-critical must be issuable from pause.** If a situation can only be
+> answered well by a player who didn't stop the clock, the feature is broken, not the player.
 
-With pause, every decision window is infinite, so a missed interception is a decision you got wrong,
-never a click you were late on. Hexes are coarse, travel is slow, and an order is a *decision*, not
-an *execution*. The APM ceiling of this design is a few orders per minute, all optional — TI4, not
-AoE. Any future feature that rewards issuing orders quickly has broken this law, whatever else it
-does right.
+Waiting too long to intercept a war party is a decision made late *in ticks* — judgment failing,
+priced honestly. What can never exist is two players making the same decision and getting different
+outcomes because one clicked quicker. If something catches you off guard, you pause and inspect all
+available information freely, like a Civ game — the owner's line for why 4X is the perfect bridge
+between the two poles. The APM ceiling stays a few orders per minute, all optional — TI4, not AoE.
 
 ## Design Philosophy
 
@@ -857,6 +861,8 @@ soldier is thematically wrong. The no-costless-toggle principle survives both mo
 
 Equipment tiers are one-time **Upgrades**: a weapon tier raises the odds a fight is won, an armor tier
 raises the odds your people survive one that goes badly. Two different jobs, deliberately separate.
+*(Superseded in design 2026-08-25 for weapon tiers — under unit persistence they fold into per-era
+unit defs; see* Armies Take the Field*. Armor's fate is an open sub-ruling there.)*
 
 **Conflict resolves in stages**, so it is never fully predictable and never fully safe: raid size rolls
 first, then a success check weighing your defense against the raid as a *ratio* (never a threshold —
@@ -886,12 +892,49 @@ military, thriving" is a viable build: a number that is nowhere can have no job.
 - **Armies become groups with positions.** The player partitions the army into segments and sends
   them to hexes, travel included, over terrain via `routeCost()` — terrain carrying a movement
   modifier has to matter. A group moves at its slowest member.
-- **Stance, not unit type, resolves the scout question.** A group is either **marching** (can fight
-  and hold ground; minimum size ~4 so one-soldier confetti is unrepresentable) or **scouting** (any
-  size, cannot fight; flees toward home or dies if an enemy army enters its hex). Four men sneaking
-  through the hills are scouts because of how they behave, not what they are — no separate scout
-  unit, no second movement system. Horsemen scout faster, so an all-horse party is a thing you
-  assemble on purpose. A scout fails by being *caught*, not by dice — explainable, narratable.
+- **Stance, not unit type, resolves the scout question.** A group is either **marching** (fights
+  and holds ground) or **scouting** (cannot fight; flees toward home or dies if an enemy army enters
+  its hex). Four men sneaking through the hills are scouts because of how they behave, not what they
+  are — no separate scout unit, no second movement system. Horsemen scout faster, so an all-horse
+  party is a thing you assemble on purpose. A scout fails by being *caught*, not by dice —
+  explainable, narratable.
+- **No minimum group size — the world prices pickets honestly *(ruled 2026-08-25)*.** A floated
+  min-4 rule died on inspection: a lone picket dies guaranteed to any real force, costs a scarce
+  unit from a small pool, and a dead picket that bought warning did an honest job — that is what
+  picket lines are. Broken lines and scrambling to re-intercept is wanted texture. The actual
+  exploit was elsewhere: sacrificial chaff *pinning* an army via the both-are-busy rule. The
+  guardrail lives in the fight, not the group size: **engagement duration scales with how even the
+  fight is — a steamroll resolves near-instantly and the winner marches on the same tick.** Delay is
+  bought with a force that could plausibly win, never with bodies. A lone soldier buys a *little*
+  time — desperation play, correctly priced. (Armies aren't delayed by the men they walk over.)
+- **The piece count is bounded forever, by the game's own scale philosophy.** Units never inflate;
+  labels do — one soldier becomes one star cruiser, and only population runs to silly numbers, as a
+  scaled label on a real number. So era 12 holds roughly as many army groups as era 3, and micro can
+  never creep in at depth because the thing micro needs — a growing swarm of controllable objects —
+  is unrepresentable. TI4 stays TI4 at heat death.
+- **Units persist across eras; manifests only ever ADD units *(consensus 2026-08-25)*.** Today the
+  era flip renames the same four unit ids in place — every unit forcibly the same age, which was
+  only ever a consequence of the single global era. With era-per-civ that constraint dies: units
+  keep the era they were built in, new eras mint new defs, and you field **mixed nonsense armies**
+  — the last spearman, some knights, the one tank you somehow built. What falls out:
+  - **Rebuilding the army every era is a real, recurring resource sink** — and the equipment-tier
+    upgrades (`bronzeWeapons`, `ironWeapons`) were this feature done flat: one payment aging up the
+    whole army at once. Weapon tiers fold into the unit defs — a bronze swordsman IS bronze weapons.
+    *Open sub-ruling:* whether armor tiers stay global upgrades (everyone gets the new shields, old
+    units included) or fold in too.
+  - **No disband verb, and existing canon already rules it:** *a soldier is a commitment, never a
+    reassignable stat.* You clear levy slots the way the owner already plays board games — by
+    spending the men. The desperate attack that exists partly to retire obsolete units is intended
+    consequence, not exploit.
+  - **The strength curve balances mixed armies for free:** era gaps read as kind early and number
+    late, so a mixed army is naturally viable in early ages and brutally obsolete in deep ones —
+    rebuild-or-rot pressure follows the difficulty curve without tuning.
+  - **Mechanically cheap:** owned units become state referencing the manifest of their birth era via
+    `manifestFor(era)` — the exact seam the era clock already forces. The wholesale rule survives:
+    each era still declares its *trainable* roster wholesale; legacy is state, not inheritance, and
+    `manifestDiff`'s unit-rename machinery retires.
+  - **One asymmetry, deliberate:** adversary armies materialize per campaign at their current era —
+    nothing persistent to carry, so no legacy units. The no-sim rule doing its job.
 - **Scouting buys WARNING TIME, not just map knowledge.** Fog is built and load-bearing
   (`syncCharted()`: you see what you hold plus one ring, sticky) — which today means an approaching
   army would be invisible until adjacent. A scouted ring three hexes out is three hexes of notice;
@@ -908,8 +951,7 @@ military, thriving" is a viable build: a number that is nowhere can have no job.
   sold. An army at home and an army afield are different things, which kills the zero-military build
   a second way, with no balance change.
 - **Not micro, and why:** hexes are coarse, travel is slow, the game pauses. An order is a decision,
-  not an execution — see the law under *What this game actually is*. The min group size exists for
-  the same reason.
+  not an execution — see the law under *What this game actually is*.
 - **Rendering:** one fixed marker per group, dev-asset class. Movement is shown by the sink-and-rise
   the board already owns — the piece sinks, and rises in the next hex. Motion at the moment of a
   change, only to the thing that changed: the existing animation law covers it verbatim.

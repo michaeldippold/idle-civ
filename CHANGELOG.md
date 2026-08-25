@@ -28,6 +28,10 @@ below is consensus swept into `design.md` and queued in `todo.md`; code follows 
   same manner the map ban fell.
 - **Found in play:** the 4b economy levers are miscalibrated for Bronze (constants tuned at Iron
   scale) — the correction is queued first, because the clock only punishes falling behind.
+- **Refined later the same night:** the law reworded to faster-*hands* after the owner caught it
+  banning legitimate timing judgment; min group size dropped for the steamroll rule; and **units
+  persist across eras** — mixed nonsense armies, rebuild-as-sink, weapon tiers folding into per-era
+  unit defs, no disband verb.
 
 ## 2026-08-25 — A refusal always says why
 

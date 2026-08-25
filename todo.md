@@ -389,6 +389,14 @@ scouting**, because without reach-beyond-the-border an inbound army is invisible
 Rendering is one marker per group moving by sink-and-rise — already built. Do not let this ride
 along inside other work; the scope is real.
 
+**Refined later the same night:** the faster-hands/right-tick law rewording; **no minimum group
+size** (the steamroll rule guards chaff-pinning instead: lopsided fights resolve near-instantly);
+the bounded-pieces guarantee (units never inflate, so micro has no substrate at any era); and
+**units persist across eras** — manifests only add, armies rebuild each era (a recurring sink),
+weapon-tier upgrades fold into per-era unit defs, no disband verb (a soldier is a commitment —
+spend them). Open sub-ruling: armor tiers global or folded. All in `design.md` → *Armies Take the
+Field*.
+
 ### 7 — HELD, DELIBERATELY, AND NOT TO BE LOST
 
 - **The decision queue** *(phase 7)*. Held until wanted; the spec is complete and the pause-on-ask

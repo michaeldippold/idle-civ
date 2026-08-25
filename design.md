@@ -148,6 +148,46 @@ That is why losing ground while inattentive is not a failure of the design — i
 working. Pause is not a convenience feature bolted onto an idle game. It is the thing that makes
 consequences fair.
 
+### What this game actually is *(owner ruling, 2026-08-25)*
+
+> *"There's nothing idle left about the shape of the game I am proposing now. It's competitive 4X
+> against very simple adversaries. That is why it sits cleanly between real time and turn based.
+> It's a real time game you can pause or speed up."*
+
+The ruling closes a question the project had been answering by drift. The honest lineage, in the
+owner's words: *idle Age of Empires → Age-of-Empires-inspired → tabletop-inspired competitive 4X
+where the only playstyle is against a few bots.* The repo is still named `idle-civ`; Open Question 1
+(the name) already records that the name is wrong now, and this is one more reason.
+
+**The framing that settles it** (from outside research the owner brought in): Civ's scarce resource
+is *judgment* — the game waits, and none of the difficulty comes from being slow. AoE's scarce
+resource is *execution* — a large fraction of skill is doing a known-correct plan fast enough. This
+game is neither pole and is not a compromise between them: its scarce resource is **attention** —
+*when* you look and what you spend the look on. The position moves without you, but pause and speed
+controls mean every real-time moment is optional.
+
+The same research names the debt a real-time civ game owes: *if time passes without you, you owe the
+player automation for everything they're not watching, and you owe the design some source of
+pressure that also runs while they're gone.* The era clock (below) is the payment — with one
+correction now that pause is load-bearing: the clock's pressure is **per tick spent**, not per
+absent second. You can be present the whole time and still be too slow, because you spent your ticks
+on the wrong things.
+
+**Prior art, for every problem this shape will hit:** Paradox — Stellaris most exactly. Pausable
+real-time 4X, speed controls, adversaries on their own tech clocks, armies as pieces over territory,
+and no one has ever accused it of demanding APM. They solved the reaction-pressure question with
+pause and never looked back.
+
+**The standing law that guards the identity:**
+
+> **No order ever gets better by being issued faster.**
+
+With pause, every decision window is infinite, so a missed interception is a decision you got wrong,
+never a click you were late on. Hexes are coarse, travel is slow, and an order is a *decision*, not
+an *execution*. The APM ceiling of this design is a few orders per minute, all optional — TI4, not
+AoE. Any future feature that rewards issuing orders quickly has broken this law, whatever else it
+does right.
+
 ## Design Philosophy
 
 **Unravel the contents, not the board.** The board is **whole from the first frame**: every panel the
@@ -715,6 +755,31 @@ narrated. The friction handed off cleanly rather than being dropped: gold cannot
 a designed budget, and the levy caps the army. Stone and Bronze keep their caps and their storage
 buildings — the early game's friction is untouched.
 
+**SUPERSEDED (consensus 2026-08-25; not yet built): the storage buildings die, and caps become
+flat, automatic, and per-era.** Owner's proposal, and the evidence was his own save: Stone's
+capstone costs 300 of each resource against a base cap of 50 + 100 per storage building, so every
+player builds *exactly* three granaries, three woodsheds and three stone yards to reach 350 — a
+prerequisite with extra steps, not a choice. The replacement:
+
+- **Every resource gets a cap set by its era, for free.** No buildings, no upkeep on the number.
+  Sized just above the era's capstone (Stone ~350 against a 300 capstone), so **the era is the
+  budget** — and the caps become the first real pull to advance sooner, which the era clock then
+  turns into a push.
+- **Per-resource, and food runs slightly higher in every era** — population eats food continuously;
+  wood and stone are only spent in lumps.
+- **Gold is never capped**, and the owner's reason generalises into the law that draws the whole
+  line: **cap what accrues while you are not playing; never cap what you can only get by acting.**
+  The cap exists to defeat the clock, not to punish play — anything later earned by campaigning or
+  trading inherits the same protection.
+- **Iron's uncapped run retires without a reversal**: *"uncapped was never a ruling so much as a
+  temporary fix"* (owner) — for granary-spam being annoying across eras, and for walking away and
+  returning to 20,000 of everything. Both problems die with the buildings, so caps return at Iron
+  for free. This matters doubly if the planned fast-forward ships.
+- **Recorded honestly: this is pacing and anti-hoarding, NOT difficulty.** The owner playtested
+  pinned at 350/350/350 and was thriving — the capped world is the world he already lives in, minus
+  nine buildings. The difficulty budget is carried by the economy calibration and the era clock.
+- The thinner early construction panel is accepted without worry (owner, explicitly).
+
 ### Construction
 
 Buildings are bought with an immediate cost, then sit in a **queue**; only the front item progresses.
@@ -812,6 +877,43 @@ specialists their safety.
 Starport/Fleet/photon-weapons/shields are the same underlying system. If that stops being true for
 some future age, that's a sign the age needs its own mechanic, not a forced fit.
 
+### Armies Take the Field *(direction ruled 2026-08-25; scoped, not scheduled — wants its own session)*
+
+The largest structural change ever proposed for this codebase, agreed in principle and parked
+deliberately. Today an army is four global integers with no position — which is *why* "zero
+military, thriving" is a viable build: a number that is nowhere can have no job. The direction:
+
+- **Armies become groups with positions.** The player partitions the army into segments and sends
+  them to hexes, travel included, over terrain via `routeCost()` — terrain carrying a movement
+  modifier has to matter. A group moves at its slowest member.
+- **Stance, not unit type, resolves the scout question.** A group is either **marching** (can fight
+  and hold ground; minimum size ~4 so one-soldier confetti is unrepresentable) or **scouting** (any
+  size, cannot fight; flees toward home or dies if an enemy army enters its hex). Four men sneaking
+  through the hills are scouts because of how they behave, not what they are — no separate scout
+  unit, no second movement system. Horsemen scout faster, so an all-horse party is a thing you
+  assemble on purpose. A scout fails by being *caught*, not by dice — explainable, narratable.
+- **Scouting buys WARNING TIME, not just map knowledge.** Fog is built and load-bearing
+  (`syncCharted()`: you see what you hold plus one ring, sticky) — which today means an approaching
+  army would be invisible until adjacent. A scouted ring three hexes out is three hexes of notice;
+  an unscouted flank is an army at your door. This gives scouting a standing, renewing, directional
+  value (you scout *toward the speedster*), and it promotes slice 6 from convenience to
+  prerequisite. Constraint carried forward: **scouting must not delete the settle-blind gamble.**
+- **Interception is positioning:** send a holding force to a hex because you saw a war party coming.
+  When two hostile armies meet, they fight — simple board-game dice, TI4 / Axis & Allies grammar —
+  and while engaged both are **busy**.
+- **A raid becomes an inbound campaign.** Raids and campaigns are today two systems doing one job in
+  opposite directions; the merge gives raids an origin, travel, and interceptability — the 5c raid
+  roads idea arriving as a consequence rather than a feature.
+- **The tradeoff is the game, named:** every group sent out is warning time bought with home defense
+  sold. An army at home and an army afield are different things, which kills the zero-military build
+  a second way, with no balance change.
+- **Not micro, and why:** hexes are coarse, travel is slow, the game pauses. An order is a decision,
+  not an execution — see the law under *What this game actually is*. The min group size exists for
+  the same reason.
+- **Rendering:** one fixed marker per group, dev-asset class. Movement is shown by the sink-and-rise
+  the board already owns — the piece sinks, and rises in the next hex. Motion at the moment of a
+  change, only to the thing that changed: the existing animation law covers it verbatim.
+
 ### Failure
 
 > **Amended 2026-08-23/24 (*Population Lives Somewhere*, shipped E4+E5).** Starvation drains the
@@ -866,6 +968,11 @@ problems with different answers, and only the first is urgent.
 **3. An ending in either direction.** There is no win condition either. Iron is terminal and
 `todo.md` records that the Iron Age *"ends signal-less by design"*. The game currently resolves
 neither way — it is a sandbox that runs out of content.
+
+**ANSWERED IN DESIGN (2026-08-25): the era clock** — see *Every Civilization Keeps Its Own Time*.
+Adversaries now advance on their own hidden countdowns, so the capstone becomes a race and losing it
+has teeth. Problems (1) and (2) remain open, though armies-on-the-field (see *Armies Take the
+Field*) bears on both. The paragraph below is kept as the diagnosis that led there.
 
 **On (3), the structure already exists and has been treated as plumbing: the era advance IS the win
 condition, repeated.** Each age is a run you win by reaching the next, and the seat falling is the
@@ -1274,6 +1381,81 @@ Recorded so nobody "fixes" them later:
 minor-tier count and stats per era; envoy timer, cost, and odds; capture windfall sizing; what
 wholesale annexation of a major is worth.*
 
+### Every Civilization Keeps Its Own Time — the era clock
+
+*(Consensus 2026-08-25; not yet built. The night's arc: the caps discussion → "the game is still not
+hard enough" → this. The owner's framing, which is the whole idea:)*
+
+> *"In Age of Empires and especially Empire Earth, they never just beat you with width. They ADVANCE
+> FASTER. You're like alright lads, let's carefully load those muskets, and then a Panzer division
+> comes through the tree line."*
+
+**The mechanism, in full, because it is small:** at worldgen every adversary draws a pace —
+*slower / normal / faster*. From the first tick, each runs a hidden countdown to its next era,
+weighted by that pace. When it lapses, they advance, the Chronicle says so, and their next strike
+comes with next-era units. No economy is simulated; nothing else about them changes. That is the
+entire feature, and the wire that makes it real (below) is most of the work.
+
+**Why this is the missing piece and not just another lever:** *A Game That Cannot Be Lost* records
+that the era advance is already the win condition, repeated — and that advancing is a formality, so
+the race has no tension. The clock is the deadline that turns the capstone from a shopping list into
+a race. It is the first mechanic in the game that answers *"why now?"* rather than *"why at all?"* —
+the first reason to advance instead of engine-building forever, which is the failure mode the owner
+names in his own board-game play. And every adversary anywhere on the map becomes a ticking clock
+you can hear but not read.
+
+**The rulings, all settled:**
+
+1. **Absolute, never relative.** The player has no clock — advance or don't, to your heart's
+   content. *They* have clocks, hidden ones, and not knowing the exact countdown is the tension. If
+   their pace tracked the player's era it would be world-levels-with-you scaling: you could never
+   fall behind, so there would be no race. Falling behind must be genuinely possible; so must
+   outrunning them.
+2. **Tick-based, never wall-clock.** Pause stops every countdown; fast-forward (planned) speeds them
+   all. Both correct for free, and the never-punishes-leaving contract survives untouched — being
+   away advances nothing.
+3. **At least one "faster" adversary per world, guaranteed.** Independent rolls would leave ~30% of
+   runs with no clock pressure at all and no visible reason the run felt flat. There IS a speedster
+   out there. Which neighbour it is, you have to find out.
+4. **Capped at the last implemented era**, exactly like the player.
+5. **The telegraph is mandatory.** One Chronicle line — *word arrives that the Hill People work
+   bronze now* — converts an ambush into a countdown you can see. This is how AoE does it and it is
+   a heart-sink moment on purpose. It must also arrive EARLY: the owner accepts brutal starts (his
+   Project Zomboid framing: most extinction spawns kill you immediately, and that's fine at 5–6 runs
+   an hour) **because the verdict is fast**. A doomed run must reveal itself in minutes, never
+   twenty-five minutes in. Same brutality, honest clock.
+6. **An era gap reads as unit KIND early and unit NUMBER late.** The strength ladder is gentle in
+   the early ages (Hill Clans 5 → 7 → 9) and that is correct — bronze barely moved in two thousand
+   years, while the last thousand years and the next thousand are vertical. So an era-ahead raid at
+   Bronze doesn't hit *harder* so much as hit in a **shape you can't answer** — archers and horsemen
+   show up while you're still mustering spears; the counter matrix already exists to express it.
+   Deep eras escalate quantitatively on top. Consequence, wanted: **falling behind gets more
+   dangerous the longer the game runs.** That is the difficulty curve across the twelve-era span.
+7. **The wire must exist, or the clock is flavour.** Today raid damage is
+   `hexPop × min(raidTollMax, raidTollShare × raidSize)` — **the sender appears nowhere in the
+   formula**. Attribution (C3) named the raider; the arithmetic still doesn't know they exist. The
+   clock's raids must read the sender's era — roster, size, strength — or an adversary advancing
+   changes nothing but a Chronicle line.
+8. **Adversaries get "pressed."** They hassle each other offscreen — narrated, never simulated: a
+   pressed adversary doesn't campaign, and the Chronicle says why (*the Hill People have troubles of
+   their own*). This is the relief valve for the several-versus-one problem the merge creates (every
+   threat on the map otherwise points at you, and simultaneous campaigns compound rather than add),
+   it makes the *other* neighbours existing matter, and it is a difficulty dial: a run where nobody
+   is ever pressed is a hard run. Adversaries never actually target one another mechanically.
+
+**The structure it forces, chosen deliberately for the future:** a `civs` list. The player is entry
+0; adversaries are entries 1..n; each carries an era, and advancing is the same operation for every
+entry. **The era stops being global state and becomes a property of each civilization, the player
+included.** People advance at different rates in board games. This is also the first mutable state
+an adversary has ever had — the cheapest moment there will ever be to put it in the right shape (see
+the multiplayer note under *Explicitly Out of Scope*).
+
+**What the clock does NOT fix, recorded so nobody expects it to:** the clock only bites a player who
+falls behind. A player advancing on pace meets it never — and the owner's on-pace Bronze playtest
+was thriving with zero military. On-pace friction is the economy's job (see the calibration
+correction in `todo.md` 4b); the clock is escalation on top. Both, or the game is easy right up
+until it is unrecoverable.
+
 ### Adversaries & Expeditions
 
 The game's first **outward-facing verbs**, and what makes Iron a genuinely deepening age. Born from a
@@ -1286,6 +1468,17 @@ a **static resource stock** (a stock, not an economy — nothing grows, nothing 
 **strength**, a **disposition** (peaceful or warlike), a **fighting style** naming the raid type it
 fights as, and optional **walls**. Explicitly *not* simulated civilizations: no growth, no tech, no
 evolving diplomacy.
+
+> **Amended (2026-08-25), by exactly one variable:** *an adversary has exactly one mutable state —
+> an **era**, advancing on a fixed tick countdown set at worldgen. Nothing else about them is
+> simulated, ever.* See *Every Civilization Keeps Its Own Time*. The rule's honest ground also
+> shifted: the ban was framed as performance, but the board draws 68,716 prop instances at 60fps —
+> hundreds of countdowns would be free. What the rule actually protects is **explainability**: a
+> raid that arrives because a hidden granary filled six minutes ago cannot be narrated by the
+> Chronicle; a countdown can. The old rule just said no; this one says exactly how much yes, which
+> is a line that can be defended against future ideas. (If a fuller sim is ever wanted, it is a
+> stress-test step on the far road to multiplayer, not a temptation for now — the project keeps
+> getting stuck at three eras figuring out what the game is, not what the bots are.)
 
 **Flavor is load-bearing (canonical).** Adversary strength is *hinted through description*, never
 through printed odds — "a fortified state, rich beyond counting" is how a player learns that raiding
@@ -1588,8 +1781,17 @@ motivation for the final act.
 
 ## Explicitly Out of Scope
 
-- **Rendered units and pathing.** Never, in any age. No armies on the board, no movement along
-  routes, no tile-by-tile marching.
+- **RTS unit fidelity.** No per-soldier sprites, no continuous movement, no drawn battles, no
+  formation micro, nothing that rewards clicking fast.
+
+> **SCOPE CORRECTED AGAIN (owner, 2026-08-25).** This entry read *"Rendered units and pathing.
+> Never, in any age. No armies on the board, no movement along routes, no tile-by-tile marching"* —
+> and it fell the same way the map ban fell, and for the same reason: it was aimed at RTS spatial
+> micro and pointed at a broader noun. *Armies Take the Field* puts army GROUPS on the board as
+> single fixed markers that step hex to hex via the sink-and-rise the board already owns. Owner:
+> *"these set-in-stone rules are mostly suggestions at this point"* — the game changed shape under
+> the rule. What the rule was really defending is kept, sharpened, above: fidelity and twitch,
+> banned forever. A marker on a hex is a board-game piece, not a unit.
 - **Animation as an ambient state** — swaying trees, idle pulses, drifting anything. See the scoped
   ruling below; the board is still at rest.
 
@@ -1616,7 +1818,11 @@ motivation for the final act.
 - **Real-time reflex or twitch mechanics.** This is a numbers game.
 - **Unit micromanagement.** Assigning a headcount to a job is the floor and the ceiling. Not because we
   couldn't, but because it isn't the game.
-- **Multiplayer.**
+- **Multiplayer.** Still out — but *(owner, 2026-08-25)* adversaries are henceforth designed
+  **player-shaped** wherever it costs nothing: the `civs` list, era as a property of every
+  civilization, raids as inbound campaigns. The hope of one day turning this multiplayer is far
+  enough away to barely be worth considering — except in this one way: symmetric structure now makes
+  that transition additive instead of a rewrite. A constraint, not a plan.
 - **Mobile and tablet.** Widescreen desktop is the format, full stop. The stacked-column `@media`
   fallback stays as a courtesy so the page doesn't break on a phone; it is not a design surface.
 

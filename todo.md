@@ -17,9 +17,40 @@ from three different plans, interleaved — and the owner correctly called it un
 what happens next. The old labels survive below because they are how each item is specced and
 discussed; this section is the only place that says **when**.
 
-### START HERE — 5b shipped and was playtested; next is **5c, raid roads**
+### START HERE — the design night; next is **the 4b recalibration, then the caps (4c), then the era clock (4d)**
 
-**Where things stand *(end of session, 2026-08-25)*:** harness green at **755 checks**, working tree
+**Where things stand *(end of the design night, 2026-08-25, late)*:** **no code was written — on
+purpose**, under the standing rule: consensus, document, commit, then code. The session started as
+"one balancing thing" and redefined the game. Four consensuses, all swept into `design.md`:
+
+1. **The genre, named** *(design.md → What this game actually is)*. Nothing idle is left: this is a
+   **pausable real-time competitive 4X against simple adversaries** — between Civ (judgment) and AoE
+   (execution), the scarce resource here is *attention*. Standing law: **no order ever gets better
+   by being issued faster.** Prior art for everything: Stellaris.
+2. **The caps come back, flat and free** *(design.md → Resources & Storage)*. Storage buildings die;
+   every era sets automatic per-resource caps just above its capstone; food runs higher; **gold is
+   never capped** — *cap what accrues while you are not playing, never what you can only get by
+   acting.* Pacing and anti-hoarding, explicitly NOT difficulty.
+3. **The era clock** *(design.md → Every Civilization Keeps Its Own Time)* — the headline.
+   Adversaries advance through eras on hidden tick countdowns; one speedster guaranteed; the
+   Chronicle telegraphs; era gaps read as unit KIND early, numbers late; adversaries get "pressed"
+   by each other, narrated not simulated. Closes "advancing is a formality" from the open thread.
+   The rule amendment: an adversary has exactly ONE mutable state variable — an era.
+4. **Armies take the field** *(design.md → Armies Take the Field; direction only, wants its own
+   session)*. Army groups with positions, stances (marching/scouting), interception, army-v-army
+   dice, raids become inbound campaigns. Overturned the "no units on the board" scope ban. Slice 6
+   scouting is promoted to prerequisite — scouting buys **warning time** now, not just map
+   knowledge.
+
+**Also found in play: the 4b constants are miscalibrated** — dormant at Bronze scale. See the
+correction under 4b. That fix comes FIRST, because the clock only punishes falling behind; on-pace
+friction is the economy's job and it currently isn't doing it.
+
+**The queue: 4b correction → 4c caps → 4d era clock → slice 6 scouting → 6c armies.**
+
+---
+
+**The previous session's record, kept while its playtest brief is live *(2026-08-25, day)*:** harness green at **755 checks**, working tree
 clean, everything pushed. A long session: the three queued items shipped, then five more things that
 were not on any list. **Nothing is half-done and no decision is pending on code that exists.**
 
@@ -77,7 +108,7 @@ Dials if it reads wrong: new hexes at 3, or a grace period before reversion.
 
 ---
 
-### 4b — THE ECONOMY MUST BE ABLE TO BREAK YOU *(next, and ahead of 5)*
+### 4b — THE ECONOMY MUST BE ABLE TO BREAK YOU ✅ *(shipped 2026-08-25 — but see the correction below)*
 
 **Diagnosed and ruled 2026-08-25 after a two-hour unattended run** — 228 souls, 11 holdings, zero
 army, food climbing at +24/s, population never below 226. The game could not be lost by inattention.
@@ -99,6 +130,43 @@ NUMBER of techs owned.
 
 **Expect these to feel harsh.** That is the point — see the sharpened tuning rule in `design.md`:
 a too-hard game produces a diagnosable failure, an unlosable one produces nothing to diagnose.
+
+**THE CALIBRATION CORRECTION *(found in play, 2026-08-25 evening — this is the live work)*.** The
+pillars shipped and the game is still not hard enough: owner playtest at Bronze — 98 families, zero
+military, no fortifications, 20+ minutes unattended, thriving, every resource pinned at cap. The
+reason is arithmetic and the error is Claude's: **both scaling levers were calibrated at Iron
+scale.** `raidSizePopScale: 400` yields ×1.25 at 98 pop; distance upkeep on a compact ten-hex realm
+averages ~×1.2 (mean adminDistance ≈ 0.7). Two ~20% nudges where multiples were intended — Bronze
+tops out near 100 pop, so a scale constant of 400 leaves Bronze effectively unscaled. **The fix is
+constants (or per-era scaling of them), not a new mechanism** — and it stays necessary after the era
+clock ships, because the clock only punishes falling behind; on-pace friction lives here. A raid
+today costs ~40 seconds of food income; that number is the target to tune against.
+
+### 4c — THE CAPS COME BACK, FLAT AND FREE *(consensus 2026-08-25; small, do with the 4b correction)*
+
+Full ruling: `design.md` → *Resources & Storage*. The work: delete the storage buildings (Granary,
+Woodshed, Stone Yard leave the manifests, narrated like the Iron handoff was), give every era
+automatic per-resource caps sized just above its capstone, food slightly higher, gold exempt
+forever, and Iron's caps return since they now cost nothing. Existing saves hold nine dead
+buildings — decide whether they refund, vanish, or stand as flavour. The `cappedNote()` /
+red-at-cap interface work already exists and carries over.
+
+### 4d — EVERY CIVILIZATION KEEPS ITS OWN TIME *(consensus 2026-08-25; the headline feature)*
+
+Full design: `design.md` → *Every Civilization Keeps Its Own Time*. The work list, in order:
+
+1. **The `civs` structure** — player entry 0, adversaries after, era per civ. This is the load-bearing
+   refactor: `S.era` becomes `civs[0].era`, and 21 files read `active()`. Wants a deliberate seam
+   (`manifestFor(era)`), not a special case.
+2. **The clock** — pace drawn at worldgen (slower/normal/faster), one "faster" guaranteed, hidden
+   tick countdowns, capped at the last implemented era. Seeded, in the signature.
+3. **The telegraph** — Chronicle lines on every adversary advance, and early warning of the
+   speedster within the first minutes of a run (the Project Zomboid ruling: brutal is fine, slow
+   verdicts are not).
+4. **The wire** — raids read the sender's era: roster (unit KIND is the early-era gap), size,
+   strength. Without this the clock is a Chronicle line and nothing else.
+5. **Pressed** — adversaries occasionally busy with each other, narrated; no campaigns while
+   pressed; never targeting one another mechanically.
 
 ### 5 — THE BOARD COMES ALIVE *(the next real work — three features, one thesis)*
 
@@ -306,14 +374,32 @@ pressure through geography that already exists.
 **Not scheduled and deliberately so:** it wants a session of its own, and it interacts with the tech
 tree, the capstones and the storage-cap question all at once.
 
+**UPDATE (2026-08-25, the design night):** problem (3) — no ending in either direction — is
+**answered in design by the era clock** (4d): the capstone becomes a race against neighbours'
+hidden countdowns. Problems (1) losability and (2) replayability remain open, though armies on the
+field (6c) and speedster-adjacent spawns bear on both.
+
+### 6c — ARMIES TAKE THE FIELD *(direction ruled 2026-08-25; scoped, NOT scheduled — wants its own session)*
+
+Full design: `design.md` → *Armies Take the Field*. The largest structural change ever proposed —
+armies stop being four global integers and become positioned groups with stances (marching min ~4 /
+scouting any size), terrain movement via `routeCost()`, interception, army-v-army board-game dice,
+and raids becoming inbound campaigns (which absorbs 5c's intent). Prerequisite: **slice 6
+scouting**, because without reach-beyond-the-border an inbound army is invisible until adjacent.
+Rendering is one marker per group moving by sink-and-rise — already built. Do not let this ride
+along inside other work; the scope is real.
+
 ### 7 — HELD, DELIBERATELY, AND NOT TO BE LOST
 
 - **The decision queue** *(phase 7)*. Held until wanted; the spec is complete and the pause-on-ask
   seam is already built. Confirmed 2026-08-25 that this is exactly what it sounds like — the world
   presents a choice and the player picks — and that it is the headline feature the time pivot
   unlocked, because a choice can only wait for free once the clock stops when you look away.
-- **Scouting** *(map arc, slice 6)*. Back seat: still needs addressing, not urgent. Carries a live
-  constraint found in play — it must not delete the settle-blind gamble.
+- **Scouting** *(map arc, slice 6)*. **PROMOTED (2026-08-25): no longer back seat** — it is the
+  prerequisite for armies taking the field (6c), and its meaning changed: scouting buys **warning
+  time**, a standing and directional value, not one-shot map knowledge. Scouting is done by army
+  groups in the scouting stance (horsemen faster), so it lands with or just before 6c rather than as
+  its own verb. The live constraint stands — it must not delete the settle-blind gamble.
 
 ### 8 — THE BIG ONE, GATED ON PURPOSE: the tech tree
 
@@ -362,6 +448,17 @@ section that gets rewritten are notes with an expiry date.
 - **A convention that is scoped is a convention that will be forgotten.** `.short` lived on
   `.building .b-cost .short`, so every surface that later grew an action reimplemented the verb
   without the refusal. Fixing it per-surface produced the same silent failure twice in one day.
+
+- **A scale constant calibrated at the endgame is a no-op at the start.** `raidSizePopScale: 400`
+  was tuned against Iron's ~400 population and delivered ×1.25 at Bronze's ~100 — a multiplier
+  designed as "multiples" that shipped as a rounding nudge, found only by the owner playing. When a
+  dial scales by population, check it at BOTH ends of the era span before calling it tuned.
+
+- **A truncated grep is not a search.** Claude grepped for fog with `head -5`, got five comment
+  hits, and declared fog unbuilt — while `syncCharted()`, `isCharted()` and a two-tier reveal system
+  sat live in the same file. The owner caught it from a screenshot. A grep that got cut off has
+  answered "does the word appear", never "does the thing exist" — the reading lesson above, lost to
+  a pipe.
 
 - **A rewrite is a deletion unless you diff it.** This section exists because of one.
 

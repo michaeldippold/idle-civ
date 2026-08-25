@@ -11,6 +11,24 @@
 
 ---
 
+## 2026-08-25 — The night the game stopped being idle *(no code shipped)*
+
+**A design-only session that started as "one balancing thing" and redefined the game.** Everything
+below is consensus swept into `design.md` and queued in `todo.md`; code follows in later entries.
+
+- **The genre, named** — a pausable real-time competitive 4X against simple adversaries; the scarce
+  resource is attention, and *no order ever gets better by being issued faster*.
+- **The caps come back, flat and free** — storage buildings die, eras set automatic per-resource
+  caps, gold is never capped (*cap what accrues while you are not playing*).
+- **The era clock** — adversaries advance through eras on hidden tick countdowns, one speedster
+  guaranteed, telegraphed by the Chronicle, era gaps read as unit *kind* early. The no-sim rule
+  amended to exactly one variable. Closes "advancing is a formality".
+- **Armies take the field** *(direction only)* — positioned groups, stances, interception,
+  army-v-army dice, raids as inbound campaigns; the "no units on the board" ban overturned in the
+  same manner the map ban fell.
+- **Found in play:** the 4b economy levers are miscalibrated for Bronze (constants tuned at Iron
+  scale) — the correction is queued first, because the clock only punishes falling behind.
+
 ## 2026-08-25 — A refusal always says why
 
 **Third silent failure found in play, and the third is the one that made the pattern obvious.**

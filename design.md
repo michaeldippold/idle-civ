@@ -829,6 +829,80 @@ Barracks and a healthy population genuine stakes rather than another number to g
 
 ---
 
+## A Game That Cannot Be Lost — the open thread
+
+*(Owner, 2026-08-25, from a note that had been sitting in the ideation doc: "Idle games don't need
+lose conditions but civ/4x games do. A civ game you win every time is not usually one you play
+twice." The economy work of the same evening made consequences real; it did not close this.)*
+
+### The principle is identity, not difficulty
+
+> *"I would not play a board game you could not lose, and that is the reason (mostly) every board game
+> CAN be lost. Either you lose, or it's co-op and you all lose. There are board games with no real
+> loss condition and my reaction was always: what's the point?"*
+
+**This is not a preference about difficulty. It is a consequence of a ruling already made.** The
+identity is the **digital tabletop** (Open Question 3): a board game come to life, and comparisons to
+a physical board game are invited *on purpose*. A board game that cannot be lost is the thing the
+owner is describing as pointless — so an unlosable Idle Civ does not merely play badly, it **fails
+its own identity**. That makes losability a structural requirement rather than a tuning target, and
+it outranks any individual number.
+
+### Three separate problems, currently held as one
+
+**1. Losability.** Can this run end badly? *Partly solved (2026-08-25):* neglect now shrinks a realm —
+larder to zero, growth stopped, famine trimming the frontier — but settles at a sustainable size
+rather than ending. **Neglect shrinks you; it does not kill you.**
+
+**2. Replayability.** Is the next run different, and is there a reason to play it? *Unsolved.* Varied
+starts do not produce varied play if the optimal response to every start is identical, and right now
+it is: expand, assign, wait. **The game has one strategy.** A losable game can still have exactly one
+line; these are different problems with different answers.
+
+**3. An ending in either direction.** There is no win condition either. Iron is terminal and
+`todo.md` records that the Iron Age *"ends signal-less by design"*. The game currently resolves
+neither way — it is a sandbox that runs out of content.
+
+**On (3), the structure already exists and has been treated as plumbing: the era advance IS the win
+condition, repeated.** Each age is a run you win by reaching the next, and the seat falling is the
+loss. Nothing needs inventing. What is missing is that **advancing is currently a formality**, so the
+race has no tension. Capstone requirements are a lever that has never been used as one.
+
+### Every resource node is infinite
+
+**The deepest cause, and it is upstream of every number.** *"What we are simming here is basically AoE
+but every resource node is infinite."*
+
+In AoE a mine running out is not flavour, it is the **engine**: it creates map pressure (you must go
+where the resources are), timing (booms end), contested ground (nodes are worth fighting for), and
+idle labour as a visible failure. A hex here is a permanent annuity — it works its resource forever
+at a fixed rate — so the optimal move on the first minute stays optimal forever, and time always wins.
+
+**Blanket depletion is the wrong answer**, for two reasons this document already commits to: a hex is
+a PLACE, not a node (the tile ladder makes it a city, then a nation, then a world — a depleted nation
+is incoherent), and reassigning dried-up hexes is precisely the micromanagement listed under
+*Explicitly Out of Scope*.
+
+**The proposal on the table: renewable versus extractive.** Food and timber renew — fields and forests
+come back. **Ore does not.** Stone, copper, tin and iron are extracted, and a mined-out hill is a real
+thing that has happened everywhere on Earth.
+
+What falls out of that, without one new system:
+
+- **Hills are the ore terrain, and the Hill Clans live in the hills.** A realm that mines out its own
+  high ground must take more — and the ground it must take is occupied. Map pressure becomes conflict
+  pressure through geography that already exists.
+- **A map's composition starts mattering strategically**, not just visually. An ore-poor Broadwater
+  start would play differently from an ore-rich Scatter, which is replayability arriving from the
+  generator rather than from added content.
+- **The permanent verb survives.** Allocation still never retires; what changes is that some ground
+  stops answering, which is a reason to re-decide rather than a chore.
+
+**Open, and deliberately not decided here:** whether depleted ore returns slowly or never; whether a
+mined-out hex still holds people; whether depletion is per-hex or per-resource-per-hex; and what it
+does to the storage-cap question, since extractives are exactly the resources whose caps retire at
+Iron.
+
 ## Eras
 
 Era progression is what carries the game from "feed the fire" to "decide the fate of star systems":

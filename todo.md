@@ -285,6 +285,27 @@ look, not its current one, and the re-dress changes palette and light in every e
 **Practical note:** Claude Design reads the repo from GitHub, so push before that session and make
 sure `interface.md` and `design.md` are current — they are, as of the 2026-08-25 docs pass.
 
+### 6b — THE OPEN THREAD: a game that cannot be lost *(not scheduled; the biggest one)*
+
+**`design.md` → *A Game That Cannot Be Lost* is the write-up.** Three problems currently held as one:
+**losability** (partly solved 2026-08-25 — neglect shrinks a realm but does not end it),
+**replayability** (unsolved: varied starts do not produce varied play while there is only one
+strategy), and **an ending in either direction** (there is no win condition either; the era advance
+already IS one, but advancing is a formality rather than a race).
+
+**The principle behind it is identity, not difficulty** (owner): this game is a *digital tabletop*,
+board games can be lost, and a board game that cannot be is the thing he calls pointless. That makes
+losability structural rather than a tuning target.
+
+**The upstream cause is that every resource node is infinite** — a hex is a permanent annuity, so the
+first minute's optimal move stays optimal forever. The proposal on the table is **renewable versus
+extractive**: food and timber renew, ore does not. Hills are the ore terrain and the Hill Clans live
+in the hills, so a mined-out realm must take occupied ground — map pressure becoming conflict
+pressure through geography that already exists.
+
+**Not scheduled and deliberately so:** it wants a session of its own, and it interacts with the tech
+tree, the capstones and the storage-cap question all at once.
+
 ### 7 — HELD, DELIBERATELY, AND NOT TO BE LOST
 
 - **The decision queue** *(phase 7)*. Held until wanted; the spec is complete and the pause-on-ask

@@ -1032,6 +1032,17 @@ never whether**: the trigger roll and `hostilityMultiplier()` upstream already m
 *rate*, so standing only weights which warlike neighbour gets named. Attribution adds no danger; it
 adds a subject to the sentence.
 
+**WANTED, AND DELIBERATELY NOT IN THE FIRST VERSION: the frontier should defend worse.** Once defence
+is per-hex, folding `adminDistance` into the local factor makes a far-flung holding genuinely harder
+to hold than the ground beside your seat — which is the rule the whole spatial economy has been
+pointing at, and the owner wants it.
+
+It is held back **only to keep a refactor and a rebalance separable.** Making defence per-hex changes
+no odds at all if the local factor starts at 1.0 everywhere; adding a distance penalty in the same
+change would substantially rebalance raids while the architecture underneath them was also moving,
+and a bisect could not tell the two apart. Ship the seam, play it, then turn this on as its own
+decision with its own number.
+
 **SELECTION AND RESOLUTION ARE SEPARATE PHASES** *(owner ruling, 2026-08-25, and it is the rule that
 keeps fortifications and raid-roads from ever colliding)*:
 

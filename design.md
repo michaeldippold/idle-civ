@@ -677,6 +677,13 @@ load-bearing idle beat in the game: "a wanderer joins your settlement" was how y
 production, which made the opening a *wait*. Ground taken later still arrives as a settling party
 and grows into the place, so a claim stays an investment.
 
+**It self-balances, and that was not designed in** *(owner, from play, 2026-08-25)*. The
+improvement you build is almost always the one for the resource you have **least** ground for.
+One forest hex is not enough timber on its own — but one forest hex with a Lumber Camp on it is,
+and the hex you gave up to build it was one you had a surplus of. Scarcity creates the pressure,
+the structure answers it, and the hex budget prices the answer. Nothing in the system had to be
+told to do that; it falls out of one-resource-per-terrain meeting a finite dominion.
+
 **Known and accepted:** storage caps fill quickly once the camps and pits are up. That is
 *the era is the budget* working — spend it or waste it.
 

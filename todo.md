@@ -342,6 +342,11 @@ before the 3D board shipped — it is no longer waiting on a decision, it is wai
   board, over dark water, over both at once as the camera moves.
 - **The theme moved with it.** The identity is settled as the **digital tabletop**, and the owner is
   leaning further into the board-game read. The panels have not followed.
+- **The Chronicle changes purpose (owner, 2026-08-25): from flavor record to NOTIFICATIONS.**
+  Still a text scroll, but every line must be news of an action by the player or a rival (or its
+  direct consequence) — rival era advances in, ambient narration out. Ruling recorded in
+  `design.md` → Design Philosophy → the Chronicle block; the `HINT_LIB` question is decided here,
+  when this tier runs.
 - **The engine rework changed what a panel must SAY.** No steppers, no jobs, no housing. Population
   is per-hex and the interesting numbers moved onto the tile panel. Some panels are now showing the
   residue of a game that is gone.

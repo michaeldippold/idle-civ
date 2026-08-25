@@ -275,6 +275,17 @@ debug console, it's the settlement's memory. It is no longer the *only* surface 
 world — a map will do that better — but it remains the record of what *happened*, as distinct from
 what *is*.
 
+> **REWORKED IN PURPOSE (owner, 2026-08-25):** the Chronicle was built for an idle game — record
+> things, deliver flavor. What the 4X needs is **notifications**. It can stay a text scroll, but
+> the test for a line changes: **every entry is news of an action — taken by the player, taken by a
+> rival, or resolved by the world against one of them — or its direct consequence.** A rival
+> advancing an era belongs; a raid, a famine, land sighted from a newly claimed shore belong.
+> Totally passive ambience — *"stone piles up beside the wood"* — does not. Flavor survives as the
+> **voice** of the notifications (the raid lines are both), never as content in itself; the
+> load-bearing-flavor law is untouched. The ambient `HINT_LIB` narration either dies, moves to
+> another surface, or survives only as the Stone-age bootstrap — decided when the interface
+> redesign (todo 6) gets its turn; deliberately not scoped further tonight.
+
 **Restraint and legibility.** Nothing decorative that carries no information; legibility outranks
 texture; and **color reserved entirely for meaning** — green is genuinely new good information, red
 is danger, amber is a rare milestone. Color is never ambience. *(These laws were first derived from

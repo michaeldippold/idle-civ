@@ -33,6 +33,9 @@ below is consensus swept into `design.md` and queued in `todo.md`; code follows 
   persist across eras** — mixed nonsense armies, rebuild-as-sink, equipment tiers era-scoped (each
   era sells its own, skippable — a bet on your own pace; gone at zero units of that era), no
   disband verb.
+- **And one more, on the way out:** the Chronicle's purpose reworked from flavor record to
+  **notifications** — every line must be news of a player or rival action; ambient narration dies
+  with the idle game that wanted it.
 - **The night closed with the docs squared:** *What This Game Is* written at the front of
   `design.md` as the one-screen summary, and a contradiction sweep across every doc — the Premise's
   units clause, the static-adversary "ruling stands" in the economy section, the units bans in

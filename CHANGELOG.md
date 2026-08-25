@@ -11,6 +11,42 @@
 
 ---
 
+## 2026-08-25 — Two bugs from play: a silent refusal, and hay that did not rise
+
+**1. Settle printed a price it never marked, then did nothing when clicked.** The buy cards have shown
+unaffordable components in semantic red since Bureau (`.short`), and the map's Selected Tile panel
+never learned it — the CSS rule was scoped to `.building .b-cost .short` and nothing else. So a
+settle you could not afford looked identical to one you could, and clicking it failed **silently**,
+which is the one failure mode `interface.md`'s laws forbid outright: a refusal always says why.
+
+Prices in the map panel now mark the parts you cannot pay, and the button disables. The card stays
+fully readable either way — opacity is never used for state, because reading what a thing costs is
+how you plan for it. Structure prices use the same helper, so Build and Settle now speak the same way.
+
+**2. A completed farm snapped into existence instead of rising.** The cause is more interesting than
+the symptom: **nothing fired the transition on completion.** `changedHexes()` had exactly one caller —
+the demolish handler — because demolish was the one path that remembered to ask. A farm finishing set
+its use inside `completeConstruction()` and the stage simply rebuilt.
+
+Fixed by inverting who is responsible: `renderMapStage()` now **diffs what is built where** against
+the last draw and animates whatever moved. That makes it automatic for every cause — a build
+finishing, a demolition, a hex lost to a raid, an era re-dress — and no future caller can forget. It
+also cannot fire on an ordinary work change (food → wood), which moves no props and should not
+animate. Both manual `changedHexes()` calls were deleted; there are now zero.
+
+**Order matters and is commented:** the diff asks for the transition *before* handing over the new
+world, so the new paint and props are applied at the bottom of the descent and rise together. Reversed,
+the hex would change in full view and then politely animate.
+
+**Found while testing this, and left for the owner to rule on:** a farm costs **55 wood** while
+Bronze's base wood cap is **50** — so the first farm is unaffordable until a Woodshed is built. That
+may be a good gate or an accident of two numbers chosen a day apart; it is a balance call, not a bug.
+
+748 checks, unchanged — both fixes are in render and DOM paths the harness deliberately does not
+import.
+
+---
+
 ## 2026-08-25 — Copper and tin get their letters
 
 **Found in play by the owner: a hex turned to copper or tin drew nothing.** `WORK_GLYPH` had entries

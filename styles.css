@@ -665,6 +665,10 @@ button { font-family: inherit; cursor: pointer; }
    "400 food" splitting across two lines is legible but reads as an error. */
 .building .b-costs > span { white-space: nowrap; }
 .building .b-cost .short { color: var(--danger); }
+/* The same semantic red in the map's Selected Tile panel. It only ever lived
+   on buy cards, so Settle printed a plain price and then did nothing when
+   clicked -- a silent refusal, which the interface laws forbid outright. */
+.map-noworks .short { color: var(--danger); font-weight: 700; }
 .building .b-time { flex: none; padding-left: 10px; color: var(--text-3); white-space: nowrap; }
 
 /* ---------- Tabs (Upgrades: Available / Owned) ---------- */

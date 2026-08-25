@@ -1,6 +1,6 @@
 import { active } from "../content/compile.js";
 import { S } from "../core/state.js";
-import { capWord, seatIsNamed, seatName } from "../core/derived.js";
+import { canAfford, capWord, seatIsNamed, seatName } from "../core/derived.js";
 import { save } from "../core/persist.js";
 import { canBuildOn, demolishStructure, launchSettle, launchStructure, pendingBuild, pendingSettle, settlePlan, structurePlan, structureUnlocked } from "../core/actions.js";
 import { world, isOwned, isCharted, isVisible, capOf, hexPop, hexResource, hexUse, hexYield, structureDef, atDominionCap, dominionCap, holdsUsed } from "../map/map.js";
@@ -64,6 +64,20 @@ let lastSignature = "";
 let lastDetail = "";
 
 function advName(adv) { return adv.name.charAt(0).toUpperCase() + adv.name.slice(1); }
+
+// A PRICE, WITH THE PART YOU CANNOT PAY MARKED. The buy cards have done this
+// since Bureau (`.short`, semantic red), and the map panel never learned it --
+// so Settle printed a plain price and then silently did nothing when clicked,
+// which is the one failure mode the interface laws exist to forbid: state is
+// carried by colour and words, and a refusal always says why.
+//
+// The card stays fully readable either way (opacity is never used for state):
+// you can read what a thing costs while you cannot afford it, because reading
+// it is how you plan for it.
+function costLine(cost) {
+  return Object.keys(cost).map((k) =>
+    `<span class="${(S.res[k] || 0) < cost[k] ? "short" : ""}">${cost[k]} ${k}</span>`).join(", ");
+}
 function spec() { return active().map; }
 function tilesEra() { return true; }   // every era allocates hexes since E2
 function worksFor(terrain) { return (spec().works && spec().works[terrain]) || {}; }
@@ -285,14 +299,12 @@ export function detailHTML(p) {
       const plan = structurePlan(def.id);
       if (!plan) continue;
       const queued = pendingBuild(p.id);
-      const short = Object.keys(plan.cost).filter((k) => (S.res[k] || 0) < plan.cost[k]);
-      const priced = Object.keys(plan.cost).map((k) => `${plan.cost[k]} ${k}`).join(", ");
+      const broke = !canAfford(plan.cost);
       parts.push(`<div class="map-actions"><button class="map-act" data-act="build" data-tile="${p.id}" data-struct="${def.id}"${
-        queued || short.length ? " disabled" : ""}>Build ${def.name}</button></div>`);
+        queued || broke ? " disabled" : ""}>Build ${def.name}</button></div>`);
       parts.push(`<span class="map-noworks">${
         queued ? "Work is already under way on this hex."
-        : short.length ? `${priced} — short ${short.map((k) => `${Math.ceil(plan.cost[k] - (S.res[k] || 0))} ${k}`).join(", ")}.`
-        : `${priced} · ${plan.time}s. ${def.desc}`}</span>`);
+        : `${costLine(plan.cost)} · ${plan.time}s. ${def.desc}`}</span>`);
     }
   } else if (!mine && tilesEra() && p.terrain !== "water") {
     const best = specialties(p.terrain);
@@ -303,12 +315,13 @@ export function detailHTML(p) {
       // and holding more is what an era advance means.
       const queued = pendingSettle(p.id);
       const capped = !queued && atDominionCap();
-      parts.push(`<div class="map-actions"><button class="map-act" data-act="settle" data-tile="${p.id}"${queued || capped ? " disabled" : ""}>Settle</button></div>`);
+      const broke = !queued && !capped && !canAfford(plan.cost);
+      parts.push(`<div class="map-actions"><button class="map-act" data-act="settle" data-tile="${p.id}"${queued || capped || broke ? " disabled" : ""}>Settle</button></div>`);
       parts.push(`<span class="map-noworks">${queued
         ? "A party is already on its way."
         : capped
         ? `Your people hold all ${dominionCap()} lands this age can govern. A new age must dawn before the banner spreads further.`
-        : `${Object.entries(plan.cost).map(([k, v]) => `${v} ${k}`).join(", ")} · ${plan.time}s${plan.tilesOff != null ? ` · ${plan.tilesOff} tiles off` : ""}${best.length ? ` · best worked for ${best.join(" or ")}` : ""}. Stake the ground, raise a hearth — one more ${spec().tileNoun.singular}.`}</span>`);
+        : `${costLine(plan.cost)} · ${plan.time}s${plan.tilesOff != null ? ` · ${plan.tilesOff} tiles off` : ""}${best.length ? ` · best worked for ${best.join(" or ")}` : ""}. Stake the ground, raise a hearth — one more ${spec().tileNoun.singular}.`}</span>`);
     } else {
       parts.push(`<span class="map-noworks">Not yours${best.length ? ` — best worked for ${best.join(" or ")}` : ""}. Growth is conquest and fealty.</span>`);
     }
@@ -444,6 +457,37 @@ export function rimFor(p) {
   return null;
 }
 
+// WHAT WAS BUILT WHERE, last time we drew. The transition is driven from this
+// diff rather than from the call sites that change a hex, and that is the fix
+// for a real bug: a completed farm set its use inside completeConstruction()
+// and the stage simply rebuilt, so the hay appeared rather than rising. Only
+// DEMOLISH animated, because demolish was the one path that remembered to ask.
+//
+// Diffing here makes it automatic for every cause -- a build finishing, a
+// demolition, a hex lost to a raid, an era re-dress -- and no future caller can
+// forget. It also cannot fire on an ordinary work change (food -> wood), which
+// moves no props and should not animate.
+let lastBuilt = {};
+
+function builtSnapshot() {
+  const out = {};
+  if (!world || !S.map) return out;
+  for (const id of S.map.owned) {
+    const u = hexUse(id);
+    out[id] = u.kind === "structure" ? u.id : "";
+  }
+  return out;
+}
+
+// Hexes whose STRUCTURE changed since the last draw, including ground that has
+// left the dominion entirely (a lost hex takes its works down with it).
+function structuresChangedSince(prev, next) {
+  const ids = new Set([...Object.keys(prev), ...Object.keys(next)]);
+  const changed = [];
+  for (const id of ids) if ((prev[id] || "") !== (next[id] || "")) changed.push(id);
+  return changed;
+}
+
 export function renderMapStage() {
   const stage = document.getElementById("mapStage");
   if (!stage) return;
@@ -461,6 +505,15 @@ export function renderMapStage() {
   lastSignature = sig;
 
   if (mode === "3d") {
+    // ORDER MATTERS. Ask for the transition BEFORE handing over the new world:
+    // a setWorld() arriving mid-sink is held until the props are underground
+    // and applied unseen, so the new paint and the new props appear at the
+    // bottom of the descent and rise together. Reversed, the hex would change
+    // in full view and then politely animate.
+    const now = builtSnapshot();
+    const changed = structuresChangedSince(lastBuilt, now);
+    lastBuilt = now;
+    if (changed.length) changedHexes(changed);
     stage3d.setWorld(visiblePlaces(),
       { isOwned, isVisible, isCharted, homeId: world.home, era: S.era });
     stage3d.setSelected(selectedId);
@@ -622,11 +675,11 @@ export function initMapStage() {
         return;
       }
       if (act === "demolish") {
-        const tid = btn.dataset.tile;
-        demolishStructure(tid);
-        // The structure comes down: its props sink and the plain ground's come
-        // back up. Same call the era re-dress and a completed build use.
-        changedHexes(tid);
+        demolishStructure(btn.dataset.tile);
+        // No explicit changedHexes() here any more: renderMapStage diffs what
+        // is built where and animates whatever moved, so demolition, a build
+        // completing and a hex lost to a raid all behave the same way without
+        // each remembering to ask.
         lastSignature = ""; renderMapStage();
         lastDetail = ""; renderTileDetail();
         return;
@@ -634,14 +687,8 @@ export function initMapStage() {
       if (act === "work" || act === "rest") {
         const tid = btn.dataset.tile;
         if (!isOwned(tid)) return;
-        const wasBuilt = hexUse(tid).kind === "structure";
         if (act === "work") S.map.work[tid] = btn.dataset.res;
         else delete S.map.work[tid];
-        // Re-directing a hex changes no PROPS today, so it plays nothing. The
-        // day a structure is torn down for a resource, that is a contents
-        // change and it animates -- one call site, already correct for a
-        // feature that does not exist yet.
-        if (wasBuilt) changedHexes(tid);
         save();               // a player action commits, like any other
         lastSignature = "";   // the work glyph changed
         renderMapStage();

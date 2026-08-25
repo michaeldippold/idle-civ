@@ -66,7 +66,6 @@ export const BRONZE_DELTA = {
     food:  { baseCap: 600 },
     wood:  { baseCap: 550 },
     stone: { baseCap: 550 },
-    infirmary:  { name: "Infirmary" },
     herbalMedicine: { desc: "Increases how much each Infirmary reduces the chance sickness claims a life." },
   },
 
@@ -82,63 +81,33 @@ export const BRONZE_DELTA = {
       // generous ceiling.
       { id: "bronze", name: "Bronze", baseCap: 200, reveal: () => true },
     ],
-    buildings: [
+    buildings: [],   // the panel is retired -- see the note in stone.js
+    upgrades: [
+      // THE UNLOCK GATES (moved off the panel 2026-08-25). Cap-1 buildings
+      // whose only effect was "you may now train X" -- which is a tech.
       {
         // Bronze's answer to the Muster Ground, and deliberately smaller in
         // every dimension: cheaper, quicker, and it sends four people rather
-        // than an army. Without it, `contact: "open"` was a lie -- the March
-        // button appeared at Bronze and sat permanently disabled behind a
-        // building that does not exist until Iron, which is the same
-        // incoherence the owner objected to, merely relocated.
-        id: "warCamp", name: "War Camp", kind: "building", cap: 1,
+        // than an army. Without it `contact: "open"` was a lie -- the March
+        // button appeared at Bronze and sat permanently disabled behind
+        // something that does not exist until Iron.
+        id: "warCamp", name: "War Camp", kind: "upgrade",
         desc: "A ring of hide tents and a fire kept lit. Enough to send a few spears over the hill and expect most of them back.",
-        base: { wood: 35, stone: 15, bronze: 8 }, scale: 1.5, buildTime: 24,
-        reveal: () => S.builds.barracks >= 1,
+        base: { wood: 35, stone: 15, bronze: 8 }, buildTime: 24,
+        reveal: () => !!S.upgrades.barracks,
       },
       {
-        id: "archeryRange", name: "Archery Range", kind: "building", cap: 1,
-        desc: "Lets your people train as Archers.",
-        base: { wood: 50, stone: 20 }, scale: 1.5, buildTime: 28,
-        reveal: () => S.builds.barracks >= 1,
+        id: "archeryRange", name: "Archery Range", kind: "upgrade",
+        desc: "Butts, bowyers, and the patience to use them. Lets your people train as Archers.",
+        base: { wood: 50, stone: 20 }, buildTime: 28,
+        reveal: () => !!S.upgrades.barracks,
       },
       {
-        id: "stables", name: "Stables", kind: "building", cap: 1,
-        desc: "Lets your people train as Horsemen, and makes scouting possible.",
-        base: { wood: 60, stone: 25, bronze: 10 }, scale: 1.5, buildTime: 34,
-        reveal: () => S.builds.barracks >= 1,
+        id: "stables", name: "Stables", kind: "upgrade",
+        desc: "Horses broken to the saddle. Lets your people train as Horsemen, and makes scouting possible.",
+        base: { wood: 60, stone: 25, bronze: 10 }, buildTime: 34,
+        reveal: () => !!S.upgrades.barracks,
       },
-      {
-        // The first building that TRANSFORMS rather than produces or boosts.
-        // No workers: the opportunity cost is already paid by the miners
-        // feeding it, and "would you like to stop smelting?" isn't an
-        // interesting choice when neither input has another use.
-        //
-        // RATE 0.20, up from 0.05 (owner playtest, 2026-08-25). At 0.05 a
-        // forge drew 0.2 copper/s against a hills hex producing 5/s -- FOUR
-        // PERCENT of it -- so twenty-five forges were needed to consume one
-        // hex, and the owner ran six while copper and tin both sat CAPPED and
-        // overflowing at +1.26/s and +0.31/s. The ore was free and the straw
-        // was the whole game. One forge took 65 minutes to fund a Bronze Age;
-        // building three or four was not a choice, it was a tax.
-        //
-        // The number is set so the ore economy BINDS instead: three forges
-        // (2.4 copper/s) draw about what a worked hills hex yields, so how
-        // many are worth building is a real question with a real answer --
-        // how much hill country you hold, and what you gave up to work it.
-        //
-        // SCALE 1.25, down from 1.5. A converter is capped by its INPUTS; the
-        // ore supply already says when to stop, so a punitive curve on top of
-        // it was friction doing no work. Compounded at 1.5 the seventh forge
-        // cost 513 wood and 342 stone, which is what the era's own pacing had
-        // driven the owner toward. At 1.25 the sixth costs 137.
-        id: "forge", name: "Forge", kind: "building",
-        desc: "Smelts 4 copper + 1 tin into 1 bronze, continuously.",
-        base: { wood: 45, stone: 30 }, scale: 1.25, buildTime: 26,
-        converts: { in: { copper: 4, tin: 1 }, out: { bronze: 1 }, rate: 0.20 },
-        reveal: () => true,
-      },
-    ],
-    upgrades: [
       {
         id: "bronzeTools", name: "Bronze Tools", kind: "upgrade",
         desc: "Permanently improves all gathering by 15%.",
@@ -149,7 +118,7 @@ export const BRONZE_DELTA = {
         id: "bronzeWeapons", name: "Bronze Weapons", kind: "upgrade",
         desc: "Cast blades outclass flint. A further improvement to your Soldiers' odds in a fight.",
         base: { wood: 30, bronze: 40 }, buildTime: 30,
-        reveal: () => S.builds.barracks >= 1,
+        reveal: () => !!S.upgrades.barracks,
       },
       {
         id: "farming", name: "Farming", kind: "upgrade",
@@ -165,7 +134,7 @@ export const BRONZE_DELTA = {
         id: "scouting", name: "Scouting", kind: "upgrade",
         desc: "Riders range beyond the valley and bring back word of what's out there.",
         base: { food: 40, bronze: 15 }, buildTime: 25,
-        reveal: () => S.builds.stables >= 1,
+        reveal: () => !!S.upgrades.stables,
       },
       // The age capstone (see the stone manifest's bronzeAge for the pattern
       // notes). The pop gate scales up from Bronze's 10; the unit gate wants
@@ -186,14 +155,14 @@ export const BRONZE_DELTA = {
         strength: 1.0, counters: "massed", casualtyWeight: 0.35,
         desc: "Deadly against a massed charge, and safer than most — they fight from behind the line.",
         base: { wood: 14, bronze: 6 }, buildTime: 18,
-        reveal: () => S.builds.archeryRange >= 1,
+        reveal: () => !!S.upgrades.archeryRange,
       },
       {
         id: "horseman", name: "Horseman", kind: "unit", popCost: 1,
         strength: 1.5, counters: "riders", casualtyWeight: 0.6,
         desc: "Strong in any fight, quick enough to run down mounted raiders, and quick enough to withdraw.",
         base: { wood: 20, bronze: 14 }, buildTime: 24,
-        reveal: () => S.builds.stables >= 1,
+        reveal: () => !!S.upgrades.stables,
       },
     ],
   },
@@ -255,11 +224,38 @@ export const BRONZE_DELTA = {
     // generator guarantees every seat -- and scarcity only starts to bite
     // when the alloys do.
     {
+      // THE FORGE STANDS SOMEWHERE NOW (2026-08-25). It transforms rather than
+      // produces, and as a panel building it stacked freely and could never be
+      // pulled down -- so an age that changed its recipe left you with six of
+      // them converting ore you wanted to spend, with no way out. On a hex it
+      // costs ground, it can be demolished, and a rival can burn it.
+      //
+      // RATE 0.25, which is deliberately "one forge eats one mine": a Copper
+      // Mine at a full Bronze hills hex yields 1.0 copper/s, and a forge at
+      // 0.25 draws 4 x 0.25 = 1.0. So ONE is the answer for one mine and two
+      // is the answer for two, which is what the owner asked for -- and the
+      // hex price makes over-building self-punishing rather than merely
+      // pointless. (It ran at 0.20 as a panel building, where the answer was
+      // "about three".) A tin mine yields 0.5/s and a forge draws 0.25, so tin
+      // is the half that lets you run two forges off one seam.
+      id: "forge", name: "Forge",
+      converts: { in: { copper: 4, tin: 1 }, out: { bronze: 1 }, rate: 0.25 },
+      base: { wood: 45, stone: 30 }, scale: 1.25, buildTime: 26,
+      desc: "Smelts 4 copper and 1 tin into 1 bronze, continuously. The ground it stands on stops producing — a smelter is not a field.",
+    },
+    {
       id: "market", name: "Market",
       terrain: ["plains", "river"],
       trades: true,
       base: { wood: 80, stone: 50 }, scale: 1.5, buildTime: 45,
       desc: "Scales, a weighing floor, and traders who will take anything off your hands — at their price, never yours. Produces nothing itself.",
+    },
+    {
+      // "Infirmary" is this structure's Bronze name; the id never changes.
+      id: "infirmary", name: "Infirmary",
+      heals: true,
+      base: { wood: 24, stone: 8 }, scale: 1.5, buildTime: 20,
+      desc: "Healers, clean water and somewhere to put the sick. Covers this clearing and the ones around it — and the ground it stands on stops producing.",
     },
     {
       id: "farm", name: "Farm",
@@ -289,7 +285,7 @@ export const BRONZE_DELTA = {
   // because it HOLDS less -- levyCap is territory x armyPerHex, and a Bronze
   // dominion caps at 12 hexes against Iron's 20 -- and because provisions are
   // paid per fighter, per tile. Nobody has to decide the number.
-  muster: { building: "warCamp" },
+  muster: { upgrade: "warCamp" },
 
   // The neighbours, one age on: peoples now, not camps. Walls appear because
   // masonry does. Still strictly above the Bronze minor band ([2,5]).

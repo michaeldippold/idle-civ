@@ -3,8 +3,8 @@ import { CONFIG } from "../core/config.js";
 import { playtime } from "../core/derived.js";
 import { S } from "../core/state.js";
 import { log } from "./log.js";
-import { renderBuildings, renderTraining, renderUpgrades } from "./panels-buy.js";
-import { renderHoldings, renderQueue } from "./panels-holdings.js";
+import { renderTraining, renderUpgrades } from "./panels-buy.js";
+import { renderQueue } from "./panels-holdings.js";
 import { renderResources } from "./panels-ledger.js";
 import { renderMapStage, renderTileDetail } from "./map.js";
 import { renderPeople } from "./panels-people.js";
@@ -114,10 +114,10 @@ export function renderEraChrome() {
     const h2 = document.querySelector(`#${panelId} h2`);
     if (h2) h2.textContent = titles[panelId];
   }
-  // The holdings group inside the Build pane keeps the era's title
-  // (Settlement -> Village -> Town) now that the old panel header is gone.
-  const ht = document.getElementById("holdingsTitle");
-  if (ht) ht.textContent = titles["panel-holdings"] || "Settlement";
+  // (The holdings sub-header went with the Construction panel on 2026-08-25.
+  // `panelTitles["panel-holdings"]` -- Settlement / Village / Town -- is still
+  // an era-fact and still re-denominates; it simply has no header to sit in
+  // yet. The capital tier is the natural home for it when that lands.)
 }
 
 export function renderAll() {
@@ -125,9 +125,7 @@ export function renderAll() {
   renderClock();
   renderResources();
   renderPeople();
-  renderHoldings();
   renderQueue();
-  renderBuildings();
   renderUpgrades();
   renderTraining();
   renderMapStage();

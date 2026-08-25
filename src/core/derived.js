@@ -1,5 +1,5 @@
 import { DEF_INDEX, active } from "../content/compile.js";
-import { growthSpendRate, hexPopSum, hexYield, upkeepMouths, world } from "../map/map.js";
+import { builtCount, growthSpendRate, hexPopSum, hexYield, upkeepMouths, world } from "../map/map.js";
 import { CONFIG, TICK_SECONDS } from "./config.js";
 import { S } from "./state.js";
 import { log } from "../ui/log.js";
@@ -192,9 +192,9 @@ export function rates() {
 export function converterFlows(prod) {
   const c = caps();
   const flows = {};
-  for (const def of active().buildings) {
+  for (const def of (active().structures || [])) {
     if (!def.converts) continue;
-    const owned = S.builds[def.id] || 0;
+    const owned = builtCount(def.id);
     if (owned <= 0) continue;
     const spec = def.converts;
     let batches = owned * spec.rate;
@@ -294,9 +294,15 @@ export function isCapped(def) {
 // to (a capstone finishing at the very moment it retires itself).
 export function defById(id) {
   const m = active();
+  // Structures are searched here too since 2026-08-25. They were the one def
+  // kind outside this lookup, which was fine while the only structure was the
+  // farm and wrong the moment the Forge and the Medicine Tent moved onto the
+  // board: both re-dress across eras, and everything that asks "what is this
+  // id, right now?" should get one answer from one place.
   return m.buildings.find((b) => b.id === id) ||
          m.upgrades.find((u) => u.id === id) ||
          m.units.find((u) => u.id === id) ||
+         (m.structures || []).find((d) => d.id === id) ||
          DEF_INDEX[id];
 }
 

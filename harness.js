@@ -118,13 +118,36 @@ function snap(label) {
   const s = S();
   console.log(`${label.padEnd(34)} pop=${s.pop} civ=${api.civilians()} ` +
     `soldiers=${s.units.soldier} food=${s.res.food.toFixed(1)} wood=${s.res.wood.toFixed(1)} ` +
-    `stone=${s.res.stone.toFixed(1)} owned=${s.map ? s.map.owned.length : 0} barracks=${s.builds.barracks} dead=${s.dead}`);
+    `stone=${s.res.stone.toFixed(1)} owned=${s.map ? s.map.owned.length : 0} barracks=${!!s.upgrades.barracks} dead=${s.dead}`);
 }
 // idle()'s successor (E2): who could still be trained. People are never
 // "unassigned" any more -- they live somewhere -- but a queued unit order
 // still reserves a civilian the instant it's placed.
 const spare = () => api.civilians() - api.reserved();
 function reset() { api.S = api.freshState(); }
+
+// STAND N STRUCTURES ON THE BOARD. Converters and healers are counted off the
+// hexes now (2026-08-25), so a fixture cannot just write a number into
+// S.builds -- it has to own ground and put something on it. Claims whatever
+// extra hexes it needs, since "you must hold a hex to build on it" is exactly
+// the trade-off the move onto the board created.
+function putStructures(sid, n) {
+  const S = api.S;
+  if (!S.map) api.ensureMap();
+  S.map.built = S.map.built || {};
+  for (const id of S.map.owned) if (S.map.built[id] === sid) delete S.map.built[id];
+  if (n <= 0) return;
+  const free = S.map.owned.filter((id) => !S.map.built[id]);
+  while (free.length < n) {
+    const next = Object.values(api.world.places).find((p) =>
+      p.terrain !== "water" && !p.adversary && !p.minor && !S.map.owned.includes(p.id));
+    if (!next) break;
+    api.captureTile(next.id);
+    free.push(next.id);
+  }
+  for (let i = 0; i < n && i < free.length; i++) S.map.built[free[i]] = sid;
+  api.syncPopMirror();
+}
 
 let fails = 0;
 function check(name, cond) { console.log(`  [${cond ? "PASS" : "FAIL"}] ${name}`); if (!cond) fails++; }
@@ -188,9 +211,15 @@ api.setRngSource(null);
 reset(); api.ensureMap();
 S().res.wood = 80; S().res.stone = 40;    // materials up front; gathering has its own checks
 run(5);
-api.build(findB("infirmary"));            // the cheapest surviving panel building
-run(25);
-check("a building still completes with nobody told to do anything", S().builds.infirmary === 1);
+// Everything you construct stands on GROUND now (2026-08-25), so a fixture
+// picks a hex and raises something on it. The Medicine Tent is the cheapest.
+{
+  const spot = S().map.owned.find((id) => id !== api.world.home);
+  api.launchStructure(spot, "infirmary");
+  run(25);
+  check("a structure still completes with nobody told to do anything",
+    api.builtCount("infirmary") === 1);
+}
 
 // ---- Barracks is capped at 1 ----
 console.log("\n--- Barracks: capped at 1 ---");
@@ -211,15 +240,18 @@ run(5);
 api.setRngSource(null);
 S().res.wood = 200; S().res.stone = 200;  // skip the grind, just testing cap behavior
 snap("fourth hex claimed; barracks should be revealed");
-check("barracks revealed once the dominion grows past the trio", api.isRevealed(findB("barracks")));
-api.build(findB("barracks"));
+// THE BARRACKS IS AN UPGRADE (2026-08-25). It was a cap-1 building whose only
+// effect was "you may now train Soldiers", which is a tech -- and upgrade
+// semantics give the once-only rule for free, without a `cap` field.
+check("barracks revealed once the dominion grows past the trio", api.isRevealed(findU("barracks")));
+api.build(findU("barracks"));
 check("first barracks queued", S().buildQueue.some(q => q.id === "barracks"));
-api.build(findB("barracks"));
-check("second barracks refused -- capped at 1", S().buildQueue.filter(q => q.id === "barracks").length === 1);
+api.build(findU("barracks"));
+check("second barracks refused -- an upgrade is bought once", S().buildQueue.filter(q => q.id === "barracks").length === 1);
 run(31);
-check("barracks completed", S().builds.barracks === 1);
-api.build(findB("barracks"));
-check("can't queue a 2nd barracks once built either", S().buildQueue.length === 0);
+check("barracks completed", S().upgrades.barracks === true);
+api.build(findU("barracks"));
+check("can't queue a 2nd barracks once owned either", S().buildQueue.length === 0);
 
 // ---- Soldier: popCost reserves a civilian immediately, not on completion ----
 console.log("\n--- Soldier: popCost reserves a civilian the instant it's queued ---");
@@ -228,7 +260,7 @@ console.log("\n--- Soldier: popCost reserves a civilian the instant it's queued 
 api.setRngSource(() => 0.999999);
 reset();
 S().pop = 6;
-S().builds.hut = 1; S().builds.barracks = 1;
+S().builds.hut = 1; S().upgrades.barracks = true;
 S().res.wood = 50;
 snap("6 pop, barracks built");
 check("6 spare civilians before training", spare() === 6);
@@ -251,7 +283,7 @@ api.setRngSource(null);
 console.log("\n--- Cancel a queued Soldier order -- reservation freed ---");
 reset();
 S().pop = 6;
-S().builds.hut = 1; S().builds.barracks = 1;
+S().builds.hut = 1; S().upgrades.barracks = true;
 S().res.wood = 50;
 const spareBefore = spare();
 api.build(findT("soldier"));
@@ -368,15 +400,28 @@ check("removeSettler() is gone -- nobody dies nowhere", api.removeSettler === un
     (S().map.owned.forEach((id) => api.killAt(id, 999)), api.strikeHex("raid") === null));
 }
 
-// ---- v7: Herbal Medicine boosts Infirmary's negate chance ----
-console.log("\n--- v7: Herbal Medicine ---");
-reset();
-S().builds.infirmary = 1;
-const sicknessEv = findEv("sickness");
-check("base Infirmary reducePerUnit is 0.2 (lowered from 0.35)",
-  Math.abs(api.negateChance(sicknessEv) - 0.2) < 0.0001);
-S().upgrades.herbalMedicine = true;
-check("Herbal Medicine raises it to 0.35", Math.abs(api.negateChance(sicknessEv) - 0.35) < 0.0001);
+// ---- Healing is POSITIONAL (2026-08-25) ----
+console.log("\n--- Healers cover ground, and Herbal Medicine makes them better ---");
+{
+  // The Medicine Tent stacked freely as a panel building -- three of them
+  // anywhere and sickness was solved. On a hex it covers the ground AROUND it,
+  // so a corner of the realm left uncovered is a real consequence of a choice.
+  reset(); api.ensureMap();
+  const home = api.world.home;
+  check("no healers, no cover", api.healersNear(home) === 0);
+  putStructures("infirmary", 1);
+  const tent = S().map.owned.find((id) => S().map.built[id] === "infirmary");
+  check("a tent covers the hex it stands on", api.healersNear(tent) === 1);
+  check("...and the ring around it",
+    api.world.places[tent].adj.filter((id) => S().map.owned.includes(id))
+      .every((id) => api.healersNear(id) >= 1));
+  check("the global counter machinery is gone -- mitigation is positional",
+    api.negateChance === undefined);
+  check("no era declares an event counter any more",
+    Object.values(api.MANIFESTS).every((m) => m.events.every((ev) => !ev.counter)));
+  check("Herbal Medicine is still the thing that makes healers better",
+    api.MANIFESTS.stone.upgrades.some((u) => u.id === "herbalMedicine"));
+}
 
 // ---- v7 (rewritten in 4c): flat era caps; stone still actually clamps ----
 console.log("\n--- v7: Stone Yard / stone storage cap ---");
@@ -407,8 +452,8 @@ check("Stone Tools adds +8% to all three", Math.abs(after7.food - 1.08) < 0.0001
 // building standing anywhere cannot lift a global rate.
 check("multipliers are tech only -- no building lifts a global rate", (() => {
   const before = api.mults().food;
-  S().builds.infirmary = 3;
-  S().builds.barracks = 1;
+  putStructures("infirmary", 3);
+  S().upgrades.barracks = true;
   return api.mults().food === before;
 })());
 check("a structure lifts the HEX it stands on instead", (() => {
@@ -529,14 +574,18 @@ S().map.pop[woodHex] = 8;
 api.syncPopMirror();
 S().res.stone = 40;                      // the quarry has its own checks
 run(90);
-check("enough timber gathered to afford the infirmary", S().res.wood >= api.buildCost(findB("infirmary")).wood);
-api.build(findB("infirmary"));
-check("it actually entered the queue", S().buildQueue.length === 1);
-run(25); // let it finish, queue drains back to empty
-check("it finished, queue now empty again", S().buildQueue.length === 0);
+{
+  const plan = api.structurePlan("infirmary");
+  check("enough timber gathered to afford the Medicine Tent", S().res.wood >= plan.cost.wood);
+  const spot = S().map.owned.find((id) => id !== api.world.home);
+  api.launchStructure(spot, "infirmary");
+  check("it actually entered the queue", S().buildQueue.length === 1);
+  run(25); // let it finish, queue drains back to empty
+  check("it finished, queue now empty again", S().buildQueue.length === 0);
+}
 
 // ================= BRONZE AGE PHASE 1 =================
-const infDef = findB("infirmary");
+const infDef = api.structureDef("infirmary");
 const bronzeAgeDef = findU("bronzeAge");
 const bronzeToolsDef = findU("bronzeTools");
 
@@ -544,20 +593,20 @@ console.log("\n--- Bronze P1: per-era display names (now manifest overrides) ---
 reset();
 // (The hut was this block's other example until E3 killed it -- the
 // infirmary's Medicine Tent -> Infirmary rename carries the pattern alone.)
-check("stone: infirmary named 'Medicine Tent'", api.defById("infirmary").name === "Medicine Tent");
+// The infirmary carries the per-era rename pattern alone, and it is a
+// STRUCTURE now -- the re-dress rule is the same wherever the def lives.
+const sInf = (era) => api.MANIFESTS[era].structures.find((d) => d.id === "infirmary");
+check("stone: infirmary named 'Medicine Tent'", api.structureDef("infirmary").name === "Medicine Tent");
 S().era = "bronze";
-check("bronze: infirmary named 'Infirmary'", api.defById("infirmary").name === "Infirmary");
-check("ids never change regardless of era",
-  api.MANIFESTS.stone.buildings.some(b => b.id === "infirmary") &&
-  api.MANIFESTS.bronze.buildings.some(b => b.id === "infirmary"));
-check("an override can't reach back and rename the parent era's copy",
-  api.MANIFESTS.stone.buildings.find(b => b.id === "infirmary").name === "Medicine Tent");
-check("overriding name does not disturb inherited fields (cost survives)",
-  api.MANIFESTS.bronze.buildings.find(b => b.id === "infirmary").base.wood ===
-  api.MANIFESTS.stone.buildings.find(b => b.id === "infirmary").base.wood);
+check("bronze: infirmary named 'Infirmary'", api.structureDef("infirmary").name === "Infirmary");
+check("ids never change regardless of era", !!sInf("stone") && !!sInf("bronze"));
+check("a later era's name can't reach back and rename the earlier copy",
+  sInf("stone").name === "Medicine Tent");
+check("re-dressing the name does not disturb the price",
+  sInf("bronze").base.wood === sInf("stone").base.wood);
 S().era = "stone";
 check("un-overridden defs read the same in both eras", api.defById("barracks").name === "Barracks" &&
-  api.MANIFESTS.bronze.buildings.find(b => b.id === "barracks").name === "Barracks");
+  api.MANIFESTS.bronze.upgrades.find(u => u.id === "barracks").name === "Barracks");
 
 console.log("\n--- Bronze P1: carrying caps are retroactive (housing's heir) ---");
 reset(); api.ensureMap();
@@ -700,8 +749,9 @@ console.log("\n--- Bronze P1: old stone-age saves still load ---");
   merged.builds = Object.assign(api.freshState().builds, JSON.parse(legacy).builds);
   api.S = merged;
   check("legacy save keeps its era", S().era === "stone");
-  check("legacy save's missing buildings default to 0", S().builds.barracks === 0 && S().builds.forge === 0);
-  check("legacy save's real buildings survive", S().builds.hut === 2 && S().builds.infirmary === 1);
+  check("nothing legacy grants an upgrade or puts a work on the board",
+    !S().upgrades.barracks && api.builtCount("forge") === 0);
+  check("legacy save's inert build counts ride along untouched", S().builds.hut === 2);
   // (the housing check died in E3 with housing itself)
   delete store[api.CONFIG.saveKey];
 }
@@ -753,11 +803,11 @@ reset();
   const html = api.infoPanelHTML();
   check("has a tab per era", html.includes('data-era="stone"') && html.includes('data-era="bronze"'));
   check("current era's tab starts active", html.includes('class="info-tab active" data-era="stone"'));
-  check("groups buildings, people and upgrades", html.includes(">Buildings<") &&
-    html.includes(">People<") && html.includes(">Upgrades<"));
+  check("groups what stands on the land, people and upgrades",
+    html.includes(">On the Land<") && html.includes(">People<") && html.includes(">Upgrades<"));
   const everyEra = (cat) => api.ERA_ORDER.every((e) =>
     api.MANIFESTS[e][cat].every((d) => html.includes(d.name)));
-  check("every era's buildings appear", everyEra("buildings"));
+  check("every era's structures appear", everyEra("structures"));
   check("every era's units appear", everyEra("units"));
   check("every era's upgrades appear", everyEra("upgrades"));
   // The Bronze tab must read with Bronze names even while we're still in Stone.
@@ -851,7 +901,7 @@ console.log("\n--- E3: the timer, the hut and the lockstep are gone, and stay go
 // Fetched from the bronze manifest explicitly: these tests assert the
 // BRONZE-era recipe, and defById's DEF_INDEX fallback would hand back the
 // iron-era forge (latest identity) while the harness sits in stone.
-const forgeDef = api.MANIFESTS.bronze.buildings.find(b => b.id === "forge");
+const forgeDef = api.MANIFESTS.bronze.structures.find(d => d.id === "forge");
 
 console.log("\n--- P2: ores and their jobs are era-gated (by manifest membership) ---");
 reset();
@@ -880,7 +930,7 @@ reset();
       (d.terrain || []).includes("hills"));
     return onHills("copper") && onHills("tin");
   })());
-  check("forge appears in bronze", api.isRevealed(forgeDef));
+  check("the forge is a Bronze structure, standing on ground", !!forgeDef && !forgeDef.yield);
   const copperRes = api.MANIFESTS.bronze.resources.find(r => r.id === "copper");
   const bronzeRes = api.MANIFESTS.bronze.resources.find(r => r.id === "bronze");
   check("bronze runs a generous flat cap over its ore buffers",
@@ -973,7 +1023,7 @@ reset(); api.ensureMap();
 console.log("\n--- P2: the Forge converts, throttles, and idles ---");
 reset();
 S().era = "bronze";
-S().builds.forge = 1;
+putStructures("forge", 1);
 S().res.copper = 100; S().res.tin = 100;
 {
   const spec = forgeDef.converts;
@@ -990,15 +1040,15 @@ S().res.copper = 100; S().res.tin = 100;
 {
   // Two forges must smelt exactly twice as fast as one.
   reset(); S().era = "bronze"; S().res.copper = 500; S().res.tin = 500;
-  S().builds.forge = 1; api.runConverters(10);
+  putStructures("forge", 1); api.runConverters(10);
   const one = S().res.bronze;
   reset(); S().era = "bronze"; S().res.copper = 500; S().res.tin = 500;
-  S().builds.forge = 2; api.runConverters(10);
+  putStructures("forge", 2); api.runConverters(10);
   check("throughput scales with forge count", Math.abs(S().res.bronze - one * 2) < 1e-9);
 }
 {
   // Starved of tin, it should run at partial rate then stop -- never go negative.
-  reset(); S().era = "bronze"; S().builds.forge = 5;
+  reset(); S().era = "bronze"; putStructures("forge", 5);
   S().res.copper = 1000; S().res.tin = 2;
   api.runConverters(60);
   check("tin drained to exactly zero, not below", Math.abs(S().res.tin) < 1e-9);
@@ -1011,7 +1061,7 @@ S().res.copper = 100; S().res.tin = 100;
 }
 {
   // A full bronze store must stop the forge rather than eating ore for nothing.
-  reset(); S().era = "bronze"; S().builds.forge = 3;
+  reset(); S().era = "bronze"; putStructures("forge", 3);
   S().res.copper = 1000; S().res.tin = 1000;
   S().res.bronze = api.caps().bronze;
   const oreBefore = { copper: S().res.copper, tin: S().res.tin };
@@ -1233,13 +1283,15 @@ S().era = "bronze";
 {
   check("archer hidden without an archery range", !api.isRevealed(archerDef));
   check("horseman hidden without stables", !api.isRevealed(horseDef));
-  S().builds.barracks = 1;
-  check("archery range revealed by a barracks", api.isRevealed(findB("archeryRange")));
-  S().builds.archeryRange = 1; S().builds.stables = 1;
+  S().upgrades.barracks = true;
+  check("archery range revealed by a barracks", api.isRevealed(findU("archeryRange")));
+  S().upgrades.archeryRange = true; S().upgrades.stables = true;
   check("archer revealed by the range", api.isRevealed(archerDef));
   check("horseman revealed by the stables", api.isRevealed(horseDef));
-  check("archery range caps at one", api.isCapped(findB("archeryRange")));
-  check("stables cap at one", api.isCapped(findB("stables")));
+  // Bought-once is upgrade semantics now, not a `cap: 1` field.
+  check("an owned range cannot be bought again",
+    (S().upgrades.archeryRange = true, api.isRevealed(findU("archeryRange")) &&
+      (api.build(findU("archeryRange")), S().buildQueue.length === 0)));
 }
 
 console.log("\n--- P3: Scouting is gated on the upgrade, not just the building ---");
@@ -1247,7 +1299,7 @@ reset();
 S().era = "bronze";
 {
   const scoutEv = findEv("scoutFind");
-  S().builds.stables = 1;
+  S().upgrades.stables = true;
   check("stables alone does not enable scouting events", !scoutEv.condition(S()));
   check("Scouting upgrade revealed by the stables", api.isRevealed(findU("scouting")));
   S().upgrades.scouting = true;
@@ -1294,7 +1346,7 @@ console.log("\n--- BUG: reservations must never outrun the living ---");
 {
   reset(); api.ensureMap();
   S().era = "bronze";
-  S().builds.barracks = 1; S().res.wood = 500;
+  S().upgrades.barracks = true; S().res.wood = 500;
   api.syncPopMirror();
   api.build(findT("soldier"));            // reserves one civilian
   check("one order queued", api.reserved() === 1);
@@ -1308,7 +1360,7 @@ console.log("\n--- BUG: reservations must never outrun the living ---");
   // survivors. Deaths are hex deaths now; the invariant is eternal.
   reset(); api.ensureMap();
   S().era = "bronze";
-  S().builds.barracks = 1; S().res.wood = 500;
+  S().upgrades.barracks = true; S().res.wood = 500;
   for (const id of S().map.owned) S().map.pop[id] = 2;
   api.syncPopMirror();                     // 6 civilians
   api.build(findT("soldier"));
@@ -1541,12 +1593,17 @@ console.log("\n--- Phase B: the cross-reference validator ---");
 console.log("\n--- Phase B: manifestDiff ---");
 {
   const d = api.manifestDiff(api.MANIFESTS.stone, api.MANIFESTS.bronze);
-  // Eleven since the Ore Yard predeceased in 4c (was twelve when Farming
-  // joined): Bronze is where a hex can first be turned into something other
-  // than the ground it stands on.
-  check("eleven additions across buildings/units/upgrades (incl. the iron capstone)",
-    d.added.length === 11 && d.added.some((a) => a.id === "warCamp") &&
+  // Fifteen since the panel retired and STRUCTURES joined the diff (2026-08-25):
+  // Bronze is where a hex can first be turned into something other than the
+  // ground it stands on, and it now brings the mines, the market and the forge
+  // with it. Counted rather than listed so the era modal cannot go silent about
+  // a whole category again.
+  check("fifteen additions across every buildable category",
+    d.added.length === 15 && d.added.some((a) => a.id === "warCamp") &&
     d.added.some((a) => a.id === "farming") && !d.added.some((a) => a.id === "oreYard"));
+  check("...and structures are among them -- the diff sees the whole board",
+    d.added.some((a) => a.id === "forge") && d.added.some((a) => a.id === "copperMine") &&
+    d.added.some((a) => a.id === "market"));
   check("exactly one removal: the capstone", d.removed.length === 1 && d.removed[0].id === "bronzeAge");
   check("one rename: the infirmary (the hut died in E3)", d.renamed.length === 1 &&
     d.renamed.some(r => r.from.name === "Medicine Tent" && r.to.name === "Infirmary"));
@@ -1635,13 +1692,13 @@ console.log("\n--- C1: the iron manifest ---");
   check("consolidation is gone from the iron manifest (died in E2)",
     m.consolidate === undefined);
   check("the Village is now a Town", m.panelTitles["panel-holdings"] === "Town");
-  const forge = m.buildings.find(b => b.id === "forge");
-  check("the Forge persists, retargeted to steel",
+  const forge = m.structures.find(d => d.id === "forge");
+  check("the Forge persists as a structure, retargeted to steel",
     forge.converts.in.iron === 3 && forge.converts.in.wood === 2 && forge.converts.out.steel === 1);
   check("units re-priced out of the dead resource",
     !("bronze" in m.units.find(u => u.id === "archer").base) &&
     "iron" in m.units.find(u => u.id === "horseman").base &&
-    "iron" in m.buildings.find(b => b.id === "stables").base);
+    "iron" in m.upgrades.find(u => u.id === "stables").base);
   check("iron slate swaps in scoutFindIron", m.events.some(e => e.id === "scoutFindIron") &&
     !m.events.some(e => e.id === "scoutFind"));
   check("bronze manifest gained the ironAge capstone",
@@ -1651,8 +1708,8 @@ console.log("\n--- C1: the iron manifest ---");
   // granary, woodshed, stone yard and ore yard no longer exist to retire
   // here). The War Camp still retires: priced in bronze, and a ring of hide
   // tents does not stage a legion. Seven added since Fortification joined.
-  check("diff: 7 added, 6 removed (storage predeceased in 4c), 0 renamed",
-    d.added.length === 7 && d.removed.length === 6 && d.renamed.length === 0 &&
+  check("diff: 9 added, 8 removed (the panel retired 2026-08-25), 0 renamed",
+    d.added.length === 9 && d.removed.length === 8 && d.renamed.length === 0 &&
     d.added.some((a) => a.id === "fortification") &&
     d.removed.some((r) => r.id === "warCamp") &&
     !d.added.some((r) => r.id === "ironYard"));
@@ -1742,13 +1799,13 @@ console.log("\n--- C1: iron-era economy runs ---");
   run(30);
   // 2 mined hills x 4 people x 0.2/s x rate 1.0 x 30s = 48.
   check("iron flows from mined hills (2 mines of 4 people, 30s, ~48)", S().res.iron > 40);
-  S().builds.forge = 2; S().res.iron = 60; S().res.wood = 40;
+  putStructures("forge", 2); S().res.iron = 60; S().res.wood = 40;
   const w0 = S().res.wood;
   // Read the rate rather than restating it: it was hard-coded into five
   // separate checks, so retuning the Forge in 2026-08 meant editing all five
   // and getting every one right. A check that repeats a balance number is a
   // second place for it to be wrong.
-  const iRate = api.MANIFESTS.iron.buildings.find((b) => b.id === "forge").converts.rate;
+  const iRate = api.MANIFESTS.iron.structures.find((d) => d.id === "forge").converts.rate;
   const batches = 2 * iRate * 10;                    // 2 forges x rate x 10s
   api.runConverters(10);
   check("the Forge makes steel from iron AND wood",
@@ -1866,9 +1923,13 @@ console.log("\n--- C2: what an age can muster ---");
   // provisions and time by the route.
   check("stone musters nothing at all -- there is no one to send",
     api.MANIFESTS.stone.muster === null);
+  // The gate is an UPGRADE from 2026-08-25 -- both were cap-1 buildings whose
+  // only effect was a permanent unlock, which is a tech.
   check("bronze gathers at a War Camp, iron at a Muster Ground",
-    api.MANIFESTS.bronze.muster.building === "warCamp" &&
-    api.MANIFESTS.iron.muster.building === "musterGround");
+    api.MANIFESTS.bronze.muster.upgrade === "warCamp" &&
+    api.MANIFESTS.iron.muster.upgrade === "musterGround");
+  check("no era still names a BUILDING as its muster gate",
+    Object.values(api.MANIFESTS).every((m) => !m.muster || !m.muster.building));
   // NO ERA DECLARES A COLUMN SIZE (owner ruling, 2026-08-25). A flat cap made
   // units you had already paid population for unusable -- "I had 4 of each
   // type, but I can only send 4 total" -- and flattened the mixed-column
@@ -1883,19 +1944,19 @@ console.log("\n--- C2: what an age can muster ---");
   // The War Camp must EXIST in bronze, or `contact: "open"` is a promise the
   // era cannot keep -- which is precisely the bug this slice fixes: a March
   // button appearing at Bronze, permanently disabled behind an Iron building.
-  check("and the building each age names is actually buildable in it",
-    api.MANIFESTS.bronze.buildings.some((b) => b.id === "warCamp") &&
-    api.MANIFESTS.iron.buildings.some((b) => b.id === "musterGround"));
+  check("and the gate each age names is actually reachable in it",
+    api.MANIFESTS.bronze.upgrades.some((u) => u.id === "warCamp") &&
+    api.MANIFESTS.iron.upgrades.some((u) => u.id === "musterGround"));
   check("the war camp retires at iron -- hide tents do not stage a legion",
-    !api.MANIFESTS.iron.buildings.some((b) => b.id === "warCamp"));
+    !api.MANIFESTS.iron.upgrades.some((u) => u.id === "warCamp"));
 
   api.S.era = "bronze";
   check("nothing musters until the camp stands", !api.musterBuilt());
-  api.S.builds.warCamp = 1;
+  api.S.upgrades.warCamp = true;
   check("...but it does once it does", api.musterBuilt());
 
   api.S.era = "iron";
-  api.S.builds.warCamp = 1; api.S.builds.musterGround = 0;
+  api.S.upgrades.warCamp = true; delete api.S.upgrades.musterGround;
   check("a war camp does not muster an iron column", !api.musterBuilt());
 
   // Territory sizes the army, in every era. Bronze holds 12 hexes at most and
@@ -1917,7 +1978,7 @@ console.log("\n--- A refusal always says why ---");
   api.initAdversaries(); api.ensureMap();
   const minor = Object.values(api.world.places).find((p) => p.minor);
   const ref = "tile:" + minor.id;
-  api.S.builds.musterGround = 1;
+  api.S.upgrades.musterGround = true;
   api.S.units = { soldier: 3, archer: 0, horseman: 0, siegeEngine: 0 };
   api.S.res.food = 9999;
 
@@ -1931,10 +1992,10 @@ console.log("\n--- A refusal always says why ---");
   check("a column you cannot feed says how short you are", /short \d+ food/i.test(hungry || ""));
   api.S.res.food = 9999;
 
-  api.S.builds.musterGround = 0;
+  delete api.S.upgrades.musterGround;
   check("no muster ground is named as the reason",
     /muster ground/i.test(api.campaignRefusal(ref, { soldier: 1 }) || ""));
-  api.S.builds.musterGround = 1;
+  api.S.upgrades.musterGround = true;
 
   // THE GUARDS AND THE WORDS MUST AGREE. If the refusal says yes, the launch
   // must actually happen -- otherwise the modal enables a button that does
@@ -1946,7 +2007,7 @@ console.log("\n--- A refusal always says why ---");
 
   // ...and where it says no, nothing happens.
   reset(); api.S.era = "iron"; api.initAdversaries(); api.ensureMap();
-  api.S.builds.musterGround = 1;
+  api.S.upgrades.musterGround = true;
   api.S.units = { soldier: 0, archer: 0, horseman: 0, siegeEngine: 0 };
   const ref2 = "tile:" + Object.values(api.world.places).find((p) => p.minor).id;
   check("and where it says no, the launch is refused too",
@@ -1959,7 +2020,7 @@ console.log("\n--- C2: you march on what you can feed ---");
   reset();
   api.S.era = "bronze";
   api.initAdversaries(); api.ensureMap();
-  api.S.builds.warCamp = 1;
+  api.S.upgrades.warCamp = true;
   api.S.units.soldier = 10;          // ten at home...
   api.S.res.food = 5000;
   api.syncPopMirror();
@@ -2112,7 +2173,7 @@ console.log("\n--- C2: launching expeditions ---");
   S().res.food = 100;
   api.launchCampaign("hillClans", { soldier: 2 });
   check("no muster ground, no campaign", S().expeditions.length === 0);
-  S().builds.musterGround = 1;
+  S().upgrades.musterGround = true;
   api.launchCampaign("hillClans", { soldier: 99 });
   check("can't send more than are home", S().expeditions.length === 0);
   api.launchCampaign("hillClans", {});
@@ -2146,7 +2207,7 @@ console.log("\n--- C2.1: escorts decide how an ambush ends ---");
   reset();
   S().era = "iron";
   api.initAdversaries();
-  S().builds.musterGround = 1;
+  S().upgrades.musterGround = true;
   S().pop = 15; S().units = { soldier: 6, archer: 0, horseman: 0 };
   S().adversaries.hillClans.standing = -3;    // the roads are dangerous
   S().res.food = 300; S().builds.treasury = 1;
@@ -2197,7 +2258,7 @@ console.log("\n--- C2: campaign resolution -- victory (one-shot breach) ---");
   S().era = "iron";
   api.initAdversaries();
   S().pop = 12; S().units = { soldier: 6, archer: 0, horseman: 0 };
-  S().builds.musterGround = 1; S().res.food = 100;
+  S().upgrades.musterGround = true; S().res.food = 100;
   S().builds.treasury = 1;
   api.launchCampaign("hillClans", { soldier: 6 });   // wall-power 6 vs palisade 5: one assault
   const st = S().adversaries.hillClans;
@@ -2225,7 +2286,7 @@ console.log("\n--- Siege: repelled at the walls, and the walls remember ---");
   S().era = "iron";
   api.initAdversaries();
   S().pop = 10; S().units = { soldier: 2, archer: 0, horseman: 0 };
-  S().builds.musterGround = 1; S().res.food = 200;
+  S().upgrades.musterGround = true; S().res.food = 200;
   const st = S().adversaries.riverKingdom;
   check("the castle's walls are seeded from the manifest", st.walls === 26);
   api.launchCampaign("riverKingdom", { soldier: 2 });   // wall-power 2 vs walls 26: repelled
@@ -2323,7 +2384,7 @@ console.log("\n--- Siege: the machinery of the engine itself ---");
   check("and at home it defends at normal strength", Math.abs(api.militaryStrength() - 4) < 1e-9);
   const m = api.MANIFESTS.iron;
   check("Siege Workshop gates the engine",
-    m.buildings.some(b => b.id === "siegeWorkshop" && b.cap === 1) &&
+    m.upgrades.some(u => u.id === "siegeWorkshop") &&
     m.units.find(u => u.id === "siegeEngine").reveal.toString().includes("siegeWorkshop"));
   const throws = (fn) => { try { fn(); return false; } catch (e) { return true; } };
   check("malformed walls are caught by the validator", throws(() => {
@@ -2339,7 +2400,7 @@ console.log("\n--- C2: caravan resolution and the gold well running dry ---");
   reset();
   S().era = "iron";
   api.initAdversaries();
-  S().builds.musterGround = 1;
+  S().upgrades.musterGround = true;
   S().pop = 8; S().res.food = 200; S().builds.treasury = 1;
   const st = S().adversaries.riverKingdom;
   api.launchCaravan("riverKingdom");
@@ -2381,7 +2442,7 @@ console.log("\n--- C2: expeditions resolve through step() ---");
   S().era = "iron";
   api.initAdversaries();
   S().pop = 10; S().units.soldier = 2;
-  S().builds.musterGround = 1;
+  S().upgrades.musterGround = true;
   S().res.food = 300;
   api.launchCaravan("saltNomads");   // needs 40 iron -- wait, nomads buy iron
   check("caravan needs its cargo in store", S().expeditions.length === 0);
@@ -2413,14 +2474,14 @@ console.log("\n--- Ledger rates: converter flows shown honestly ---");
   // Full-speed forge: ample stocks, room in the bronze store.
   reset();
   S().era = "bronze";
-  S().builds.forge = 2;
+  putStructures("forge", 2);
   S().res.copper = 100; S().res.tin = 100;
   let r = api.ledgerRates();
   // Rate retuned 0.05 -> 0.20 (owner playtest, 2026-08-25). These pin the
   // ARITHMETIC, not the balance number, so they read it from the manifest
   // rather than hard-coding it twice -- retuning again should not require
   // editing three checks and getting all three right.
-  const fRate = api.MANIFESTS.bronze.buildings.find((b) => b.id === "forge").converts.rate;
+  const fRate = api.MANIFESTS.bronze.structures.find((d) => d.id === "forge").converts.rate;
   check(`bronze rate = forges x recipe out (2 x ${fRate})`,
     Math.abs(r.bronze - 2 * fRate) < 1e-9);
   check("copper reads NET of forge consumption",
@@ -2434,7 +2495,7 @@ console.log("\n--- Ledger rates: converter flows shown honestly ---");
   // read it as steady, not flickering.
   reset();
   S().era = "bronze";
-  S().builds.forge = 2;
+  putStructures("forge", 2);
   // Post-E2 the ore inflow comes from worked hills. The forge's designed
   // equilibrium (2 forges = 0.4 copper + 0.1 tin per second) is matched by
   // hand-built hills whose populations produce EXACTLY those rates:
@@ -2456,7 +2517,7 @@ console.log("\n--- Ledger rates: converter flows shown honestly ---");
   // Starved forge: no stock, no miners -- it isn't running, say so.
   reset();
   S().era = "bronze";
-  S().builds.forge = 3;
+  putStructures("forge", 3);
   r = api.ledgerRates();
   check("a starved forge shows no bronze flow", r.bronze === 0);
   check("and eats nothing", Math.abs(r.copper || 0) < 1e-9);
@@ -2464,7 +2525,7 @@ console.log("\n--- Ledger rates: converter flows shown honestly ---");
   // Output capped: full bronze store stops the forge, ledger agrees.
   reset();
   S().era = "bronze";
-  S().builds.forge = 2;
+  putStructures("forge", 2);
   S().res.copper = 100; S().res.tin = 100;
   S().res.bronze = api.caps().bronze;
   r = api.ledgerRates();
@@ -2474,24 +2535,39 @@ console.log("\n--- Ledger rates: converter flows shown honestly ---");
   reset();
   S().era = "iron";
   S().pop = 8;
-  S().builds.forge = 2;
-  // Two worked forests and one hex that gives no timber, on real ground.
+  // Two worked forests, then two forges on OTHER ground. Order matters: the
+  // forges stand on hexes, so the map has to be laid out before they are
+  // placed or the layout wipes them.
   api.ensureMap();
   const woods = Object.values(api.world.places)
     .filter((p) => p.terrain === "forest" && !p.adversary && !p.minor).slice(0, 2);
   S().map.owned = woods.map((p) => p.id);
+  S().map.built = {};
   S().map.pop = {}; api.ensurePop();
   for (const w of woods) S().map.pop[w.id] = 4;
-  S().map.built = {};
+  api.syncPopMirror();
+  putStructures("forge", 2);
+  // The forge hexes were claimed by the fixture and produce nothing; the two
+  // forests are the whole timber line.
+  for (const w of woods) S().map.pop[w.id] = 4;
+  for (const id of S().map.owned) if (S().map.built[id]) S().map.pop[id] = 0;
   api.syncPopMirror();
   S().res.iron = 100; S().res.wood = 100;
   r = api.ledgerRates();
-  const iRate2 = api.MANIFESTS.iron.buildings.find((b) => b.id === "forge").converts.rate;
+  const iRate2 = api.MANIFESTS.iron.structures.find((d) => d.id === "forge").converts.rate;
   const draw = 2 * iRate2;                           // 2 forges' worth of batches/s
   check("steel flows at 2 forges' rate", Math.abs(r.steel - draw) < 1e-9);
   // 8 people on wood at par = 1.6 gross, minus the forges' burn of 2 wood each.
+  // Derived rather than restated: how much timber the two forests give is the
+  // manifest's business, not this check's.
+  // Derived from the BOARD, not restated: how many people ended up on timber
+  // is the fixture's business and the yields table's, not this check's.
+  const grossWood = S().map.owned.reduce((sum, id) => {
+    const y = api.hexYield(id);
+    return sum + (y && y.res === "wood" ? Math.floor(S().map.pop[id] || 0) * 0.2 * y.rate : 0);
+  }, 0);
   check("wood reads worked forest minus the forge's burn",
-    Math.abs(r.wood - (1.6 - 2 * draw)) < 1e-9);
+    Math.abs(r.wood - (grossWood - 2 * draw)) < 1e-9);
   check("iron reads as pure drain with no miners",
     Math.abs(r.iron - (-3 * draw)) < 1e-9);
 }
@@ -2514,9 +2590,9 @@ console.log("\n--- Phase 3: offline is gone; the save is load-bearing ---");
 
   // Mid-construction round-trip through the REAL save/load path: the queue
   // survives serialization verbatim and the revived save finishes the build.
-  reset();
+  reset(); api.ensureMap();
   S().res.wood = 100; S().res.stone = 60;
-  api.build(findB("infirmary"));
+  api.launchStructure(S().map.owned.find((id) => id !== api.world.home), "infirmary");
   run(3);
   const midRemaining = S().buildQueue[0].remaining;
   api.save();
@@ -2526,13 +2602,13 @@ console.log("\n--- Phase 3: offline is gone; the save is load-bearing ---");
     S().buildQueue.length === 1 && Math.abs(S().buildQueue[0].remaining - midRemaining) < 1e-9);
   check("load restores the saved copy, not live state", S().res.wood < 9999);
   run(25);
-  check("the revived save finishes the build", S().builds.infirmary === 1 && S().buildQueue.length === 0);
+  check("the revived save finishes the build", api.builtCount("infirmary") === 1 && S().buildQueue.length === 0);
 
   // Mid-flight expedition round-trip: a column in the field survives the
   // save, and the revived save resolves it on the world's schedule.
   reset();
   S().era = "iron"; api.initAdversaries();
-  S().pop = 12; S().units.soldier = 5; S().builds.musterGround = 1;
+  S().pop = 12; S().units.soldier = 5; S().upgrades.musterGround = true;
   S().res.food = 200;
   api.launchCampaign("hillClans", { soldier: 4 });
   run(2);
@@ -2608,7 +2684,7 @@ console.log("\n--- Phase 6d: the growth verbs -- minors, settle, routes ---");
     !S().map.built[empty.id] && !!api.hexYield(empty.id));
 
   // Capture: a campaign against a minor, forced win, takes the place whole.
-  S().builds.musterGround = 1; S().units.soldier = 6; S().res.food = 500;
+  S().upgrades.musterGround = true; S().units.soldier = 6; S().res.food = 500;
   const mtile = minors[0].id;
   S().map.minors[mtile].walls = 0;      // walls down; test the field, not the siege
   const mstock = Object.assign({}, S().map.minors[mtile].stock);
@@ -3020,7 +3096,7 @@ console.log("\n--- The dominion cap: what one age can hold ---");
   // Subduing a minor is conquest, and conquest answers to the scope too.
   reset(); api.closeModal();
   S().era = "iron"; api.initAdversaries(); api.ensureMap();
-  S().builds.musterGround = 1; S().units.soldier = 6; S().res.food = 5000;
+  S().upgrades.musterGround = true; S().units.soldier = 6; S().res.food = 5000;
   while (S().map.owned.length < 20) {
     const w = Object.values(api.world.places)
       .find((x) => x.terrain !== "water" && !x.adversary && !x.minor && !api.isOwned(x.id));
@@ -3148,8 +3224,9 @@ console.log("\n--- Building on a hex: the farm ---");
   check("the farm is declared by Bronze and redeclared by Iron",
     !!api.MANIFESTS.bronze.structures.find((d) => d.id === "farm") &&
     !!api.MANIFESTS.iron.structures.find((d) => d.id === "farm"));
-  check("Stone builds on hexes too -- the camp and the pit are its whole shop",
-    (api.MANIFESTS.stone.structures || []).length === 2);
+  check("Stone builds on hexes too -- camp, pit and medicine tent are its shop",
+    (api.MANIFESTS.stone.structures || []).map((d) => d.id).sort().join(",") ===
+      "infirmary,lumberCamp,stonePit");
   check("a farm belongs on farmland, and nowhere else",
     api.structureFits("farm", hex) === true && (() => {
       const hill = Object.values(api.world.places).find((p) => p.terrain === "hills");
@@ -3639,15 +3716,20 @@ console.log("\n--- Engine rework E5: the world strikes hexes ---");
   // host worse outbreaks, small ones lose one soul.
   for (const id of S().map.owned) S().map.pop[id] = 10;
   api.syncPopMirror();
+  // Sickness OWNS ITS TRIGGER since 2026-08-25 (it has to pick the hex before
+  // it can ask whether healers cover it), so drive resolve() with the dice
+  // pinned to "it happens" rather than calling a bare effect().
   const sicknessEv2 = api.MANIFESTS.stone.events.find((e) => e.id === "sickness");
+  check("sickness resolves itself, so the hex is chosen before healers are asked",
+    typeof sicknessEv2.resolve === "function" && sicknessEv2.effect === undefined);
   const popsBefore = S().map.owned.map((id) => api.hexPop(id));
-  const line = sicknessEv2.effect(S());
+  api.setRngSource(() => 0);              // it fires, and nothing negates it
+  sicknessEv2.resolve(S(), 1);
+  api.setRngSource(() => 0.99);
   const popsAfter = S().map.owned.map((id) => api.hexPop(id));
   const losses = popsBefore.map((v, i) => v - popsAfter[i]).filter((d) => d > 0);
   check("the fever broke out at exactly one hex", losses.length === 1);
   check("it took a fifth of that hex (10 -> 8)", losses[0] === 2);
-  check("the Chronicle names the ground it struck",
-    typeof line === "string" && line.includes("fever"));
 
   api.setRngSource(null);
 }
@@ -3993,7 +4075,7 @@ console.log("\n--- Phase 6b: Conquest Growth G1 -- levy, output, no housing ---"
   api.syncPopMirror();
   S().units = { soldier: 5, archer: 0, horseman: 0, siegeEngine: 0 };
   api.syncPopMirror();
-  S().builds.barracks = 1; S().res.wood = 500; S().res.iron = 500; S().res.food = 500;
+  S().upgrades.barracks = true; S().res.wood = 500; S().res.iron = 500; S().res.food = 500;
   const soldierDef = api.defById("soldier");
   api.build(soldierDef);
   check("training refuses past the land's muster (3 hexes = cap 6; 5 + 1 queued fills it)",
@@ -4017,7 +4099,7 @@ console.log("\n--- Phase 6b: Conquest Growth G1 -- levy, output, no housing ---"
   // The recruit is drawn from the SEAT on completion (owner ruling).
   reset(); api.closeModal(); api.ensureMap();
   S().era = "iron"; api.initAdversaries(); api.ensureMap();
-  S().builds.barracks = 1; S().res.wood = 500; S().res.food = 500; S().res.iron = 500;
+  S().upgrades.barracks = true; S().res.wood = 500; S().res.food = 500; S().res.iron = 500;
   for (const id of S().map.owned) S().map.pop[id] = 30;   // above cap, so growth
   api.syncPopMirror();                                     // cannot refill the draw
   const seatBefore = api.hexPop(api.world.home);
@@ -4154,7 +4236,7 @@ console.log("\n--- Phase 6a: the map exists ---");
   S().map.pop = {}; api.ensurePop();
   S().map.pop[tid] = 3;   // three people on the ground, exactly
   S().units = { soldier: 0, archer: 0, horseman: 0, siegeEngine: 0 };
-  S().upgrades = {}; S().builds.infirmary = 0;
+  S().upgrades = {}; putStructures("infirmary", 0);
   api.syncPopMirror();
   check("terrain sets what a hex yields", api.hexResource(tid) === decl.res);
   check("...and the rate the ledger reads",
@@ -4308,7 +4390,8 @@ console.log("\n--- Seeded RNG: determinism and the source ban ---");
     S().seed = 123456789; S().rngState = 123456789;
     api.ensureMap();   // world derives from the seed, so this is deterministic too
     run(120);
-    api.build(findB("infirmary"));   // affordable or not, identically in both runs
+    // affordable or not, identically in both runs
+    api.launchStructure(S().map.owned.find((id) => id !== api.world.home), "infirmary");
     run(240);
     return JSON.stringify(S());
   };
@@ -4390,16 +4473,24 @@ console.log("\n--- The action layer: one seam for every player verb ---");
     if (queued) api.cancelBuild(api.S.buildQueue[api.S.buildQueue.length - 1].uid);
   }
 
-  // ONE WRITER: every path that touches S.map.built goes through setHexBuild,
-  // so the render stamp cannot be forgotten by the next caller.
   const srcDir = fileURLToPath(new URL("./src", import.meta.url));
   const mapSrc = fs.readFileSync(nodePath.join(srcDir, "map", "map.js"), "utf8");
   const uiSrc = fs.readFileSync(nodePath.join(srcDir, "ui", "map.js"), "utf8");
   const actSrc = fs.readFileSync(nodePath.join(srcDir, "core", "actions.js"), "utf8");
-  const WRITE = new RegExp("S\\.map\\.built\\[[^\\]]*\\]\\s*=", "g");
-  const DEL = new RegExp("delete\\s+S\\.map\\.built\\[", "g");
-  const writes = (t) => (t.match(WRITE) || []).length;
-  const deletes = (t) => (t.match(DEL) || []).length;
+  // ONE WRITER, counted without a regex: an earlier version of this check used
+  // one and quietly flagged `S.map.built[id] === sid` inside builtCount as a
+  // fourth writer, which is the exact class of false positive a check is
+  // supposed to be immune to. Split on the literal and look at what follows
+  // the bracket instead.
+  const writes = (t) => {
+    let n = 0;
+    for (const part of t.split("S.map.built[").slice(1)) {
+      const after = part.slice(part.indexOf("]") + 1).trimStart();
+      if (after.startsWith("=") && !after.startsWith("==")) n += 1;
+    }
+    return n;
+  };
+  const deletes = (t) => t.split("delete S.map.built[").length - 1;
   check("no module outside map.js writes S.map.built directly",
     writes(uiSrc) === 0 && deletes(uiSrc) === 0 &&
     writes(actSrc) === 0 && deletes(actSrc) === 0);

@@ -381,9 +381,12 @@ button { font-family: inherit; cursor: pointer; }
 #floatLeft .block, #floatRight .block { min-height: 0; }
 /* Left column: Build takes half, Train and Upgrade a quarter each (user
    ruling: all three visible at once, fixed shares -- no tab jumping). */
+/* The Construction panel retired 2026-08-25 and Upgrades took its room.
+   Training keeps its band; Upgrades gets everything else, which is what it
+   needs now that the unlock gates live there -- and it is a step toward the
+   tech tree, which wants the whole column. */
 #panel-training { flex: 0 0 23%; }
-#panel-build    { flex: 1 1 auto; }
-#panel-upgrades { flex: 0 0 24%; }
+#panel-upgrades { flex: 1 1 auto; }
 /* Right column: the tile detail (when open), People at roughly a third,
    the Chronicle with the rest. */
 #panel-tile    { flex: 0 0 auto; max-height: 40%; }
@@ -397,10 +400,9 @@ button { font-family: inherit; cursor: pointer; }
 #panel-queue .queue-list { display: flex; flex-direction: row; gap: 8px; overflow-x: auto; }
 #panel-queue .queue-list > * { flex: 0 0 210px; }
 
-.pane-sub {
-  font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
-  color: var(--text-2); margin: 0 0 6px;
-}
+/* (.pane-sub went with the Construction panel on 2026-08-25 -- it styled the
+   "Settlement / Village / Town" sub-header above the holdings grid, and both
+   the header and the grid are gone.) */
 #panel-tile h2 { display: flex; justify-content: space-between; align-items: center; }
 
 /* ---------- Block (panel) shell ---------- */

@@ -170,13 +170,11 @@ export function pick(arr) { return arr[Math.floor(rng() * arr.length)]; }
 // cost turning into a one-time purchase. Anything that reduces a PROBABILITY
 // can be out-built; the fix is a floor that no amount of building crosses.
 // See design.md, The Economy Must Be Able To Break You.
-export function negateChance(ev) {
-  if (!ev.counter) return 0;
-  const n = S.builds[ev.counter.building] || 0;
-  const reduce = typeof ev.counter.reducePerUnit === "function"
-    ? ev.counter.reducePerUnit(S) : ev.counter.reducePerUnit;
-  return Math.min(1 - CONFIG.counterFloor, n * reduce);
-}
+// (negateChance() retired 2026-08-25 with its only user. It counted a COUNTER
+// BUILDING globally, so three infirmaries standing anywhere retired sickness
+// outright. Mitigation is positional now: the sickness event picks its hex
+// first and asks healersNear() about THAT hex -- a question a global count
+// could not answer. CONFIG.counterFloor survives and is applied there.)
 
 // A civilian dies: population drops, and if that leaves more workers assigned
 // than civilians alive, the excess is pulled back to idle (wood/stone before

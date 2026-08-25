@@ -4,8 +4,7 @@ import { CONFIG } from "../core/config.js";
 import { defById, queueTiming } from "../core/derived.js";
 import { S } from "../core/state.js";
 import { campaignTarget, findAdversary } from "../sim/expeditions.js";
-import { renderTile } from "./dom.js";
-import { BUILDING_CATS, BUILDING_ICONS, QUEUE_ICONS } from "./icons.js";
+import { QUEUE_ICONS } from "./icons.js";
 
 export function renderQueue() {
   const panel = document.getElementById("panel-queue");
@@ -108,20 +107,8 @@ export function renderQueue() {
   }
 }
 
-// The buy menu abstracts ownership into a small number; this panel makes it
-// visible at a glance -- one tile per building type you actually hold.
-export function renderHoldings() {
-  const panel = document.getElementById("panel-holdings");
-  const body = document.getElementById("holdingsBody");
-  const emptyMsg = document.getElementById("holdingsEmpty");
-
-  const buildings = active().buildings;
-  const owned = buildings.filter((d) => (S.builds[d.id] || 0) > 0);
-  emptyMsg.classList.toggle("hidden", owned.length > 0);
-  body.classList.toggle("hidden", owned.length === 0);
-
-  for (const def of owned) {
-    renderTile(body, "hold-", def.id, BUILDING_ICONS[def.id] || "", def.name, S.builds[def.id],
-      BUILDING_CATS[def.id], def.desc);
-  }
-}
+// (renderHoldings() was deleted 2026-08-25 with the Construction panel it
+// lived in. It drew one tile per BUILDING TYPE you held -- a readout that
+// stopped meaning anything the moment buildings became things standing on
+// specific hexes: the board shows you where they are, which is strictly more
+// than a count ever did. renderQueue above is what survives in this file.)

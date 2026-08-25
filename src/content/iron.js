@@ -111,22 +111,9 @@ export const IRON_DELTA = {
     food:  { baseCap: 800 },
     wood:  { baseCap: 700 },
     stone: { baseCap: 700 },
-    forge: {
-      desc: "Burns wood to work iron into steel — 3 iron + 2 wood into 1 steel, continuously.",
-      // RATE 0.40, up from 0.05 (2026-08-25). The same disease as Bronze's
-      // forge and further along: the rate is an ABSOLUTE number that never
-      // scaled with the eras feeding it, while Iron's population caps are
-      // nearly double Bronze's. At 0.05 a forge drew 0.15 iron/s against a
-      // hills hex yielding 9/s, so SIXTY forges were needed to consume one
-      // worked hex, and the two steel upgrades took 23 minutes of smelting.
-      //
-      // Iron is sized differently from Bronze on purpose: steel is a GATE,
-      // not a currency. The whole era asks for 70 of it (Iron Weapons, Steel
-      // Armor) where Bronze wanted 195 to fund its claims and its capstone.
-      // So one forge should simply cover it -- about three minutes -- and
-      // nobody should ever want six.
-      converts: { in: { iron: 3, wood: 2 }, out: { steel: 1 }, rate: 0.40 },
-    },
+    // (The Forge override left here 2026-08-25: the Forge is a STRUCTURE now,
+    // and Iron redeclares its structure slate wholesale, so the Iron recipe
+    // and rate are authored there rather than patched onto a building.)
     // Re-priced out of the dead resource. Iron is cheaper than bronze was --
     // it's everywhere; that's the whole point of the era.
     stables: { base: { wood: 60, stone: 25, iron: 12 } },
@@ -147,24 +134,25 @@ export const IRON_DELTA = {
     // No jobs: the allocation verb lives on the map now. Iron ARRIVES as
     // terrain instead of as a job -- hills can be turned to it.
     jobs: [],
-    buildings: [
-{
-        // Gates the Expeditions panel the way the Barracks gated Training.
-        // One Muster Ground, one outbound column at a time -- the cap IS the
-        // pacing of the era's outward verbs.
-        id: "musterGround", name: "Muster Ground", kind: "building", cap: 1,
-        desc: "Where expeditions gather — fighters, wagons, provisions. Opens the world beyond the valley.",
-        base: { wood: 60, stone: 30, iron: 20 }, scale: 1.5, buildTime: 35,
+    buildings: [],   // the panel is retired -- see the note in stone.js
+    upgrades: [
+      // THE UNLOCK GATES (moved off the panel 2026-08-25). Both were cap-1
+      // buildings whose only effect was a permanent unlock -- which is a tech.
+      {
+        // Gates the Expeditions verbs the way the Barracks gates Training.
+        // One outbound column at a time; how BIG it is answered by what you
+        // hold and can feed, never by a number here.
+        id: "musterGround", name: "Muster Ground", kind: "upgrade",
+        desc: "A parade ground, a quartermaster, and the habit of counting spears before they leave. Lets your realm send a column.",
+        base: { wood: 60, stone: 30, iron: 20 }, buildTime: 35,
         reveal: () => true,
       },
       {
-        id: "siegeWorkshop", name: "Siege Workshop", kind: "building", cap: 1,
-        desc: "Lets your people build and crew Siege Engines.",
-        base: { wood: 50, stone: 40, iron: 15 }, scale: 1.5, buildTime: 30,
-        reveal: () => S.builds.barracks >= 1,
+        id: "siegeWorkshop", name: "Siege Workshop", kind: "upgrade",
+        desc: "Beams, rope and the arithmetic of leverage. Lets your people build Siege Engines.",
+        base: { wood: 50, stone: 40, iron: 15 }, buildTime: 30,
+        reveal: () => !!S.upgrades.barracks,
       },
-    ],
-    upgrades: [
       {
         id: "ironTools", name: "Iron Tools", kind: "upgrade",
         desc: "Permanently improves all gathering by 22%.",
@@ -175,7 +163,7 @@ export const IRON_DELTA = {
         id: "ironWeapons", name: "Iron Weapons", kind: "upgrade",
         desc: "Steel edges hold where bronze bends. A further improvement to your fighters' odds in any fight.",
         base: { steel: 40, gold: 20 }, buildTime: 35,
-        reveal: () => S.builds.barracks >= 1,
+        reveal: () => !!S.upgrades.barracks,
       },
       {
         id: "fortification", name: "Fortification", kind: "upgrade",
@@ -187,7 +175,7 @@ export const IRON_DELTA = {
         id: "steelArmor", name: "Steel Armor", kind: "upgrade",
         desc: "Plate over hide. Improves your fighters' odds of surviving a fight, again.",
         base: { steel: 30, gold: 25 }, buildTime: 30,
-        reveal: () => S.builds.barracks >= 1,
+        reveal: () => !!S.upgrades.barracks,
       },
     ],
     units: [
@@ -199,7 +187,7 @@ export const IRON_DELTA = {
         strength: 1.0, siege: true, casualtyWeight: 0.5,
         desc: "Engineers and their machine. Tears down walls like nothing else; fights and defends like anyone else.",
         base: { wood: 45, stone: 30, iron: 12 }, buildTime: 30,
-        reveal: () => S.builds.siegeWorkshop >= 1,
+        reveal: () => !!S.upgrades.siegeWorkshop,
       },
     ],
   },
@@ -311,6 +299,18 @@ export const IRON_DELTA = {
       desc: "Break the ground and work it properly. Feeds far better than bare land — and the hex gives up everything else it could have produced.",
     },
     {
+      id: "infirmary", name: "Infirmary",
+      heals: true,
+      base: { wood: 24, stone: 8 }, scale: 1.5, buildTime: 20,
+      desc: "Healers, clean water and somewhere to put the sick. Covers this holdfast and the ones around it — and the ground it stands on stops producing.",
+    },
+    {
+      id: "forge", name: "Forge",
+      converts: { in: { iron: 3, wood: 2 }, out: { steel: 1 }, rate: 0.55 },
+      base: { wood: 45, stone: 30 }, scale: 1.25, buildTime: 26,
+      desc: "Burns wood to work iron into steel — 3 iron + 2 wood into 1 steel, continuously. The ground it stands on stops producing.",
+    },
+    {
       id: "marchHold", name: "March-hold",
       requires: "fortification",
       fortifies: true,
@@ -323,7 +323,7 @@ export const IRON_DELTA = {
   // The Muster Ground's cap of 1 is the real pacing: one outbound column at a
   // time, whatever its size. How big that column can be is answered by what
   // you hold and what you can feed, not by a number here.
-  muster: { building: "musterGround" },
+  muster: { upgrade: "musterGround" },
 
   events: ["greatHunt", "trader", "sickness", "conflict", "scoutFindIron", "scoutWarning"],
   // The rot hints RETURNED in 4c with the caps themselves; oldStores narrates

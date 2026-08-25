@@ -1,4 +1,5 @@
 import { caps } from "../core/derived.js";
+import { builtCount } from "../map/map.js";
 import { S } from "../core/state.js";
 import { MINOR_PLACES, SEAT_IDS } from "./lib.js";
 
@@ -134,35 +135,27 @@ export const STONE = {
     { id: "stone", name: "Stone", baseCap: 350 },
   ],
 
-  buildings: [
-    // The Hut died in E3 with the housing system: people live on the land
-    // now, and the land's carrying capacity is the ceiling. The founding
-    // building's reveal-spine role passed to THE CLAIM -- your dominion
-    // growing is what opens the tree.
-    // (The Woodshed, Granary and Stone Yard died here in 4c, 2026-08-25 --
-    // caps are era-authored now, and a cap you must build toward is a cap
-    // that was really a building requirement.)
-    // (Drying Racks, the Lumber Camp and the Stone Pit left this panel on
-    // 2026-08-25 and went onto the board as STRUCTURES -- see `structures`
-    // below. A kingdom-wide "+12% wood" that lived in a side panel was
-    // invisible power: no rival could scout it, raid it or burn it, and it
-    // asked nothing of the map. The same building standing on a forest hex
-    // is a thing you can lose. The Lumber Camp and Stone Pit kept their
-    // names; the Drying Racks' job passed to the Farm at Bronze.)
-    {
-      // "Medicine Tent" here so that "Infirmary" is available as this same
-      // building's Bronze-era name (an override, not a new def). Id never changes.
-      id: "infirmary", name: "Medicine Tent", kind: "building", desc: "Reduces the chance sickness claims a life.",
-      base: { wood: 24, stone: 8 }, scale: 1.5, buildTime: 20,
-      reveal: () => S.map && S.map.owned.length >= 4,
-    },
-    {
-      id: "barracks", name: "Barracks", kind: "building", cap: 1,
-      desc: "Lets your people train as Soldiers.",
-      base: { wood: 40, stone: 15 }, scale: 1.5, buildTime: 30,
-      reveal: () => S.map && S.map.owned.length >= 4,
-    },
-  ],
+  // THE CONSTRUCTION PANEL IS RETIRED (2026-08-25). Everything that used to
+  // live here went to the place it actually belonged, by one test: can an
+  // enemy take it or burn it?
+  //
+  //   - The three per-resource boosters (Drying Racks, Lumber Camp, Stone Pit)
+  //     became STRUCTURES on the ground they improve.
+  //   - The Medicine Tent and the Forge became structures too -- both are
+  //     physical works standing somewhere, and both got better for it: healing
+  //     is POSITIONAL now, and a Forge can be pulled down when an age leaves
+  //     you with more of them than you want.
+  //   - The cap-1 unlock gates (Barracks, Archery Range, Stables, War Camp,
+  //     Muster Ground, Siege Workshop) became UPGRADES, because that is what
+  //     they always were. A building that costs once, waits once, and then
+  //     permanently unlocks a unit is a tech wearing a building's costume --
+  //     and pricing them in HEXES would have been a category error dressed up
+  //     as consistency: at seven clearings, two gates that produce nothing
+  //     would cripple a Stone realm. Knowledge is not land.
+  //
+  // The category itself stays (empty) so old saves keep their inert counts and
+  // so an era can still declare one if a genuine building ever appears.
+  buildings: [],
 
   // WHAT YOU BUILD ON THE GROUND ITSELF. One hex, one structure -- there is
   // no parallel town beside the fields, and taking one down refunds nothing.
@@ -190,9 +183,33 @@ export const STONE = {
       base: { wood: 32, stone: 14 }, scale: 1.35, buildTime: 24,
       desc: "Cut a face into the hillside and work it properly. Nearly doubles what the hills give.",
     },
+    {
+      // HEALING IS POSITIONAL (owner ruling, 2026-08-25). As a panel building
+      // this stacked for no reason except that it could -- three of them was
+      // strictly better than one and asked nothing of you. Standing on a hex it
+      // covers the ground around it, so the second one exists because your
+      // realm got WIDER, not because the first one was cheap. Same shape as the
+      // March-hold's walls, which is the point: range is how this board says
+      // "near".
+      // "Medicine Tent" here so "Infirmary" is available as this same
+      // structure's Bronze-era name (an override, not a new def).
+      id: "infirmary", name: "Medicine Tent",
+      heals: true,
+      base: { wood: 24, stone: 8 }, scale: 1.5, buildTime: 20,
+      desc: "Healers, clean water and somewhere to put the sick. Covers this clearing and the ones around it — and the ground it stands on stops producing.",
+    },
   ],
 
   upgrades: [
+    // THE UNLOCK GATES LIVE HERE NOW (2026-08-25). A cap-1 building whose only
+    // effect is "you may now train X" is a tech; see the note on `buildings`.
+    // They keep their names and their prices -- what changed is the shelf.
+    {
+      id: "barracks", name: "Barracks", kind: "upgrade",
+      desc: "Drill, discipline, and a place to keep spears. Lets your people train as Soldiers.",
+      base: { wood: 40, stone: 15 }, buildTime: 30,
+      reveal: () => S.map && S.map.owned.length >= 4,
+    },
     {
       id: "stoneTools", name: "Stone Tools", kind: "upgrade",
       desc: "Permanently improves all gathering by 8%.",
@@ -209,19 +226,19 @@ export const STONE = {
       id: "herbalMedicine", name: "Herbal Medicine", kind: "upgrade",
       desc: "Increases how much each Medicine Tent reduces the chance sickness claims a life.",
       base: { wood: 20, food: 20 }, buildTime: 20,
-      reveal: () => S.builds.infirmary >= 1,
+      reveal: () => builtCount("infirmary") >= 1,
     },
     {
       id: "flintSpears", name: "Flint-Tipped Spears", kind: "upgrade",
       desc: "Sharper spearheads improve your Soldiers' odds in a fight.",
       base: { wood: 20, stone: 10 }, buildTime: 20,
-      reveal: () => S.builds.barracks >= 1,
+      reveal: () => !!S.upgrades.barracks,
     },
     {
       id: "hideArmor", name: "Hide Armor", kind: "upgrade",
       desc: "Simple hide armor improves your Soldiers' odds of surviving a fight.",
       base: { wood: 15, food: 15 }, buildTime: 20,
-      reveal: () => S.builds.barracks >= 1,
+      reveal: () => !!S.upgrades.barracks,
     },
     // The age capstone. An ordinary upgrade in every respect -- same queue,
     // same cancel/refund, same cost check -- so Sickness and Conflict keep
@@ -242,7 +259,7 @@ export const STONE = {
       casualtyWeight: 1.0,
       desc: "A settler permanently trained for defense. Holds the line, and takes the worst of it.",
       base: { wood: 12 }, buildTime: 15,
-      reveal: () => S.builds.barracks >= 1,
+      reveal: () => !!S.upgrades.barracks,
     },
   ],
 

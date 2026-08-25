@@ -65,71 +65,10 @@ export function costPartsFor(def) {
   return Object.keys(cost).map((k) => ({ text: `${cost[k]} ${k}`, short: S.res[k] < cost[k] }));
 }
 
-export function renderBuildings() {
-  const list = document.getElementById("buildingList");
-  let anyRevealed = false;
-  const open = [], maxed = [];
-
-  for (const def of active().buildings) {
-    const revealed = isRevealed(def);
-    let card = document.getElementById("bcard-" + def.id);
-    if (revealed && !card) {
-      card = document.createElement("button");
-      card.className = "building";
-      card.id = "bcard-" + def.id;
-      // Resolve by id AT CLICK TIME, never through the captured def: a card
-      // created in one era outlives it, and a stale closure would buy at the
-      // old era's prices -- the Bronze-priced Archer that silently refused to
-      // train in Iron. defById answers with the active era's def.
-      card.addEventListener("click", () => { const d = defById(def.id); if (d) build(d); });
-      list.appendChild(card);
-    }
-    if (!revealed) continue;
-    anyRevealed = true;
-
-    const skel = cardSkeleton(card);
-    const owned = S.builds[def.id] || 0;
-    const pending = pendingCount(def.id);
-    const capped = isCapped(def);
-
-    setText(skel.name, def.name);
-    setText(skel.n, capped ? "Maxed" : String(owned));
-    setPending(skel, capped ? 0 : pending);
-    skel.ownedBox.classList.toggle("is-owned", capped);
-    if (capped) {
-      setCostParts(skel, [{ text: "Maxed.", short: false }]);
-      setText(skel.time, "");
-    } else {
-      setCostParts(skel, costPartsFor(def));
-      setText(skel.time, `${def.buildTime}s`);
-    }
-    card.disabled = S.dead || capped || !canAfford(buildCost(def));
-    card.classList.toggle("owned", capped);
-    attachTip(card, () => ({
-      title: def.name,
-      body: def.desc,
-      why: capped ? "You only ever need the one." : shortfallLine(buildCost(def)),
-    }));
-    (capped ? maxed : open).push(card);
-  }
-
-  // Maxed buildings sink to the bottom, so what you can still raise is never
-  // buried under things you're finished with. Sorted rather than split into an
-  // Available/Owned pair of tabs like Upgrades, and the difference is a real
-  // one: Upgrades trends toward being entirely owned, so hiding that half is
-  // eventually the whole panel, while only five buildings in the game are
-  // cappable at all (all cap-1) and the rest stay buyable forever. A tab
-  // holding five cards would be ceremony, and it would hide useful context --
-  // a maxed Barracks on screen is the reason the Training panel exists.
-  // Same only-touch-the-DOM-when-the-order-changed guard as Upgrades uses.
-  const desired = open.concat(maxed);
-  const current = Array.from(list.children);
-  if (desired.some((el, i) => el !== current[i])) {
-    for (const el of desired) list.appendChild(el);
-  }
-
-  document.getElementById("buildEmpty").classList.toggle("hidden", anyRevealed);
-}
+// (renderBuildings() was deleted 2026-08-25 with the Construction panel. Its
+// card grammar lives on in renderUpgrades and renderTraining below -- the
+// skeleton, the click-eater rule and the resolve-def-at-click-time fix all
+// came from it, which is why they are still commented where they are.)
 
 // One-time upgrades: same card shell as renderBuildings, but a card locks
 // permanently once owned (or already queued) instead of re-pricing upward.

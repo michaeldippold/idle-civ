@@ -3,7 +3,8 @@ import { rng } from "../core/rng.js";
 import { CONFIG } from "../core/config.js";
 import { caps } from "../core/derived.js";
 import { S } from "../core/state.js";
-import { negateChance, pick } from "./combat.js";
+import { builtCount } from "../map/map.js";
+import { pick } from "./combat.js";
 import { log } from "../ui/log.js";
 
 
@@ -34,29 +35,34 @@ export function resolveEvents(dt) {
       const scale = ev.popScaled ? (1 + S.pop * CONFIG.sicknessPopScale) : 1;
       const p = 1 - Math.pow(1 - ev.chancePerSecond * scale, dt);
       if (rng() < p) {
-        if (rng() < negateChance(ev)) {
-          log(pick(ev.flavor.negated), "good");
-        } else {
-          const custom = ev.effect(S);
-          log(custom || pick(ev.flavor.hit), ev.sev);
-        }
+        // No negation branch here any more: the only counterable event was
+        // sickness, and it owns its own resolve() so it can ask whether
+        // healers cover the hex it actually struck.
+        const custom = ev.effect(S);
+        log(custom || pick(ev.flavor.hit), ev.sev);
       }
     }
   }
 }
 
-// Buildings carrying a `converts` spec transform stockpiled resources into
+// STRUCTURES carrying a `converts` spec transform stockpiled resources into
 // another, continuously and without workers. Throughput is clamped three ways
 // so it degrades smoothly instead of erroring or destroying inputs:
-//   - by how many buildings you own x their rate x dt
+//   - by how many stand on the board x their rate x dt
 //   - by the inputs actually in store (runs at partial rate, idles at zero)
 //   - by headroom under the OUTPUT's cap, so a full bronze store stops the
 //     Forge rather than quietly eating copper and tin for nothing.
+//
+// Counted off the BOARD since 2026-08-25, when the Forge moved onto a hex. The
+// count cannot drift from what is standing, and -- the reason the owner wanted
+// the move -- a forge can now be pulled down. An age that changes the recipe
+// used to leave you with six of them converting ore faster than you could
+// spend it, with no way out.
 export function runConverters(dt) {
   const c = caps();
-  for (const def of active().buildings) {
+  for (const def of (active().structures || [])) {
     if (!def.converts) continue;
-    const owned = S.builds[def.id] || 0;
+    const owned = builtCount(def.id);
     if (owned <= 0) continue;
 
     const spec = def.converts;

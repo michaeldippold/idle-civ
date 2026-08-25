@@ -95,7 +95,10 @@ export function infoPanelHTML() {
     const neighbors = m.adversaries.map((a) => ({
       name: a.name.charAt(0).toUpperCase() + a.name.slice(1), desc: a.desc,
     }));
-    const inner = group("Buildings", priced(m.buildings)) + group("People", priced(m.units)) +
+    // "On the Land" replaced "Buildings" 2026-08-25: everything you construct
+    // stands on a hex now, so the reference should say where, not just what.
+    const inner = group("On the Land", priced(m.structures || [])) +
+      group("People", priced(m.units)) +
       group("Upgrades", priced(m.upgrades)) + group("Neighbors", neighbors);
     return `<div class="info-era${e === S.era ? "" : " hidden"}" data-era="${e}">${inner}</div>`;
   }).join("");
@@ -227,7 +230,9 @@ export function openGameOverModal(cause) {
   const lead = cause === "conflict"
     ? "The last defenders fall. Raiders move through the settlement unopposed, and by morning there is no one left to rebuild."
     : "The stores run empty. One by one your people weaken, and the fires go out for the last time.";
-  const built = Object.values(S.builds).reduce((a, b) => a + b, 0);
+  // Counted off the BOARD since 2026-08-25: everything you raise stands on a
+  // hex, so the run's record counts what was standing when it ended.
+  const built = S.map && S.map.built ? Object.keys(S.map.built).length : 0;
   // Boxed, so the run's numbers read as a record rather than a receipt.
   const stat = (label, val) =>
     `<div class="stat-box"><span class="s-lbl">${label}</span><span class="s-val">${val}</span></div>`;
@@ -235,7 +240,7 @@ export function openGameOverModal(cause) {
     `<div class="modal-stats">` +
       stat("Time survived", fmtTime(playtime())) +
       stat("Age reached", active().name) +
-      stat("Buildings raised", built) +
+      stat("Works raised", built) +
       stat("Arrivals welcomed", S.bought) +
       // The run's number: with it (and, after phase 4, the action log) the
       // whole game is reproducible. This is how a bug report becomes a repro.

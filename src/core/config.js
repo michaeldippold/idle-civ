@@ -20,6 +20,11 @@ export const CONFIG = {
   // of 2. It is always a loss, deliberately -- a market is how a realm SURVIVES
   // scarcity, never how it gets rich. Catan's 4:1 with a port ladder, and the
   // same reason: scarcity should start a decision, not end a run.
+  // HOW FAR HEALERS REACH (2026-08-25, with the infirmary moving onto a hex).
+  // Same value as fortRange and for the same reason: one ring is what "near"
+  // means on this board, and two systems that both answer "is it close?"
+  // should not answer it differently.
+  healRange: 1,
   tradeBaseRate: 4,
   tradeRateStep: 0.5,
   tradeFloorRate: 2,

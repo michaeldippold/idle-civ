@@ -1,4 +1,4 @@
-import { active } from "../content/compile.js";
+import { DEF_INDEX, active } from "../content/compile.js";
 import { S } from "../core/state.js";
 import { CONFIG } from "../core/config.js";
 import { rng } from "../core/rng.js";
@@ -403,7 +403,10 @@ export function terrainYield(id) {
 // The structures this era can build. Declared per manifest and inherited, so an
 // age that says nothing keeps what it could already raise.
 export function structureDef(id) {
-  return (active().structures || []).find((d) => d.id === id) || null;
+  // Active era first, then the cross-era index -- exactly what defById does
+  // for everything else. A queued Forge whose era turned over while it was
+  // still building must still know its own name.
+  return (active().structures || []).find((d) => d.id === id) || DEF_INDEX[id] || null;
 }
 
 // Does this hex yield anything into the ledger? Resting ground does not, and
@@ -436,6 +439,42 @@ export function fortStrength(hexId) {
     if (hexDistance(a.q, a.r, b.q, b.r) <= CONFIG.fortRange) n++;
   }
   return n * CONFIG.fortStrength;
+}
+
+// HEALERS COVERING THIS HEX. Same shape as fortStrength, and deliberately so:
+// range is how this board says "near", and the two systems that care about
+// nearness should say it the same way.
+//
+// POSITIONAL FROM 2026-08-25 (owner ruling). As a panel building the infirmary
+// stacked for no reason except that it could -- three was strictly better than
+// one and asked nothing of you. Standing on ground, the second one exists
+// because your realm got WIDER, and a corner of it left uncovered is a real
+// consequence of a real choice.
+//
+// This is a RESOLUTION input, never a selection one: it cannot change whether
+// sickness happens or where it lands, only what happens when it arrives.
+export function healersNear(hexId) {
+  if (!S.map || !world || !world.places[hexId]) return 0;
+  let n = 0;
+  for (const id of S.map.owned) {
+    const u = hexUse(id);
+    if (u.kind !== "structure") continue;
+    const def = structureDef(u.id);
+    if (!def || !def.heals) continue;
+    const a = world.places[id], b = world.places[hexId];
+    if (hexDistance(a.q, a.r, b.q, b.r) <= CONFIG.healRange) n++;
+  }
+  return n;
+}
+
+// Every structure of this kind standing anywhere in the dominion, with its
+// def -- what a converter needs, and what a "do I own one at all?" reveal
+// predicate needs. The board is the source of truth: no counter to drift.
+export function builtCount(sid) {
+  if (!S.map || !S.map.built) return 0;
+  let n = 0;
+  for (const id of S.map.owned) if (S.map.built[id] === sid) n++;
+  return n;
 }
 
 // How many hexes already carry this structure -- the per-copy cost escalator,

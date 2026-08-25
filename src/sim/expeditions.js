@@ -27,9 +27,12 @@ export function findAdversary(id) { return active().adversaries.find((a) => a.id
 // got one: the March button appeared and sat forever disabled behind a
 // building three eras of content away.
 export function musterSpec() { return active().muster || null; }
+// The muster gate is an UPGRADE from 2026-08-25 (the War Camp and the Muster
+// Ground were cap-1 buildings whose only effect was a permanent unlock, which
+// is a tech). The name is kept -- what changed is the shelf it sits on.
 export function musterBuilt() {
   const m = musterSpec();
-  return !!m && (S.builds[m.building] || 0) >= 1;
+  return !!m && !!S.upgrades[m.upgrade];
 }
 // A flat cap on column size lived here from 2026-08-24 to 2026-08-25 and was
 // the wrong lever (owner, from play): "I had 4 of each type, but I can only

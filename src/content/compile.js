@@ -196,8 +196,15 @@ MANIFESTS.iron = extendEra(MANIFESTS.bronze, IRON_DELTA);
 // earlier ones, so an id reads with its most recent identity.
 export const DEF_INDEX = {};
 for (const era of ERA_ORDER) {
-  for (const cat of ["buildings", "upgrades", "units"]) {
-    for (const d of MANIFESTS[era][cat]) DEF_INDEX[d.id] = d;
+  // STRUCTURES ARE INDEXED TOO (2026-08-25). They used to be the one def kind
+  // with no cross-era lookup, which was survivable while the only structure
+  // was the farm and unsurvivable the moment the Forge and the Medicine Tent
+  // moved onto the board -- both are re-dressed and re-priced across eras, and
+  // a save or a queue entry naming one has to resolve after its era ends. One
+  // rule for everything you can build, which is the whole point of collapsing
+  // the parallel tracks.
+  for (const cat of ["buildings", "upgrades", "units", "structures"]) {
+    for (const d of MANIFESTS[era][cat] || []) DEF_INDEX[d.id] = d;
   }
 }
 
@@ -362,6 +369,14 @@ export function validateManifests(manifests) {
     }
     // Structures: where they may stand, what they yield, and what unlocks
     // them all have to resolve INSIDE this era, same rule as everything else.
+    // The muster gate names an UPGRADE since 2026-08-25 (it was a cap-1
+    // building). A dangling gate would silently disable every outward verb.
+    if (m.muster) {
+      if (m.muster.building) bad(`muster names a building -- retired 2026-08-25, declare { upgrade }`);
+      if (!m.muster.upgrade || !m.upgrades.some((u) => u.id === m.muster.upgrade)) {
+        bad(`muster gate "${m.muster && m.muster.upgrade}" is not an upgrade this era`);
+      }
+    }
     for (const st of m.structures || []) {
       for (const t of st.terrain || []) {
         if (!m.map || !m.map.terrains.includes(t)) bad(`structure ${st.id} may stand on "${t}", not a terrain this era`);
@@ -376,8 +391,13 @@ export function validateManifests(manifests) {
       if (u.counters && !raidIds.has(u.counters)) bad(`unit ${u.id} counters "${u.counters}", not a raid type this era`);
     }
     for (const ev of m.events) {
-      if (ev.counter && !buildIds.has(ev.counter.building)) {
-        bad(`event ${ev.id} countered by "${ev.counter.building}", not a building this era`);
+      if (ev.counter) {
+        // The one structured event->building reference in the game, and it
+        // died 2026-08-25: sickness is countered POSITIONALLY now (healers
+        // within range of the hex that was struck), which a global count
+        // cannot express. An era declaring one would describe a mitigation
+        // that nothing applies.
+        bad(`event ${ev.id} declares a counter -- retired 2026-08-25: mitigation is positional, see healersNear()`);
       }
     }
     for (const ins of m.migrations) {
@@ -450,15 +470,18 @@ validateManifests(MANIFESTS);
 // DOM purge -- one diff, two consumers.
 export function manifestDiff(fromM, toM) {
   const diff = { added: [], removed: [], renamed: [] };
-  for (const cat of ["buildings", "units", "upgrades"]) {
-    for (const d of toM[cat]) {
-      const prev = fromM && fromM[cat].find((p) => p.id === d.id);
+  // Structures are diffed too since 2026-08-25 -- the era modal's "what
+  // changed" list would otherwise be silent about the Forge and the Medicine
+  // Tent, which are exactly the things an age re-dresses and re-prices.
+  for (const cat of ["buildings", "units", "upgrades", "structures"]) {
+    for (const d of (toM[cat] || [])) {
+      const prev = fromM && (fromM[cat] || []).find((p) => p.id === d.id);
       if (!prev) diff.added.push(d);
       else if (prev.name !== d.name) diff.renamed.push({ from: prev, to: d });
     }
     if (fromM) {
-      for (const d of fromM[cat]) {
-        if (!toM[cat].some((p) => p.id === d.id)) diff.removed.push(d);
+      for (const d of (fromM[cat] || [])) {
+        if (!(toM[cat] || []).some((p) => p.id === d.id)) diff.removed.push(d);
       }
     }
   }

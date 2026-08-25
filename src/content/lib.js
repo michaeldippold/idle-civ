@@ -3,7 +3,7 @@ import { rng } from "../core/rng.js";
 import { caps, totalUnits } from "../core/derived.js";
 import { S } from "../core/state.js";
 import { CONFLICT_FLAVOR, armorFactor, counterCoverage, militaryStrength, pick, raidGround, removeRandomUnit, reconcileReservations, rollRaidSize, rollRaidType, sentenceCase, stealResources } from "../sim/combat.js";
-import { fortStrength, hexPop, killAt, strikeHex, world } from "../map/map.js";
+import { builtCount, fortStrength, healersNear, hexPop, killAt, strikeHex, world } from "../map/map.js";
 import { hostilityMultiplier, raidAttribution } from "../sim/expeditions.js";
 import { log } from "../ui/log.js";
 
@@ -75,40 +75,55 @@ export const EVENT_LIB = {
     },
   },
   sickness: {
-    // SCALES WITH POPULATION (2026-08-25), the same way conflict always has: a
-    // hazard with a flat rate is one you outgrow, and three infirmaries used to
-    // retire it permanently. See design.md, The Economy Must Be Able To Break You.
-    popScaled: true,
     sev: "bad",
     condition: (S) => S.pop >= 4,
-    chancePerSecond: 0.0015,                        // ~11 real minutes average, unmitigated
-    counter: { building: "infirmary", reducePerUnit: (S) => S.upgrades.herbalMedicine ? 0.35 : 0.2 },
-    // E5: the fever breaks out SOMEWHERE -- a hex chosen person-weighted, so
-    // your dense river valley hosts more outbreaks than a hill camp. It takes
-    // a fifth of the hex (min one), which is what makes sickness matter at a
-    // hundred souls without mattering MORE than a hundred souls can absorb.
-    effect: (S) => {
+    // OWNS ITS OWN TRIGGER, like conflict, and for the same reason: the
+    // mitigation is POSITIONAL now, so the hex has to be chosen BEFORE anyone
+    // asks whether healers cover it. The generic chancePerSecond path rolls
+    // negation first and picks a hex second, which cannot answer "is there an
+    // infirmary near THIS outbreak?"
+    //
+    // Selection and resolution stay separate (design.md): where the fever
+    // breaks out is decided by the world and nothing the player builds may
+    // touch it. What healers change is only what happens next.
+    resolve: (S, dt) => {
+      // SCALES WITH POPULATION, the same way conflict always has: a hazard
+      // with a flat rate is one you outgrow, and three infirmaries used to
+      // retire it permanently.
+      const chance = 0.0015 * (1 + S.pop * CONFIG.sicknessPopScale);
+      const p = 1 - Math.pow(1 - chance, dt);
+      if (rng() >= p) return;
+
+      // ---- SELECTION: that it happens, and WHERE ----
       const at = strikeHex("sickness");
       if (!at) return;
+
+      // ---- RESOLUTION: and this is where healers act ----
+      const healers = healersNear(at);
+      const per = S.upgrades.herbalMedicine ? 0.35 : 0.2;
+      const negate = Math.min(1 - CONFIG.counterFloor, healers * per);
+      if (rng() < negate) {
+        log(healers > 0
+          ? pick([
+              "Sickness threatens the settlement, but healers are close enough to keep it at bay.",
+              "A fever passes through -- your healers see everyone through it.",
+            ])
+          : "A fever passes through, and it passes.", "good");
+        return;
+      }
+
       const toll = Math.max(1, Math.floor(hexPop(at) * 0.2));
       const died = killAt(at, toll);
       reconcileReservations();
       if (!died) return;
-      return died === 1
-        ? `A fever sweeps the ${world.places[at].terrain}. One of your people does not recover.`
-        : `A fever sweeps the ${world.places[at].terrain} — ${died} of your people do not recover.`;
-    },
-    flavor: {
-      hit: [
-        "A fever sweeps through the camp. One of your people does not recover.",
-        "Sickness takes hold overnight. Your settlement wakes one fewer.",
-      ],
-      negated: [
-        // Deliberately era-neutral wording -- this building is a Medicine Tent
-        // in the Stone Age and an Infirmary in Bronze.
-        "Sickness threatens the camp, but your healers keep it at bay.",
-        "A fever passes through -- your healers see everyone through it.",
-      ],
+      const where = world.places[at].terrain;
+      // The line says whether help was NEAR, because that is the decision the
+      // player is being taught: a corner of the realm left uncovered is a
+      // choice with a consequence, and the Chronicle should name it.
+      const far = healers === 0 ? " No healers were near enough to help." : "";
+      log(died === 1
+        ? `A fever sweeps the ${where}. One of your people does not recover.${far}`
+        : `A fever sweeps the ${where} — ${died} of your people do not recover.${far}`, "bad");
     },
   },
   conflict: {
@@ -295,7 +310,7 @@ export const HINT_LIB = {
     msg: "The Forge runs hotter than it ever did for bronze. The first steel is yours." },
   firstGold: { when: () => S.res.gold > 0,
     msg: "Gold. No one in your town has ever dug up an ounce of it — it only ever arrives from somewhere else." },
-  neighbors: { when: () => S.builds.forge >= 1 || S.res.iron >= 20,
+  neighbors: { when: () => builtCount("forge") >= 1 || S.res.iron >= 20,
     msg: "Travellers name your neighbors now: the Hill Clans in the high passes, the River Kingdom downstream, the Salt Nomads on the flats. A Muster Ground would let your people range out to meet them — one way or another." },
 };
 

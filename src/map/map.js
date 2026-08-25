@@ -111,6 +111,7 @@ export function ensureMap() {
     for (const p of chosen) {
       if (!S.map.owned.includes(p.id)) S.map.owned.push(p.id);
     }
+    S.seen.fillStartingGround = true;   // granted below, once pop exists
   }
   if (!S.map.built) S.map.built = {};   // what stands on each hex, if anything
   if (!S.map.minors) S.map.minors = {}; // the minors' living remnants
@@ -137,6 +138,11 @@ export function ensureMap() {
   }
   syncDominion();
   ensurePop();
+  if (S.seen.fillStartingGround) {
+    delete S.seen.fillStartingGround;
+    fillStartingGround();
+    syncPopMirror();
+  }
   syncCharted();
   // (A `S.seen.needsDefaultWork` gate stood here reading a flag NOTHING ever
   // set -- the border bread-default that set it died in E5. Removed
@@ -458,10 +464,32 @@ export function hexPopSum() {
 export function ensurePop() {
   if (!S.map || !world) return;
   if (!S.map.pop) S.map.pop = {};
+  // Ground taken LATER arrives as a settling party and grows into the place:
+  // that dip is what makes a claim an investment rather than a free upgrade.
   for (const id of S.map.owned) {
-    if (!(id in S.map.pop)) S.map.pop[id] = id === world.home ? CONFIG.startPop : 2;
+    if (!(id in S.map.pop)) S.map.pop[id] = 2;
   }
   for (const id in S.map.pop) if (!S.map.owned.includes(id)) delete S.map.pop[id];
+}
+
+// THE STARTING TRIO ARRIVES FULL (owner ruling, 2026-08-25). Your opening
+// ground is worked to what its terrain supports from the first frame.
+//
+// This began as an economy bug and turned out to be an idle-game remnant.
+// Under one resource per terrain, food is capped by your FOOD ground while
+// EVERY hex adds mouths -- so a realm holding one plains, one forest and one
+// hills at a third of capacity produced barely more food than it ate, and
+// claiming a fourth barren hex tipped it permanently negative: stranded at
+// zero food, unable to grow and unable to afford the claim that would fix it.
+// Raising yields would have papered over it. The actual defect was that "a
+// wanderer joins your settlement" was LOAD-BEARING -- the opening was a wait,
+// which is precisely what this game stopped being two pivots ago.
+//
+// Wanderers still arrive. They arrive to fill ground you have just taken,
+// which is a 4X sentence rather than an idle one.
+export function fillStartingGround() {
+  if (!S.map || !S.map.pop || !world) return;
+  for (const id of S.map.owned) S.map.pop[id] = Math.max(2, capOf(id));
 }
 
 // Logistic growth toward each hex's cap: dP/dt = r * P * (1 - P/cap).

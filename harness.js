@@ -139,7 +139,12 @@ console.log("\n--- Regression: starvation, hut queue, storage caps ---");
 // rather than merely delaying an instant end, and this check is about the
 // mechanism, not the weather.
 api.setRngSource(() => 0.99);
-reset(); api.ensureMap();
+// PINNED SEED. How much barren ground is within reach is the world's business,
+// and on a generous seed the realm simply feeds itself -- which made this
+// check pass or fail depending on the roll. The famine MECHANISM is what is
+// under test, so the world it runs on is fixed.
+reset(); S().seed = 424242; S().rngState = 424242; S().map = null; S().seen = {};
+api.ensureMap();
 // A TIMBER EMPIRE STARVES (rewritten 2026-08-25 with the hex economy). The old
 // setup left the starting trio unassigned and waited; ground works its own
 // terrain now and the seat is always food, so an idle trio feeds itself and
@@ -1371,6 +1376,11 @@ console.log("\n--- Free growth: the purchase model is fully excised ---");
   // design.md, The Economy Must Be Able To Break You.
   check("raising a person costs food", (() => {
     reset(); api.ensureMap();
+    // The STARTING ground arrives full (2026-08-25), so there is no room to
+    // grow into until something makes room. Take one person off a hex and the
+    // larder pays to replace them.
+    const hex = S().map.owned.find((id) => api.capOf(id) > 2);
+    S().map.pop[hex] = api.capOf(hex) - 1;
     S().res.food = api.caps().food;
     const foodBefore = S().res.food;
     api.growPopulation(1);
@@ -1386,10 +1396,15 @@ console.log("\n--- Free growth: the purchase model is fully excised ---");
     return S().map.pop[hex] === before;
   })());
   check("...and a thin larder grows less than a full one", (() => {
+    // The roomiest hex, so the LARDER is the binding constraint rather than the
+    // logistic curve -- on a cap-3 hills hex both larders buy the same sliver
+    // and the comparison says nothing. (The starting ground arrives full since
+    // 2026-08-25, so room has to be made deliberately.)
     const gain = (food) => {
       reset(); api.ensureMap();
-      const hex = S().map.owned.find((id) => id !== api.world.home);
+      const hex = S().map.owned.slice().sort((a, b) => api.capOf(b) - api.capOf(a))[0];
       S().map.pop[hex] = 2;
+      api.syncPopMirror();
       S().res.food = food;
       const before = S().map.pop[hex];
       api.growPopulation(30);
@@ -3799,17 +3814,30 @@ console.log("\n--- Engine rework E1: population lives on hexes ---");
                                  // makes a lethal raid near-certain on some
                                  // seeds, and growth itself rolls no dice
 
-  check("the seat opens with the three survivors",
-    api.hexPop(api.world.home) === api.CONFIG.startPop);
-  check("the seat's ground reports a carrying cap",
-    api.capOf(api.world.home) > api.CONFIG.startPop);
+  // THE STARTING GROUND ARRIVES FULL (owner ruling, 2026-08-25). The opening
+  // used to be a wait: three survivors on a hex that supports eight, trickling
+  // upward while every hex ate. That was the last load-bearing idle beat in
+  // the game, and under one resource per terrain it was also an economy bug --
+  // food is capped by your FOOD ground while every hex adds mouths.
+  check("the seat opens worked to what its ground supports",
+    api.hexPop(api.world.home) === api.capOf(api.world.home));
+  check("...and so does every other hex of the opening trio",
+    S().map.owned.every((id) => api.hexPop(id) === Math.max(2, api.capOf(id))));
+  check("the seat's ground reports a carrying cap", api.capOf(api.world.home) > 0);
   check("unowned hexes carry no people",
     Object.keys(api.S.map.pop).every((id) => api.S.map.owned.includes(id)));
 
-  // Growth: logistic toward the cap, floored for every reader.
-  const before = api.S.map.pop[api.world.home];
+  // Growth: logistic toward the cap, floored for every reader. Ground taken
+  // LATER arrives as a settling party and grows into the place -- that dip is
+  // what makes a claim an investment rather than a free upgrade.
+  const fresh = Object.values(api.world.places)
+    .find((p) => p.terrain !== "water" && !p.adversary && !p.minor && !api.isOwned(p.id));
+  api.captureTile(fresh.id);
+  check("newly taken ground arrives as a party, not a full holding",
+    api.S.map.pop[fresh.id] < api.capOf(fresh.id));
+  const before = api.S.map.pop[fresh.id];
   run(120);
-  const after = api.S.map.pop[api.world.home];
+  const after = api.S.map.pop[fresh.id];
   check("people arrive on their own (logistic growth)", after > before);
   run(3600);
   const cap = api.capOf(api.world.home);

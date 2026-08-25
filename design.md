@@ -854,10 +854,14 @@ it outranks any individual number.
 larder to zero, growth stopped, famine trimming the frontier — but settles at a sustainable size
 rather than ending. **Neglect shrinks you; it does not kill you.**
 
-**2. Replayability.** Is the next run different, and is there a reason to play it? *Unsolved.* Varied
-starts do not produce varied play if the optimal response to every start is identical, and right now
-it is: expand, assign, wait. **The game has one strategy.** A losable game can still have exactly one
-line; these are different problems with different answers.
+**2. Replayability.** Is the next run different, and is there a reason to play it? *Unsolved but not
+worrying (owner, 2026-08-25), because the levers are already queued rather than missing:* a
+**direction-exclusive tech tree** — branches you choose between rather than a checklist you finish —
+and **more things to build on a hex**, both of which make one map's best line differ from another's.
+Varied starts cannot produce varied play while the optimal response to every start is identical, and
+right now it is: expand, assign, wait. **The game has one strategy** — but the stubs for having
+several are in place. A losable game can still have exactly one line; these remain different
+problems with different answers, and only the first is urgent.
 
 **3. An ending in either direction.** There is no win condition either. Iron is terminal and
 `todo.md` records that the Iron Age *"ends signal-less by design"*. The game currently resolves

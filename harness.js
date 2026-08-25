@@ -584,6 +584,12 @@ for (const id of S().map.owned) S().map.pop[id] = 10;
 api.syncPopMirror();
 check("pop alone is not enough -- needs a Soldier too", !api.isRevealed(bronzeAgeDef));
 reset(); api.ensureMap();
+// Pin the population BELOW the gate by hand. Since the starting trio arrives
+// full (2026-08-25), a generous roll -- two rivers and a forest -- opens at 25
+// people and already meets the pop half of the gate, which made this check
+// pass or fail on the seed. Worth knowing as balance, not only as a flake:
+// the Bronze capstone's pop gate is now within sight of a fresh start.
+for (const id of S().map.owned) S().map.pop[id] = 1;
 S().units.soldier = 1; api.syncPopMirror();
 check("a Soldier alone is not enough -- needs pop too", !api.isRevealed(bronzeAgeDef));
 reset(); api.ensureMap();

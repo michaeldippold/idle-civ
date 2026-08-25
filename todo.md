@@ -105,10 +105,13 @@ cold start **before** this file's older sections:
      builds — all of them are burnable — but **where** they stand only starts to matter once
      armies have positions. Building that now is guessing at a system that does not exist. Decide
      it with step 6, or take the design call first.
-   - *Live tuning note:* storage caps fill quickly once camps and pits are up (accepted — the era
-     is the budget). And a realm that spreads hard onto barren ground can still go food-negative
-     in the extreme case; real play paces claims by cost and travel time, so it did not bite,
-     but the ratio is the thing to watch if it ever does.
+   - *Live tuning notes, none blocking:* storage caps fill quickly once camps and pits are up
+     (accepted — the era is the budget). A realm that spreads hard onto barren ground can still
+     go food-negative in the extreme case; real play paces claims by cost and travel time, so it
+     did not bite, but the ratio is the thing to watch if it ever does. And **the Bronze
+     capstone's population gate (25) is now within sight of a fresh start** — a generous trio
+     (two rivers and a forest) opens at 25 people, since the starting ground arrives full. The
+     Soldier half of the gate still holds it shut, but the pop half has stopped meaning much.
 5. **The per-player refactor (review Part I), as one campaign** ← **NEXT** — `players[]`, `tile.owner`,
    per-player fog, seats, `active(civ)`, module-local state onto the player object, with the
    `map/map.js` split and the sim→UI event-bus inversion in the same pass. **This is 4d's real

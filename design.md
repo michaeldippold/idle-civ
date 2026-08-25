@@ -190,6 +190,17 @@ specific — palette, materials, texture — is presentation, and the identity i
 carried by re-denominating what a unit *means*. The opening minutes are deliberately unhurried.
 Standing rule: **when unsure, tune toward too-hard and walk it back**, never the reverse.
 
+**And the reason, sharpened by the owner on 2026-08-25, because it is stronger than the rule it
+justifies:** *"I would rather tune hard, and then when I fail talk about whether it was a structural
+issue or whether I just played badly. Instead we keep coming back to whether it's even theoretically
+losable."*
+
+**A too-hard game produces a diagnosable failure. An unlosable one produces nothing to diagnose.**
+Every session spent asking *can this even be lost* is a session that learns nothing about the design,
+because the answer is arithmetic rather than play. Numbers that feel harsh on arrival are the cheap
+half of this: they can be walked back in an afternoon once there is a real failure to reason about.
+Numbers that cannot fail cost you the whole feedback loop.
+
 **The world filling in is part of the fun.** *(Mechanism re-based 2026-08-22 with the flip.)* The
 pillar's intent — visible, earned growth as the progression display — survives; its surface is now
 the map first and the panels second. One hex becomes a ring becomes a country becomes a dominion
@@ -553,6 +564,101 @@ and a fortification, but rather that we prep the infrastructure for it, since th
 design space going forward — like we did when we preemptively separated the visual layer from the map
 logic layer. It made doing 3D very easy."* That separation is the precedent and the standard: the
 right preparation is a seam, not a feature.
+
+### The Economy Must Be Able To Break You
+
+*(Diagnosis and rulings, 2026-08-25, from a two-hour unattended run: 228 souls, 11 holdings, **zero
+army**, food climbing at +24/s, and the population never dropping below 226 before fully recovering.
+The game could not be lost by inattention, and that had stopped being a tuning question.)*
+
+#### The root is arithmetic, not a missing sink
+
+Upkeep already exists and is already charged — `mouths × 0.04/s` across hex population and army
+alike. At 228 souls that is 9.12 food/s being eaten every second. **The sink was never missing.**
+
+The problem is its *shape*. Production is linear in population (`people × baseRate × terrain`).
+Upkeep is linear in population. The margin between them is a **fixed ratio** — `tech.md` states it as
+a feature: *"one working person feeds themselves plus four, at any population, in any era."*
+
+**A flat per-capita sink can never catch a per-capita source.** Every person added carries their own
+positive margin, so surplus grows without bound and there is no size at which the empire strains.
+Bigger is always better because the per-head economics never change, at any scale, forever.
+
+**So adding another sink of the same shape cannot work. The sink has to scale faster than the
+source.** That is the single load-bearing sentence in this section.
+
+#### The antagonist is your own weight
+
+The genre's answer to a wide, rich player is a rival racing you on the same clock — and this game has
+ruled that out on purpose: adversaries are static stocks, *"explicitly not simulated civilizations"*,
+and that ruling stands. It is also why time-farming is safe here in a way it is not in Civ or AoE.
+
+The resolution is not to make the world age. **It is to make size itself the difficulty.** If cost
+grows superlinearly with the empire, then succeeding generates its own opposition, and a hundred-hex
+realm is hard to hold *because it is a hundred hexes* — not because something out there levelled up.
+That preserves the static-adversary ruling, costs no new systems, and is what this game's own
+documents keep circling: a stretched dominion should starve and burn first.
+
+#### The five changes
+
+1. **Upkeep scales with administrative distance.** The one change that bends the curve. `adminDistance()`
+   already exists — a Dijkstra from your seat that governs the famine drain — so a hex far from the
+   capital costs more to hold than one beside it. A compact dominion stays cheap; a stretched one
+   bleeds. This makes the **shape** of an empire matter, not merely its size, and it is thematically
+   exact: supply lines, not granaries.
+
+2. **Raid damage is a share of the struck hex, not a flat count.** `1 + raidSize/8` takes one or two
+   people — 0.4% of a 228-soul realm, and less every hour. A percentage stays meaningful at every
+   scale. **Interaction to design deliberately:** with hex-loss live, a large enough share *takes the
+   hex*, so raids stop being a tax and become a territorial threat.
+
+3. **Walls supplement an army; they never replace one.** `fortStrength` at 9, stacking in range, let a
+   player with **no soldiers at all** turn back 64–90% of raids. That is a march-hold doing the
+   army's job. Roughly halve it: a naked settlement should still lose, while a defended one that
+   *has* fighters should notice the difference.
+
+4. **Sickness scales with population, and infirmaries soften rather than prevent.** The infirmary
+   reduces the *trigger chance*, so enough of them drive frequency toward zero and the threat is
+   permanently retired — a solved problem rather than a standing cost. Conflict already gets this
+   right (`conflictPopScale`); sickness should scale the same way, and its counter should reduce
+   severity or bottom out at a floor.
+
+5. **The throughput limiters are load-bearing and must not be "optimised".** The Underway queue —
+   only the front item advances — and the era gates are what stop a stockpile becoming an instant
+   army. This is the genre's real answer (*cap the spend, not the store*), it is already built, and it
+   is recorded here so that nobody later mistakes it for friction to be removed.
+
+#### A standing constraint on the tech tree
+
+Not work to do now — the tree is deliberately gated — but a fact it must be designed **with**, because
+retrofitting it means designing the tree twice.
+
+> **Tech node prices are authored per node and multiplied by dominion size at purchase. Completed
+> nodes cost nothing, forever.**
+
+Deep techs are expensive because they are deep; *your* techs are expensive because you are wide. This
+is Civ's actual wide-play tax — more cities raise the cost of the **next** discovery, never of the
+ones you hold. Paying rent on knowledge you already have would be absurd, and is not proposed.
+
+**Depth is authored; dominion is multiplied.** The multiplier represents your empire's cost of
+coordination, not the tech's difficulty. Difficulty is a fact about a node and belongs printed on it.
+
+**And explicitly rejected: the Nth tech costing more because it is the Nth.** It would make the tree
+unplannable (a price that depends on unrelated purchases cannot be read off a card and planned
+toward), it would tax exploring the tree, prerequisites already encode depth structurally, and the
+per-copy escalation buildings use exists to stop *spamming one repeatable thing* — which a unique,
+once-bought tech cannot be.
+
+**One consequence, chosen deliberately:** because the multiplier reads current dominion size, losing
+hexes makes the next tech cheaper. That matches claim costs, which already read `owned.length`, and it
+means setbacks bend a run rather than snapping it.
+
+#### What this is a sink for, and what it is not
+
+**Tech-as-flow paces; upkeep equilibrates.** A tree is finite: research everything an era offers and
+surplus banks again until the next era opens more. It gives surplus a *destination*, not a *ceiling*.
+Only superlinear upkeep makes the game losable. They are different jobs and neither substitutes for
+the other.
 
 ### Resources & Storage
 

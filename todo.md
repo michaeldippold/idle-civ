@@ -77,6 +77,29 @@ Dials if it reads wrong: new hexes at 3, or a grace period before reversion.
 
 ---
 
+### 4b — THE ECONOMY MUST BE ABLE TO BREAK YOU *(next, and ahead of 5)*
+
+**Diagnosed and ruled 2026-08-25 after a two-hour unattended run** — 228 souls, 11 holdings, zero
+army, food climbing at +24/s, population never below 226. The game could not be lost by inattention.
+The full reasoning is `design.md` → *The Economy Must Be Able To Break You*; this is the work list.
+
+**The root: production and upkeep are BOTH linear in population, with a fixed margin.** A flat
+per-capita sink can never catch a per-capita source. The sink has to scale faster than the source.
+
+1. **Upkeep scales with administrative distance** — the one change that bends the curve. Reuses
+   `adminDistance()`.
+2. **Raid damage becomes a share of the struck hex**, not `1 + raidSize/8`.
+3. **Halve `fortStrength`** — walls currently let a player with NO army repel 64–90% of raids.
+4. **Sickness scales with population; the infirmary softens rather than prevents.**
+5. **Record the queue and era gates as throughput limiters**, so they are never "optimised" away.
+
+**Standing constraint on the tech tree** (not work now): node prices authored per node, multiplied by
+dominion size at purchase, completed nodes free forever. Explicitly rejected: cost rising with the
+NUMBER of techs owned.
+
+**Expect these to feel harsh.** That is the point — see the sharpened tuning rule in `design.md`:
+a too-hard game produces a diagnosable failure, an unlosable one produces nothing to diagnose.
+
 ### 5 — THE BOARD COMES ALIVE *(the next real work — three features, one thesis)*
 
 **Regrouped 2026-08-25**, because the owner named the goal that unites them: *"all aimed at livening

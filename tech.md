@@ -32,6 +32,9 @@ WORKING ORDER is the queue; this is the phase index.)*
 | 9 | Interface re-architecture around the map | **structural half shipped** ("the flip"); reskin queued | `interface.md` |
 | 10 | 3D map integration | **slices 1–5 shipped**; 6 (scouting) and 7 (re-dress) queued | `map.md`, `todo.md` |
 | E1–E6 | The engine rework (population lives on hexes) | **shipped 2026-08-23/24** | `design.md`, *Population Lives Somewhere* |
+| — | Building on a hex (the use seam, farm, march-hold) | **shipped 2026-08-25** | `design.md`, *Building on a Hex*; *What a Hex Is*, below |
+| — | Losing ground when a hex empties | **shipped 2026-08-25** | `design.md` rule 9 (reversed) |
+| — | The odometer (topline population) | **shipped 2026-08-25** | `design.md`, *The Noun Table* |
 
 **The harness stays green at every boundary from 1 through 5.** That rail is the whole difference between a refactor and a rewrite: phase 1 is mechanical with zero behaviour change, phase 2 changes which numbers come out but not which code paths run, phase 3 deletes code, phase 4 changes the unit of time under an unchanged economy. Any phase that cannot leave the harness green needs its own decomposition before it starts.
 
@@ -796,9 +799,23 @@ values because they failed an `in prod` test and fell through; a structure answe
 `hexResource()` and is skipped deliberately. Same outcome, a stated reason, and no chance of a later
 refactor "fixing" the fallthrough into a bug.
 
-**No structure content exists yet.** Fourteen harness checks exercise `build:farm` and
-`build:fortification` anyway, because a use the game does not have behaving correctly is the only
-way to know a seam is real rather than aspirational.
+**Structures declare an optional `yield`** — `{res, rate}` — and `hexYield(id)` answers it for built
+ground exactly as it answers the terrain table for worked ground. *(The seam originally said a
+structure never produces; the first structure built was a farm, which does. A structure occupies a
+hex INSTEAD OF working it, which is not the same as yielding nothing.)* A structure with no `yield`
+is out of the ledger entirely — that is the march-hold, and it is a legitimate answer rather than a
+missing one.
+
+**Two structures ship today**, both authored per era in `src/content/` and inherited: `farm` (Bronze,
+`requires: "farming"`) and `marchHold` (Iron, `requires: "fortification"`, `fortifies: true`). Adding
+another is authoring plus a paint entry — no engine work.
+
+**The validator refuses:** a structure with no cost or build time, one whose unlocking upgrade exists
+in no era (unreachable, and invisible until a playthrough that never offers it), and one that yields
+a resource its era does not have.
+
+**The seat is not buildable** (`canBuildOn`). The Construction panel raises things in your seat;
+building on a hex is instructing a holding. See `design.md`, *Building on a Hex*.
 
 ## Losing Ground
 

@@ -494,8 +494,14 @@ is the one most at risk here, and it is measurable.
 
 ### Building on a Hex — the design space, and its one law
 
-*(Owner direction, 2026-08-25. The CONTENT — which structures exist — is deliberately not specced
-here. What is settled is the shape, because the shape is what the code has to be ready for.)*
+*(Owner direction, 2026-08-25; **first two structures shipped the same day**. The shape below is the
+law; the content is a separate and much cheaper question, which is why it was written first.)*
+
+**Shipped:** the **Farm** (Bronze, via the *Farming* upgrade) feeds at a flat rate better than any
+bare ground and forfeits everything else the hex could produce; the **March-hold** (Iron, via
+*Fortification*) yields nothing at all and adds defensive strength to itself and the ring around it.
+Both follow every rule below without exception, which is the useful thing about having written them
+down first.
 
 **A hex is exactly one thing, and that is not a new rule.** `S.map.work[id]` already holds a single
 value: a hex is turned to food *or* wood *or* stone, never several, with mutually-exclusive controls
@@ -955,7 +961,26 @@ in every age; only what they have grown into changes.
 | **Iron** | the freehold at %s | the Hill Clans | the River Kingdom | the Salt Nomads |
 | Enlightenment+ | | | | |
 
-#### 4. Nouns that deliberately do NOT climb
+#### 4. What can be built on a hex
+
+Structures are authored per era and **inherited**, so a farm learned in Bronze is still a farm in
+Iron. They re-dress by the same rule as everything else — *when the scope changes, not when the age
+does* — and the owner has already ruled on the two that exist: **a farm is a farm to the end of
+Earth**, while **a fortification cannot be**, since a mechanised total-warfare society does not hold
+a border with stone palisades.
+
+| Age | worked fields | a fortified border |
+|---|---|---|
+| **Stone** | — | — |
+| **Bronze** | **Farm** *(Farming)* | — |
+| **Iron** | Farm *(held)* | **March-hold** *(Fortification)* |
+| Enlightenment | *(held)* | |
+| Gunpowder+ | | |
+
+*The march-hold's name comes from the medieval "march" — a contested borderland — where a marcher
+keep held off incursions before the kingdom's armies could move.*
+
+#### 5. Nouns that deliberately do NOT climb
 
 Recorded so nobody "fixes" them later:
 

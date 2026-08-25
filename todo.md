@@ -17,13 +17,13 @@ from three different plans, interleaved — and the owner correctly called it un
 what happens next. The old labels survive below because they are how each item is specced and
 discussed; this section is the only place that says **when**.
 
-### START HERE — the board is prepared and nothing is half-built
+### START HERE — 5b shipped and was playtested; next is **5c, raid roads**
 
 **Where things stand *(end of session, 2026-08-25)*:** harness green at **755 checks**, working tree
 clean, everything pushed. A long session: the three queued items shipped, then five more things that
 were not on any list. **Nothing is half-done and no decision is pending on code that exists.**
 
-**What shipped, in order:**
+**What shipped, in order** *(one long day; the list grew three times)*:
 
 1. **The vestigial code** — three dead fields, not two.
 2. **Raid attribution (C3)** — gated on `contact`, so Bronze names the danger.
@@ -33,18 +33,38 @@ were not on any list. **Nothing is half-done and no decision is pending on code 
 5. **The odometer** — re-specced by the owner to REPLACE the topline population count. Iron reads
    SUBJECTS 5,800. Iron's `popNoun` stopped colliding with its tile noun, and the compiler refuses
    that collision now.
-6. **The infrastructure for a living board** — see below. This is the part with no content yet.
+6. **The infrastructure for a living board** — the use seam, losing ground when a hex empties, and
+   the sink-and-rise transition.
+7. **Building on hexes (5b), with content** — the **Farm** (Bronze) and the **March-hold** (Iron),
+   plus the SELECTION / RESOLUTION split in the conflict resolver, which was the larger half.
 
 **Also fixed on the way:** the 2D-flash on boot, a 12%-flaky harness check that had been passing for
 the wrong reason, and a `.tile-pop` class that had never had a CSS rule.
 
+**Six bugs the owner found in play**, all fixed: copper and tin drew no work glyph; Settle refused in
+silence; hay appeared instead of rising; the march-hold rendered as an Escher figure (inconsistent
+winding, so culling dropped a different subset at every angle); the wall out-topped the mountains;
+and March did nothing at all with an empty muster. **Three of those were the same bug** — a verb that
+refuses without saying why — and `interface.md` now carries that as a law.
+
+**Two lessons worth carrying, because each cost real time today:**
+
+- **A check that hardcodes what it should derive can only confirm what its author remembered.** Three
+  green checks turned out not to test their subject: a route comparison against a constant, a
+  fortification check a mutation walked straight through, and a work-glyph check that restated the
+  four resources it checked while two others had no glyph at all. **Mutate a new check before
+  trusting it.**
+- **A convention that is scoped is a convention that will be forgotten.** `.short` lived on
+  `.building .b-cost .short`, so every surface that grew an action reimplemented the verb without the
+  refusal — and fixing it per-surface produced the same bug twice in one day.
+
 ---
 
-### BUILT AND IDLE — infrastructure with no content on top of it
+### THE SEAMS — built first, and now carrying content
 
-**All three are finished, tested and unused.** They exist because the owner asked for the ground to
-be prepared rather than the features built — the standard being the geometry/paint split that made
-3D cheap. Nothing below needs a decision to be *correct*; they need content to be *visible*.
+**All three were built before anything needed them**, at the owner's instruction, to the standard set
+by the geometry/paint split that made 3D cheap. Two now have content on top and the third is proven
+by a dev button. That ordering is the reason 5b took an afternoon rather than a week.
 
 - **The use seam.** `hexUse(id)` answers `rest` / `resource` / `structure`; `hexProduces()` and
   `hexResource()` beside it. Structures live in the same slot behind a `build:` prefix, so a second
@@ -93,9 +113,17 @@ taste**, which is why none of them was built today.
   the re-dress is real** — `index.html` carries the removal list. Prop-sets, palette, light, camera pull-back. The
   owner has ideas and has not given them yet; **ask first.** Needs playtesting, so it wants a session
   at the desk.
-- **5b — Building on hexes** ← **NEXT.** Design settled (`design.md` → *Building on a Hex*): one use per hex,
-  keeps its people, shares the build queue, re-dresses when it makes sense, reversible with no
-  refund. **What is undecided is the content** — which structures exist and what they do.
+- **5b — Building on hexes** — ✅ **SHIPPED AND PLAYTESTED 2026-08-25.** Upgrade gates it, the queue
+  paces it, one use per hex holds, price escalates per copy, demolition refunds nothing, and the
+  sink-and-rise plays on every change. **Two structures:** the **Farm** (Bronze) at a flat food rate
+  better than any bare ground, and the **March-hold** (Iron), which yields nothing and adds flat
+  defensive strength to itself and the ring around it. **Adding a third is authoring, not engine
+  work.**
+
+  *Open, from the owner's own testing:* **the march-hold's effect is hard to read.** `fortStrength` is
+  a number nobody can see — the panel says "it is here to hold" without saying how much, or that a
+  neighbour is covered. Showing the covered ring on hover, or printing the strength it adds, would
+  make it legible without touching the mechanics.
 **SEQUENCING, ASKED AND ANSWERED (owner, 2026-08-25): does building fortifications now conflict with
 5c?** In the FORMULA, yes; in the system, no — so 5c does not have to come first.
 

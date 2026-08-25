@@ -29,8 +29,13 @@ what follows is what actually runs.)*
 - **Your people live on the ground they work.** You begin holding three hexes — your seat and two
   beside it — on a board whose edges you cannot see. Population is not a pool you spend; it is a
   number that lives *on a hex*, grows toward what that terrain can carry, and cannot move.
-- **A hex is exactly one thing.** Turn it to a resource, leave it resting, or (coming) build on it —
-  never two at once. There is no parallel town beside your fields.
+- **A hex is exactly one thing.** Turn it to a resource, leave it resting, or **build on it** — never
+  two at once. There is no parallel town beside your fields.
+- **Building on a hex takes it out of the ground it stands on.** From Bronze a holding can become a
+  **Farm**, feeding better than any bare land and giving up everything else; from Iron a
+  **March-hold**, which produces nothing at all and blunts the raids that reach the ground around it.
+  Both are reversible, neither refunds, and your seat can never be built on — that is what the
+  Construction panel is for.
 - **Turn each hex to one thing.** Every ground works every resource, at rates the terrain sets:
   plains favour food, forest timber, hills stone and ore. Output is people x per-capita rate, so a
   hex matters in proportion to how many live there. Choosing the suboptimal route on purpose is a

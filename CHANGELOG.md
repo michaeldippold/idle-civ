@@ -11,6 +11,34 @@
 
 ---
 
+## 2026-08-25 — Copper and tin get their letters
+
+**Found in play by the owner: a hex turned to copper or tin drew nothing.** `WORK_GLYPH` had entries
+for food, wood, stone and iron — the four resources that existed when the table was written — and
+Bronze put the alloy economy on the hills on 2026-08-24 without anyone re-reading it. `WORK_GLYPH[w]
+|| ""` renders an empty string, so a working hex looked like a resting one.
+
+**The bug is one line. The check that missed it is the story.** It read:
+
+```
+const letters = ["food", "wood", "stone", "iron"].map(...)
+check("every work letter is distinct", new Set(letters).size === 4);
+```
+
+It restated the very list it was checking, so it could only ever confirm what its author already
+remembered — and it stayed green through the exact change that broke the thing it was for. It derives
+the set from every era's `map.works` now, and asserts two things instead of one: that every workable
+resource draws a **non-empty** letter, and that the letters are distinct. Reintroducing the bug fails
+both.
+
+**That is the third time today a green check turned out not to be testing its subject** — after the
+route-cost assertion that compared one route to a constant, and the march-hold check that a mutation
+walked straight through. The shared tell: a check that hardcodes what it should derive.
+
+746 -> 748 checks.
+
+---
+
 ## 2026-08-25 — The march-hold, and raids resolve where they land
 
 **Iron learns Fortification; a holding can then become a March-hold** — walls, a gate, and people who

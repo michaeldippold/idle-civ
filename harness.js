@@ -2446,11 +2446,27 @@ console.log("\n--- Phase 10: the renderer port keeps the marks ---");
   const ownedId = api.S.map.owned.find((id) => id !== api.world.home);
   api.S.map.work[ownedId] = "iron";
   check("owned country wears its work letter", api.markFor(P(ownedId)).glyph === "I");
-  const letters = ["food", "wood", "stone", "iron"].map((res) => {
+  // DERIVED FROM THE MANIFESTS, not restated here -- and that is the whole
+  // point. This check used to iterate a hardcoded ["food","wood","stone","iron"]
+  // and so could never notice that Bronze had put COPPER and TIN on the hills
+  // (2026-08-24): a hex turned to either drew an empty glyph and read as
+  // resting, for a day, until the owner spotted it in play. A check that
+  // restates the list it is checking is a check that can only ever confirm what
+  // its author already remembered.
+  const workable = new Set();
+  for (const m of Object.values(api.MANIFESTS)) {
+    for (const t in (m.map && m.map.works) || {}) {
+      for (const res in m.map.works[t]) workable.add(res);
+    }
+  }
+  check("there is more than one era's worth of workable resources here", workable.size > 4);
+  const letters = [...workable].map((res) => {
     api.S.map.work[ownedId] = res;
     return api.markFor(P(ownedId)).glyph;
   });
-  check("every work letter is distinct", new Set(letters).size === 4);
+  check("every resource a hex can be turned to draws a letter",
+    letters.every((g) => typeof g === "string" && g.length > 0));
+  check("...and every letter is distinct", new Set(letters).size === workable.size);
 
   delete api.S.map.work[ownedId];
   check("owned country with nothing assigned wears the rest dash (idle's heir)",

@@ -35,7 +35,17 @@ import { openCampaignModal, openCaravanModal, stockLine } from "./expeditions.js
 // was upstream, which is why the port could not break it.
 
 const HEX = 30;
-const WORK_GLYPH = { food: "F", wood: "W", stone: "S", iron: "I" };
+// One letter per WORKABLE resource -- every resource any era's `map.works`
+// offers, or a hex turned to it shows nothing at all and reads as resting.
+// Copper and tin were missing from 2026-08-24 (when Bronze put the alloy
+// economy on the hills) until 2026-08-25, because this table was written for
+// the four resources that existed when it was written and nobody re-read it
+// when two more arrived. The harness now derives the requirement from the
+// manifests instead of restating this list.
+const WORK_GLYPH = {
+  food: "F", wood: "W", stone: "S", iron: "I",
+  copper: "C", tin: "T",
+};
 // The mark a BUILT hex wears. Empty until structures exist as content; the
 // fallback is a filled block, so an unmapped structure reads as "something is
 // here" rather than as a missing glyph. See design.md, Building on a Hex.

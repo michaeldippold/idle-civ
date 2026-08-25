@@ -19,7 +19,7 @@ discussed; this section is the only place that says **when**.
 
 ### START HERE — the board is prepared and nothing is half-built
 
-**Where things stand *(end of session, 2026-08-25)*:** harness green at **746 checks**, working tree
+**Where things stand *(end of session, 2026-08-25)*:** harness green at **748 checks**, working tree
 clean, everything pushed. A long session: the three queued items shipped, then five more things that
 were not on any list. **Nothing is half-done and no decision is pending on code that exists.**
 

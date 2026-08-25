@@ -25,6 +25,15 @@ const COLORS = {
   water:  new THREE.Color(0x2d5f8f),
 };
 const WALL_TINT = new THREE.Color(0x5c4a36);
+
+// What a BUILT hex paints its top face. The walls keep the terrain's own
+// colour, so a farm reads as worked ground standing ON the country it was cut
+// from rather than as a different kind of tile -- which is also why only the
+// top changes. A structure with no entry here keeps its terrain, which is the
+// fortification's case: it says what it is with geometry instead.
+const BUILT_TOP = {
+  farm: new THREE.Color(0xd9c25a),   // hay, dev-art: the field, gone over
+};
 const WET = new Set(["water", "river"]);
 
 // The unknown world is NOT DRAWN (owner ruling, 2026-08-24, after a live
@@ -81,7 +90,7 @@ export function elevationOf(place) {
 
 // `places` is the already-filtered list the stage wants drawn; `isOwnedFn` is
 // passed in rather than imported so this module stays ignorant of game state.
-export function buildTerrain(places, rimFn, isRevealedFn) {
+export function buildTerrain(places, rimFn, isRevealedFn, builtOn) {
   const land = new SoupBuilder();
   const wet = new SoupBuilder();
   const rings = new SoupBuilder();
@@ -103,7 +112,10 @@ export function buildTerrain(places, rimFn, isRevealedFn) {
 
     // Per-tile tonal variation, so a field of plains does not read as one
     // flat sheet of paint.
-    topColor.copy(COLORS[p.terrain] || COLORS.plains);
+    // A structure repaints the TOP only; the walls below stay the country's.
+    const structure = builtOn ? builtOn(p.id) : null;
+    const top = (structure && BUILT_TOP[structure]) || COLORS[p.terrain] || COLORS.plains;
+    topColor.copy(top);
     topColor.offsetHSL(0, 0, (hash01(p.id + ":c") - 0.5) * 0.07);
 
     const cs = [];
@@ -117,7 +129,9 @@ export function buildTerrain(places, rimFn, isRevealedFn) {
 
     // Side walls wherever the neighbour sits lower, or is absent entirely --
     // the absent case is what gives the board its cut edge at the rim.
-    wallColor.copy(topColor).lerp(WALL_TINT, 0.55).multiplyScalar(0.8);
+    // Walls derive from the TERRAIN, never from the structure's paint: a farm
+    // sits on the same ground it always did.
+    wallColor.copy(COLORS[p.terrain] || COLORS.plains).lerp(WALL_TINT, 0.55).multiplyScalar(0.8);
     for (const [dq, dr] of DIRS) {
       const nid = (p.q + dq) + "," + (p.r + dr);
       const nElev = nid in elev ? elev[nid] : EDGE_BASE;

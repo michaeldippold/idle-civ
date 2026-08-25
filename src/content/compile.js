@@ -108,6 +108,10 @@ export function compileBase(raw) {
     // Inherits, like popNoun: an age that does not re-denominate keeps its
     // parent's scale.
     soulsPerPerson: raw.soulsPerPerson != null ? raw.soulsPerPerson : 1,
+    // WHAT CAN BE BUILT ON A HEX (design.md, Building on a Hex). Inherits like
+    // popNoun: an age that says nothing keeps what it could already raise, so a
+    // farm learned in Bronze is still a farm in Iron.
+    structures: (raw.structures || []).map((d) => Object.assign({}, d)),
     // The building a column gathers at, and how many it can carry.
     muster: raw.muster ? Object.assign({}, raw.muster) : null,
     // The map spec INHERITS, like popNoun -- deliberately, because the map
@@ -141,6 +145,9 @@ export function extendEra(parent, delta) {
     adversaries: (delta.adversaries || []).map((a) => Object.assign({}, a)),
     contact: delta.contact || parent.contact,
     soulsPerPerson: delta.soulsPerPerson != null ? delta.soulsPerPerson : parent.soulsPerPerson,
+    structures: delta.structures
+      ? delta.structures.map((d) => Object.assign({}, d))
+      : parent.structures.map((d) => Object.assign({}, d)),
     muster: delta.muster !== undefined
       ? (delta.muster ? Object.assign({}, delta.muster) : null)
       : (parent.muster ? Object.assign({}, parent.muster) : null),
@@ -368,6 +375,24 @@ export function validateManifests(manifests) {
         bad(`migration targets unknown bucket "${ins.bucket}"`);
       }
       if (!ins.vanish && !ins.convertTo && !ins.fn) bad(`migration for ${ins.id} has no primitive (vanish/convertTo/fn)`);
+    }
+    for (const st of m.structures || []) {
+      if (!st.id || !st.name) bad(`a structure is missing id or name`);
+      if (!st.base) bad(`structure "${st.id}" has no cost`);
+      if (!(st.buildTime > 0)) bad(`structure "${st.id}" has no build time`);
+      // The unlock must be a real upgrade in SOME era, or the structure is
+      // unreachable and nobody finds out until a playthrough that never offers it.
+      if (st.requires) {
+        const known = Object.values(manifests).some((mm) =>
+          (mm.upgrades || []).some((u) => u.id === st.requires));
+        if (!known) bad(`structure "${st.id}" requires unknown upgrade "${st.requires}"`);
+      }
+      if (st.yield) {
+        if (!m.resources.some((r) => r.id === st.yield.res)) {
+          bad(`structure "${st.id}" yields "${st.yield.res}", which this era has no resource for`);
+        }
+        if (!(st.yield.rate > 0)) bad(`structure "${st.id}" yields at a non-positive rate`);
+      }
     }
     if (!(typeof m.soulsPerPerson === "number" && m.soulsPerPerson >= 1)) {
       bad(`soulsPerPerson must be a number >= 1 (got ${m.soulsPerPerson})`);

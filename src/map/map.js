@@ -334,18 +334,63 @@ export function hexUse(id) {
   return { kind: "resource", res: w };
 }
 
-// Does this hex yield anything into the ledger? Only worked ground does: a
-// structure occupies the hex instead of producing from it, and a resting hex
-// produces nothing by choice. rates() has always got this right by ACCIDENT --
-// an unknown work value fails its `resId in prod` test and falls through -- so
-// this replaces a silent fallthrough with a stated rule.
-export function hexProduces(id) { return hexUse(id).kind === "resource"; }
-
-// The resource a hex is turned to, or null if it is resting or built on. The
-// one accessor every producer, glyph and panel should ask.
-export function hexResource(id) {
+// WHAT A HEX YIELDS, and the rate it yields it at: `{res, rate}` or null.
+//
+// CORRECTED 2026-08-25, one day after the seam was built. It originally said a
+// structure never produces -- and the very first structure, the farm, produces
+// food at a better rate than any bare ground. The rule was wrong, not the farm:
+// a structure occupies a hex INSTEAD OF working it, which is not the same as
+// yielding nothing. A structure may declare a `yield`, and if it does this is
+// where it answers.
+//
+// The rate lives here too, so callers never have to know that worked ground
+// reads the terrain table while a structure carries its own flat number. That
+// asymmetry is the whole point of the farm: it is better than the ground it
+// stands on, which is why it is worth paying for.
+export function hexYield(id) {
   const u = hexUse(id);
-  return u.kind === "resource" ? u.res : null;
+  if (u.kind === "resource") {
+    const terrain = world && world.places[id] ? world.places[id].terrain : null;
+    const works = (active().map && active().map.works) || {};
+    const rate = terrain && works[terrain] && works[terrain][u.res] != null ? works[terrain][u.res] : 1;
+    return { res: u.res, rate };
+  }
+  if (u.kind === "structure") {
+    const def = structureDef(u.id);
+    // A structure with no declared yield produces nothing -- a fortification is
+    // exactly that, and it is a legitimate answer rather than a missing one.
+    return def && def.yield ? { res: def.yield.res, rate: def.yield.rate } : null;
+  }
+  return null;
+}
+
+// The structures this era can build. Declared per manifest and inherited, so an
+// age that says nothing keeps what it could already raise.
+export function structureDef(id) {
+  return (active().structures || []).find((d) => d.id === id) || null;
+}
+
+// Does this hex yield anything into the ledger? Resting ground does not, and
+// neither does a structure with nothing to give.
+export function hexProduces(id) { return !!hexYield(id); }
+
+// The resource a hex is turned to, or null. The one accessor every producer,
+// glyph and panel should ask.
+export function hexResource(id) {
+  const y = hexYield(id);
+  return y ? y.res : null;
+}
+
+// How many hexes already carry this structure -- the per-copy cost escalator,
+// derived rather than stored so it can never drift from the board.
+export function structureCount(sid) {
+  if (!S.map || !S.map.work) return 0;
+  let n = 0;
+  for (const id of S.map.owned) {
+    const u = hexUse(id);
+    if (u.kind === "structure" && u.id === sid) n++;
+  }
+  return n;
 }
 
 export function hexPopSum() {

@@ -152,6 +152,16 @@ export const BRONZE_DELTA = {
         reveal: () => S.builds.barracks >= 1,
       },
       {
+        id: "farming", name: "Farming", kind: "upgrade",
+        desc: "Turn a holding over to worked fields. A farmed hex feeds you better than any bare ground can — and gives up everything else it might have produced.",
+        // Priced in wood and stone only, deliberately: upgrades INHERIT, so an
+        // era-specific metal in the cost breaks the moment the alloy economy
+        // retires at Iron -- which the validator caught the first time this was
+        // written with bronze in it. Farming is not about metal anyway.
+        base: { wood: 120, stone: 80 }, buildTime: 45,
+        reveal: () => S.pop >= 12,
+      },
+      {
         id: "scouting", name: "Scouting", kind: "upgrade",
         desc: "Riders range beyond the valley and bring back word of what's out there.",
         base: { food: 40, bronze: 15 }, buildTime: 25,
@@ -196,6 +206,29 @@ export const BRONZE_DELTA = {
   // campaign at Iron. Reach is not gated either -- `marchFactor` already makes
   // distance the limit, so a Bronze party can bloody the camp over the hill
   // and could never dream of crossing the continent.
+  // BUILDING ON A HEX begins here (design.md, Building on a Hex). A structure
+  // takes the hex's ONE use: the resource buttons go away, because there is no
+  // parallel town beside the fields.
+  structures: [
+    {
+      id: "farm", name: "Farm",
+      requires: "farming",
+      // FLAT, not terrain-scaled, and that is the decision (owner, 2026-08-25):
+      // "an increased rate beyond what any bare plains can give you". Plains
+      // work food at x1.0 and river at x1.2, so x1.7 beats every ground in the
+      // game at feeding people -- and the consequence is deliberate: a farm is
+      // worth most where food was WORST, so farming is how poor country starts
+      // feeding you. The real cost is the specialty you give up. A forest that
+      // becomes a farm stops cutting timber entirely.
+      yield: { res: "food", rate: 1.7 },
+      // Non-trivial on purpose, or the food economy is solved forever: the
+      // upgrade is a real Bronze investment and each field costs again, rising
+      // per copy like every other building line.
+      base: { wood: 55, stone: 30 }, scale: 1.4, buildTime: 40,
+      desc: "Break the ground and work it properly. Feeds far better than bare land — and the hex gives up everything else it could have produced.",
+    },
+  ],
+
   contact: "open",
 
   // WHAT AN AGE SENDS: the building that must stand before anything marches.

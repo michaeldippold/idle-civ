@@ -122,7 +122,7 @@ Change a number, refresh the page.
 node harness.js
 ```
 
-A headless Node harness (713 checks) that imports the game's modules directly — no browser, no
+A headless Node harness (733 checks) that imports the game's modules directly — no browser, no
 framework, no dependencies — and exercises the simulation through its real exports.
 
 ## Docs

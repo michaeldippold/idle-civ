@@ -1,5 +1,5 @@
 import { BOOST_BUILDING, DEF_INDEX, active } from "../content/compile.js";
-import { ensurePop, hexPopSum, hexResource, syncDominion, world } from "../map/map.js";
+import { ensurePop, hexPopSum, hexYield, syncDominion, world } from "../map/map.js";
 import { CONFIG, TICK_SECONDS } from "./config.js";
 import { S } from "./state.js";
 import { log } from "../ui/log.js";
@@ -147,18 +147,16 @@ export function rates() {
   const work = (S.map && S.map.work) || {};
   const owned = (S.map && S.map.owned) || [];
   const pops = (S.map && S.map.pop) || {};
-  const works = (active().map && active().map.works) || {};
   for (const tid in work) {
     if (!owned.includes(tid)) continue;
-    // Ask the seam, not the raw slot: a hex turned to a STRUCTURE answers null
-    // and yields nothing, which is the rule rather than a fallthrough.
-    const resId = hexResource(tid);
-    if (resId == null || !(resId in prod)) continue;
+    // Ask the seam for the resource AND its rate. Worked ground reads the
+    // terrain table; a structure carries its own flat number; a fortification
+    // answers null and yields nothing. None of that is this loop's business.
+    const y = hexYield(tid);
+    if (!y || !(y.res in prod)) continue;
     const people = Math.floor(pops[tid] || 0);
     if (people <= 0) continue;
-    const terrain = world && world.places[tid] ? world.places[tid].terrain : null;
-    const rate = terrain && works[terrain] && works[terrain][resId] != null ? works[terrain][resId] : 1;
-    prod[resId] += people * CONFIG.baseRate * rate * (m[resId] || 1);
+    prod[y.res] += people * CONFIG.baseRate * y.rate * (m[y.res] || 1);
   }
   // Upkeep is charged on the people who actually exist -- the hex sum -- plus
   // the war bands, who live outside the population under a levy. Per-capita

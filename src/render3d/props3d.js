@@ -111,7 +111,7 @@ function jitterScale(id, tag) {
   return 0.9 + 0.2 * hash01(id + ":s" + tag); // ±10%
 }
 
-export function buildProps(places, elev, homeId, isRevealedFn) {
+export function buildProps(places, elev, homeId, isRevealedFn, builtOn) {
   const group = new THREE.Group();
 
   const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6b4a33, roughness: 0.95 });
@@ -120,10 +120,21 @@ export function buildProps(places, elev, homeId, isRevealedFn) {
   const wallMat = new THREE.MeshStandardMaterial({ color: 0xd8c6a2, roughness: 0.85 });
   const roofMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, flatShading: true });
   const stoneMat = new THREE.MeshStandardMaterial({ color: 0x7d7568, roughness: 0.88 });
+  const hayMat = new THREE.MeshStandardMaterial({ color: 0xe0c766, roughness: 0.95, flatShading: true });
 
   const trunk = new Part(new THREE.CylinderGeometry(0.035, 0.055, 0.22, 5), trunkMat);
   const canopy = new Part(new THREE.ConeGeometry(0.2, 0.52, 6), canopyMat);
   const rock = new Part(new THREE.IcosahedronGeometry(0.13, 0), rockMat);
+  // DEV ART: a hay bale is a tipped-over cylinder. Low segment count so it
+  // faces up like everything else on this board, and it is a Part like any
+  // other, so a whole country of farms is still two draw calls.
+  // Tipped over by rotating the GEOMETRY once, not the instance: Part.add only
+  // takes a Y rotation, which is exactly what a bale lying on its side wants --
+  // it spins to face any direction while staying down. Baking the tilt in also
+  // costs nothing per instance.
+  const baleGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.24, 8);
+  baleGeo.rotateZ(Math.PI / 2);
+  const bale = new Part(baleGeo, hayMat);
   const hutWall = new Part(new THREE.BoxGeometry(0.26, 0.16, 0.22), wallMat);
   const hutRoof = new Part(new THREE.ConeGeometry(0.21, 0.16, 4), roofMat);
   const tower = new Part(new THREE.BoxGeometry(0.2, 0.44, 0.2), stoneMat);
@@ -148,6 +159,23 @@ export function buildProps(places, elev, homeId, isRevealedFn) {
     if (!shown(id)) continue;
     const { x: cx, z: cz } = axialToWorld(p.q, p.r);
     const y = elev[id];
+
+    // A BUILT HEX SHEDS ITS TERRAIN PROPS. The trees do not stand in the middle
+    // of the field you cleared to make it -- which is also what makes the
+    // sink-and-rise read correctly: the old growth goes down, the works come up.
+    const structure = builtOn ? builtOn(p.id) : null;
+    if (structure) {
+      if (structure === "farm") {
+        // Three bales, deterministically placed like every other prop.
+        for (let i = 0; i < 3; i++) {
+          const { dx, dz } = slot(id, i + 3, 0.45);
+          const s = jitterScale(id, "b" + i);
+          bale.add(cx + dx, y + 0.115 * s, cz + dz,
+            hash01(id + ":br" + i) * Math.PI * 2, s, null, id);
+        }
+      }
+      continue;   // nothing else stands on built ground
+    }
 
     if (p.terrain === "forest") {
       const n = 2 + Math.floor(hash01(id + ":tc") * 3); // 2..4 trees
@@ -196,7 +224,7 @@ export function buildProps(places, elev, homeId, isRevealedFn) {
     }
   }
 
-  for (const part of [trunk, canopy, rock, hutWall, hutRoof, tower, towerRoof]) {
+  for (const part of [trunk, canopy, rock, bale, hutWall, hutRoof, tower, towerRoof]) {
     group.add(part.build());
   }
   return group;

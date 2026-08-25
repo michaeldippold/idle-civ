@@ -1,7 +1,7 @@
 import { buildCost, canAfford, civilians, defById, isCapped, levyCap, levyUsed, pendingCount, playtime, reserved } from "./derived.js";
 import { active } from "../content/compile.js";
 import { CONFIG } from "./config.js";
-import { atDominionCap, marchFactor, routeCost, world, captureTile, syncPopMirror } from "../map/map.js";
+import { atDominionCap, hexUse, isOwned, marchFactor, routeCost, world, captureTile, STRUCTURE, structureCount, structureDef, syncPopMirror } from "../map/map.js";
 import { S } from "./state.js";
 import { save } from "./persist.js";
 import { advanceEra } from "../sim/era.js";
@@ -119,7 +119,75 @@ export function launchSettle(tileId) {
   renderAll();
 }
 
+// ---------- Building on a hex ----------
+// What a structure costs HERE, now: the era's base price escalated per copy
+// already standing, exactly like a building line. Derived from the board rather
+// than a counter, so it cannot drift.
+export function structurePlan(sid) {
+  const def = structureDef(sid);
+  if (!def) return null;
+  const n = structureCount(sid) + S.buildQueue.filter((q) => q.kind === "structure" && q.id === sid).length;
+  const cost = {};
+  for (const k in def.base) cost[k] = Math.ceil(def.base[k] * Math.pow(def.scale || 1, n));
+  return { def, cost, time: def.buildTime };
+}
+
+// Is this structure available to build at all -- era declares it, and the
+// unlocking upgrade is owned?
+export function structureUnlocked(sid) {
+  const def = structureDef(sid);
+  return !!def && (!def.requires || !!S.upgrades[def.requires]);
+}
+
+// One queued build per hex, and never on a hex already carrying one: the hex
+// has ONE use, and that law has to hold for pending work too or two parties
+// would arrive to build different things on the same ground.
+export function pendingBuild(tileId) {
+  return S.buildQueue.some((q) => q.kind === "structure" && q.tile === tileId);
+}
+
+export function launchStructure(tileId, sid) {
+  if (S.dead || !isOwned(tileId)) return;
+  if (!structureUnlocked(sid) || pendingBuild(tileId)) return;
+  if (hexUse(tileId).kind === "structure") return;   // one use, and it is taken
+  const plan = structurePlan(sid);
+  if (!plan || !canAfford(plan.cost)) return;
+  for (const k in plan.cost) S.res[k] -= plan.cost[k];
+  S.buildQueue.push({ id: sid, kind: "structure", uid: ++S.buildSeq,
+    total: plan.time, remaining: plan.time, cost: plan.cost,
+    tile: tileId, label: `Raising a ${plan.def.name}` });
+  log(`Work begins on a ${plan.def.name}. (#${S.buildQueue.length} in the queue.)`);
+  save();
+  renderAll();
+}
+
+// Tear it down and take the hex back. NO REFUND (design.md): converting is a
+// trade, not a toggle you flip per situation.
+export function demolishStructure(tileId) {
+  if (S.dead || !isOwned(tileId)) return;
+  const u = hexUse(tileId);
+  if (u.kind !== "structure") return;
+  const def = structureDef(u.id);
+  delete S.map.work[tileId];              // back to resting, unbuilt ground
+  log(`The ${def ? def.name : "works"} is pulled down. The ground is plain again, and nothing comes back.`);
+  save();
+  renderAll();
+}
+
 export function completeConstruction(site) {
+  if (site.kind === "structure") {
+    // The ground may have been lost while the work was queued -- a raid can
+    // empty a hex and take it out of the dominion. The labour is simply wasted,
+    // the same way a settling party finds its land already spoken for.
+    if (!isOwned(site.tile)) {
+      log("The work crew arrives to find the ground no longer yours. Nothing is raised.", "bad");
+      return;
+    }
+    const def = structureDef(site.id);
+    S.map.work[site.tile] = STRUCTURE + site.id;
+    log(`${def ? def.name : "The works"} stands finished. The hex answers to it now.`, "good");
+    return;
+  }
   if (site.kind === "settle") {
     // The land may have been lost or taken while the party was queued;
     // captureTile refuses gracefully and the work is simply wasted -- the

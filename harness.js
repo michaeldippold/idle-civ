@@ -1370,10 +1370,11 @@ console.log("\n--- Phase B: the cross-reference validator ---");
 console.log("\n--- Phase B: manifestDiff ---");
 {
   const d = api.manifestDiff(api.MANIFESTS.stone, api.MANIFESTS.bronze);
-  // Eleven since the War Camp joined (2026-08-24): Bronze can reach outward,
-  // so Bronze needs somewhere for a war party to gather.
-  check("eleven additions across buildings/units/upgrades (incl. the iron capstone)",
-    d.added.length === 11 && d.added.some((a) => a.id === "warCamp"));
+  // Twelve since Farming joined (2026-08-25): Bronze is where a hex can first
+  // be turned into something other than the ground it stands on.
+  check("twelve additions across buildings/units/upgrades (incl. the iron capstone)",
+    d.added.length === 12 && d.added.some((a) => a.id === "warCamp") &&
+    d.added.some((a) => a.id === "farming"));
   check("exactly one removal: the capstone", d.removed.length === 1 && d.removed[0].id === "bronzeAge");
   check("one rename: the infirmary (the hut died in E3)", d.renamed.length === 1 &&
     d.renamed.some(r => r.from.name === "Medicine Tent" && r.to.name === "Infirmary"));
@@ -2763,6 +2764,84 @@ console.log("\n--- The dominion cap: what one age can hold ---");
   api.setRngSource(null);
 }
 
+console.log("\n--- Building on a hex: the farm ---");
+{
+  // The first structure, and the proof of the whole pipeline: upgrade gates it,
+  // the queue paces it, the hex's one use holds, and pulling it down costs.
+  reset();
+  api.S.era = "bronze";
+  api.initAdversaries();
+  api.ensureMap();
+  const home = api.world.home;
+  const hex = api.S.map.owned.find((id) => id !== home);
+  api.S.res.wood = 9999; api.S.res.stone = 9999; api.S.res.food = 9999;
+
+  check("the farm is declared by Bronze and inherited by Iron",
+    !!api.MANIFESTS.bronze.structures.find((d) => d.id === "farm") &&
+    !!api.MANIFESTS.iron.structures.find((d) => d.id === "farm"));
+  check("Stone cannot build anything -- the age declares no structures",
+    (api.MANIFESTS.stone.structures || []).length === 0);
+
+  // THE UPGRADE IS THE GATE. Without it the verb does not exist.
+  delete api.S.upgrades.farming;
+  check("no Farming, no farms", api.structureUnlocked("farm") === false);
+  api.launchStructure(hex, "farm");
+  check("...and the build is refused outright, not merely hidden",
+    api.S.buildQueue.length === 0);
+
+  api.S.upgrades.farming = true;
+  check("with Farming owned, the verb appears", api.structureUnlocked("farm") === true);
+
+  // COST ESCALATES PER COPY, like every other building line.
+  const first = api.structurePlan("farm").cost.wood;
+  api.launchStructure(hex, "farm");
+  check("queuing a farm takes the payment up front",
+    api.S.buildQueue.length === 1 && api.S.res.wood < 9999);
+  check("one build per hex -- a second is refused while the first is queued",
+    api.pendingBuild(hex) === true && (api.launchStructure(hex, "farm"), api.S.buildQueue.length === 1));
+  const second = api.structurePlan("farm").cost.wood;
+  check("the next farm costs more than the last, queued ones included", second > first);
+
+  // COMPLETION takes the hex's use.
+  run(60);
+  const u = api.hexUse(hex);
+  check("the finished farm owns the hex's one use", u.kind === "structure" && u.id === "farm");
+  check("...and the queue is clear", api.S.buildQueue.length === 0);
+  check("a farmed hex feeds better than the ground ever could",
+    api.hexYield(hex).rate > Math.max(...Object.values(api.MANIFESTS.bronze.map.works).map((w) => w.food || 0)));
+
+  // THE ONE USE HOLDS: a built hex cannot also be worked.
+  api.S.map.work[hex] = "wood";
+  check("directing a built hex would replace the structure, not sit beside it",
+    api.hexUse(hex).kind === "resource");
+  api.S.map.work[hex] = api.STRUCTURE + "farm";
+  api.launchStructure(hex, "farm");
+  check("and you cannot build over a structure with another", api.S.buildQueue.length === 0);
+
+  // DEMOLISH: back to plain ground, and nothing comes back.
+  const before = { wood: api.S.res.wood, stone: api.S.res.stone };
+  api.demolishStructure(hex);
+  check("pulling it down returns the hex to resting ground",
+    api.hexUse(hex).kind === "rest" && api.hexProduces(hex) === false);
+  check("...with NO refund -- converting is a trade, not a toggle",
+    api.S.res.wood === before.wood && api.S.res.stone === before.stone);
+
+  // GROUND LOST WHILE THE WORK IS QUEUED. The crew arrives to nothing and the
+  // labour is wasted, the same way a settling party finds its land taken.
+  reset();
+  api.S.era = "bronze"; api.initAdversaries(); api.ensureMap();
+  api.S.upgrades.farming = true;
+  api.S.res.wood = 9999; api.S.res.stone = 9999; api.S.res.food = 9999;
+  const doomed = api.S.map.owned.find((id) => id !== api.world.home);
+  api.launchStructure(doomed, "farm");
+  api.killAt(doomed, 99);                       // a raid empties it: the hex is lost
+  check("the ground went with its people", !api.isOwned(doomed));
+  run(60);
+  check("the queued build resolves without raising anything on ground you lost",
+    api.S.buildQueue.length === 0 && !api.isOwned(doomed));
+  check("...and nothing was silently rebuilt there", !(doomed in api.S.map.work));
+}
+
 console.log("\n--- One hex, one use: the seam before the content ---");
 {
   // Built ahead of the structures that need it (design.md, Building on a Hex).
@@ -2793,9 +2872,22 @@ console.log("\n--- One hex, one use: the seam before the content ---");
   const u = api.hexUse(home);
   check("a built hex reads as a structure, not as a resource called 'build:farm'",
     u.kind === "structure" && u.id === "farm");
-  check("a built hex produces nothing", api.hexProduces(home) === false);
-  check("...and answers no resource, so no producer can pick it up",
-    api.hexResource(home) === null);
+  // CORRECTED 2026-08-25: the seam first said a structure never produces, and
+  // the first structure built produces food. A structure occupies a hex INSTEAD
+  // OF working it, which is not the same as yielding nothing -- it may declare a
+  // yield, and the farm does.
+  check("a structure that declares a yield produces it",
+    api.hexProduces(home) === true && api.hexResource(home) === "food");
+  check("...at its OWN flat rate, not the terrain's",
+    api.hexYield(home).rate === api.structureDef("farm").yield.rate);
+  check("...which beats every ground in the game at food",
+    Object.values(api.MANIFESTS.bronze.map.works).every((w) => (w.food || 0) < api.hexYield(home).rate));
+  // A structure with nothing to give is a real answer, not a missing one --
+  // which is what a fortification will be.
+  api.S.map.work[home] = api.STRUCTURE + "nothingyet";
+  check("a structure with no declared yield produces nothing",
+    api.hexProduces(home) === false && api.hexResource(home) === null);
+  api.S.map.work[home] = api.STRUCTURE + "farm";
 
   // The real test: the LEDGER must not earn anything from a built hex. This is
   // the behaviour that used to be right only by accident -- an unknown work
@@ -2804,12 +2896,14 @@ console.log("\n--- One hex, one use: the seam before the content ---");
   // the comparison means what it says.
   for (const tid of api.S.map.owned) if (tid !== home) delete api.S.map.work[tid];
   api.S.map.pop[home] = 20;
+  api.S.map.work[home] = api.STRUCTURE + "nothingyet";
+  const inert = api.rates().food;
   api.S.map.work[home] = api.STRUCTURE + "farm";
-  const built = api.rates().food;
+  const farmed = api.rates().food;
   api.S.map.work[home] = "food";
   const worked = api.rates().food;
-  check("a hex turned to a structure yields EXACTLY nothing", built === 0);
-  check("...while the same hex worked yields plenty", worked > 0);
+  check("a structure with no yield takes the hex out of the ledger entirely", inert === 0);
+  check("a farm feeds better than the same hex worked bare", farmed > worked);
 
   // ONE SLOT, so a second use is unrepresentable rather than merely forbidden.
   api.S.map.work[home] = api.STRUCTURE + "fortification";

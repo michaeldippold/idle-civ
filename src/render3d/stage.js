@@ -297,10 +297,10 @@ function applyWorld(list, opts) {
   // reveals the board, never the pieces.
   isVisible = o.isVisible || (() => true);
   isCharted = o.isCharted || isVisible;
-  const built = buildTerrain(list, hooks.rimFor || (() => null), isVisible);
+  const built = buildTerrain(list, hooks.rimFor || (() => null), isVisible, hooks.builtOn);
   elev = built.elev;
   worldGroup.add(built.landMesh, built.wetMesh, built.ringMesh);
-  worldGroup.add(buildProps(list, elev, o.homeId, isCharted));
+  worldGroup.add(buildProps(list, elev, o.homeId, isCharted, hooks.builtOn));
   scene.add(worldGroup);
 
   // The camera frames what the player KNOWS, not the whole board -- so Stone

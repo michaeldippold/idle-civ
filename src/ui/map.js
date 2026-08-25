@@ -2,8 +2,8 @@ import { active } from "../content/compile.js";
 import { S } from "../core/state.js";
 import { capWord, seatIsNamed, seatName } from "../core/derived.js";
 import { save } from "../core/persist.js";
-import { launchSettle, pendingSettle, settlePlan } from "../core/actions.js";
-import { world, isOwned, isCharted, isVisible, capOf, hexPop, hexResource, hexUse, atDominionCap, dominionCap, holdsUsed } from "../map/map.js";
+import { demolishStructure, launchSettle, launchStructure, pendingBuild, pendingSettle, settlePlan, structurePlan, structureUnlocked } from "../core/actions.js";
+import { world, isOwned, isCharted, isVisible, capOf, hexPop, hexResource, hexUse, hexYield, structureDef, atDominionCap, dominionCap, holdsUsed } from "../map/map.js";
 import { FOREIGN, FOREIGN_MINOR, playerColor } from "../core/palette.js";
 import { hexDistance, hexPoints, toPixel } from "../map/model.js";
 import { campaignPlan, expeditionOut, musterBuilt, standingWord } from "../sim/expeditions.js";
@@ -241,7 +241,19 @@ export function detailHTML(p) {
   if (mine) parts.push(`<span class="tile-pop">People: <b>${hexPop(p.id)}</b> of ${capOf(p.id)} this ${p.terrain === "water" ? "water" : "ground"} supports.</span>`);
   else parts.push(`<b>${capWord(p.terrain)}</b> — ${TERRAIN_FLAVOR[p.terrain] || ""}`);
 
-  if (mine && tilesEra()) {
+  const built = mine ? hexUse(p.id) : null;
+  if (mine && built.kind === "structure") {
+    // A BUILT HEX HAS NO ALLOCATION. The resource buttons are gone because the
+    // hex's one use is taken -- there is no parallel town beside the fields.
+    // What it offers instead is the way back out, and the way back out costs.
+    const def = structureDef(built.id);
+    const y = hexYield(p.id);
+    parts.push(`<span class="tile-built"><b>${def ? def.name : built.id}.</b> ${
+      y ? `Works ${y.res} at ${fmtRate(y.rate)}, whatever the ground beneath.`
+        : "It produces nothing; it is here to hold."}</span>`);
+    parts.push(`<div class="map-actions"><button class="map-act warn" data-act="demolish" data-tile="${p.id}">Pull it down</button></div>`);
+    parts.push(`<span class="map-noworks">Pulling it down returns the hex to plain ground. Nothing is refunded.</span>`);
+  } else if (mine && tilesEra()) {
     const works = worksFor(p.terrain);
     const resIds = Object.keys(works);
     const current = hexResource(p.id);
@@ -253,6 +265,23 @@ export function detailHTML(p) {
       parts.push(`<div class="map-actions">${btns.join("")}</div>`);
     } else {
       parts.push(`<span class="map-noworks">Nothing here can be worked.</span>`);
+    }
+    // WHAT CAN BE RAISED HERE. Only structures this era declares and whose
+    // unlock is owned; the price is printed, and the refusal reason with it,
+    // because a card you cannot afford still has to be readable (interface.md).
+    for (const def of (active().structures || [])) {
+      if (!structureUnlocked(def.id)) continue;
+      const plan = structurePlan(def.id);
+      if (!plan) continue;
+      const queued = pendingBuild(p.id);
+      const short = Object.keys(plan.cost).filter((k) => (S.res[k] || 0) < plan.cost[k]);
+      const priced = Object.keys(plan.cost).map((k) => `${plan.cost[k]} ${k}`).join(", ");
+      parts.push(`<div class="map-actions"><button class="map-act" data-act="build" data-tile="${p.id}" data-struct="${def.id}"${
+        queued || short.length ? " disabled" : ""}>Build ${def.name}</button></div>`);
+      parts.push(`<span class="map-noworks">${
+        queued ? "Work is already under way on this hex."
+        : short.length ? `${priced} — short ${short.map((k) => `${Math.ceil(plan.cost[k] - (S.res[k] || 0))} ${k}`).join(", ")}.`
+        : `${priced} · ${plan.time}s. ${def.desc}`}</span>`);
     }
   } else if (!mine && tilesEra() && p.terrain !== "water") {
     const best = specialties(p.terrain);
@@ -509,6 +538,13 @@ async function init3d(stage) {
       // mark ladder follows -- state arrives through hooks.
       palette: playerColor(),
       rimFor,
+      // What is BUILT on a hex, as a bare id, for paint only. The renderer must
+      // not learn what a farm IS -- it looks the id up in its own table of
+      // colours and props, exactly as it does for terrain.
+      builtOn: (id) => {
+        const u = hexUse(id);
+        return u.kind === "structure" && isCharted(id) ? u.id : null;
+      },
       onPick: (id) => selectTile(id),
       onHoverChange: (p, ev) => {
         if (!p || !ev) { tipHide(); return; }
@@ -569,6 +605,21 @@ export function initMapStage() {
       if (act === "march") { openCampaignModal(btn.dataset.adv); return; }
       if (act === "settle") { launchSettle(btn.dataset.tile); lastDetail = ""; renderTileDetail(); return; }
       if (act === "caravan") { openCaravanModal(btn.dataset.adv); return; }
+      if (act === "build") {
+        launchStructure(btn.dataset.tile, btn.dataset.struct);
+        lastDetail = ""; renderTileDetail();
+        return;
+      }
+      if (act === "demolish") {
+        const tid = btn.dataset.tile;
+        demolishStructure(tid);
+        // The structure comes down: its props sink and the plain ground's come
+        // back up. Same call the era re-dress and a completed build use.
+        changedHexes(tid);
+        lastSignature = ""; renderMapStage();
+        lastDetail = ""; renderTileDetail();
+        return;
+      }
       if (act === "work" || act === "rest") {
         const tid = btn.dataset.tile;
         if (!isOwned(tid)) return;

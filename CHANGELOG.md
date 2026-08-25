@@ -11,6 +11,45 @@
 
 ---
 
+## 2026-08-25 — The farm: a hex can be something other than its ground
+
+**5b, first structure, and the proof of the whole build-on-hex pipeline.** Bronze learns **Farming**;
+any owned hex can then be turned into a **Farm**, which feeds at a flat **x1.7** — better than any
+bare ground in the game, plains included — and gives up everything else it could have produced. The
+resource buttons vanish, because the hex's one use is taken.
+
+**It corrected a rule one day old, and the correction is the interesting part.** The use seam said a
+structure never produces. The very first structure produces. A structure occupies a hex *instead of
+working it*, which is not the same as yielding nothing — so structures may declare a `yield`, and
+`hexYield(id)` now answers `{res, rate}` for worked ground *and* built ground. `rates()` got shorter
+rather than longer: it no longer knows that terrain has a rate table at all.
+
+**Flat, not terrain-scaled, and the consequence is deliberate:** a farm is worth most where food was
+*worst*, so farming is how poor country starts feeding you. The real cost is the specialty given up —
+a forest that becomes a farm stops cutting timber entirely.
+
+**The validator earned its keep twice.** Farming was first priced with bronze in it; upgrades inherit,
+Iron retires the alloy economy, and the compiler refused the manifest outright — "costs bronze, not a
+resource this era". A new check also refuses a structure whose unlocking upgrade does not exist in any
+era, because an unreachable structure is invisible until a playthrough that never offers it.
+
+**Visually:** the hex's TOP turns hay (walls keep the terrain's colour, so a farm reads as worked
+ground standing on the country it was cut from), the terrain props are shed — no trees in the middle
+of the field you cleared — and three tipped hay bales stand on it. The bale is one baked
+`rotateZ` on the geometry rather than a per-instance rotation, so a whole country of farms is still
+two draw calls.
+
+**Pulling it down** returns the hex to plain resting ground with **no refund**, plays the sink-and-rise
+through the same `changedHexes()` every other content change uses, and is the reversal design.md
+already specced.
+
+Eighteen checks over the pipeline — upgrade gate, up-front payment, per-copy escalation, one build per
+hex, one use per hex, demolition without refund, and the case that would have become a save bug:
+**a queued build on ground you lose to a raid** resolves as wasted labour rather than raising a farm
+on somebody else's land. 713 -> 733 checks, 0 flakes in 25 runs.
+
+---
+
 ## 2026-08-25 — The re-dress slows down to look like work
 
 **Owner verdict from the desk: exactly right, but "blink and you miss it."** The framing that came

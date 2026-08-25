@@ -1,7 +1,7 @@
-import { buildCost, canAfford, civilians, defById, isCapped, levyCap, levyUsed, pendingCount, playtime, reserved } from "./derived.js";
+import { buildCost, canAfford, caps, civilians, defById, isCapped, levyCap, levyUsed, pendingCount, playtime, reserved } from "./derived.js";
 import { active } from "../content/compile.js";
 import { CONFIG } from "./config.js";
-import { atDominionCap, hexUse, isOwned, marchFactor, routeCost, world, captureTile, setHexWork, STRUCTURE, structureCount, structureDef, syncPopMirror } from "../map/map.js";
+import { atDominionCap, hexUse, isOwned, marchFactor, routeCost, world, captureTile, setHexBuild, structureCount, structureDef, syncPopMirror } from "../map/map.js";
 import { S } from "./state.js";
 import { record } from "./journal.js";
 import { save } from "./persist.js";
@@ -17,33 +17,14 @@ import { log } from "../ui/log.js";
 // else. The rule is not tidiness: a verb that exists only as a DOM click
 // handler is a verb no bot can call, no journal can record and no peer can
 // replay -- so the moment adversaries start using the player's own systems,
-// it is the one move they cannot make. Allocation was exactly that hole
-// until 2026-08-25; see setWork below.
+// it is the one move they cannot make.
 
-// Set what a hex works, or clear it to rest. `res` null means rest.
-// Returns true if the order took.
-export function setWork(tileId, res) {
-  if (S.dead || !isOwned(tileId)) return false;
-  // A BUILT HEX HAS NO ALLOCATION -- one hex, one use. The UI hides the
-  // buttons, but the verb refuses on its own, because the UI is not the only
-  // caller any more.
-  if (hexUse(tileId).kind === "structure") return false;
-  if (res != null) {
-    // The hex must actually be able to work it this era (terrain x era
-    // yields). Refusing here rather than silently storing a dead assignment
-    // keeps the books honest for whoever asks next.
-    const spec = active().map;
-    const works = spec && spec.works ? spec.works : null;
-    if (works && world && world.places[tileId]) {
-      const row = works[world.places[tileId].terrain];
-      if (row && !(res in row)) return false;
-    }
-  }
-  setHexWork(tileId, res == null ? null : res);
-  record("setWork", { tile: tileId, res: res == null ? null : res }, S.tick);
-  save();
-  return true;
-}
+// (setWork() lived here for exactly one day. It was built on 2026-08-25 to
+// close the last hole in the action layer -- allocation was a DOM click
+// handler -- and the hex economy landed the same evening and removed the
+// choice it made. Terrain decides what a hex yields now. The discipline it
+// was built for stands: every player verb below is callable with no UI in
+// the room, validates on its own, and records itself in the journal.)
 
 export function build(def) {
   if (S.dead) return;
@@ -96,8 +77,22 @@ export function cancelBuild(uid) {
   if (idx === -1) return;
   record("cancelBuild", { uid }, S.tick);
   const item = dropQueueItem(idx);
-  if (CAPSTONES[item.id]) console.log(`[pacing] ${defById(item.id).name} research cancelled at ${fmtTime(playtime())} (t${S.tick})`);
-  log(`Construction of the ${defById(item.id).name} is called off; materials recovered.`);
+  // NAME ANYTHING THE QUEUE CAN HOLD. defById only knows buildings, upgrades
+  // and units -- it has never known structures or the settle verb, so
+  // cancelling a queued farm or a settling party threw a TypeError on this
+  // line and took the whole tick with it. Found 2026-08-25; the queue has held
+  // all four kinds since 6d, and nothing ever cancelled one in a test.
+  const named = () => {
+    if (item.kind === "settle") return item.label || "the settling party";
+    if (item.kind === "structure") {
+      const sd = structureDef(item.id);
+      return sd ? sd.name : item.label || "the works";
+    }
+    const d = defById(item.id);
+    return d ? d.name : item.id;
+  };
+  if (CAPSTONES[item.id]) console.log(`[pacing] ${named()} research cancelled at ${fmtTime(playtime())} (t${S.tick})`);
+  log(`Construction of the ${named()} is called off; materials recovered.`);
   save();
   renderAll();
 }
@@ -195,9 +190,22 @@ export function canBuildOn(tileId) {
   return isOwned(tileId) && !!world && tileId !== world.home;
 }
 
+// Can this structure stand on this ground? A structure with no `terrain` list
+// may stand anywhere -- a March-hold holds whatever hex it is raised on. The
+// list is the whole reason the map decides anything: a Lumber Camp is a forest
+// decision and a mine is a hills decision.
+export function structureFits(sid, tileId) {
+  const def = structureDef(sid);
+  if (!def) return false;
+  if (!def.terrain) return true;
+  const p = world && world.places[tileId];
+  return !!p && def.terrain.includes(p.terrain);
+}
+
 export function launchStructure(tileId, sid) {
   if (S.dead || !canBuildOn(tileId)) return;
   if (!structureUnlocked(sid) || pendingBuild(tileId)) return;
+  if (!structureFits(sid, tileId)) return;           // wrong ground for it
   if (hexUse(tileId).kind === "structure") return;   // one use, and it is taken
   const plan = structurePlan(sid);
   if (!plan || !canAfford(plan.cost)) return;
@@ -211,6 +219,68 @@ export function launchStructure(tileId, sid) {
   renderAll();
 }
 
+// ---------- Trade -------------------------------------------
+// THE RELEASE VALVE for one-resource-per-hex. A decisive map can deal you a
+// hand with no tin on it, and the answer that needs no friendly neighbour is a
+// bank that always says yes at a bad rate -- Catan's 4:1, and the reason
+// scarcity in Catan starts conversations instead of ending runs.
+//
+// Deliberately GENERAL in shape: `trade` takes a counterparty, and today the
+// only counterparty is "bank". If humans ever drive the other seats, a
+// player-to-player offer is this same verb with a different counterparty and a
+// consent step -- no negotiation system has to exist until then, and with bots
+// it never does. (2026-08-25 ruling: no player trade or diplomacy at 1.0.)
+
+// Does this realm have a market standing? Trade is a thing you BUILT, on
+// ground a rival can see and take -- not a menu that was always there.
+export function hasMarket() {
+  if (!S.map || !S.map.built) return false;
+  for (const id of S.map.owned) {
+    const def = structureDef((S.map.built || {})[id]);
+    if (def && def.trades) return true;
+  }
+  return false;
+}
+
+// How many markets, and therefore how good the rate is. One market is the
+// crude 4:1; each further market shaves the spread toward -- but never to --
+// parity, so trading is always a loss and never a strategy on its own.
+export function tradeRate() {
+  if (!S.map || !S.map.built) return null;
+  let n = 0;
+  for (const id of S.map.owned) {
+    const def = structureDef((S.map.built || {})[id]);
+    if (def && def.trades) n += 1;
+  }
+  if (n <= 0) return null;
+  return Math.max(CONFIG.tradeFloorRate, CONFIG.tradeBaseRate - (n - 1) * CONFIG.tradeRateStep);
+}
+
+// Give `give` of one resource, receive one of another. Refuses everything the
+// UI would refuse, because the UI is not the only caller.
+export function trade(giveRes, getRes, batches) {
+  if (S.dead) return false;
+  const rate = tradeRate();
+  if (rate == null) return false;
+  if (giveRes === getRes) return false;
+  const live = active().resources;
+  if (!live.some((r) => r.id === giveRes) || !live.some((r) => r.id === getRes)) return false;
+  const n = Math.max(1, Math.floor(batches || 1));
+  const cost = rate * n;
+  if ((S.res[giveRes] || 0) < cost) return false;
+  // Never trade INTO a full store: the goods would evaporate on arrival and
+  // the player would have paid for nothing.
+  const c = caps();
+  if ((S.res[getRes] || 0) + n > (c[getRes] != null ? c[getRes] : Infinity)) return false;
+  S.res[giveRes] -= cost;
+  S.res[getRes] = (S.res[getRes] || 0) + n;
+  record("trade", { give: giveRes, get: getRes, batches: n, rate }, S.tick);
+  log(`The market moves ${Math.round(cost)} ${giveRes} for ${n} ${getRes}. The traders take their cut.`);
+  save();
+  renderAll();
+  return true;
+}
+
 // Tear it down and take the hex back. NO REFUND (design.md): converting is a
 // trade, not a toggle you flip per situation.
 export function demolishStructure(tileId) {
@@ -219,7 +289,7 @@ export function demolishStructure(tileId) {
   if (u.kind !== "structure") return;
   const def = structureDef(u.id);
   record("demolish", { tile: tileId, id: u.id }, S.tick);
-  setHexWork(tileId, null);              // back to resting, unbuilt ground
+  setHexBuild(tileId, null);             // back to plain, unbuilt ground
   log(`The ${def ? def.name : "works"} is pulled down. The ground is plain again, and nothing comes back.`);
   save();
   renderAll();
@@ -235,7 +305,7 @@ export function completeConstruction(site) {
       return;
     }
     const def = structureDef(site.id);
-    setHexWork(site.tile, STRUCTURE + site.id);
+    setHexBuild(site.tile, site.id);
     log(`${def ? def.name : "The works"} stands finished. The hex answers to it now.`, "good");
     return;
   }

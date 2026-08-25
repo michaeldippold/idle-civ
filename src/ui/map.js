@@ -2,8 +2,8 @@ import { active } from "../content/compile.js";
 import { S } from "../core/state.js";
 import { canAfford, caps, capWord, seatIsNamed, seatName } from "../core/derived.js";
 import { save } from "../core/persist.js";
-import { canBuildOn, demolishStructure, launchSettle, launchStructure, pendingBuild, pendingSettle, setWork, settlePlan, structurePlan, structureUnlocked } from "../core/actions.js";
-import { world, isOwned, isCharted, isVisible, capOf, hexPop, hexResource, hexUse, hexYield, structureDef, atDominionCap, dominionCap, holdsUsed, workStamp } from "../map/map.js";
+import { canBuildOn, demolishStructure, hasMarket, launchSettle, launchStructure, pendingBuild, pendingSettle, settlePlan, structureFits, structurePlan, structureUnlocked, trade, tradeRate } from "../core/actions.js";
+import { world, isOwned, isCharted, isVisible, capOf, hexPop, hexResource, hexUse, hexYield, terrainYield, structureDef, atDominionCap, dominionCap, holdsUsed, workStamp } from "../map/map.js";
 import { FOREIGN, FOREIGN_MINOR, playerColor } from "../core/palette.js";
 import { hexDistance, hexPoints, toPixel } from "../map/model.js";
 import { campaignPlan, expeditionOut, musterBuilt, standingWord } from "../sim/expeditions.js";
@@ -100,13 +100,15 @@ function cappedNote(cost) {
   return ` <span class="short">Your stores cannot hold this much ${list} — raise storage first.</span>`;
 }
 function spec() { return active().map; }
-function tilesEra() { return true; }   // every era allocates hexes since E2
-function worksFor(terrain) { return (spec().works && spec().works[terrain]) || {}; }
+function tilesEra() { return true; }   // every era works hexes since E2
 function fmtRate(x) { return "×" + (Math.round(x * 10) / 10); }
-function specialties(terrain) {
-  const w = worksFor(terrain);
-  return Object.keys(w).filter((r) => w[r] >= 1);
+// What a terrain gives, for country you may not own -- the settle blurb wants
+// to say "best worked for wood" about a forest you have only scouted.
+function yieldOf(terrain) {
+  const y = spec().yields && spec().yields[terrain];
+  return y ? { res: y.res, rate: y.rate } : null;
 }
+
 // The WHOLE board, every era. Era view radii are retired (one board, forever
 // -- map.md 2.6): the world is not what grows, the fog is what retreats. What
 // each tile shows is decided per tile by `isCharted`.
@@ -194,18 +196,50 @@ function tipFor(p) {
     return {
       title: `Your ${spec().tileNoun.singular} · ${p.terrain}`,
       stat: `${hexPop(p.id)} of ${capOf(p.id)} people`,
-      body: u.kind === "structure" ? `Built: ${u.id}.`
-        : u.kind === "resource" ? `Turned to ${u.res}.`
-        : "Resting — producing nothing.",
-      why: tilesEra() ? "Click to direct it." : null,
+      body: (() => {
+        if (u.kind === "structure") {
+          const d = structureDef(u.id);
+          const y = hexYield(p.id);
+          return `${d ? d.name : u.id}${y ? ` — ${y.res} ${fmtRate(y.rate)}.` : " — produces nothing."}`;
+        }
+        const g = terrainYield(p.id);
+        return g ? `Works its own ground: ${g.res} ${fmtRate(g.rate)}.` : "Nothing here can be worked.";
+      })(),
+      why: "Click to see what could be built here.",
     };
   }
-  const best = specialties(p.terrain);
+  const gy = yieldOf(p.terrain);
   return {
     title: `${capWord(p.terrain)}`,
     body: TERRAIN_FLAVOR[p.terrain] || "",
-    why: best.length && tilesEra() ? `Best worked for ${best.join(" or ")} — if it were yours.` : null,
+    why: gy ? `Gives ${gy.res} ${fmtRate(gy.rate)} — if it were yours.` : null,
   };
+}
+
+// THE MARKET COUNTER. Lives on the market hex itself rather than in a panel,
+// because that is where it physically is -- a rival scouting your plains sees
+// the weighing floor, and burning it closes the valve. Buttons are one batch
+// at a time: trading is a loss, and a loss should be felt per click.
+function marketHTML() {
+  const rate = tradeRate();
+  if (rate == null) return "";
+  const live = active().resources;
+  const c = caps();
+  const rows = [];
+  for (const get of live) {
+    const affordable = live.filter((g) => g.id !== get.id && (S.res[g.id] || 0) >= rate);
+    if (!affordable.length) continue;
+    const full = c[get.id] != null && (S.res[get.id] || 0) + 1 > c[get.id];
+    const btns = affordable.map((g) =>
+      `<button class="map-act trade" data-act="trade" data-give="${g.id}" data-get="${get.id}"${
+        full ? " disabled" : ""}>${rate} ${g.id}</button>`).join("");
+    rows.push(`<div class="trade-row"><span class="trade-for">1 ${capWord(get.id)} for</span>${btns}</div>`);
+  }
+  if (!rows.length) {
+    return `<span class="map-noworks">The traders are here, but you have nothing they want yet — you need ${rate} of something to spare.</span>`;
+  }
+  return `<div class="trade-board">${rows.join("")}</div>` +
+    `<span class="map-noworks">The bank always says yes, and always at their price: ${rate} of anything for 1 of anything else. Another Market improves the rate.</span>`;
 }
 
 // ---------- Click: the Selected Tile panel ------------------
@@ -288,47 +322,53 @@ export function detailHTML(p) {
 
   const built = mine ? hexUse(p.id) : null;
   if (mine && built.kind === "structure") {
-    // A BUILT HEX HAS NO ALLOCATION. The resource buttons are gone because the
-    // hex's one use is taken -- there is no parallel town beside the fields.
-    // What it offers instead is the way back out, and the way back out costs.
+    // The hex's one use is taken -- there is no parallel town beside the
+    // fields. What it offers instead is the way back out, and that costs.
     const def = structureDef(built.id);
     const y = hexYield(p.id);
+    const ground = terrainYield(p.id);
     parts.push(`<span class="tile-built"><b>${def ? def.name : built.id}.</b> ${
-      y ? `Works ${y.res} at ${fmtRate(y.rate)}, whatever the ground beneath.`
-        : "It produces nothing; it is here to hold."}</span>`);
+      y ? `Yields ${y.res} at ${fmtRate(y.rate)}${ground && ground.res !== y.res
+            ? ` — this ground would give ${ground.res} on its own.` : "."}`
+        : `It produces nothing${ground ? `, and the ${ground.res} this ground would give stops with it` : ""}.`}</span>`);
+    if (def && def.trades) parts.push(marketHTML());
     parts.push(`<div class="map-actions"><button class="map-act warn" data-act="demolish" data-tile="${p.id}">Pull it down</button></div>`);
     parts.push(`<span class="map-noworks">Pulling it down returns the hex to plain ground. Nothing is refunded.</span>`);
-  } else if (mine && tilesEra()) {
-    const works = worksFor(p.terrain);
-    const resIds = Object.keys(works);
-    const current = hexResource(p.id);
-    if (resIds.length) {
-      // Every ground works everything; the rate is the trade-off.
-      const btns = resIds.map((r) =>
-        `<button class="map-act alloc${current === r ? " active" : ""}" data-act="work" data-tile="${p.id}" data-res="${r}">${capWord(r)} ${fmtRate(works[r])}</button>`);
-      btns.push(`<button class="map-act alloc${current ? "" : " active"}" data-act="rest" data-tile="${p.id}">Rest</button>`);
-      parts.push(`<div class="map-actions">${btns.join("")}</div>`);
-    } else {
-      parts.push(`<span class="map-noworks">Nothing here can be worked.</span>`);
-    }
-    // WHAT CAN BE RAISED HERE. Only structures this era declares and whose
-    // unlock is owned; the price is printed, and the refusal reason with it,
-    // because a card you cannot afford still has to be readable (interface.md).
-    // Never on the seat: the Construction panel is what you build THERE.
+  } else if (mine) {
+    // WHAT THE GROUND GIVES. One resource per terrain, worked automatically --
+    // there is nothing to point this hex at, so there is nothing to click. The
+    // decision moved up: which ground you claim, and what you raise on it.
+    const ground = terrainYield(p.id);
+    parts.push(ground
+      ? `<span class="tile-works">Works its own ground: <b>${capWord(ground.res)}</b> ${fmtRate(ground.rate)}.</span>`
+      : `<span class="map-noworks">Nothing here can be worked.</span>`);
+    // WHAT CAN BE RAISED HERE. Only structures this era declares, whose unlock
+    // is owned, and whose terrain this is; the price is printed, and the
+    // refusal reason with it, because an option you cannot afford still has to
+    // be readable (interface.md). Never on the seat.
+    let anyBuild = false;
     for (const def of (canBuildOn(p.id) ? (active().structures || []) : [])) {
       if (!structureUnlocked(def.id)) continue;
+      if (!structureFits(def.id, p.id)) continue;
       const plan = structurePlan(def.id);
       if (!plan) continue;
+      anyBuild = true;
       const queued = pendingBuild(p.id);
       const broke = !canAfford(plan.cost);
       parts.push(`<div class="map-actions"><button class="map-act" data-act="build" data-tile="${p.id}" data-struct="${def.id}"${
         queued || broke ? " disabled" : ""}>Build ${def.name}</button></div>`);
+      const replaces = def.yield && ground && def.yield.res !== ground.res
+        ? ` Instead of ${ground.res}.` : def.yield ? "" : ` The ${ground ? ground.res : "yield"} stops.`;
       parts.push(`<span class="map-noworks">${
         queued ? "Work is already under way on this hex."
-        : `${costLine(plan.cost)} · ${plan.time}s. ${def.desc}${cappedNote(plan.cost)}`}</span>`);
+        : `${costLine(plan.cost)} · ${plan.time}s. ${def.desc}${replaces}${cappedNote(plan.cost)}`}</span>`);
+    }
+    if (!anyBuild && canBuildOn(p.id)) {
+      parts.push(`<span class="map-noworks">Nothing this age knows how to build belongs on ${p.terrain === "river" ? "a river" : `${p.terrain}`}.</span>`);
     }
   } else if (!mine && tilesEra() && p.terrain !== "water") {
-    const best = specialties(p.terrain);
+    const gy = yieldOf(p.terrain);
+    const best = gy ? [gy.res] : [];
     const plan = settlePlan(p.id);
     if (plan) {
       // The settle verb: wilderness is claimable, as queued and priced work --
@@ -387,21 +427,30 @@ function signature() {
     workStamp(), selectedId].join("~");
 }
 
-// What owned country REPORTS: the resource it is working, or a quiet dash if
-// it is resting. Lifted out because two tiles need it now -- an ordinary
-// holding, and your seat, which wears a house AND reports its work.
+// What owned country REPORTS: what it is producing. Lifted out because two
+// tiles need it -- an ordinary holding, and your seat, which wears a house AND
+// reports its work.
 function workMark(id) {
-  // Asks the use seam (map/map.js) rather than reading the slot, so the day a
-  // hex can carry a STRUCTURE this returns the structure's mark instead of
-  // silently printing a raw id as though it were a resource letter.
+  // Asks the use seam (map/map.js) rather than reading the slot, so a hex that
+  // carries a structure reports the structure's mark rather than silently
+  // printing a raw id as though it were a resource letter.
+  // THE BOARD REPORTS WHAT A HEX PRODUCES, however it produces it. A built hex
+  // used to draw one shared block, which was fine while `farm` was the only
+  // structure with a yield and actively wrong the moment Bronze put a Copper
+  // Mine and a Tin Mine on the same terrain -- two different economies wearing
+  // the same mark. The letter follows the RESOURCE; `cls` still says whether a
+  // structure stands there, so the two can be styled apart.
   const u = hexUse(id);
-  if (u.kind === "structure") return { glyph: STRUCTURE_GLYPH[u.id] || "\u25A0", cls: "built" };
-  const w = u.kind === "resource" ? u.res : null;
-  // A resting hex says so (owner request, 2026-08-23): the old ledger's red
-  // "N idle" died with the jobs system, and unworked ground was invisible
-  // until clicked. The dash is quiet on purpose -- resting is sometimes a
-  // choice, and the starving ledger already carries the alarm.
-  return w ? { glyph: WORK_GLYPH[w] || "", cls: "work" } : { glyph: "\u2014", cls: "rest" };
+  const y = hexYield(id);
+  if (u.kind === "structure") {
+    if (y) return { glyph: WORK_GLYPH[y.res] || "\u25A0", cls: "built" };
+    // A structure that yields nothing -- a March-hold, a Market -- carries its
+    // own mark, because there is no resource to name it by.
+    return { glyph: STRUCTURE_GLYPH[u.id] || "\u25A0", cls: "built" };
+  }
+  // Bare ground works its terrain, always. There is no resting hex any more,
+  // so the quiet dash now means only "this ground yields nothing at all".
+  return y ? { glyph: WORK_GLYPH[y.res] || "", cls: "work" } : { glyph: "\u2014", cls: "rest" };
 }
 
 // The mark a tile wears, in priority order -- home, then a named seat, then
@@ -710,13 +759,10 @@ export function initMapStage() {
         lastDetail = ""; renderTileDetail();
         return;
       }
-      if (act === "work" || act === "rest") {
-        // Through the action layer like every other verb -- validation,
-        // journalling and the save all live there now, not here.
-        if (!setWork(btn.dataset.tile, act === "work" ? btn.dataset.res : null)) return;
-        lastSignature = "";   // the work glyph changed
-        renderMapStage();
-        renderTileDetail();
+      if (act === "trade") {
+        if (!trade(btn.dataset.give, btn.dataset.get, 1)) return;
+        lastDetail = ""; renderTileDetail();
+        return;
       }
     });
   }

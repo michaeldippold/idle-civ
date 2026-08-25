@@ -16,7 +16,7 @@ import { DIRS, hash01, hashStr, pid } from "./model.js";
 // Bump GEN_VERSION whenever generation changes shape: ensureMap() regenerates
 // on a version mismatch, which during development is a deliberate, visible
 // reshape of existing worlds rather than a silent one.
-export const GEN_VERSION = 2;
+export const GEN_VERSION = 3;   // bumped 2026-08-25: the seat floor guarantee reshapes starts
 
 // Target share of the LAND per terrain. Plains is the background; the rest
 // grow as blobs onto it, in this order, claiming only unclaimed plains -- so
@@ -119,7 +119,7 @@ export function generateMap(seed, spec, continentId) {
     return p && !p.ocean && mainIds.has(id) &&
       (p.terrain === "plains" || p.terrain === "river");
   };
-  const candidates = landIds.filter((id) => {
+  const roomy = landIds.filter((id) => {
     if (!workable(id)) return false;
     const room = world.places[id].adj.filter((n) => {
       const q = world.places[n];
@@ -127,6 +127,55 @@ export function generateMap(seed, spec, continentId) {
     }).length;
     return room >= 3;   // the trio needs two neighbours, with one to spare
   });
+
+  // THE FLOOR GUARANTEE (2026-08-25, with the hex economy). One resource per
+  // terrain makes the map decisive, and a decisive map can strand a seat.
+  // Magic calls it mana screw, and it is only unfixable there because the deck
+  // is shuffled blind. This dealer is not blind.
+  //
+  // Two different guarantees, and the harness caught the difference the hard
+  // way. HILLS need only be in REACH, because stone is what you claim toward.
+  // TIMBER has to be ADJACENT, because the opening trio is drawn from the
+  // seat's neighbours and claiming costs wood -- a seat with forest three
+  // rings away and none beside it produces no timber at all, can never afford
+  // a claim, and deadlocks on a map that looks perfectly friendly.
+  //
+  // A FLOOR, not equality: one seat gets a single forest at the edge of its
+  // ring and another sits in a timber empire, and that difference is the map
+  // being interesting. Civ seeds start bias the same way and nobody reads it
+  // as rigged. Relaxes rather than fails -- the requirement loosens tier by
+  // tier, and a seat somewhere always beats no seat.
+  const terrainsWithin = (p, rings) => {
+    const found = new Set();
+    for (const [q, r] of localOrder) {
+      const o = world.places[pid(q, r)];
+      if (!o || o.ocean) continue;
+      if (hexDist(o, p.q, p.r) <= rings) found.add(o.terrain);
+    }
+    return found;
+  };
+  const adjacentTerrains = (p) => {
+    const found = new Set();
+    for (const n of p.adj) {
+      const o = world.places[n];
+      if (o && !o.ocean) found.add(o.terrain);
+    }
+    return found;
+  };
+  // [timber must be adjacent?, rings the hills may sit within]
+  const TIERS = [[true, 2], [true, 3], [false, 2], [false, 3], [false, 99]];
+  let candidates = [];
+  for (const [timberAdjacent, hillRings] of TIERS) {
+    candidates = roomy.filter((id) => {
+      const p = world.places[id];
+      const woodOK = timberAdjacent
+        ? adjacentTerrains(p).has("forest")
+        : terrainsWithin(p, hillRings).has("forest");
+      return woodOK && terrainsWithin(p, hillRings).has("hills");
+    });
+    if (candidates.length) break;
+  }
+  if (!candidates.length) candidates = roomy;
   const startId = candidates.length
     ? candidates[Math.floor(sRng() * candidates.length)]
     : landIds[0];

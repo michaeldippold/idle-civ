@@ -287,8 +287,10 @@ export const HINT_LIB = {
     msg: "The smiths grumble that tin grows dearer every season. There is a duller, stubborner metal in your own hills — if your people learn to work it." },
   rotIron: { when: () => S.res.iron >= caps().iron - 0.01,
     msg: "Raw iron blooms are heaped up rusting in the open — the excess is lost. This age can hold no more: spend it, or outgrow the age." },
-  directHoldfasts: { when: (S_) => Object.keys((S.map && S.map.work) || {}).length === 0,
-    msg: "Your holdfasts await direction — open the Map and set each to work its ground." },
+  // (directHoldfasts died 2026-08-25 with the allocation verb: ground works
+  // itself now, so no holding has ever "awaited direction".)
+  develop: { when: () => S.map && S.map.owned.length >= 4,
+    msg: "Your holdings work their own ground. What you BUILD on them is how they do better — open the Map and look at what each hex could become." },
   firstSteel: { when: () => S.res.steel > 0,
     msg: "The Forge runs hotter than it ever did for bronze. The first steel is yours." },
   firstGold: { when: () => S.res.gold > 0,

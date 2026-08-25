@@ -59,7 +59,7 @@ export function boot() {
 
   if (!had) {
     log("A handful of survivors gather where the road ends.");
-    log("They are hungry. Turn your clearing to food, or they will starve.");
+    log("They are hungry, and the ground they stand on is all they have. Claim more of it.");
   }
 
   checkReveals();

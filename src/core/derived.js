@@ -1,4 +1,4 @@
-import { BOOST_BUILDING, DEF_INDEX, active } from "../content/compile.js";
+import { DEF_INDEX, active } from "../content/compile.js";
 import { growthSpendRate, hexPopSum, hexYield, upkeepMouths, world } from "../map/map.js";
 import { CONFIG, TICK_SECONDS } from "./config.js";
 import { S } from "./state.js";
@@ -115,10 +115,12 @@ export function mults() {
               + (S.upgrades.bronzeTools ? CONFIG.bronzeToolsBonus : 0)
               + (S.upgrades.ironTools   ? CONFIG.ironToolsBonus   : 0);
   const out = {};
-  for (const r of active().resources) {
-    const boost = BOOST_BUILDING[r.id];
-    out[r.id] = 1 + (boost ? (S.builds[boost] || 0) * CONFIG.buildingBonus : 0) + tools;
-  }
+  // TECH ONLY (2026-08-25). Tool upgrades lift every gather rate, including
+  // the ores -- better tools cut ore too. The per-resource BUILDING boost that
+  // also lived here is gone: those buildings became structures standing on the
+  // ground they improve, so improving a resource is now a thing you do to a
+  // HEX, at that hex's rate, where a rival can see it and take it.
+  for (const r of active().resources) out[r.id] = 1 + tools;
   return out;
 }
 
@@ -149,14 +151,16 @@ export function rates() {
   // you read is what you earn. A tile the rebuilt world doesn't know (a
   // harness fixture, a mid-migration save) works at par rather than silently
   // at zero.
-  const work = (S.map && S.map.work) || {};
   const owned = (S.map && S.map.owned) || [];
   const pops = (S.map && S.map.pop) || {};
-  for (const tid in work) {
-    if (!owned.includes(tid)) continue;
-    // Ask the seam for the resource AND its rate. Worked ground reads the
-    // terrain table; a structure carries its own flat number; a fortification
-    // answers null and yields nothing. None of that is this loop's business.
+  // EVERY OWNED HEX PRODUCES (2026-08-25). This used to walk the allocation
+  // map, so a hex nobody had pointed at anything sat idle -- which is what
+  // made the border bread-default and the "your holdfasts await direction"
+  // hint necessary. Ground works itself now, so the dominion IS the loop.
+  for (const tid of owned) {
+    // Ask the seam for the resource AND its rate. Bare ground reads its
+    // terrain; a structure carries its own flat number; a March-hold answers
+    // null and yields nothing. None of that is this loop's business.
     const y = hexYield(tid);
     if (!y || !(y.res in prod)) continue;
     const people = Math.floor(pops[tid] || 0);

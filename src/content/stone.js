@@ -59,13 +59,16 @@ export const STONE = {
     // numbers keep a 2-3 hex Stone endgame near today's 15-25 people. Water
     // holds no one and is deliberately absent: a missing terrain means cap 0.
     popCaps: { plains: 8, river: 10, forest: 5, hills: 3 },
-    // What claiming adjacent land costs (owner ruling, 2026-08-24, from the
-    // all-food dominance run): a settling party carries provisions, timber
-    // AND tools -- a single-resource price let one export fund the whole
-    // conquest. Every component escalates per claim (claimScale) and scales
-    // by the route. (The old food-only rationale -- "affordable before wood
-    // exists" -- died with the steppers: any hex works wood from minute one.)
-    claim: { cost: { food: 20, wood: 8, stone: 4 }, time: 30 },
+    // What claiming adjacent land costs. FOOD AND TIMBER ONLY at Stone
+    // (2026-08-25): the three-resource price came from a run where one export
+    // funded the whole conquest, and it was safe while any hex could be turned
+    // to any resource. Under one-resource-per-terrain, stone comes only from
+    // hills, and pricing the FIRST claim in stone can deadlock a seat that has
+    // no hills yet -- you would need the claim to reach the ground that pays
+    // for the claim. Timber is safe because the starting trio is guaranteed to
+    // widen (map.js) and the seat floor guarantees a forest in reach.
+    // Every component escalates per claim (claimScale) and scales by the route.
+    claim: { cost: { food: 22, wood: 10 }, time: 30 },
     // The DOMINION CAP (owner ruling, 2026-08-24, second 5-minute test):
     // what one age can HOLD is the era's scope, and no cost curve can brake
     // what compounding production funds -- claims buy production, so any
@@ -92,15 +95,28 @@ export const STONE = {
       walls: [0, 0],
       stock: { food: [5, 20], wood: [3, 12] },
     },
-    // What each terrain can be turned to, from the FIRST minute (E2): one
-    // assignment per hex, terrain sets the rate, every ground works
-    // everything at a price. The Stone table is the Iron table minus iron --
-    // the permanent shape, learned on day one.
-    works: {
-      plains: { food: 1.0, wood: 0.4, stone: 0.3 },
-      river:  { food: 1.2, wood: 0.3, stone: 0.2 },
-      forest: { wood: 1.0, food: 0.5, stone: 0.2 },
-      hills:  { stone: 1.0, food: 0.3, wood: 0.3 },
+    // ONE RESOURCE PER GROUND (2026-08-25). A forest makes wood. Not "wood at
+    // 1.0, food at 0.5, stone at 0.2" -- wood. The old `works` table let every
+    // terrain work everything at a penalty, which existed to rescue a bad map
+    // roll and cost the game three things to do it: the player juggled 0.3 of
+    // this against 0.4 of that, balancing meant tuning an N-by-N matrix of
+    // exchange rates that all moved together, and the map lost its power to
+    // send you anywhere, because everything was available everywhere.
+    //
+    // Bad luck is answered at three other layers instead, each one dial:
+    // the generator guarantees every seat forest and hills within reach
+    // (map/generate.js), the Market buys what your ground cannot make, and
+    // the era recipes keep the opening on food and wood alone.
+    //
+    // The trade-off did not disappear -- it moved up to where a 4X wants it.
+    // You choose which GROUND to claim and what to BUILD on it, not what a
+    // hex pretends to be this minute.
+    yields: {
+      plains: { res: "food",  rate: 1.0 },
+      river:  { res: "food",  rate: 1.3 },   // bottomland out-farms the plains
+      forest: { res: "wood",  rate: 1.0 },
+      hills:  { res: "stone", rate: 1.0 },
+      // water is absent, and a missing terrain yields nothing.
     },
   },
   arrivalLine: "A wanderer joins your settlement.",
@@ -126,21 +142,13 @@ export const STONE = {
     // (The Woodshed, Granary and Stone Yard died here in 4c, 2026-08-25 --
     // caps are era-authored now, and a cap you must build toward is a cap
     // that was really a building requirement.)
-    {
-      id: "dryingRack", name: "Drying Racks", kind: "building", desc: "Foragers gather +12% food.",
-      base: { wood: 22 }, scale: 1.5, buildTime: 20,
-      reveal: () => S.map && S.map.owned.length >= 4,
-    },
-    {
-      id: "lumberCamp", name: "Lumber Camp", kind: "building", desc: "Woodcutters gather +12% wood.",
-      base: { wood: 18, stone: 10 }, scale: 1.5, buildTime: 24,
-      reveal: () => S.map && S.map.owned.length >= 4,
-    },
-    {
-      id: "stonePit", name: "Stone Pit", kind: "building", desc: "Gatherers mine +12% stone.",
-      base: { wood: 20, stone: 12 }, scale: 1.5, buildTime: 24,
-      reveal: () => S.map && S.map.owned.length >= 5,
-    },
+    // (Drying Racks, the Lumber Camp and the Stone Pit left this panel on
+    // 2026-08-25 and went onto the board as STRUCTURES -- see `structures`
+    // below. A kingdom-wide "+12% wood" that lived in a side panel was
+    // invisible power: no rival could scout it, raid it or burn it, and it
+    // asked nothing of the map. The same building standing on a forest hex
+    // is a thing you can lose. The Lumber Camp and Stone Pit kept their
+    // names; the Drying Racks' job passed to the Farm at Bronze.)
     {
       // "Medicine Tent" here so that "Infirmary" is available as this same
       // building's Bronze-era name (an override, not a new def). Id never changes.
@@ -153,6 +161,34 @@ export const STONE = {
       desc: "Lets your people train as Soldiers.",
       base: { wood: 40, stone: 15 }, scale: 1.5, buildTime: 30,
       reveal: () => S.map && S.map.owned.length >= 4,
+    },
+  ],
+
+  // WHAT YOU BUILD ON THE GROUND ITSELF. One hex, one structure -- there is
+  // no parallel town beside the fields, and taking one down refunds nothing.
+  //
+  // `terrain` gates where a structure may stand, and it is the whole reason
+  // these are interesting: a Lumber Camp is a forest decision, a mine is a
+  // hills decision, and a hills hex that becomes a Copper Mine has stopped
+  // being a stone hex. Scarcity is not a bug here -- it is the map telling
+  // you where to expand and whom to fight.
+  //
+  // A structure REPLACES the ground's own yield rather than adding to it,
+  // so the price of every improvement is the thing the hex was already doing.
+  structures: [
+    {
+      id: "lumberCamp", name: "Lumber Camp",
+      terrain: ["forest"],
+      yield: { res: "wood", rate: 1.8 },
+      base: { wood: 30, stone: 12 }, scale: 1.35, buildTime: 24,
+      desc: "Saw pits, drying stacks and a road out. Nearly doubles what the forest gives.",
+    },
+    {
+      id: "stonePit", name: "Stone Pit",
+      terrain: ["hills"],
+      yield: { res: "stone", rate: 1.8 },
+      base: { wood: 32, stone: 14 }, scale: 1.35, buildTime: 24,
+      desc: "Cut a face into the hillside and work it properly. Nearly doubles what the hills give.",
     },
   ],
 

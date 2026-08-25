@@ -46,16 +46,15 @@ export const BRONZE_DELTA = {
       walls: [0, 2],
       stock: { food: [15, 45], wood: [8, 25], bronze: [2, 8] },
     },
-    works: {
-      plains: { food: 1.0, wood: 0.4, stone: 0.3, copper: 0.2, tin: 0.1 },
-      river:  { food: 1.2, wood: 0.3, stone: 0.2 },
-      forest: { wood: 1.0, food: 0.5, stone: 0.2 },
-      // Copper 1.0 / tin 0.5 (owner ruling, 2026-08-24: pivoting into the
-      // alloy economy felt near-impossible at 0.8/0.4). The hills hex's
-      // 5-person cap is the balance -- high value per person, few people --
-      // and mountains stay THE copper country, which keeps hunting them
-      // tense. Tin holds at exactly half: the scarce half of the alloy.
-      hills:  { stone: 1.0, food: 0.3, wood: 0.3, copper: 1.0, tin: 0.5 },
+    // Unchanged from Stone: bare ground yields what it is, in every age.
+    // Bronze does not make the hills yield copper -- it teaches you to MINE
+    // them (see structures). The alloy economy is a thing you build, not a
+    // thing the ground starts doing because the calendar turned.
+    yields: {
+      plains: { res: "food",  rate: 1.0 },
+      river:  { res: "food",  rate: 1.3 },
+      forest: { res: "wood",  rate: 1.0 },
+      hills:  { res: "stone", rate: 1.0 },
     },
   },
 
@@ -210,10 +209,62 @@ export const BRONZE_DELTA = {
   // BUILDING ON A HEX begins here (design.md, Building on a Hex). A structure
   // takes the hex's ONE use: the resource buttons go away, because there is no
   // parallel town beside the fields.
+  // Redeclared WHOLESALE, like every slate: Stone's two survive by being
+  // written again, and Bronze adds the alloy economy plus its release valve.
   structures: [
+    {
+      id: "lumberCamp", name: "Lumber Camp",
+      terrain: ["forest"],
+      yield: { res: "wood", rate: 1.8 },
+      base: { wood: 30, stone: 12 }, scale: 1.35, buildTime: 24,
+      desc: "Saw pits, drying stacks and a road out. Nearly doubles what the forest gives.",
+    },
+    {
+      id: "stonePit", name: "Stone Pit",
+      terrain: ["hills"],
+      yield: { res: "stone", rate: 1.8 },
+      base: { wood: 32, stone: 14 }, scale: 1.35, buildTime: 24,
+      desc: "Cut a face into the hillside and work it properly. Nearly doubles what the hills give.",
+    },
+    // THE ALLOY ECONOMY IS A THING YOU BUILD. The hills do not start yielding
+    // copper because the age turned -- you sink a mine, and that hills hex
+    // stops being a stone hex to do it. Bronze wants copper AND tin AND
+    // stone, and every one of them comes out of the same terrain, which is
+    // what makes hills the contested ground of this age.
+    {
+      id: "copperMine", name: "Copper Mine",
+      terrain: ["hills"],
+      yield: { res: "copper", rate: 1.0 },
+      base: { wood: 45, stone: 35 }, scale: 1.35, buildTime: 35,
+      desc: "Follow the green stain into the hill. The stone above it stays where it is.",
+    },
+    {
+      // Tin holds at exactly half copper: the scarce half of the alloy, and
+      // the reason a Bronze realm is always short of something.
+      id: "tinMine", name: "Tin Mine",
+      terrain: ["hills"],
+      yield: { res: "tin", rate: 0.5 },
+      base: { wood: 45, stone: 35 }, scale: 1.35, buildTime: 35,
+      desc: "The rarer ore, and the one the smiths always want more of. Half what a copper seam gives, and worth more for it.",
+    },
+    // THE RELEASE VALVE (2026-08-25). One resource per hex makes the map
+    // decisive, and a decisive map can deal you a hand with no tin on it.
+    // The Market is the answer that does not require a friendly neighbour:
+    // a bank that always says yes, at a bad rate. It arrives at Bronze
+    // because Stone runs on food, wood and stone alone -- ground the
+    // generator guarantees every seat -- and scarcity only starts to bite
+    // when the alloys do.
+    {
+      id: "market", name: "Market",
+      terrain: ["plains", "river"],
+      trades: true,
+      base: { wood: 80, stone: 50 }, scale: 1.5, buildTime: 45,
+      desc: "Scales, a weighing floor, and traders who will take anything off your hands — at their price, never yours. Produces nothing itself.",
+    },
     {
       id: "farm", name: "Farm",
       requires: "farming",
+      terrain: ["plains", "river"],
       // FLAT, not terrain-scaled, and that is the decision (owner, 2026-08-25):
       // "an increased rate beyond what any bare plains can give you". Plains
       // work food at x1.0 and river at x1.2, so x1.7 beats every ground in the

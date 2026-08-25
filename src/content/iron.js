@@ -50,24 +50,18 @@ export const IRON_DELTA = {
     tileNoun: { singular: "holdfast", plural: "holdfasts" },
     terrains: ["plains", "forest", "hills", "river", "water"],
     seats: SEAT_IDS,
-    // What a holdfast on each ground yields, per resource (user ruling,
-    // 2026-08-22): every land works EVERYTHING, at rates the terrain sets.
-    // Specialties run at par or better; the rest are overpay routes -- the
-    // board-game trade-off of taking the suboptimal path on purpose. Hills
-    // keep their double specialty; river bottomland out-farms the plains
-    // (its flavor already said so). Water works nothing. First-guess
-    // numbers, tuned toward too-hard as always.
     // Iron-scale carrying caps: 3x Stone. "A mountain starts at 20" (owner)
     // is an Iron-scale instinct -- hills land at 9 here and pass 20 in later
     // eras as the cap curve keeps climbing.
     popCaps: { plains: 24, river: 30, forest: 15, hills: 9 },
     claim: { cost: { food: 40, wood: 25, stone: 12, iron: 5 }, time: 45 },
     dominionCap: 20,
-    works: {
-      plains: { food: 1.0, wood: 0.4, stone: 0.3, iron: 0.2 },
-      river:  { food: 1.2, wood: 0.3, stone: 0.2, iron: 0.2 },
-      forest: { wood: 1.0, food: 0.5, stone: 0.2, iron: 0.2 },
-      hills:  { stone: 1.0, iron: 1.0, food: 0.3, wood: 0.3 },
+    // Bare ground is bare ground in every age. Iron comes out of a mine.
+    yields: {
+      plains: { res: "food",  rate: 1.0 },
+      river:  { res: "food",  rate: 1.3 },
+      forest: { res: "wood",  rate: 1.0 },
+      hills:  { res: "stone", rate: 1.0 },
     },
     // The minor tier (design.md, Conquest Growth): numerous, individually
     // weak, each worth one sworn holdfast plus a modest stock. Hand-authored
@@ -277,10 +271,41 @@ export const IRON_DELTA = {
   //
   // It YIELDS NOTHING, which is the point and the price: you are trading a
   // hex's whole output for defence. `fortifies` is what fortStrength() reads.
+  // Redeclared wholesale. The copper and tin mines go with the alloys they
+  // served; the Iron Mine takes their place on the hills.
   structures: [
+    {
+      id: "lumberCamp", name: "Lumber Camp",
+      terrain: ["forest"],
+      yield: { res: "wood", rate: 1.8 },
+      base: { wood: 30, stone: 12 }, scale: 1.35, buildTime: 24,
+      desc: "Saw pits, drying stacks and a road out. Nearly doubles what the forest gives.",
+    },
+    {
+      id: "stonePit", name: "Stone Pit",
+      terrain: ["hills"],
+      yield: { res: "stone", rate: 1.8 },
+      base: { wood: 32, stone: 14 }, scale: 1.35, buildTime: 24,
+      desc: "Cut a face into the hillside and work it properly. Nearly doubles what the hills give.",
+    },
+    {
+      id: "ironMine", name: "Iron Mine",
+      terrain: ["hills"],
+      yield: { res: "iron", rate: 1.0 },
+      base: { wood: 70, stone: 60 }, scale: 1.35, buildTime: 45,
+      desc: "Deeper than a copper working and hotter at the face. The hill gives iron or it gives stone — never both.",
+    },
+    {
+      id: "market", name: "Market",
+      terrain: ["plains", "river"],
+      trades: true,
+      base: { wood: 110, stone: 70 }, scale: 1.5, buildTime: 45,
+      desc: "Scales, a weighing floor, and traders who will take anything off your hands — at their price, never yours. Produces nothing itself.",
+    },
     {
       id: "farm", name: "Farm",
       requires: "farming",
+      terrain: ["plains", "river"],
       yield: { res: "food", rate: 1.7 },
       base: { wood: 55, stone: 30 }, scale: 1.4, buildTime: 40,
       desc: "Break the ground and work it properly. Feeds far better than bare land — and the hex gives up everything else it could have produced.",
@@ -305,6 +330,6 @@ export const IRON_DELTA = {
   // a legacy save's dead storehouses exactly once. directHoldfasts is the
   // one-time pointer at the allocation flip.
   hints:  ["wood", "stone", "build", "tools", "rotFood", "rotWood", "rotStone", "oldStores",
-           "sicknessWarn", "conflictWarn", "firstSteel", "firstGold", "neighbors", "directHoldfasts"],
+           "sicknessWarn", "conflictWarn", "firstSteel", "firstGold", "neighbors", "develop"],
 };
 

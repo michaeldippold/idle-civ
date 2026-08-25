@@ -139,23 +139,58 @@ console.log("\n--- Regression: starvation, hut queue, storage caps ---");
 // rather than merely delaying an instant end, and this check is about the
 // mechanism, not the weather.
 api.setRngSource(() => 0.99);
-reset(); api.ensureMap(); snap("start");
-run(480);
-check("starvation still ends the game -- the seat empties last", S().dead === true);
+reset(); api.ensureMap();
+// A TIMBER EMPIRE STARVES (rewritten 2026-08-25 with the hex economy). The old
+// setup left the starting trio unassigned and waited; ground works its own
+// terrain now and the seat is always food, so an idle trio feeds itself and
+// this check was asserting that the economy still had the bug it was built to
+// catch. The condition it MEANT to prove is the standing design law -- the
+// economy must be able to break you -- and the shape that law takes under one
+// resource per hex is a realm that spread onto ground which gives no bread.
+{
+  const barren = Object.values(api.world.places)
+    .filter((x) => (x.terrain === "forest" || x.terrain === "hills") && !x.adversary && !x.minor)
+    .slice(0, 12);
+  for (const x of barren) if (!S().map.owned.includes(x.id)) S().map.owned.push(x.id);
+  api.ensurePop();
+  // Pack them: every mouth is real, and none of this ground grows anything.
+  for (const x of barren) S().map.pop[x.id] = api.capOf(x.id);
+  api.syncPopMirror();
+  S().res.food = 0;
+}
+snap("start");
+const beforePop = S().pop, beforeHeld = S().map.owned.length;
+run(240);
+// WHAT FAMINE DOES NOW, and this is a behaviour change worth stating: it
+// CONVERGES rather than kills. Each death shrinks the deficit, and emptied
+// frontier hexes fall out of the dominion, so a realm that overspread shrinks
+// back to what its ground can feed and then stabilises. Total extinction needs
+// the SEAT to be unable to feed anyone, and the seat is always food terrain by
+// generation -- so starvation is a punishing correction, not a loss condition.
+// (Whether the game should still have a starvation LOSS is an open design
+// question, flagged 2026-08-25; the mechanism below is what the code does.)
+check("famine takes people when the ground cannot feed them", S().pop < beforePop);
+check("famine takes GROUND too -- emptied frontier hexes leave the dominion",
+  S().map.owned.length < beforeHeld);
+check("the seat is never the hex that empties", S().map.owned.includes(api.world.home));
+run(600);
+const settled = S().pop;
+run(300);
+check("and it converges: the realm stabilises at what its land can feed",
+  S().pop >= settled && !S().dead);
 api.setRngSource(null);
 
 reset(); api.ensureMap();
-S().map.work[api.world.home] = "food";   // the E2 verb: turn the seat to food
-S().res.wood = 50;                        // timber up front; gathering has its own checks
+S().res.wood = 80; S().res.stone = 40;    // materials up front; gathering has its own checks
 run(5);
-api.build(findB("dryingRack"));           // the hut died in E3, the granary in 4c; racks lead now
+api.build(findB("infirmary"));            // the cheapest surviving panel building
 run(25);
-check("a building still completes with zero workers assigned", S().builds.dryingRack === 1);
+check("a building still completes with nobody told to do anything", S().builds.infirmary === 1);
 
 // ---- Barracks is capped at 1 ----
 console.log("\n--- Barracks: capped at 1 ---");
 reset(); api.ensureMap();
-S().map.work[api.world.home] = "food";    // stay fed for the reveal window
+// (allocation line removed 2026-08-25: ground works its own terrain now)
 // The reveal spine is THE CLAIM since E3: barracks opens when the dominion
 // grows past its starting trio.
 const fourth = Object.values(api.world.places)
@@ -360,10 +395,28 @@ S().upgrades.stoneTools = true;
 const after7 = api.mults();
 check("Stone Tools adds +8% to all three", Math.abs(after7.food - 1.08) < 0.0001 &&
   Math.abs(after7.wood - 1.08) < 0.0001 && Math.abs(after7.stone - 1.08) < 0.0001);
-check("stacks additively with per-job boost buildings", (() => {
-  S().builds.dryingRack = 1;
-  const m = api.mults();
-  return Math.abs(m.food - 1.20) < 0.0001; // 1 + 0.12 (dryingRack) + 0.08 (stoneTools)
+// The per-resource BOOST BUILDING died 2026-08-25 with the hex economy: the
+// Drying Racks, Lumber Camp and Stone Pit went onto the board as structures
+// standing on the ground they improve. Improving a resource is a thing you do
+// to a HEX now, at that hex's rate -- so multipliers are TECH ONLY, and a
+// building standing anywhere cannot lift a global rate.
+check("multipliers are tech only -- no building lifts a global rate", (() => {
+  const before = api.mults().food;
+  S().builds.infirmary = 3;
+  S().builds.barracks = 1;
+  return api.mults().food === before;
+})());
+check("a structure lifts the HEX it stands on instead", (() => {
+  api.ensureMap();
+  const forest = Object.values(api.world.places).find((p) => p.terrain === "forest");
+  if (!forest) return true;
+  if (!S().map.owned.includes(forest.id)) S().map.owned.push(forest.id);
+  const bare = api.hexYield(forest.id).rate;
+  S().era = "bronze";
+  S().map.built[forest.id] = "lumberCamp";
+  const built = api.hexYield(forest.id);
+  S().era = "stone"; delete S().map.built[forest.id];
+  return built.res === "wood" && built.rate > bare;
 })());
 
 // ---- v7: Great Hunt (food windfall) and Trader (wood+stone windfall) ----
@@ -453,21 +506,29 @@ reset();
     broken.length === 0);
 }
 check("queueUsed is gone -- it was write-only state in every save", !("queueUsed" in S().seen));
-// The E2 economy end to end: the seat feeds everyone, a second hex is turned
-// to timber. Its population is set by hand because its TERRAIN is the seed's
-// business -- 8 people at the worst wood rate (hills, x0.3) still clears the
-// hut's price inside the window, so this passes on every world.
-api.ensureMap();
-S().map.work[api.world.home] = "food";
-const woodHex = S().map.owned.find((id) => id !== api.world.home);
+// The economy end to end: the seat feeds everyone and the trio's timber hex
+// cuts wood. Reset first -- the tooltip sweep above leaves whatever era it
+// finished in, and this block prices a STONE-age building.
+reset(); api.ensureMap();
+// Take a forest and pack it. The starting trio is guaranteed to WIDEN
+// (map.js), but "widen" can mean plains-plus-river on a seed with no forest
+// adjacent, so the timber hex is claimed outright rather than assumed.
+const forestHex = Object.values(api.world.places)
+  .find((x) => x.terrain === "forest" && !x.adversary && !x.minor);
+if (forestHex && !api.isOwned(forestHex.id)) api.captureTile(forestHex.id);
+const woodHex = S().map.owned.find((id) => {
+  const y = api.hexYield(id);
+  return y && y.res === "wood";
+});
 S().map.pop[woodHex] = 8;
-S().map.work[woodHex] = "wood";
+api.syncPopMirror();
+S().res.stone = 40;                      // the quarry has its own checks
 run(90);
-check("enough wood gathered to afford the racks", S().res.wood >= api.buildCost(findB("dryingRack")).wood);
-api.build(findB("dryingRack"));
-check("racks actually entered the queue", S().buildQueue.length === 1);
+check("enough timber gathered to afford the infirmary", S().res.wood >= api.buildCost(findB("infirmary")).wood);
+api.build(findB("infirmary"));
+check("it actually entered the queue", S().buildQueue.length === 1);
 run(25); // let it finish, queue drains back to empty
-check("racks finished, queue now empty again", S().buildQueue.length === 0);
+check("it finished, queue now empty again", S().buildQueue.length === 0);
 
 // ================= BRONZE AGE PHASE 1 =================
 const infDef = findB("infirmary");
@@ -490,8 +551,8 @@ check("overriding name does not disturb inherited fields (cost survives)",
   api.MANIFESTS.bronze.buildings.find(b => b.id === "infirmary").base.wood ===
   api.MANIFESTS.stone.buildings.find(b => b.id === "infirmary").base.wood);
 S().era = "stone";
-check("un-overridden defs read the same in both eras", api.defById("dryingRack").name === "Drying Racks" &&
-  api.MANIFESTS.bronze.buildings.find(b => b.id === "dryingRack").name === "Drying Racks");
+check("un-overridden defs read the same in both eras", api.defById("barracks").name === "Barracks" &&
+  api.MANIFESTS.bronze.buildings.find(b => b.id === "barracks").name === "Barracks");
 
 console.log("\n--- Bronze P1: carrying caps are retroactive (housing's heir) ---");
 reset(); api.ensureMap();
@@ -535,7 +596,7 @@ api.setRngSource(() => 0.999999);
 reset(); api.ensureMap();
 for (const id of S().map.owned) S().map.pop[id] = 10;
 S().units.soldier = 1; api.syncPopMirror();
-S().map.work[api.world.home] = "food";   // fed through the build: 2/s in, 1.2/s eaten
+// (allocation line removed 2026-08-25: ground works its own terrain now)
 S().res.food = 400; S().res.wood = 400; S().res.stone = 400;
 check("era starts as stone", S().era === "stone");
 const peopleBeforeFlip = api.hexPopSum();
@@ -716,7 +777,7 @@ console.log("\n--- E3: the timer, the hut and the lockstep are gone, and stay go
 {
   api.setRngSource(() => 0.999999);
   reset(); api.closeModal(); api.ensureMap();
-  S().map.work[api.world.home] = "food";
+  // (allocation line removed 2026-08-25: ground works its own terrain now)
 
   check("accrueGrowth() is gone", api.accrueGrowth === undefined);
   check("housing() is gone", api.housing === undefined);
@@ -748,8 +809,13 @@ console.log("\n--- E3: the timer, the hut and the lockstep are gone, and stay go
   const target = Object.values(api.world.places)
     .find((x) => x.terrain !== "water" && !x.adversary && !x.minor && !api.isOwned(x.id));
   const plan = api.settlePlan(target.id);
-  check("a claim is priced in food, timber AND tools (one-resource prices let one export fund the conquest)",
-    plan && plan.cost.food > 0 && plan.cost.wood > 0 && plan.cost.stone > 0 && plan.time > 0);
+  // MULTI-RESOURCE, but not STONE at Stone (2026-08-25): one-resource prices
+  // let a single export fund the whole conquest, and pricing the first claim in
+  // stone deadlocks a seat with no hills yet -- you would need the claim to
+  // reach the ground that pays for the claim.
+  check("a claim is priced in more than one resource, and in time",
+    plan && plan.cost.food > 0 && plan.cost.wood > 0 && plan.time > 0);
+  check("...and never in stone at Stone, which only hills give", !("stone" in plan.cost));
   check("...but never in a resource the era does not have", !("bronze" in plan.cost));
   S().era = "bronze";
   const plan2 = api.settlePlan(target.id);
@@ -780,14 +846,16 @@ console.log("\n--- P2: ores and their jobs are era-gated (by manifest membership
 reset();
 {
   const inRes = (era, id) => api.MANIFESTS[era].resources.some(r => r.id === id);
-  // Post-E2 the ore verbs live in the WORKS TABLE: what a terrain can be
-  // turned to is the era-gate now.
-  const canWork = (era, terrain, res) =>
-    api.MANIFESTS[era].map.works[terrain] && api.MANIFESTS[era].map.works[terrain][res] != null;
+  // Post-hex-economy the ore verbs live in the STRUCTURE list: bare ground
+  // yields what its terrain is, and a mine is the era-gate.
+  const canMine = (era, res) =>
+    (api.MANIFESTS[era].structures || []).some((st) => st.yield && st.yield.res === res);
   check("copper/tin/bronze absent from the stone manifest",
     !inRes("stone", "copper") && !inRes("stone", "tin") && !inRes("stone", "bronze"));
-  check("no stone-age ground can be turned to ore",
-    !canWork("stone", "hills", "copper") && !canWork("stone", "hills", "tin"));
+  check("no stone-age structure can mine ore",
+    !canMine("stone", "copper") && !canMine("stone", "tin"));
+  check("bronze can mine both halves of the alloy",
+    canMine("bronze", "copper") && canMine("bronze", "tin"));
   check("forge absent from the stone manifest",
     !api.MANIFESTS.stone.buildings.some(b => b.id === "forge"));
   check("stone-era rates have no copper line at all",
@@ -795,8 +863,12 @@ reset();
   S().era = "bronze";
   check("copper/tin/bronze all present in bronze",
     inRes("bronze", "copper") && inRes("bronze", "tin") && inRes("bronze", "bronze"));
-  check("bronze hills can be turned to copper and tin",
-    canWork("bronze", "hills", "copper") && canWork("bronze", "hills", "tin"));
+  check("bronze mines the hills for copper and tin", (() => {
+    const st = api.MANIFESTS.bronze.structures || [];
+    const onHills = (res) => st.some((d) => d.yield && d.yield.res === res &&
+      (d.terrain || []).includes("hills"));
+    return onHills("copper") && onHills("tin");
+  })());
   check("forge appears in bronze", api.isRevealed(forgeDef));
   const copperRes = api.MANIFESTS.bronze.resources.find(r => r.id === "copper");
   const bronzeRes = api.MANIFESTS.bronze.resources.find(r => r.id === "bronze");
@@ -818,7 +890,7 @@ S().era = "bronze";
   S().map.owned = [api.world.home, hills[0].id, hills[1].id];
   S().map.pop = {}; api.ensurePop();
   S().map.pop[hills[0].id] = 4; S().map.pop[hills[1].id] = 4;
-  S().map.work = {}; S().map.work[hills[0].id] = "copper"; S().map.work[hills[1].id] = "tin";
+  S().map.built = {}; S().map.built[hills[0].id] = "copperMine"; S().map.built[hills[1].id] = "tinMine";
   const r = api.rates();
   console.log(`  per hill (4 people): copper ${r.copper.toFixed(3)}/s, tin ${r.tin.toFixed(3)}/s`);
   check("tin is exactly half the copper rate", Math.abs(r.tin - r.copper / 2) < 1e-9);
@@ -867,7 +939,7 @@ console.log("\n--- the food line is honest; no resource ends a tick negative ---
 reset(); api.ensureMap();
 {
   api.setRngSource(() => 0.99);            // no events: measure only the flows
-  for (const id of S().map.owned) { S().map.pop[id] = 3; S().map.work[id] = "food"; }
+  for (const id of S().map.owned) S().map.pop[id] = 3;
   api.syncPopMirror();
   S().res.food = 100;
   api.step();                              // prime growthSpendRate from a real tick
@@ -1526,8 +1598,9 @@ console.log("\n--- C1: the iron manifest ---");
     !has("upgrades", "scouting") && !has("upgrades", "flintSpears"));
   check("the capstone that led here is retired", !has("upgrades", "ironAge"));
   check("iron/steel/gold arrived", has("resources", "iron") && has("resources", "steel") && has("resources", "gold"));
-  check("no ground can be turned to gold or steel (they only arrive, never grow)",
-    Object.values(m.map.works).every((w) => !("gold" in w) && !("steel" in w)));
+  check("no ground and no structure yields gold or steel (they only arrive, never grow)",
+    Object.values(m.map.yields).every((y) => y.res !== "gold" && y.res !== "steel") &&
+    (m.structures || []).every((d) => !d.yield || (d.yield.res !== "gold" && d.yield.res !== "steel")));
   check("new upgrades arrived; the storage line did NOT (storage died era-wide in 4c)",
     has("upgrades", "ironTools") && has("upgrades", "ironWeapons") && has("upgrades", "steelArmor") &&
     !has("buildings", "ironYard") && !has("buildings", "treasury") &&
@@ -1590,7 +1663,7 @@ console.log("\n--- C1: capstone gating and the real transition ---");
   // (storage died in 4c -- the era caps themselves carry the deep larder now)
   S().res = Object.assign(S().res, { food: 450, wood: 450, stone: 450, bronze: 120, copper: 33, tin: 12 });
   api.ensureMap();
-  S().map.work[api.world.home] = "food";   // fed through the 185s build window
+  // (allocation line removed 2026-08-25: ground works its own terrain now)
   api.build(capstone);
   check("capstone queued and paid", S().buildQueue.length === 1 && S().res.bronze === 70);
   S().res.food = 2000;   // the capstone ate 400 of the larder; the hex
@@ -1629,17 +1702,25 @@ console.log("\n--- C1: iron-era economy runs ---");
   api.setRngSource(() => 0.999999);
   reset();
   S().era = "iron";
-  // Tile allocation (6c): iron comes from hills you hold, not a job stepper.
-  S().pop = 5;
-  // Fixture ids no generated world contains: unknown tiles work at par,
-  // which is exactly what this block is measuring.
-  S().map = { seed: 1, gen: 1, tileNoun: "holdfast", owned: ["f1", "f2", "f3", "f4", "f5"],
-    work: { "f1": "food", "f2": "food", "f3": "food", "f4": "iron", "f5": "iron" },
-    pop: { "f1": 4, "f2": 4, "f3": 4, "f4": 4, "f5": 4 } };
+  // Iron comes out of a MINE on hills you hold (2026-08-25). These used to be
+  // fixture ids no world contained, working "at par"; ground has real terrain
+  // now, so the fixture is real hills with real mines on them.
+  api.ensureMap();
+  const oreHills = Object.values(api.world.places)
+    .filter((p) => p.terrain === "hills" && !p.adversary && !p.minor).slice(0, 2);
+  const fed = Object.values(api.world.places)
+    .filter((p) => (p.terrain === "plains" || p.terrain === "river") && !p.adversary && !p.minor).slice(0, 3);
+  S().map.owned = fed.map((p) => p.id).concat(oreHills.map((p) => p.id));
+  if (!S().map.owned.includes(api.world.home)) S().map.owned.push(api.world.home);
+  S().map.pop = {}; api.ensurePop();
+  for (const id of S().map.owned) S().map.pop[id] = 4;
+  S().map.built = {};
+  for (const h of oreHills) S().map.built[h.id] = "ironMine";
+  api.syncPopMirror();
   S().res.food = 200;
   run(30);
-  // 2 iron tiles x 4 people x 0.2/s at par x 30s = 48.
-  check("iron flows from worked hills (2 tiles of 4 people, 30s, ~48)", S().res.iron > 40);
+  // 2 mined hills x 4 people x 0.2/s x rate 1.0 x 30s = 48.
+  check("iron flows from mined hills (2 mines of 4 people, 30s, ~48)", S().res.iron > 40);
   S().builds.forge = 2; S().res.iron = 60; S().res.wood = 40;
   const w0 = S().res.wood;
   // Read the rate rather than restating it: it was hard-coded into five
@@ -2344,7 +2425,7 @@ console.log("\n--- Ledger rates: converter flows shown honestly ---");
   S().map.owned = [api.world.home, hill.id];
   S().map.pop = {}; api.ensurePop();
   S().map.pop[hill.id] = 5;
-  S().map.work = {}; S().map.work[hill.id] = "copper";
+  S().map.built = {}; S().map.built[hill.id] = "copperMine";
   S().res.copper = 0; S().res.tin = 0;
   r = api.ledgerRates();
   check("zero-stock converter consumes no more copper than arrives", r.copper >= -1e-9);
@@ -2373,8 +2454,15 @@ console.log("\n--- Ledger rates: converter flows shown honestly ---");
   S().era = "iron";
   S().pop = 8;
   S().builds.forge = 2;
-  S().map = { seed: 1, gen: 1, tileNoun: "holdfast", owned: ["f1", "f2", "f3"],
-    work: { "f2": "wood", "f3": "wood" }, pop: { "f1": 2, "f2": 4, "f3": 4 } };
+  // Two worked forests and one hex that gives no timber, on real ground.
+  api.ensureMap();
+  const woods = Object.values(api.world.places)
+    .filter((p) => p.terrain === "forest" && !p.adversary && !p.minor).slice(0, 2);
+  S().map.owned = woods.map((p) => p.id);
+  S().map.pop = {}; api.ensurePop();
+  for (const w of woods) S().map.pop[w.id] = 4;
+  S().map.built = {};
+  api.syncPopMirror();
   S().res.iron = 100; S().res.wood = 100;
   r = api.ledgerRates();
   const iRate2 = api.MANIFESTS.iron.buildings.find((b) => b.id === "forge").converts.rate;
@@ -2406,8 +2494,8 @@ console.log("\n--- Phase 3: offline is gone; the save is load-bearing ---");
   // Mid-construction round-trip through the REAL save/load path: the queue
   // survives serialization verbatim and the revived save finishes the build.
   reset();
-  S().res.wood = 100;
-  api.build(findB("dryingRack"));
+  S().res.wood = 100; S().res.stone = 60;
+  api.build(findB("infirmary"));
   run(3);
   const midRemaining = S().buildQueue[0].remaining;
   api.save();
@@ -2417,7 +2505,7 @@ console.log("\n--- Phase 3: offline is gone; the save is load-bearing ---");
     S().buildQueue.length === 1 && Math.abs(S().buildQueue[0].remaining - midRemaining) < 1e-9);
   check("load restores the saved copy, not live state", S().res.wood < 9999);
   run(25);
-  check("the revived save finishes the build", S().builds.dryingRack === 1 && S().buildQueue.length === 0);
+  check("the revived save finishes the build", S().builds.infirmary === 1 && S().buildQueue.length === 0);
 
   // Mid-flight expedition round-trip: a column in the field survives the
   // save, and the revived save resolves it on the world's schedule.
@@ -2481,7 +2569,7 @@ console.log("\n--- Phase 6d: the growth verbs -- minors, settle, routes ---");
     api.routeCost(far) < before);
   S().map.owned = S().map.owned.filter((id) => !line.includes(id));
 
-  // Settle: queued, priced, completes into a holdfast on default bread.
+  // Settle: queued, priced, completes into a holdfast that works its ground.
   const empty = Object.values(api.world.places)
     .find((p) => p.terrain !== "water" && !p.minor && !p.adversary && !S().map.owned.includes(p.id));
   const plan = api.settlePlan(empty.id);
@@ -2494,9 +2582,9 @@ console.log("\n--- Phase 6d: the growth verbs -- minors, settle, routes ---");
   api.setRngSource(() => 0.99);         // hold the world's dice: this checks settle
   run(Math.ceil(plan.time) + 60);       // completion, not event weather -- a sickness
   api.setRngSource(null);               // or raid in ~90s would shift pop (the old flake)
-  check("the party raises a hall: owned, peopled, turned to bread",
+  check("the party raises a hall: owned, peopled, working its own ground",
     S().map.owned.includes(empty.id) && api.hexPop(empty.id) >= 2 && S().pop > popBefore &&
-    S().map.work[empty.id] === "food");
+    !S().map.built[empty.id] && !!api.hexYield(empty.id));
 
   // Capture: a campaign against a minor, forced win, takes the place whole.
   S().builds.musterGround = 1; S().units.soldier = 6; S().res.food = 500;
@@ -2510,9 +2598,9 @@ console.log("\n--- Phase 6d: the growth verbs -- minors, settle, routes ---");
   api.setRngSource(() => 0.0);          // win, no casualty roll fires bad
   api.resolveExpeditions(0.2);
   api.setRngSource(null);
-  check("capture: the tile swears fealty -- owned, peopled, bread by default",
+  check("capture: the tile swears fealty -- owned, peopled, working its ground",
     S().map.owned.includes(mtile) && api.hexPop(mtile) >= 2 && S().pop > popBefore2 &&
-    S().map.work[mtile] === "food");
+    !S().map.built[mtile]);
   check("the whole stock came home", Object.keys(mstock).every((k) => S().res[k] >= mstock[k]));
   check("the minor's remnant is gone -- the Chronicle had the name last",
     S().map.minors[mtile] === undefined);
@@ -2539,7 +2627,6 @@ console.log("\n--- Phase 10: the renderer port keeps the marks ---");
   api.initAdversaries();
   api.ensureMap();
   api.syncDominion();
-  api.defaultAssignments();
 
   const P = (id) => api.world.places[id];
   const home = P(api.world.home);
@@ -2575,36 +2662,41 @@ console.log("\n--- Phase 10: the renderer port keeps the marks ---");
   check("a minor wears a house too, and no label (a map, not a directory)",
     api.markFor(minor).glyph === "\u2302" && !api.markFor(minor).label);
 
-  // Owned country reports what it is WORKING, and every resource letter is
+  // Owned country reports what it PRODUCES, and every resource letter is
   // distinct -- a collision here would be invisible on screen and wrong.
   const ownedId = api.S.map.owned.find((id) => id !== api.world.home);
-  api.S.map.work[ownedId] = "iron";
-  check("owned country wears its work letter", api.markFor(P(ownedId)).glyph === "I");
+  check("owned country wears the letter of what its ground gives",
+    api.markFor(P(ownedId)).glyph === (api.hexYield(ownedId) ? api.markFor(P(ownedId)).glyph : null) &&
+    api.markFor(P(ownedId)).glyph.length > 0);
   // DERIVED FROM THE MANIFESTS, not restated here -- and that is the whole
   // point. This check used to iterate a hardcoded ["food","wood","stone","iron"]
   // and so could never notice that Bronze had put COPPER and TIN on the hills
-  // (2026-08-24): a hex turned to either drew an empty glyph and read as
+  // (2026-08-24): a hex yielding either drew an empty glyph and read as
   // resting, for a day, until the owner spotted it in play. A check that
   // restates the list it is checking is a check that can only ever confirm what
-  // its author already remembered.
+  // its author already remembered. It now sweeps BOTH sources of yield: the
+  // ground itself, and every structure any era can raise on it.
   const workable = new Set();
   for (const m of Object.values(api.MANIFESTS)) {
-    for (const t in (m.map && m.map.works) || {}) {
-      for (const res in m.map.works[t]) workable.add(res);
-    }
+    for (const t in (m.map && m.map.yields) || {}) workable.add(m.map.yields[t].res);
+    for (const d of m.structures || []) if (d.yield) workable.add(d.yield.res);
   }
-  check("there is more than one era's worth of workable resources here", workable.size > 4);
+  check("there is more than one era's worth of yieldable resources here", workable.size > 4);
   const letters = [...workable].map((res) => {
-    api.S.map.work[ownedId] = res;
-    return api.markFor(P(ownedId)).glyph;
+    // Drive the glyph through a structure, which is the only thing that can
+    // make a hex yield something its terrain does not.
+    const fake = { id: "probe:" + res, yield: { res, rate: 1 } };
+    const era = api.MANIFESTS[api.S.era];
+    era.structures.push(fake);
+    api.S.map.built[ownedId] = fake.id;
+    const g = api.markFor(P(ownedId)).glyph;
+    era.structures.pop();
+    delete api.S.map.built[ownedId];
+    return g;
   });
-  check("every resource a hex can be turned to draws a letter",
+  check("every resource a hex can yield draws a letter",
     letters.every((g) => typeof g === "string" && g.length > 0));
   check("...and every letter is distinct", new Set(letters).size === workable.size);
-
-  delete api.S.map.work[ownedId];
-  check("owned country with nothing assigned wears the rest dash (idle's heir)",
-    api.markFor(P(ownedId)).glyph === "—" && api.markFor(P(ownedId)).cls === "rest");
 
   const wild = Object.values(api.world.places)
     .find((x) => !api.isOwned(x.id) && !x.adversary && !x.minor && x.id !== api.world.home
@@ -2617,29 +2709,33 @@ console.log("\n--- Phase 10: the renderer port keeps the marks ---");
   // you look at most. The house is still the primary mark; the work rides
   // beside it as `sub`.
   const homeId = api.world.home;
-  api.S.map.work[homeId] = "wood";
   const hm = api.markFor(P(homeId));
   check("your seat still wears the house first", hm.glyph === "⌂" && hm.cls === "home");
-  check("...and now reports what it is working", hm.sub && hm.sub.glyph === "W" && hm.sub.cls === "work");
+  check("...and now reports what its ground gives", hm.sub && hm.sub.glyph.length > 0 && hm.sub.cls === "work");
   // Read through a guard, not a dot: if a regression drops `sub` entirely this
   // must report as a failed CHECK, not a TypeError that kills the run and hides
   // every check after it.
   const subOf = (id) => (api.markFor(P(id)).sub || {});
+  // The seat reports through a STRUCTURE the same way ordinary ground does --
+  // same letters, same table. Driven through probe structures because terrain
+  // alone only ever gives three of the resources.
   const seatLetters = ["food", "wood", "stone", "iron"].map((res) => {
-    api.S.map.work[homeId] = res;
-    return subOf(homeId).glyph;
+    const fake = { id: "probe:" + res, yield: { res, rate: 1 } };
+    const era = api.MANIFESTS[api.S.era];
+    era.structures.push(fake);
+    api.S.map.built[homeId] = fake.id;
+    const g = subOf(homeId).glyph;
+    era.structures.pop();
+    delete api.S.map.built[homeId];
+    return g;
   });
   check("...through every resource, with the same letters ordinary ground uses",
     new Set(seatLetters).size === 4 && seatLetters.join("") === "FWSI");
 
-  delete api.S.map.work[homeId];
-  check("a resting seat says so too, in the same quiet dash",
-    subOf(homeId).glyph === "—" && subOf(homeId).cls === "rest");
-
   // The composite is the ladder's ONLY one. Everything else on the board is a
   // single thing, and a renderer that started drawing `sub` unconditionally
   // would put a dash on every rival's hall.
-  api.S.map.work[ownedId] = "food";
+  // (allocation line removed 2026-08-25: ground works its own terrain now)
   check("ordinary owned country is not composite", !api.markFor(P(ownedId)).sub);
   check("a rival's hall is not composite", !api.markFor(seat).sub);
   check("a steading is not composite", !api.markFor(minor).sub);
@@ -2941,7 +3037,7 @@ console.log("\n--- The march-hold: walls act on resolution, never selection ---"
   check("an ordinary holding accepts one", api.canBuildOn(hex) === true);
 
   // A built march-hold produces nothing and covers its neighbourhood.
-  api.S.map.work[hex] = api.STRUCTURE + "marchHold";
+  api.S.map.built[hex] = "marchHold";
   check("a fortified hex is out of the ledger entirely",
     api.hexProduces(hex) === false && api.hexResource(hex) === null);
   check("it defends the ground it stands on", api.fortStrength(hex) >= api.CONFIG.fortStrength);
@@ -2998,7 +3094,7 @@ console.log("\n--- The march-hold: walls act on resolution, never selection ---"
     for (let i = 0; i < 600; i++) {
       api.setRngSource(null);
       api.S.rngState = 1000 + i;
-      if (fortified) api.S.map.work[fortified] = api.STRUCTURE + "marchHold";
+      if (fortified) api.S.map.built[fortified] = "marchHold";
       const at = api.strikeHex("raid");
       if (at) counts[at] = (counts[at] || 0) + 1;
     }
@@ -3019,14 +3115,25 @@ console.log("\n--- Building on a hex: the farm ---");
   api.initAdversaries();
   api.ensureMap();
   const home = api.world.home;
-  const hex = api.S.map.owned.find((id) => id !== home);
+  // A FARM NEEDS FARMLAND (2026-08-25): structures are terrain-gated, so the
+  // test hex has to be ground a farm may actually stand on.
+  const farmable = Object.values(api.world.places)
+    .find((p) => (p.terrain === "plains" || p.terrain === "river") &&
+      !p.adversary && !p.minor && p.id !== home);
+  if (farmable && !api.isOwned(farmable.id)) api.captureTile(farmable.id);
+  const hex = farmable.id;
   api.S.res.wood = 9999; api.S.res.stone = 9999; api.S.res.food = 9999;
 
-  check("the farm is declared by Bronze and inherited by Iron",
+  check("the farm is declared by Bronze and redeclared by Iron",
     !!api.MANIFESTS.bronze.structures.find((d) => d.id === "farm") &&
     !!api.MANIFESTS.iron.structures.find((d) => d.id === "farm"));
-  check("Stone cannot build anything -- the age declares no structures",
-    (api.MANIFESTS.stone.structures || []).length === 0);
+  check("Stone builds on hexes too -- the camp and the pit are its whole shop",
+    (api.MANIFESTS.stone.structures || []).length === 2);
+  check("a farm belongs on farmland, and nowhere else",
+    api.structureFits("farm", hex) === true && (() => {
+      const hill = Object.values(api.world.places).find((p) => p.terrain === "hills");
+      return !hill || api.structureFits("farm", hill.id) === false;
+    })());
 
   // THE UPGRADE IS THE GATE. Without it the verb does not exist.
   delete api.S.upgrades.farming;
@@ -3053,22 +3160,21 @@ console.log("\n--- Building on a hex: the farm ---");
   const u = api.hexUse(hex);
   check("the finished farm owns the hex's one use", u.kind === "structure" && u.id === "farm");
   check("...and the queue is clear", api.S.buildQueue.length === 0);
-  check("a farmed hex feeds better than the ground ever could",
-    api.hexYield(hex).rate > Math.max(...Object.values(api.MANIFESTS.bronze.map.works).map((w) => w.food || 0)));
+  check("a farmed hex feeds better than any bare ground could",
+    api.hexYield(hex).rate >
+      Math.max(...Object.values(api.MANIFESTS.bronze.map.yields).map((y) => y.res === "food" ? y.rate : 0)));
 
-  // THE ONE USE HOLDS: a built hex cannot also be worked.
-  api.S.map.work[hex] = "wood";
-  check("directing a built hex would replace the structure, not sit beside it",
-    api.hexUse(hex).kind === "resource");
-  api.S.map.work[hex] = api.STRUCTURE + "farm";
+  // THE ONE USE HOLDS.
+  api.S.map.built[hex] = "farm";
   api.launchStructure(hex, "farm");
   check("and you cannot build over a structure with another", api.S.buildQueue.length === 0);
 
   // DEMOLISH: back to plain ground, and nothing comes back.
   const before = { wood: api.S.res.wood, stone: api.S.res.stone };
   api.demolishStructure(hex);
-  check("pulling it down returns the hex to resting ground",
-    api.hexUse(hex).kind === "rest" && api.hexProduces(hex) === false);
+  check("pulling it down returns the hex to bare ground, working its terrain again",
+    api.hexUse(hex).kind === "bare" && api.hexProduces(hex) === true &&
+    api.hexYield(hex).res === api.terrainYield(hex).res);
   check("...with NO refund -- converting is a trade, not a toggle",
     api.S.res.wood === before.wood && api.S.res.stone === before.stone);
 
@@ -3085,86 +3191,77 @@ console.log("\n--- Building on a hex: the farm ---");
   run(60);
   check("the queued build resolves without raising anything on ground you lost",
     api.S.buildQueue.length === 0 && !api.isOwned(doomed));
-  check("...and nothing was silently rebuilt there", !(doomed in api.S.map.work));
+  check("...and nothing was silently rebuilt there", !(doomed in api.S.map.built));
 }
 
-console.log("\n--- One hex, one use: the seam before the content ---");
+console.log("\n--- One hex, one use ---");
 {
-  // Built ahead of the structures that need it (design.md, Building on a Hex).
-  // The point of these checks is that a use the game does not yet HAVE behaves
-  // correctly the moment it appears -- which is the only way to know a seam is
-  // real rather than aspirational.
+  // Built ahead of the structures that needed it (design.md, Building on a
+  // Hex) and rewritten 2026-08-25 when the hex economy simplified the slot: a
+  // hex is BARE -- working the ground it is made of -- or it carries exactly
+  // one structure. There is no third state and nothing to point anywhere.
   reset();
   api.S.era = "iron";
+  api.initAdversaries();
   api.ensureMap();
   const home = api.world.home;
+  api.S.res.wood = 9999; api.S.res.stone = 9999; api.S.res.food = 9999; api.S.res.iron = 9999;
 
-  api.S.map.work[home] = "food";
-  check("a worked hex reports the resource it is turned to",
-    api.hexUse(home).kind === "resource" && api.hexUse(home).res === "food");
-  check("...and it produces", api.hexProduces(home) === true);
-  check("...and hexResource answers with it", api.hexResource(home) === "food");
+  check("a bare hex reports itself as bare, not as a missing answer",
+    api.hexUse(home).kind === "bare");
+  check("...and works its own terrain without being told",
+    api.hexProduces(home) === true &&
+    api.hexResource(home) === api.terrainYield(home).res);
+  check("...at the terrain's rate", api.hexYield(home).rate === api.terrainYield(home).rate);
 
-  delete api.S.map.work[home];
-  check("a resting hex is its own answer, not a missing one",
-    api.hexUse(home).kind === "rest");
-  check("a resting hex produces nothing", api.hexProduces(home) === false);
-  check("...and has no resource", api.hexResource(home) === null);
-
-  // THE USE THE GAME DOES NOT HAVE YET. No structure content exists; the seam
-  // must still classify one correctly, refuse to produce from it, and keep it
-  // out of the resource path entirely.
-  api.S.map.work[home] = api.STRUCTURE + "farm";
+  // A STRUCTURE REPLACES THE GROUND'S YIELD.
+  api.S.map.built[home] = "farm";
   const u = api.hexUse(home);
-  check("a built hex reads as a structure, not as a resource called 'build:farm'",
-    u.kind === "structure" && u.id === "farm");
-  // CORRECTED 2026-08-25: the seam first said a structure never produces, and
-  // the first structure built produces food. A structure occupies a hex INSTEAD
-  // OF working it, which is not the same as yielding nothing -- it may declare a
-  // yield, and the farm does.
+  check("a built hex reads as a structure, by bare id", u.kind === "structure" && u.id === "farm");
   check("a structure that declares a yield produces it",
     api.hexProduces(home) === true && api.hexResource(home) === "food");
   check("...at its OWN flat rate, not the terrain's",
     api.hexYield(home).rate === api.structureDef("farm").yield.rate);
-  check("...which beats every ground in the game at food",
-    Object.values(api.MANIFESTS.bronze.map.works).every((w) => (w.food || 0) < api.hexYield(home).rate));
+  check("...which beats every bare ground in the game at food",
+    Object.values(api.MANIFESTS.iron.map.yields)
+      .every((y) => (y.res === "food" ? y.rate : 0) < api.hexYield(home).rate));
+
   // A structure with nothing to give is a real answer, not a missing one --
-  // which is what a fortification will be.
-  api.S.map.work[home] = api.STRUCTURE + "nothingyet";
+  // which is exactly what a March-hold and a Market are.
+  api.S.map.built[home] = "marchHold";
   check("a structure with no declared yield produces nothing",
     api.hexProduces(home) === false && api.hexResource(home) === null);
-  api.S.map.work[home] = api.STRUCTURE + "farm";
+  check("...and that is true of the Market too, which trades instead of digging",
+    (() => { api.S.map.built[home] = "market";
+      const none = api.hexProduces(home) === false;
+      api.S.map.built[home] = "farm"; return none; })());
 
-  // The real test: the LEDGER must not earn anything from a built hex. This is
-  // the behaviour that used to be right only by accident -- an unknown work
-  // value failed an `in prod` test and fell through.
-  // Rest every other holding, so the food line can only come from this hex and
-  // the comparison means what it says.
-  for (const tid of api.S.map.owned) if (tid !== home) delete api.S.map.work[tid];
+  // The LEDGER must not earn anything from a hex whose structure gives nothing
+  // -- the behaviour that used to be right only by accident.
+  api.S.map.owned = [home];
+  api.S.map.pop = {}; api.ensurePop();
   api.S.map.pop[home] = 20;
-  api.S.map.work[home] = api.STRUCTURE + "nothingyet";
-  const inert = api.rates().food;
-  api.S.map.work[home] = api.STRUCTURE + "farm";
+  api.syncPopMirror();
+  api.S.map.built[home] = "marchHold";
+  const inert = api.rates()[api.terrainYield(home).res];
+  delete api.S.map.built[home];
+  const bare = api.rates()[api.terrainYield(home).res];
+  api.S.map.built[home] = "farm";
   const farmed = api.rates().food;
-  api.S.map.work[home] = "food";
-  const worked = api.rates().food;
   check("a structure with no yield takes the hex out of the ledger entirely", inert === 0);
-  check("a farm feeds better than the same hex worked bare", farmed > worked);
+  check("bare ground earns without being told", bare > 0);
+  check("a farm feeds better than the same hex bare", farmed > bare);
 
   // ONE SLOT, so a second use is unrepresentable rather than merely forbidden.
-  api.S.map.work[home] = api.STRUCTURE + "fortification";
-  check("building over a worked hex replaces the use -- there is nowhere to put both",
-    api.hexResource(home) === null && api.hexUse(home).id === "fortification");
-  api.S.map.work[home] = "wood";
-  check("and reverting restores a plain resource hex",
-    api.hexUse(home).kind === "resource" && api.hexResource(home) === "wood");
-
-  // The prefix is the discriminator, so a resource must never be able to
-  // impersonate a structure or vice versa.
-  check("no era's resource id could be mistaken for a structure",
-    Object.values(api.MANIFESTS).every((m) =>
-      (m.resources || []).every((r) => !r.id.startsWith(api.STRUCTURE))));
+  api.S.map.built[home] = "ironMine";
+  check("building over a hex replaces the use -- there is nowhere to put both",
+    api.hexResource(home) === "iron" && api.hexUse(home).id === "ironMine");
+  delete api.S.map.built[home];
+  check("and clearing it restores the ground's own yield",
+    api.hexUse(home).kind === "bare" &&
+    api.hexResource(home) === api.terrainYield(home).res);
 }
+
 
 console.log("\n--- The odometer: the topline number is a fiction, and stays one ---");
 {
@@ -3228,7 +3325,7 @@ console.log("\n--- The odometer: the topline number is a fiction, and stays one 
   reset();
   api.S.era = "iron";
   api.ensureMap();
-  api.S.map.work[api.world.home] = "food";
+  // (allocation line removed 2026-08-25: ground works its own terrain now)
   const soulsBefore = api.souls();
   api.killAt(api.world.home, 1);
   api.reconcileReservations();
@@ -3552,7 +3649,13 @@ console.log("\n--- Engine rework E4: the frontier starves first ---");
   // Famine: everyone rests, the larder empties, and the drain walks inward.
   for (const id of S().map.owned) S().map.pop[id] = 3;
   api.syncPopMirror();
-  S().map.work = {};             // nobody gathers: pure deficit
+  // PURE DEFICIT. Emptying the allocation map used to do this; ground works
+  // itself now, so nothing-produces has to be built rather than left undone --
+  // a realm that walled every hex and grew nothing on any of them. A March-hold
+  // declares no yield, which is exactly the "produces nothing" case.
+  S().map.built = {};
+  S().era = "iron";              // the age that has walls to build
+  for (const id of S().map.owned) S().map.built[id] = "marchHold";
   S().res.food = 1;
   const seatBefore = api.hexPop(api.world.home);
   run(40);
@@ -3590,7 +3693,7 @@ console.log("\n--- Engine rework E4: the frontier starves first ---");
     reset(); api.closeModal(); api.ensureMap();
     const hex = api.S.map.owned.find((id) => id !== api.world.home);
     const cap = api.capOf(hex);
-    api.S.map.work[api.world.home] = "food";
+    // (allocation line removed 2026-08-25: ground works its own terrain now)
     api.S.res.food = 500;
     api.S.map.pop[hex] = cap;                // full, whatever this ground holds
     api.syncPopMirror();
@@ -3614,7 +3717,7 @@ console.log("\n--- Engine rework E4: the frontier starves first ---");
   // tombstone for a mechanic that shipped and was reversed.
   reset(); api.closeModal(); api.ensureMap();
   const emptied = S().map.owned.find((id) => id !== api.world.home);
-  S().map.work[api.world.home] = "food";
+  // (allocation line removed 2026-08-25: ground works its own terrain now)
   S().res.food = 100;
   api.killAt(emptied, 99);
   check("emptying a holding loses it immediately, however it emptied",
@@ -3637,10 +3740,10 @@ console.log("\n--- Engine rework E4: the frontier starves first ---");
   // A structure goes with the ground, and there is no refund.
   reset(); api.closeModal(); api.ensureMap();
   const fort = S().map.owned.find((id) => id !== api.world.home);
-  S().map.work[fort] = api.STRUCTURE + "fortification";
+  S().map.built[fort] = "fortification";
   api.killAt(fort, 99);
   check("losing a hex destroys what was built on it",
-    !api.isOwned(fort) && !(fort in S().map.work));
+    !api.isOwned(fort) && !(fort in S().map.built));
 
   // Escalating claims: each hex beyond the trio costs more than the last.
   reset(); api.closeModal(); api.ensureMap();
@@ -3691,7 +3794,7 @@ console.log("\n--- Engine rework E1: population lives on hexes ---");
   // 50-cap on the first tick and upkeep drains that dry. Found the hard way,
   // twice: the first version of this line assigned a forager, and E2 quietly
   // made foragers produce nothing.)
-  api.S.map.work[api.world.home] = "food";
+  // (allocation line removed 2026-08-25: ground works its own terrain now)
   api.setRngSource(() => 0.99);  // and hold the event dice -- an hour of ticks
                                  // makes a lethal raid near-certain on some
                                  // seeds, and growth itself rolls no dice
@@ -3725,10 +3828,10 @@ console.log("\n--- Engine rework E1: population lives on hexes ---");
   // Pinned seed: since E2 the Stone dominion is three hexes, and their
   // TERRAINS (hence caps, hence curves) are the seed's business.
   reset(); api.closeModal(); api.S.seed = 4242; api.S.rngState = 4242;
-  api.ensureMap(); api.S.map.work[api.world.home] = "food"; run(300);
+  api.ensureMap(); run(300);
   const popsA = JSON.stringify(api.S.map.pop);
   reset(); api.closeModal(); api.S.seed = 4242; api.S.rngState = 4242;
-  api.ensureMap(); api.S.map.work[api.world.home] = "food"; run(300);
+  api.ensureMap(); run(300);
   api.setRngSource(null);
   check("the curve is deterministic (bit-identical across runs)",
     JSON.stringify(api.S.map.pop) === popsA);
@@ -3833,12 +3936,20 @@ console.log("\n--- Phase 6b: Conquest Growth G1 -- levy, output, no housing ---"
 
   // Output multiplier: a holdfast works -- and eats -- like the families it holds.
   S().pop = 5; S().units = { soldier: 2, archer: 0, horseman: 0, siegeEngine: 0 };
-  S().map = { seed: 1, gen: 1, tileNoun: "holdfast", owned: ["f1"], work: { "f1": "food" },
-    pop: { "f1": 4 } };
+  // One real hex, four people. Read the declared rate off the ground rather
+  // than assuming it: the terrain is the seed's business.
+  api.ensureMap();
+  const oneHex = api.world.home;
+  S().map.owned = [oneHex];
+  S().map.pop = {}; api.ensurePop();
+  S().map.pop[oneHex] = 4;
+  S().map.built = {};
   S().upgrades = {};
+  const gy = api.terrainYield(oneHex);
   const r = api.rates();
   // outputMult died in E2: four real people at the per-capita rate.
-  check("a worked hex produces per person (4 x 0.2)", Math.abs(r.food - 0.8) < 1e-9);
+  check("a worked hex produces per person (4 x 0.2 x its ground's rate)",
+    Math.abs(r[gy.res] - 4 * 0.2 * gy.rate) < 1e-9);
   check("upkeep charges the people who exist AND the levied bands ((4+2) x 0.04)",
     Math.abs(r.upkeep - 6 * 0.04) < 1e-9);
 
@@ -3998,18 +4109,22 @@ console.log("\n--- Phase 6a: the map exists ---");
   api.save(); api.load(); api.ensureMap();
   check("a world rebuilt from the save is bit-identical", JSON.stringify(api.world) === before);
 
-  // Terrain sets the working rate (6c.1): assign a real tile and expect its
-  // terrain's declared rate, not par.
-  S().seen.levyMigrated = true; S().pop = 2; api.syncDominion();
+  // Terrain sets both WHAT a hex yields and the rate. One hex, three people,
+  // and the ledger must read exactly what the manifest declares for that
+  // ground -- nothing assumed, everything read from the world.
+  S().pop = 2; api.syncDominion();
   const tid = S().map.owned.find((id) => id !== "0,0");
   const terr = api.world.places[tid].terrain;
-  const wRate = api.active().map.works[terr].food;
-  S().map.work = {}; S().map.work[tid] = "food";
+  const decl = api.active().map.yields[terr];
+  S().map.owned = [tid];
+  S().map.pop = {}; api.ensurePop();
   S().map.pop[tid] = 3;   // three people on the ground, exactly
   S().units = { soldier: 0, archer: 0, horseman: 0, siegeEngine: 0 };
-  S().upgrades = {}; S().builds.dryingRack = 0;
-  check("terrain sets the working rate (overpay routes included)",
-    Math.abs(api.rates().food - 3 * 0.2 * wRate) < 1e-9);
+  S().upgrades = {}; S().builds.infirmary = 0;
+  api.syncPopMirror();
+  check("terrain sets what a hex yields", api.hexResource(tid) === decl.res);
+  check("...and the rate the ledger reads",
+    Math.abs(api.rates()[decl.res] - 3 * 0.2 * decl.rate) < 1e-9);
 }
 
 console.log("\n--- Phase 5: asking modals hold the world ---");
@@ -4052,15 +4167,23 @@ console.log("\n--- A converter must be worth the ground that feeds it ---");
   const MAX_COPIES = 10;
   for (const era of ["stone", "bronze", "iron"]) {
     const m = api.MANIFESTS[era];
-    if (!m.map || !m.map.works) continue;
+    if (!m.map || !m.map.yields) continue;
     for (const def of m.buildings) {
       if (!def.converts) continue;
       // The best a single worked hex can yield of each input, at its cap.
+      // Bare ground OR a structure raised on it -- both are ways a hex can
+      // yield, and the binding-input maths has to see both.
       const bestYield = (res) => {
         let best = 0;
-        for (const terr in m.map.works) {
-          const per = m.map.works[terr][res] || 0;
-          best = Math.max(best, per * (m.map.popCaps[terr] || 0));
+        for (const terr in m.map.yields) {
+          const y = m.map.yields[terr];
+          const cap = m.map.popCaps[terr] || 0;
+          if (y.res === res) best = Math.max(best, y.rate * cap);
+          for (const d of m.structures || []) {
+            if (!d.yield || d.yield.res !== res) continue;
+            if (d.terrain && !d.terrain.includes(terr)) continue;
+            best = Math.max(best, d.yield.rate * cap);
+          }
         }
         return best;
       };
@@ -4150,10 +4273,8 @@ console.log("\n--- Seeded RNG: determinism and the source ban ---");
     reset();
     S().seed = 123456789; S().rngState = 123456789;
     api.ensureMap();   // world derives from the seed, so this is deterministic too
-    S().map.work[api.world.home] = "food";
-    S().map.work[S().map.owned[1]] = "wood";
     run(120);
-    api.build(findB("dryingRack"));   // affordable or not, identically in both runs
+    api.build(findB("infirmary"));   // affordable or not, identically in both runs
     run(240);
     return JSON.stringify(S());
   };
@@ -4195,62 +4316,188 @@ console.log("\n--- Seeded RNG: determinism and the source ban ---");
 
 console.log("\n--- The action layer: one seam for every player verb ---");
 {
-  // Allocation was the one verb that lived only as a DOM click handler --
-  // unreachable to a bot, invisible to the journal, unreplayable by a peer.
+  // Every player verb is callable with NO UI in the room, validates on its own,
+  // and records itself. setWork lived here for a day and died with the
+  // allocation choice it made; the DISCIPLINE it was built to enforce is what
+  // these checks actually protect, so they moved to the verbs that survived.
   reset();
+  api.S.era = "bronze";
+  api.initAdversaries();
   api.ensureMap();
-  const seat = api.world.home;
   api.clearJournal();
+  api.S.res.wood = 9999; api.S.res.stone = 9999; api.S.res.food = 9999;
+  api.S.upgrades.farming = true;
+
+  const farmable = Object.values(api.world.places).find((p) =>
+    (p.terrain === "plains" || p.terrain === "river") && !p.adversary && !p.minor &&
+    p.id !== api.world.home);
+  if (farmable && !api.isOwned(farmable.id)) api.captureTile(farmable.id);
+  const hex = farmable.id;
 
   const beforeStamp = api.workStamp();
-  check("setWork is a real verb, callable with no UI in the room",
-    api.setWork(seat, "food") === true && api.hexUse(seat).res === "food");
-  check("allocation bumps the render stamp instead of stringifying the work map",
+  api.launchStructure(hex, "farm");
+  check("a build verb is callable with no UI in the room", api.S.buildQueue.length === 1);
+  run(60);
+  check("...and it lands on the board", api.hexUse(hex).kind === "structure");
+  check("building bumps the render stamp instead of serialising the map",
     api.workStamp() > beforeStamp);
-  check("clearing to rest is the same verb with a null",
-    api.setWork(seat, null) === true && api.hexUse(seat).kind === "rest");
 
-  // Validation lives in the verb now, not in the panel that used to be its
-  // only caller: a bot calling this cannot do what a player could not.
-  check("a hex you do not own refuses the order", api.setWork("999,999", "food") === false);
-  check("a resource this ground cannot work refuses the order",
-    api.setWork(seat, "unobtanium") === false);
+  // TERRAIN GATING lives in the verb, not in the panel that used to be its only
+  // caller: a bot calling this cannot do what a player could not.
+  const hill = Object.values(api.world.places).find((p) => p.terrain === "hills" && !p.adversary && !p.minor);
+  if (hill && !api.isOwned(hill.id)) api.captureTile(hill.id);
+  if (hill) {
+    const q = api.S.buildQueue.length;
+    api.launchStructure(hill.id, "farm");
+    check("a farm on hills is refused by the verb itself", api.S.buildQueue.length === q);
+    api.launchStructure(hill.id, "copperMine");
+    const queued = api.S.buildQueue.length === q + 1;
+    check("...and a copper mine on the same hills is not", queued);
+    if (queued) api.cancelBuild(api.S.buildQueue[api.S.buildQueue.length - 1].uid);
+  }
 
-  // ONE WRITER: every path that touches S.map.work goes through setHexWork,
-  // so the render stamp cannot be forgotten by the eighth caller.
+  // ONE WRITER: every path that touches S.map.built goes through setHexBuild,
+  // so the render stamp cannot be forgotten by the next caller.
   const srcDir = fileURLToPath(new URL("./src", import.meta.url));
   const mapSrc = fs.readFileSync(nodePath.join(srcDir, "map", "map.js"), "utf8");
   const uiSrc = fs.readFileSync(nodePath.join(srcDir, "ui", "map.js"), "utf8");
   const actSrc = fs.readFileSync(nodePath.join(srcDir, "core", "actions.js"), "utf8");
-  const writes = (t) => (t.match(/S\.map\.work\[[^\]]*\]\s*=/g) || []).length;
-  const deletes = (t) => (t.match(/delete\s+S\.map\.work\[/g) || []).length;
-  check("no module outside map.js writes S.map.work directly",
+  const WRITE = new RegExp("S\\.map\\.built\\[[^\\]]*\\]\\s*=", "g");
+  const DEL = new RegExp("delete\\s+S\\.map\\.built\\[", "g");
+  const writes = (t) => (t.match(WRITE) || []).length;
+  const deletes = (t) => (t.match(DEL) || []).length;
+  check("no module outside map.js writes S.map.built directly",
     writes(uiSrc) === 0 && deletes(uiSrc) === 0 &&
     writes(actSrc) === 0 && deletes(actSrc) === 0);
-  check("inside map.js, setHexWork is the only writer",
+  check("inside map.js, setHexBuild is the only writer",
     writes(mapSrc) === 1 && deletes(mapSrc) === 1);
+
+  // THE MARKET: the release valve for one-resource-per-hex, and the shape a
+  // future player-to-player trade would take -- one verb, one counterparty,
+  // today always the bank.
+  api.clearJournal();
+  check("no market, no trade", api.tradeRate() === null && api.trade("food", "wood", 1) === false);
+  api.S.map.built[hex] = "market";
+  const rate = api.tradeRate();
+  check("a market standing opens the bank at its published rate", rate > 1);
+  api.S.res.food = 1000; api.S.res.wood = 0;
+  check("the bank always says yes, at their price", api.trade("food", "wood", 1) === true);
+  check("...taking the rate in and giving one out",
+    api.S.res.wood === 1 && Math.abs(api.S.res.food - (1000 - rate)) < 1e-9);
+  check("trading a resource for itself is refused", api.trade("food", "food", 1) === false);
+  check("trading what you do not have is refused",
+    (api.S.res.tin = 0, api.trade("tin", "wood", 1) === false));
+  check("trading INTO a full store is refused -- the goods would evaporate",
+    (api.S.res.wood = api.caps().wood, api.trade("food", "wood", 1) === false));
+  check("a second market improves the rate, but never to parity", (() => {
+    const two = Object.values(api.world.places).find((p) =>
+      (p.terrain === "plains" || p.terrain === "river") && api.isOwned(p.id) && p.id !== hex);
+    if (!two) return true;
+    api.S.map.built[two.id] = "market";
+    const better = api.tradeRate();
+    return better < rate && better >= api.CONFIG.tradeFloorRate;
+  })());
 
   // The journal: accepted verbs record themselves with the tick they ran on.
   const j = api.journal();
-  check("accepted verbs are journalled", j.length === 2);
+  check("accepted verbs are journalled", j.length > 0);
   check("refused verbs are NOT journalled -- a journal replays what happened",
-    j.every((e) => e.verb === "setWork"));
+    j.every((e) => e.verb === "trade"));
   check("every entry carries a tick and a player from the first entry on",
     j.every((e) => Number.isInteger(e.tick) && e.pid === 0));
-
-  api.clearJournal();
-  S().res.wood = 500; S().res.stone = 500; S().res.food = 500;
-  api.build(findB("dryingRack"));
-  const j2 = api.journal();
-  check("build records itself too", j2.length === 1 && j2[0].verb === "build");
-  check("a refused build records nothing", (() => {
-    api.clearJournal();
-    S().res.wood = 0; S().res.stone = 0; S().res.food = 0;
-    api.build(findB("dryingRack"));
-    return api.journal().length === 0;
-  })());
   check("the journal stays out of the save -- snapshots and tapes have different lifetimes",
     JSON.parse(JSON.stringify(S())).journal === undefined);
+}
+
+
+console.log("\n--- The hex economy: one resource per ground ---");
+{
+  reset(); api.ensureMap();
+
+  // ONE RESOURCE PER TERRAIN. The old works matrix let every ground work
+  // everything at a penalty; balancing it meant tuning an N-by-N table.
+  for (const era of ["stone", "bronze", "iron"]) {
+    const m = api.MANIFESTS[era];
+    check(`${era} declares yields, not the retired works matrix`,
+      !!m.map.yields && m.map.works === undefined);
+    check(`${era}: every terrain names exactly one resource`,
+      Object.values(m.map.yields).every((y) => typeof y.res === "string" && y.rate > 0));
+  }
+  check("declaring the old works matrix is now a LOAD ERROR, not a table nothing reads", (() => {
+    try {
+      const broken = api.extendEra(api.MANIFESTS.stone, {});
+      broken.map.works = { plains: { food: 1 } };
+      api.validateManifests({ test: broken });
+      return false;
+    } catch (e) { return true; }
+  })());
+
+  // BARE GROUND WORKS ITSELF. No allocation verb, no resting hex, no default
+  // to forget to set -- which is what the border bread-default existed for.
+  const bare = api.S.map.owned.find((id) => api.hexUse(id).kind === "bare");
+  check("a fresh dominion is bare and already producing",
+    !!bare && api.hexProduces(bare) === true);
+  check("the ledger earns from every owned hex, not only assigned ones", (() => {
+    const total = Object.values(api.rates()).some((v) => v > 0);
+    return total;
+  })());
+
+  // THE FLOOR GUARANTEE: forest and hills within reach of every seat, on every
+  // continent. This is what makes one-resource-per-hex safe to ship -- without
+  // it a seed can deal a start with no timber and no stone, which is not a hard
+  // opening but a run that cannot build anything.
+  const near = (home, rings) => {
+    const found = new Set();
+    for (const p of Object.values(api.world.places)) {
+      if (p.ocean) continue;
+      if (api.hexDistance(p.q, p.r, api.world.places[home].q, api.world.places[home].r) <= rings) {
+        found.add(p.terrain);
+      }
+    }
+    return found;
+  };
+  for (const c of api.CONTINENTS) {
+    for (const seed of [1, 7, 12345, 90210, 424242]) {
+      reset();
+      api.S.seed = seed; api.S.map = null; api.S.seen = {};
+      api.setPickedContinent(c.id);
+      api.ensureMap();
+      const found = near(api.world.home, 3);
+      check(`${c.id}/${seed}: the seat can reach timber and stone`,
+        found.has("forest") && found.has("hills"));
+      // And the opening actually produces both food and timber, which is the
+      // deadlock the trio-variety rule exists to prevent: claiming costs wood.
+      const opening = new Set(api.S.map.owned.map((id) => api.hexResource(id)));
+      check(`${c.id}/${seed}: the opening trio gives food AND timber`,
+        opening.has("food") && opening.has("wood"));
+    }
+  }
+
+  // CANCELLING ANYTHING THE QUEUE CAN HOLD. defById only knows buildings,
+  // upgrades and units, so cancelling a queued structure or settling party
+  // threw a TypeError and took the tick with it (found 2026-08-25).
+  reset();
+  api.S.era = "bronze"; api.initAdversaries(); api.ensureMap();
+  // Bronze prices its claim in bronze too -- pay for everything the era asks.
+  for (const r of api.MANIFESTS.bronze.resources) api.S.res[r.id] = 9999;
+  api.S.upgrades.farming = true;
+  const target = Object.values(api.world.places).find((p) =>
+    p.terrain !== "water" && !p.adversary && !p.minor && !api.isOwned(p.id));
+  api.launchSettle(target.id);
+  check("a settling party can be cancelled without throwing", (() => {
+    try { api.cancelBuild(api.S.buildQueue[0].uid); return api.S.buildQueue.length === 0; }
+    catch (e) { return false; }
+  })());
+  const plot = Object.values(api.world.places).find((p) =>
+    (p.terrain === "plains" || p.terrain === "river") && api.isOwned(p.id) && p.id !== api.world.home)
+    || Object.values(api.world.places).find((p) =>
+      (p.terrain === "plains" || p.terrain === "river") && !p.adversary && !p.minor && p.id !== api.world.home);
+  if (plot && !api.isOwned(plot.id)) api.captureTile(plot.id);
+  api.launchStructure(plot.id, "farm");
+  check("a queued structure can be cancelled without throwing", (() => {
+    try { api.cancelBuild(api.S.buildQueue[0].uid); return api.S.buildQueue.length === 0; }
+    catch (e) { return false; }
+  })());
 }
 
 

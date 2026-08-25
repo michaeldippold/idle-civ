@@ -78,21 +78,41 @@ export function ensureMap() {
   }
   world = generateMap(S.map.seed, spec, S.map.continent);
   // THE 3-HEX START (owner ruling, 2026-08-23, ratifying the E2 bridge's
-  // accident): a fresh run opens with the seat plus two adjacent land hexes,
-  // so one hex per resource is possible from the first minute -- the stepper
-  // trade-off reborn at hex scale. Deliberately NO terrain-variety guarantee:
-  // wanting the forest you didn't get is the claim verb's first motivation.
+  // accident): a fresh run opens with the seat plus two adjacent land hexes.
+  //
+  // VARIETY IS NOW GUARANTEED (2026-08-25), and the note that used to stand
+  // here -- "deliberately NO terrain-variety guarantee: wanting the forest you
+  // didn't get is the claim verb's first motivation" -- was correct only while
+  // a hex could be pointed at any resource. Under one-resource-per-terrain an
+  // all-river trio yields food and nothing else, and claiming costs wood: the
+  // opening deadlocks on a map that looks perfectly friendly. So the two
+  // neighbours are chosen to widen what you produce, ties broken by the old
+  // stable order so a seed still reproduces exactly.
   if (S.seen.needsStartingTrio) {
     delete S.seen.needsStartingTrio;
     const neighbours = world.places[world.home].adj
       .map((id) => world.places[id])
       .filter((p) => p.terrain !== "water" && !p.adversary && !p.minor)
       .sort((a, b) => (a.r - b.r) || (a.q - b.q));
-    for (const p of neighbours.slice(0, 2)) {
+    const seatRes = (terrainYield(world.home) || {}).res;
+    const taken = new Set([seatRes]);
+    const chosen = [];
+    // First pass: anything that broadens the economy. Second: fill from what
+    // is left, in the same stable order.
+    for (const p of neighbours) {
+      if (chosen.length >= 2) break;
+      const res = (terrainYield(p.id) || {}).res;
+      if (res && !taken.has(res)) { taken.add(res); chosen.push(p); }
+    }
+    for (const p of neighbours) {
+      if (chosen.length >= 2) break;
+      if (!chosen.includes(p)) chosen.push(p);
+    }
+    for (const p of chosen) {
       if (!S.map.owned.includes(p.id)) S.map.owned.push(p.id);
     }
   }
-  if (!S.map.work) S.map.work = {};     // 6a saves predate assignments
+  if (!S.map.built) S.map.built = {};   // what stands on each hex, if anything
   if (!S.map.minors) S.map.minors = {}; // the minors' living remnants
   // Reconcile the minor remnants, initAdversaries-style: a seat without state
   // gets one seeded from the world def; a CAPTURED seat (owned) needs none --
@@ -136,7 +156,7 @@ export function syncDominion() {
   if (!world || !S.map) return;
   const owned = S.map.owned;
   if (!owned.includes(world.home)) owned.unshift(world.home);
-  for (const tid in S.map.work) if (!owned.includes(tid)) setHexWork(tid, null);
+  for (const tid in S.map.built) if (!owned.includes(tid)) setHexBuild(tid, null);
   ensurePop();
   syncPopMirror();
 }
@@ -271,20 +291,10 @@ export function isVisible(id) {
   return isCharted(id) || isSighted(id);
 }
 
-// The designed default for the allocation choice (design.md: any choice
-// ships with a default). A fresh tile-era dominion arrives with every
-// holding turned to FOOD -- every land works it at some rate, and bread is
-// the one thing a settlement cannot wait on (the first border crossing at
-// 12x starved a live playtest before this existed). The player re-directs
-// at leisure; nothing is locked in.
-export function defaultAssignments() {
-  if (!S.map || !S.map.work) return;
-  let assigned = 0;
-  for (const tid of S.map.owned) {
-    if (!S.map.work[tid]) { setHexWork(tid, "food"); assigned += 1; }
-  }
-  return assigned;
-}
+// (defaultAssignments() died here 2026-08-25 with the allocation verb. It
+// existed because a fresh dominion arrived pointed at nothing and starved
+// while the player worked out what a stepper was; ground works itself now,
+// so there is no default left to ship.)
 
 // ---------- Population lives on hexes (engine rework E1) ----------
 // design.md, "Population Lives Somewhere". In E1 this is pure state: it
@@ -307,51 +317,42 @@ export function hexPop(id) {
 
 // The odometer: total population is the SUM of real per-hex numbers.
 // ---------- What a hex IS (the use seam) ----------
-// ONE HEX, ONE USE -- and this is where that law is stated rather than assumed.
-// `S.map.work[id]` has always held a single value, so the law already existed;
-// what did not exist was a name for it, and every reader poked the raw string
-// and inferred what it meant. That is the shape of drift the mark ladder taught
-// us about (ui/map.js): N places deciding the same question is N places to
-// disagree.
+// ONE HEX, ONE USE. A hex is BARE -- working the ground it is made of -- or it
+// carries exactly one STRUCTURE. There is no third state and no parallel town
+// beside the fields (design.md, Building on a Hex).
 //
-// This is deliberately built BEFORE the content that needs it (owner, 2026-08-25:
-// "prep the infrastructure ... like we did when we preemptively separated the
-// visual layer from the map logic layer"). A hex's use is a RESOURCE or a
-// STRUCTURE, never both and never a parallel town -- see design.md, Building on
-// a Hex.
+// SIMPLIFIED 2026-08-25 with the hex economy. The slot used to hold either a
+// chosen RESOURCE ("wood") or a prefixed structure ref ("build:farm"), because
+// a hex could be pointed at any resource its terrain would grudgingly give.
+// Terrain decides that now -- a forest makes wood -- so the slot only ever
+// holds a structure id, the prefix has nothing to disambiguate from, and
+// `S.map.work` became `S.map.built`, which is what it always meant.
 //
-// Structures are stored with a prefix rather than in a second field, which keeps
-// the one-slot law true by construction: there is nowhere to put a second use.
-// The prefixed-ref idiom is already the codebase's (campaign targets are
-// "tile:q,r"), so this reads as house style rather than a trick.
-export const STRUCTURE = "build:";
+// A bare hex is not an idle hex: it works its ground automatically. "Rest" is
+// gone with the allocation verb that needed it.
 
 export function hexUse(id) {
-  const w = (S.map && S.map.work) ? S.map.work[id] : null;
-  if (!w) return { kind: "rest" };
-  if (typeof w === "string" && w.startsWith(STRUCTURE)) {
-    return { kind: "structure", id: w.slice(STRUCTURE.length) };
-  }
-  return { kind: "resource", res: w };
+  const b = (S.map && S.map.built) ? S.map.built[id] : null;
+  return b ? { kind: "structure", id: b } : { kind: "bare" };
 }
 
-// THE ONLY WRITER of S.map.work. Seven places used to poke the object
-// directly, which made the version stamp below impossible to keep honest --
-// an eighth site would simply have forgotten it. Pass null to clear.
+// THE ONLY WRITER of S.map.built. Every path that changes what stands on a hex
+// -- raising, demolishing, capture, losing the ground -- comes through here, so
+// the render stamp below cannot be forgotten by the next caller. Pass null to
+// clear the hex back to bare ground.
 //
-// `workVersion` is a render-cache stamp, not game state: it exists so
-// ui/map.js can ask "did allocation change?" in O(1) instead of
-// JSON.stringify-ing the whole work map five times a second. It deliberately
-// does NOT ride in the save -- a reload rebuilds the stage from nothing, so
-// starting back at zero is correct.
-let workVersion = 0;
-export function workStamp() { return workVersion; }
+// `buildVersion` is a render-cache stamp, not game state: it lets ui/map.js ask
+// "did anything on the board change?" in O(1) instead of serialising the whole
+// map five times a second. It deliberately does NOT ride in the save -- a
+// reload rebuilds the stage from nothing, so starting back at zero is correct.
+let buildVersion = 0;
+export function workStamp() { return buildVersion; }
 
-export function setHexWork(id, value) {
-  if (!S.map || !S.map.work) return;
-  if (value == null) delete S.map.work[id];
-  else S.map.work[id] = value;
-  workVersion += 1;
+export function setHexBuild(id, value) {
+  if (!S.map || !S.map.built) return;
+  if (value == null) delete S.map.built[id];
+  else S.map.built[id] = value;
+  buildVersion += 1;
 }
 
 // WHAT A HEX YIELDS, and the rate it yields it at: `{res, rate}` or null.
@@ -369,19 +370,28 @@ export function setHexWork(id, value) {
 // stands on, which is why it is worth paying for.
 export function hexYield(id) {
   const u = hexUse(id);
-  if (u.kind === "resource") {
-    const terrain = world && world.places[id] ? world.places[id].terrain : null;
-    const works = (active().map && active().map.works) || {};
-    const rate = terrain && works[terrain] && works[terrain][u.res] != null ? works[terrain][u.res] : 1;
-    return { res: u.res, rate };
-  }
   if (u.kind === "structure") {
     const def = structureDef(u.id);
-    // A structure with no declared yield produces nothing -- a fortification is
-    // exactly that, and it is a legitimate answer rather than a missing one.
+    // A structure with no declared yield produces nothing -- a March-hold and
+    // a Market are both exactly that, and it is a legitimate answer rather
+    // than a missing one. A structure REPLACES the ground's own yield, which
+    // is why raising one costs you whatever the hex was already doing.
     return def && def.yield ? { res: def.yield.res, rate: def.yield.rate } : null;
   }
-  return null;
+  // Bare ground works itself. One resource per terrain (2026-08-25): the hex
+  // does not choose and cannot be pointed elsewhere.
+  return terrainYield(id);
+}
+
+// What the GROUND under a hex gives, ignoring anything built on it. Kept
+// separate from hexYield so the interface can say "this forest would give
+// wood" about country you do not own, and so a structure's description can be
+// honest about what it is replacing.
+export function terrainYield(id) {
+  const terrain = world && world.places[id] ? world.places[id].terrain : null;
+  const yields = (active().map && active().map.yields) || {};
+  const y = terrain ? yields[terrain] : null;
+  return y ? { res: y.res, rate: y.rate } : null;
 }
 
 // The structures this era can build. Declared per manifest and inherited, so an
@@ -425,7 +435,7 @@ export function fortStrength(hexId) {
 // How many hexes already carry this structure -- the per-copy cost escalator,
 // derived rather than stored so it can never drift from the board.
 export function structureCount(sid) {
-  if (!S.map || !S.map.work) return 0;
+  if (!S.map || !S.map.built) return 0;
   let n = 0;
   for (const id of S.map.owned) {
     const u = hexUse(id);
@@ -662,7 +672,7 @@ export function loseHexIfEmpty(id) {
   const built = hexUse(id);
   S.map.owned = S.map.owned.filter((t) => t !== id);
   delete S.map.pop[id];
-  setHexWork(id, null);             // the use goes with the ground
+  setHexBuild(id, null);            // whatever stood here goes with the ground
   const noun = (active().map && active().map.tileNoun.singular) || "holding";
   // A structure is destroyed with the hex, and there is no refund -- the same
   // trade the deliberate demolish carries (design.md, Building on a Hex).
@@ -762,7 +772,8 @@ export function captureTile(id, viaSettle) {
   if (!world || !S.map || S.map.owned.includes(id)) return false;
   S.map.owned.push(id);
   delete S.map.minors[id];
-  setHexWork(id, "food");    // the designed default: bread first
+  // New ground arrives BARE and starts working its own terrain at once --
+  // no default to choose and nothing to forget to set.
   ensurePop();               // the new holding enters the books with its party
   syncPopMirror();           // S.pop is a MIRROR: recomputed here, never bumped
                              // by hand (a stray += 1 lived on this line until

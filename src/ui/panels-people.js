@@ -36,6 +36,6 @@ export function renderPeople() {
   const tn = (active().map && active().map.tileNoun) || { plural: "lands" };
   const cap = dominionCap();
   const holds = Number.isFinite(cap) ? ` You hold ${holdsUsed()} of the ${cap} ${tn.plural} this age can govern.` : "";
-  tilesNote.textContent = `Your people work the land they live on — click a ${tn.singular || "hex"} on the map to direct it.${holds}`;
+  tilesNote.textContent = `Your people work whatever ground they live on — click a ${tn.singular || "hex"} to see what could be built there.${holds}`;
   tilesNote.classList.remove("hidden");
 }

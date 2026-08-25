@@ -58,7 +58,7 @@ function copyMapSpec(m) {
     tileNoun: Object.assign({}, m.tileNoun),
     terrains: m.terrains.slice(),
     seats: (m.seats || []).slice(),
-    works: m.works ? JSON.parse(JSON.stringify(m.works)) : null,
+    yields: m.yields ? JSON.parse(JSON.stringify(m.yields)) : null,
     popCaps: m.popCaps ? Object.assign({}, m.popCaps) : null,
     claim: m.claim ? JSON.parse(JSON.stringify(m.claim)) : null,
     dominionCap: m.dominionCap || null,
@@ -250,10 +250,12 @@ for (const era of ERA_ORDER) {
 // The stone fallback is defensive only (a hand-edited save with a bogus era).
 export function active() { return MANIFESTS[S.era] || MANIFESTS.stone; }
 
-// Which building boosts which resource's yield (see mults()). Global and
-// keyed by id -- era-neutral identity data, like icons. If a later era ever
-// remaps a boost, this graduates into the manifests.
-export const BOOST_BUILDING = { food: "dryingRack", wood: "lumberCamp", stone: "stonePit" };
+// (BOOST_BUILDING died here 2026-08-25 with the hex economy. It mapped a
+// resource to the panel building that lifted its rate kingdom-wide -- food to
+// the Drying Racks, wood to the Lumber Camp, stone to the Stone Pit. All three
+// went onto the board as STRUCTURES standing on the ground they improve, where
+// a rival can see them and take them, so a global multiplier keyed by building
+// id has nothing left to point at.)
 
 // ---------- Manifest validator ------------------------------
 // The cross-reference pass, run at load against every compiled manifest: any
@@ -275,9 +277,12 @@ export function validateManifests(manifests) {
     const raidIds = new Set(m.raidTypes.map((r) => r.id));
     const bad = (msg) => problems.push(`[${era}] ${msg}`);
 
-    // Every era allocates hexes (E2), so every mapped era must say what its
-    // terrains can be turned to.
-    if (m.map && !m.map.works) bad("a mapped era needs map.works (what each terrain can be turned to)");
+    // Every mapped era must say what its ground yields. ONE RESOURCE PER
+    // TERRAIN since 2026-08-25: a forest makes wood, and that is the whole
+    // entry. An era that still declares the old `works` matrix is a load
+    // error rather than a table nothing reads.
+    if (m.map && !m.map.yields) bad("a mapped era needs map.yields (what each terrain yields)");
+    if (m.map && m.map.works) bad("map.works is retired (2026-08-25) -- declare map.yields, one resource per terrain");
 
 
     if (m.map) {
@@ -326,12 +331,12 @@ export function validateManifests(manifests) {
         }
         for (const r in mn.stock || {}) if (!resIds.has(r)) bad(`minors stock "${r}", not a resource this era`);
       }
-      for (const t in m.map.works || {}) {
-        if (!m.map.terrains.includes(t)) bad(`map.works keys unknown terrain "${t}"`);
-        for (const r in m.map.works[t]) {
-          if (!resIds.has(r)) bad(`terrain "${t}" works "${r}", not a resource this era`);
-          if (!(m.map.works[t][r] > 0)) bad(`terrain "${t}" works "${r}" at a non-positive rate`);
-        }
+      for (const t in m.map.yields || {}) {
+        const y = m.map.yields[t];
+        if (!m.map.terrains.includes(t)) bad(`map.yields keys unknown terrain "${t}"`);
+        if (!y || typeof y.res !== "string") bad(`terrain "${t}" yields no named resource`);
+        else if (!resIds.has(y.res)) bad(`terrain "${t}" yields "${y.res}", not a resource this era`);
+        if (!(y && y.rate > 0)) bad(`terrain "${t}" yields at a non-positive rate`);
       }
     }
 
@@ -354,14 +359,17 @@ export function validateManifests(manifests) {
         // it in 4c -- and a manifest field nothing reads is a lie in waiting.
         bad(`resource ${r.id} declares capBuilding -- retired in 4c (2026-08-25): caps are flat and era-authored`);
       }
-      const boost = BOOST_BUILDING[r.id];
-      if (boost && !buildIds.has(boost)) bad(`resource ${r.id} boost building "${boost}" is not a building this era`);
     }
-    // The jobs validator died in E2 with the jobs category. Its successor:
-    // every works-table entry must name a resource that exists this era.
-    if (m.map && m.map.works) {
-      for (const t in m.map.works) for (const res in m.map.works[t]) {
-        if (!resIds.has(res)) bad(`works: ${t} can be turned to "${res}", not a resource this era`);
+    // Structures: where they may stand, what they yield, and what unlocks
+    // them all have to resolve INSIDE this era, same rule as everything else.
+    for (const st of m.structures || []) {
+      for (const t of st.terrain || []) {
+        if (!m.map || !m.map.terrains.includes(t)) bad(`structure ${st.id} may stand on "${t}", not a terrain this era`);
+      }
+      if (st.yield && !resIds.has(st.yield.res)) bad(`structure ${st.id} yields "${st.yield.res}", not a resource this era`);
+      if (st.yield && !(st.yield.rate > 0)) bad(`structure ${st.id} yields at a non-positive rate`);
+      if (st.requires && !m.upgrades.some((u) => u.id === st.requires)) {
+        bad(`structure ${st.id} requires "${st.requires}", not an upgrade this era`);
       }
     }
     for (const u of m.units) {

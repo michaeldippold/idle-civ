@@ -14,6 +14,15 @@ export const CONFIG = {
   buildingBonus: 0.12,    // additive production bonus per boost-building
   upkeep: 0.04,           // food/sec eaten by EACH settler (idle or working)
   startPop: 3,
+  // THE BANK RATE (2026-08-25). One resource per hex made the map decisive,
+  // and these three numbers are the whole release valve: give 4 of what you
+  // have for 1 of what you need, improving by 0.5 per extra Market to a floor
+  // of 2. It is always a loss, deliberately -- a market is how a realm SURVIVES
+  // scarcity, never how it gets rich. Catan's 4:1 with a port ladder, and the
+  // same reason: scarcity should start a decision, not end a run.
+  tradeBaseRate: 4,
+  tradeRateStep: 0.5,
+  tradeFloorRate: 2,
   startFood: 12,          // small buffer so you have time to assign a forager
   // (baseHousing and settlerIntervalSeconds died here in E3, with housing and
   // the free-settler timer. Growth is local to hexes and paid for by claiming;

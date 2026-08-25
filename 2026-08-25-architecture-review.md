@@ -453,7 +453,94 @@ comments are unusually well tombstoned overall — the doc rot is concentrated i
 
 ---
 
-## Part X — Suggested sequencing
+## Part X — Design decisions from the 8/25 discussion (addendum)
+
+*Added after the review above, from the design conversation that followed it. These are
+decisions, not findings — recorded here so they land in the docs consolidation (IX.0) as
+canon in `design.md`.*
+
+### XI.1 The hex economy refactor — do now; it's the base system funding everything else
+
+**One resource per hex.** A forest makes wood. The fractional multi-resource yield system
+(every hex producing off-resources at steep penalties) dies. Yields are modified only by
+tech and by resource-specific hex builds (a lumber mill on a forest hex).
+
+**Why:** the fractional system was a release valve for bad map luck implemented at the worst
+layer — inside every hex — which made balancing an N×N penalty matrix where every hex
+partially substitutes for every other. It also produced the hated 0.3-vs-0.4 juggling and
+muted the map's ability to direct the player anywhere. Pure specialization is
+integer-legible, board-readable, and turns terrain into strategy.
+
+**Bad-luck ("mana screw") protection moves to three layers, each one dial:**
+1. **Generator floor guarantee** — every seat (the human's and every adversary's, per the
+   symmetry pillar) is guaranteed a minimum terrain spread within reach (e.g. ≥1 forest and
+   ≥1 hills within two rings). A floor, not equality: variance survives, screw doesn't.
+   Implemented as a seat-placement predicate in the generator (Civ start-bias / Catan
+   beginner-setup precedent). The pregame seat picker already serves as the mulligan.
+2. **The market** — a hex build that unlocks lossy conversion with the bank (e.g. 4:1),
+   rate improved by market tier or tech. Player-agnostic: rates never depend on adversary
+   standing. As a hex build it passes the board-legibility test — scoutable, capturable,
+   burnable; razing a screwed rival's market closes their release valve, which is a
+   competitive 4X interacting with trade correctly.
+3. **Era recipes absorb the demand curve** — Stone runs almost entirely on food and wood
+   (resources the floor makes universal), so any legal seed survives the opening;
+   specialized demands (stone, ore, iron) arrive in later eras when reach, the market, and
+   the military exist to answer scarcity. Beyond these three layers, scarcity is intentional:
+   the map telling you where to expand or whom to fight.
+
+**Architectural hedge:** exchange is a normal action-layer verb like everything else. The
+bank is simply the counterparty that always says yes at a bad rate. If multiplayer ever
+arrives, a player-to-player offer is the same verb with a different counterparty and a
+consent step — no negotiation system exists until then, and with bots it never does.
+
+### XI.2 The construction panel verdict
+
+The construction panel — the last organ of the idle game — dies. Its contents sort by a
+three-way test:
+1. **Can an enemy capture or burn it?** → it's a **hex build** (farm, fort, watchtower,
+   lumber mill, market). One hex = one build holds; the opportunity cost is territorial.
+2. **Is it knowledge, impossible to lose with land?** → it's **tech tree**.
+3. **Is it the seat's own central capacity?** → it's a **capital tier**: the home hex itself
+   levels (Camp → Village → Town → City) as a queued construction, consolidating the old
+   panel's "benefits the whole kingdom" effects — dominion cap, army capacity, possibly era
+   prerequisites ("your seat must be a Town before the Bronze Age"). This keeps the
+   one-great-city fiction, expressed on the board where rivals can scout it.
+
+**Why:** in a competitive 4X the board is the shared truth and panels are private. A hex
+build is scoutable, counterable power; a panel building is invisible power no opponent can
+ever read or interact with. The build *menu* becomes a contextual verb on the hex detail
+panel (options filtered by terrain); the build *queue* survives as the unified timeline of
+everything under construction (hex builds, capital works, era advancement, musters).
+Tuning note held open: the fort likely does defense *and* sight (watchtower effect) as one
+build initially; split later only if it proves too efficient.
+
+### XI.3 Trade and diplomacy at 1.0
+
+**No player-to-player trade, no diplomacy layer, at 1.0.** Bank trade via the market only.
+In two-sided competition, aiding a needier rival is a pure loss; negotiation with bots is
+hollow. The one asterisk, recorded for the multiplayer future: at 3+ players trade becomes
+rational (comparative advantage runs against the field; propping up a weak neighbor checks
+the leader — the TI4/Catan dynamic), which is why the exchange verb stays general (XI.1)
+even though nothing uses it beyond the bank now.
+
+**Flag:** the existing adversary `standing`/grudge mechanic is civ-flavor holdover. When
+this design lands, decide whether standing survives reframed (war-weariness, truce timers)
+or dies with the diplomacy layer.
+
+### XI.4 Caravans — post-1.0, parked on purpose
+
+The caravan concept that *survives* the pivot is logistics, not diplomacy: physical wagons
+on the board servicing **your own** economy — hauling between holdings and your market,
+carrying the bank trades. Because they are objects on hexes, they are interceptable: raiders
+can bleed an economy without storming a fort, armies standing on route hexes get a second
+job, and route security makes fortifications and geography matter. It forces focus on the
+texture of the map — what is the terrain, where are the armies, how far must it travel.
+Parked here deliberately so the word "caravan" in the codebase reads as a surviving concept
+awaiting its system, not dead civ-flavor. **Not 1.0.**
+
+---
+
+## Part XI — Suggested sequencing
 
 1. **Docs Priority 1** — an hour of edits, removes the passages most likely to poison the
    next session (including any Claude Design thread reading from GitHub). If the IX.0
@@ -463,13 +550,19 @@ comments are unusually well tombstoned overall — the doc rot is concentrated i
    two ReferenceError landmines, the grep traps, and the player-visible stale fiction.
 3. **Close the action layer (II.1) and add the journal (II.2)** — small, and it fences the
    seam before more verbs appear.
-4. **The per-player refactor (Part I, all of it, one campaign)** — `players[]`, `tile.owner`,
+4. **The hex economy refactor (X.1) + construction panel verdict (X.2)** — one resource per
+   hex, the generator floor, the market, the three-bucket building sort, the capital tier.
+   This is the base system that funds every other gameplay element, and doing it first
+   *shrinks* the per-player refactor: `rates()`/`hexYield` get simpler before the `pid`
+   threading touches them, and the dead panel means fewer call sites to convert.
+5. **The per-player refactor (Part I, all of it, one campaign)** — `players[]`, `tile.owner`,
    per-player fog, seats, `active(civ)`, module-local state onto the player object — with the
    `map/map.js` split (VII) and the event-bus inversion (II.3) done as part of the same pass,
    since they touch the same lines. **Land this before armies-on-hexes.**
-5. **Armies, combat, per-player era content** — built on the new shape, so bots and the
+6. **Armies, combat, per-player era content** — built on the new shape, so bots and the
    human share the systems from birth.
-6. **The IX.0 doc collapse (ten → four) + Priorities 2-4** — best done at a hold near the
+7. **The IX.0 doc collapse (ten → four) + Priorities 2-4** — best done at a hold near the
    refactor, since the refactor obsoletes further passages anyway and `tech.md`'s rewrite
-   should describe the new state shape, not the old one.
-7. **Performance items (Part V)** — when hex counts grow; measure first, per your own rule.
+   should describe the new state shape, not the old one. Carry the Part X decisions into
+   `design.md` as canon during the collapse (caravans marked **post-1.0** explicitly).
+8. **Performance items (Part V)** — when hex counts grow; measure first, per your own rule.

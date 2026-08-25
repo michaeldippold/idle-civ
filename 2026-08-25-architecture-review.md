@@ -20,9 +20,11 @@ subtraction. Line numbers are as of commit `a26881a`.*
 > - ✅ **Part X.1** — the hex economy, on branch `hex-economy`. One resource per terrain, the
 >   generator floor guarantee, the Market and bank trade. Play-verified. Canon now lives in
 >   `design.md` → *The Hex Economy*; this document's X.1 is the reasoning that produced it.
-> - ⚠️ **Part X.2** — partly open. The boost buildings became hex structures as designed, but the
->   **capital tier** is unbuilt and the **military/civic gates** are an open design call: they pass
->   the burnable test, but where they stand only matters once armies have positions. See `todo.md`.
+> - ✅ **Part X.2** — the Construction panel is retired. The fork resolved differently from this
+>   document's guess and better: the cap-1 unlock gates became **upgrades** (they are techs, and
+>   hexes are too scarce to spend on things that produce nothing), while the Infirmary and Forge
+>   became hex structures — positional healing and a demolishable smelter. Canon in `design.md`.
+>   **The capital tier remains unbuilt**; see `todo.md`.
 >
 > Everything else stands as written.
 

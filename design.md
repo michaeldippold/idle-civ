@@ -692,6 +692,54 @@ actually carry, and losing the frontier is the lesson. Death by starvation remai
 where it should be — a realm whose every hex gives no bread — and the loss condition proper is
 military.
 
+### The Construction Panel Is Retired — one rule set, not parallel tracks *(settled and shipped 2026-08-25)*
+
+**Everything you construct stands on a hex.** The Construction panel is gone, and what was in it
+went to the place it actually belonged, decided by one test: **can an enemy take it or burn it?**
+
+| Was | Is | Why |
+|---|---|---|
+| Drying Racks, Lumber Camp, Stone Pit | **Hex structures** | A kingdom-wide "+12% wood" in a side panel was invisible power — unscoutable, unraidable, unburnable, and it asked nothing of the map. |
+| Medicine Tent / Infirmary | **Hex structure, positional** | See below. |
+| Forge | **Hex structure** | A smelter is a physical works. It costs ground, it can be pulled down, and a rival can burn it. |
+| Barracks, Archery Range, Stables, War Camp, Muster Ground, Siege Workshop | **Upgrades** | See below. |
+
+**The gates are techs, and always were.** A cap-1 building that costs once, waits once, and then
+permanently unlocks a unit is an upgrade wearing a building's costume — the redundancy has been
+there since buildings and upgrades became the same mechanic with different icons. Putting them on
+hexes would have been a category error dressed up as consistency: at seven clearings, two gates
+that produce nothing would cripple a Stone realm. **Knowledge is not land.** The board-legibility
+argument survives intact, because tech is *supposed* to be private: what a rival sees is not your
+Stables, it is your horsemen standing on a hex under your banner.
+
+**Healing is positional** *(owner ruling)*. The infirmary stacked for no reason except that it
+could — three of them anywhere and sickness was solved, which is a standing cost turned into a
+one-time purchase. Standing on ground it covers the hexes within `CONFIG.healRange`, so the second
+one exists because your realm got **wider**, and a corner left uncovered is a real consequence of a
+real choice. The Chronicle says so when nobody was near enough to help. Sickness owns its own
+`resolve()` now, the way conflict does, because the hex has to be chosen *before* anyone can ask
+whether healers cover it — **selection and resolution stay separate**, and nothing the player
+builds may touch where an outbreak lands.
+
+**THE TRADE-OFF THAT DID NOT EXIST BEFORE.** This is the change's real payoff, and it is the
+owner's framing: stacking buildings used to have **no downside at all**. You bought as many
+production boosters as you could afford, because there was never a reason not to. Now every
+building stands on a hex, and the dominion cap means hexes are finite — so **each one built on is
+a hex you cannot use for anything else.** Guns versus butter, expressed as ground. The same law
+already governed the farm and the fort; it now governs everything.
+
+**One rule set, not parallel tracks.** Structures ride in `DEF_INDEX`, `defById` and
+`manifestDiff` like every other def kind, so cross-era lookup, per-era re-dressing and the era
+modal's "what changed" list work identically for everything you can build. Structures were the
+last def kind outside those systems, which was survivable while the only one was the farm and
+wrong the moment the Forge and the Medicine Tent — both re-dressed and re-priced across eras —
+moved onto the board.
+
+**Still open:** the **capital tier** (Camp → Village → Town → City) as the home for dominion cap,
+army capacity and possibly era prerequisites. The era-fact that names it (`panelTitles`
+Settlement / Village / Town) still exists and still re-denominates; it simply has no header to sit
+in since the panel left.
+
 ### Building on a Hex — the design space, and its one law
 
 *(Owner direction, 2026-08-25; **first two structures shipped the same day**. The shape below is the

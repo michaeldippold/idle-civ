@@ -96,15 +96,17 @@ cold start **before** this file's older sections:
    per-resource boost buildings left the Construction panel and became terrain-gated structures;
    the alloy economy became mines you build. The starting trio now arrives full, which killed the
    last load-bearing idle beat in the game.
-   **Still open from X.2 — the construction panel's death, and it forks:**
-   - *Unambiguous:* the **capital tier** (Camp → Village → Town → City as a levelling hex build
-     carrying dominion cap, army capacity and possibly era prerequisites), and the **Forge**
-     becoming a hex build — a smelter is a physical works a rival can burn.
-   - *Genuinely undecided:* the military and civic gates (Barracks, Archery Range, Stables, Siege
-     Workshop, War Camp / Muster Ground, Infirmary). Under the three-bucket test they are hex
-     builds — all of them are burnable — but **where** they stand only starts to matter once
-     armies have positions. Building that now is guessing at a system that does not exist. Decide
-     it with step 6, or take the design call first.
+   ~~**X.2 — the construction panel's death**~~ **SHIPPED 2026-08-25** (canon in `design.md` →
+   *The Construction Panel Is Retired*). The owner's call resolved the fork: the cap-1 unlock
+   gates became **upgrades** (a building that costs once and permanently unlocks a unit is a tech;
+   pricing them in hexes would have crippled a seven-clearing Stone realm — knowledge is not
+   land), while the **Infirmary and Forge became hex structures**. Healing is positional now, the
+   Forge can be demolished, and structures joined `DEF_INDEX`/`defById`/`manifestDiff` so there is
+   one rule set instead of parallel tracks. The panel, its cards, its holdings grid and their CSS
+   are deleted; Upgrades took the left column.
+   **Still open from X.2:** the **capital tier** (Camp → Village → Town → City) as the home for
+   dominion cap, army capacity and possibly era prerequisites. `panelTitles["panel-holdings"]`
+   still re-denominates Settlement → Village → Town and now has no header to sit in.
    - *Live tuning notes, none blocking:* storage caps fill quickly once camps and pits are up
      (accepted — the era is the budget). A realm that spreads hard onto barren ground can still
      go food-negative in the extreme case; real play paces claims by cost and travel time, so it

@@ -42,6 +42,12 @@ purpose**, under the standing rule: consensus, document, commit, then code. The 
    scouting is promoted to prerequisite — scouting buys **warning time** now, not just map
    knowledge.
 
+**The night closed with the docs squared to the new shape:** *What This Game Is* now leads
+`design.md` as the one-screen summary of the settled design, and every doc was swept for language
+still claiming rules tonight overturned (the Premise's units clause, the static-adversary ruling in
+the economy section, the units bans in `map.md` and `interface.md`, the README's genre). Ideating
+is closed; building starts at the queue below.
+
 **Also found in play: the 4b constants are miscalibrated** — dormant at Bronze scale. See the
 correction under 4b. That fix comes FIRST, because the clock only punishes falling behind; on-pace
 friction is the economy's job and it currently isn't doing it.
@@ -394,8 +400,8 @@ size** (the steamroll rule guards chaff-pinning instead: lopsided fights resolve
 the bounded-pieces guarantee (units never inflate, so micro has no substrate at any era); and
 **units persist across eras** — manifests only add, armies rebuild each era (a recurring sink),
 equipment tiers become **era-scoped upgrades** (Bronze Weapons boosts Bronze-era units only; each
-era sells its own, skippable — a bet on your own pace), no disband verb (a soldier is a commitment —
-spend them). All in `design.md` → *Armies Take the Field*.
+era sells its own, skippable — a bet on your own pace; purchasable only while units of that era
+stand, gone at zero), no disband verb (a soldier is a commitment — spend them). All in `design.md` → *Armies Take the Field*.
 
 ### 7 — HELD, DELIBERATELY, AND NOT TO BE LOST
 

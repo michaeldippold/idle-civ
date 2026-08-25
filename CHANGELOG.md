@@ -31,7 +31,15 @@ below is consensus swept into `design.md` and queued in `todo.md`; code follows 
 - **Refined later the same night:** the law reworded to faster-*hands* after the owner caught it
   banning legitimate timing judgment; min group size dropped for the steamroll rule; and **units
   persist across eras** — mixed nonsense armies, rebuild-as-sink, equipment tiers era-scoped (each
-  era sells its own, skippable — a bet on your own pace), no disband verb.
+  era sells its own, skippable — a bet on your own pace; gone at zero units of that era), no
+  disband verb.
+- **The night closed with the docs squared:** *What This Game Is* written at the front of
+  `design.md` as the one-screen summary, and a contradiction sweep across every doc — the Premise's
+  units clause, the static-adversary "ruling stands" in the economy section, the units bans in
+  `map.md` and `interface.md`, the README's genre and pivot history, and a design-forward note at
+  `tech.md`'s era indirection. Performance is retired as a stated rationale anywhere it stood in
+  for the real constraints: simulation is bounded by explainability, animation by the board-game
+  register.
 
 ## 2026-08-25 — A refusal always says why
 

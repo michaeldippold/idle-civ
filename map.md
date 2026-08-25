@@ -67,10 +67,14 @@ per era, that you take one at a time and that visibly become yours. The map was 
 anyone called it a map. Building it is mostly a matter of rendering a thing the design already
 committed to.
 
-**What this arc is not.** No rendered units, no pathing, no movement animation, no tile-by-tile
-micromanagement. `design.md`'s Explicitly Out of Scope is unamended by this document. The map is
-a **readout and a target picker** — it shows you the world and it is where you click to act on
-it. Everything it displays is state the simulation already keeps or would keep anyway.
+**What this arc is not** *(corrected 2026-08-25 — the original entry here banned units outright,
+and that ban fell with the armies design; see `design.md` → Armies Take the Field and the amended
+Explicitly Out of Scope)*. No per-soldier rendering, no pathing-as-spectacle, no unit
+micromanagement — the fidelity ban stands in full. What changed: army **groups** will sit on this
+map as single board-game pieces that step hex to hex via the sink-and-rise the board already owns.
+Until that work lands, the map remains a **readout and a target picker** — it shows you the world
+and it is where you click to act on it — and everything it displays is state the simulation already
+keeps or would keep anyway; the pieces, when they come, are more of the same.
 
 ---
 

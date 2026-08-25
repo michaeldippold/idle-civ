@@ -12,13 +12,61 @@ authority on what is actually built.
 
 ---
 
+## What This Game Is *(the one-screen summary — written 2026-08-25, the night the design settled)*
+
+**A competitive hex-based 4X against a small cast of AI rivals, played in real time you can pause
+and speed up, on a lit 3D board built to feel like a board game come to life.** Two days ago a
+summary of this game would have described something else entirely; this section exists so the whole
+design is stated once, in one place, as it now stands. Everything below it elaborates. `todo.md` →
+START HERE is the authority on which parts are built and which are designed-and-queued.
+
+- **You rule from a seat.** One home hex on a generated continent, a dominion of hexes taken one at
+  a time, and a population that **lives on the ground it works** — people are never a pool you
+  spend, and allocation (which hex works what) is the permanent verb that never retires. Holding
+  far ground costs more than holding near ground; an empty hex is lost; the economy is built to be
+  able to break you.
+
+- **Twelve eras, stone to heat death.** The era advance is the win condition, repeated — each age is
+  a run you win by reaching the next, priced by a capstone the era's flat resource caps are sized
+  just above, so **the era is the budget**. The seat falling is the loss, and the game is losable
+  on purpose: a board game that cannot be lost is pointless, and every number is tuned hard first
+  and walked back on evidence.
+
+- **The rivals keep their own time.** Adversaries are not simulated — each has exactly **one moving
+  part, a hidden era countdown** set at worldgen, and at least one neighbour is always faster than
+  comfortable. Fall behind and the next raid arrives from a different age — a shape you cannot
+  answer, not just a bigger number. The Chronicle tells you the world's news (someone advanced,
+  someone is pressed by troubles of their own); the arithmetic never does anything the Chronicle
+  could not narrate. Their armies arrive uniformly of their era; yours is whatever you have kept.
+
+- **Attention is the scarce resource — never hands.** The world moves in ticks that stop when you
+  pause, when you hide the tab, or when you walk away; nothing is ever missed by leaving. Anything
+  time-critical can be answered from pause with all information on the table, Civ-style. **No order
+  ever gets better by being issued with faster hands; every order may get better by being issued at
+  the right tick — that judgment is the game.**
+
+- **Armies are pieces, not units** *(designed 2026-08-25; queued)*. A handful of groups on the
+  board — the pool never inflates, only the labels do, so one soldier is one star cruiser and micro
+  has no substrate in any era. Groups take positions, march or scout (scouting buys **warning
+  time**), intercept, and fight by simple dice; lopsided fights resolve instantly. Units persist
+  across eras — the last spearman beside the one tank you managed — and rebuilding the army each
+  age, with its era-scoped equipment, is a standing cost of keeping up.
+
+- **What it is never:** twitch input, unit micromanagement, per-soldier rendering, ambient
+  animation, offline progress, or a game you cannot lose. Multiplayer is out of scope but
+  everything is built player-shaped, so the door stays open without being propped.
+
 ## Premise
 
 Take a civilization game — the Civ shape: an economy of resources, choices with real opportunity
 cost, an outside world of rivals you fight, trade with, or absorb — and strip out everything that
-requires graphical fidelity of *units*. No rendered armies. No pathing, no animation, no unit
-micro. What's left is the part of the genre that was always a numbers game: allocate, invest,
-decide whom to act against, live with the result.
+requires graphical *fidelity*: no per-soldier rendering, no marching animation, no unit micro,
+nothing that rewards fast hands. What's left is the part of the genre that was always a
+numbers-and-positions game: allocate, invest, place your few pieces, decide whom to act against,
+live with the result. *(This clause originally banned units on the board outright; the ban narrowed
+twice as the game changed shape under it — the map on 2026-08-22, army pieces on 2026-08-25 — and
+each time what fell was a noun while the fidelity ban underneath held. It now says only what it
+always meant.)*
 
 A simulation runs continuously underneath, so the world moves and resolves on its own schedule
 rather than waiting turn-by-turn for permission. You can pause it, speed it up, and walk away from
@@ -41,6 +89,12 @@ star systems — a civilization board game, played on a living digital tabletop.
   in the early ages. Explicitly not the unit control.
 - **Melvor Idle** — proof that a beloved graphical game can be rebuilt as numbers-and-menus and
   still be genuinely engaging. Cited for austerity, not for idling.
+- **Stellaris** *(added 2026-08-25, when the genre was named)* — prior art for the settled shape:
+  pausable real-time 4X, AI empires on their own tech clocks, armies as pieces over territory, no
+  APM demanded. Every problem this shape hits, Paradox hit first.
+- **Twilight Imperium / Axis & Allies** *(added 2026-08-25)* — the combat-and-pieces grammar for
+  armies on the field: few pieces, simple dice, engagement as a decision. The table half of the
+  digital tabletop.
 
 **Historical note.** This project began as "idle Age of Empires" and drifted, through play, to
 something much closer to lo-fi Civilization. Two diagnostics moved it, both worth keeping: *the fun
@@ -633,15 +687,20 @@ source.** That is the single load-bearing sentence in this section.
 
 #### The antagonist is your own weight
 
-The genre's answer to a wide, rich player is a rival racing you on the same clock — and this game has
-ruled that out on purpose: adversaries are static stocks, *"explicitly not simulated civilizations"*,
-and that ruling stands. It is also why time-farming is safe here in a way it is not in Civ or AoE.
+The genre's answer to a wide, rich player is a rival racing you on the same clock — and at the time
+of this diagnosis the game had ruled that out on purpose: adversaries were static stocks,
+*"explicitly not simulated civilizations"*, which is also why time-farming was safe here in a way it
+is not in Civ or AoE. **Amended later the same day: the era clock re-admitted the race through
+exactly one variable** — see *Every Civilization Keeps Its Own Time* — so time-farming is no longer
+safe. Both pressures stand and do different jobs: your own weight (this section) is the friction of
+playing well at any pace; the clock is the escalation for falling behind. Neither substitutes for
+the other.
 
 The resolution is not to make the world age. **It is to make size itself the difficulty.** If cost
 grows superlinearly with the empire, then succeeding generates its own opposition, and a hundred-hex
 realm is hard to hold *because it is a hundred hexes* — not because something out there levelled up.
-That preserves the static-adversary ruling, costs no new systems, and is what this game's own
-documents keep circling: a stretched dominion should starve and burn first.
+That preserved the static-adversary ruling as it then stood, costs no new systems, and is what this
+game's own documents keep circling: a stretched dominion should starve and burn first.
 
 #### The five changes
 
@@ -927,10 +986,11 @@ military, thriving" is a viable build: a number that is nowhere can have no job.
     **bet on your own pace**: buying is a statement you'll stay in this era long enough to amortize
     it, skipping is a rush commitment, and the speedster next door changes the correct answer. Era
     clock, scouting and the upgrade panel become one connected decision. **Armor tiers take the same
-    shape** (era-scoped), preserving the weapons/armor two-jobs split. *Lean, flagged:* a tier stays
-    purchasable after its era passes while you still field its units — self-limiting, since it only
-    helps aging units — which retires the stranded-dead-resource handling Iron currently applies to
-    `bronzeWeapons`.
+    shape** (era-scoped), preserving the weapons/armor two-jobs split. *Ruled (owner, 2026-08-25):* a tier stays
+    purchasable after its era passes **while at least one unit of that era still stands, and
+    vanishes the moment you hold zero** — production only ever trains the current era, so a past
+    era's roster can only shrink, and its upgrade retires itself with the last man. This also
+    retires the stranded-dead-resource handling Iron currently applies to `bronzeWeapons`.
   - **No disband verb, and existing canon already rules it:** *a soldier is a commitment, never a
     reassignable stat.* You clear levy slots the way the owner already plays board games — by
     spending the men. The desperate attack that exists partly to retire obsolete units is intended
@@ -1887,7 +1947,10 @@ clicking soldiers around terrain, an art budget the project doesn't have. Every 
 banned, and the four entries above are what that rule was really defending. A hex you click to say
 *this holding mines iron*, or to march a column at a neighbour, has none of it: no unit is drawn, no
 unit moves, nothing is pathed, and the art is a finite tile kit rather than an illustrated world. The
-rule was aimed at the right danger and pointed at the wrong noun.
+rule was aimed at the right danger and pointed at the wrong noun. *(And on 2026-08-25 the line
+moved once more, the same way: army groups become single markers stepping hex to hex — board-game
+pieces, not RTS units. Per-unit drawing and pathfinding-as-spectacle stay banned; a piece on a hex
+was never the danger.)*
 
 ---
 

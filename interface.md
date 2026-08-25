@@ -28,8 +28,10 @@ reversal is still load-bearing; this is not a record of every decision ever take
 
 Game-design facts the interface must express, not stylistic preferences.
 
-1. **This is a board game, not an action game.** No rendered units marching around, no twitch
-   input; the game is numbers, labels, form controls and prose — played over a board. The board is
+1. **This is a board game, not an action game.** No twitch input, no per-soldier rendering, no
+   marching animation — though *(2026-08-25)* army groups are coming to the board as single pieces
+   that step hex to hex, TI4-style (`design.md` → Armies Take the Field). The game is numbers,
+   labels, form controls, prose and a few pieces — played over a board. The board is
    **the digital tabletop** (the resolved identity, 2026-08-22: a lit 3D hex diorama, bright and
    warm — `design.md` OQ3, `map.md` §8), with the panels floating on top. The founding-era test
    (*the whole game could be drawn in black pen on ruled paper*) retired with the paper identity;

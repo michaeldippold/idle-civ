@@ -6,11 +6,14 @@
 > see *Where this is going*, below, and `design.md` → *Time, Presence & Pause*. Renaming waits
 > until the pivot is playable.
 
-A civilization game as a **digital tabletop**: a lit 3D hex board in the browser — depth,
-shadows, pieces on a board, bright warm colors — with a numbers-and-choices game underneath and no
-rendered units marching around. Inspired by *Civilization* (decisions with real opportunity cost), *Crusader
-Kings* (a real-time clock you pause, and a world of neighbours you fight, trade with, or win over),
-and *A Dark Room* (start with almost nothing; complexity is earned, never dumped on you).
+A **competitive hex-based 4X** played as a **digital tabletop**: a lit 3D hex board in the browser
+— depth, shadows, pieces on a board, bright warm colors — real time you can pause and speed up, and
+a small cast of AI rivals advancing through the ages on their own hidden clocks *(the clock is
+designed and queued; see below)*. Inspired by *Civilization* (decisions with real opportunity
+cost), *Crusader Kings* and *Stellaris* (a real-time world you pause and accelerate, with
+neighbours you fight, trade with, or win over), *A Dark Room* (start with almost nothing;
+complexity is earned, never dumped on you), and the table itself — *Twilight Imperium*'s
+few-pieces-simple-dice grammar.
 
 The pitch in one line: **you start by foraging for food, and by the end you're deciding the fate of
 star systems — a civilization board game, played on a living digital tabletop.**
@@ -87,10 +90,15 @@ hover**, along with the reason a purchase is refused.
 
 ## Where this is going
 
-The project pivoted on 2026-08-22 from *idle game* to *real-time-with-pause management game*. The
-old contract was **the game never needs you**, which banned every interesting decision. The new one
-is **the game never punishes you for leaving** — nothing expires, nothing is missed, and you can
-stop any time; but the game is meant to be watched.
+The project pivoted twice. On 2026-08-22, from *idle game* to *real-time-with-pause management
+game*: the old contract was **the game never needs you**, which banned every interesting decision;
+the new one is **the game never punishes you for leaving** — nothing expires, nothing is missed,
+and you can stop any time, but the game is meant to be watched. Then on 2026-08-25 the design
+settled into what it had been becoming: a **competitive 4X**. Adversaries advance through eras on
+hidden clocks (one is always faster than comfortable), flat per-era resource caps make each era a
+budget, and armies are designed to take the board as movable pieces — scouting for warning,
+interception, mixed-era forces. `design.md` → *What This Game Is* holds the whole picture in one
+place.
 
 **The mechanical half of that pivot is shipped.** Offline progress is gone and the clock runs only
 while you're looking at it; pause and fast-forward are real player controls on real keys; the

@@ -17,6 +17,12 @@ subtraction. Line numbers are as of commit `a26881a`.*
 >   action journal. (**II.3**, the sim→UI event-bus inversion, is NOT done — it rides with the
 >   per-player refactor.)
 > - ✅ **Part V.3** — the 5Hz `JSON.stringify` in the stage signature, replaced by a work stamp.
+> - ✅ **Part X.1** — the hex economy, on branch `hex-economy`. One resource per terrain, the
+>   generator floor guarantee, the Market and bank trade. Play-verified. Canon now lives in
+>   `design.md` → *The Hex Economy*; this document's X.1 is the reasoning that produced it.
+> - ⚠️ **Part X.2** — partly open. The boost buildings became hex structures as designed, but the
+>   **capital tier** is unbuilt and the **military/civic gates** are an open design call: they pass
+>   the burnable test, but where they stand only matters once armies have positions. See `todo.md`.
 >
 > Everything else stands as written.
 

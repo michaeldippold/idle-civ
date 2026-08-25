@@ -782,17 +782,32 @@ Conflict is the one hazard allowed to end a run (`design.md`, *Failure*), which 
 
 **Status: shipped 2026-08-25.** Design canon in `design.md`, *Building on a Hex*.
 
-`S.map.work[id]` holds **one value per hex** and always has, so "a hex is exactly one thing" was
-already true — what did not exist was a name for it, and every reader poked the raw string and
-inferred meaning. `map/map.js` now owns three accessors and nothing else should read the slot:
+**Simplified 2026-08-25 with the hex economy.** `S.map.work[id]` used to hold either a chosen
+RESOURCE (`"wood"`) or a prefixed structure ref (`"build:farm"`), because a hex could be pointed at
+any resource its terrain would grudgingly give. Terrain decides that now, so the slot only ever
+holds a structure id, the prefix has nothing to disambiguate from, and the field is
+**`S.map.built`** — which is what it always meant. A hex is BARE (working the ground it is made of)
+or it carries exactly one structure. There is no third state.
 
-- **`hexUse(id)`** → `{kind: "rest"}` | `{kind: "resource", res}` | `{kind: "structure", id}`
-- **`hexProduces(id)`** → does this hex yield into the ledger at all
-- **`hexResource(id)`** → the resource, or `null` if resting or built on
+`map/map.js` owns the accessors and nothing else should read the slot:
 
-**Structures live in the same slot behind a `build:` prefix** rather than in a second field, which
-makes a second simultaneous use *unrepresentable* rather than merely forbidden — there is nowhere to
-put one. The prefixed-ref idiom is house style already (campaign targets are `tile:q,r`).
+- **`hexUse(id)`** → `{kind: "bare"}` | `{kind: "structure", id}`
+- **`hexYield(id)`** → `{res, rate}` or `null` — a structure's own yield, else the terrain's
+- **`terrainYield(id)`** → what the GROUND gives, ignoring anything built on it. Kept separate so
+  the interface can say "this forest would give wood" about country you do not own, and so a
+  structure's blurb can be honest about what it is replacing.
+- **`hexProduces(id)`** / **`hexResource(id)`** → the ledger question, and the resource or `null`
+
+**`setHexBuild(id, value)` is the ONLY writer.** Seven places poked the object directly before
+2026-08-25, which made the render stamp impossible to keep honest — an eighth would simply have
+forgotten it. A harness check pins the writer count at one. The stamp (`workStamp()`) is a
+render-cache counter, not game state: it lets `ui/map.js` ask "did anything on the board change?"
+in O(1) instead of `JSON.stringify`-ing the map five times a second, and it deliberately does not
+ride in the save.
+
+**Structures are terrain-gated** via a `terrain: [...]` list on the structure def; no list means
+anywhere. `structureFits(sid, tileId)` is the check, and `launchStructure` enforces it — the UI is
+not the only caller.
 
 **One behaviour was right by accident and is now right by rule.** `rates()` skipped unknown work
 values because they failed an `in prod` test and fell through; a structure answers `null` from

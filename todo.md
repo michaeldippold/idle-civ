@@ -90,12 +90,26 @@ cold start **before** this file's older sections:
 3. ~~**Close the action layer + the journal**~~ **DONE.** `setWork` is a verb; `setHexWork` is
    the only writer of `S.map.work`; `core/journal.js` records every accepted verb as
    `{tick, pid, verb, args}`.
-4. **The hex economy refactor (Part X.1) + the construction panel's death (X.2).** ← **NEXT.**
-   One resource per hex; the generator floor guarantee; the market and bank trade; the
-   three-bucket sort of every building; the capital as a levelling hex build. Do this *before*
-   the per-player refactor: it simplifies `rates()`/`hexYield` before the `pid` threading
-   touches them, and a dead panel is fewer call sites to convert.
-5. **The per-player refactor (review Part I), as one campaign** — `players[]`, `tile.owner`,
+4. **The hex economy (Part X.1)** — ~~one resource per hex, generator floor, market/bank trade~~
+   **SHIPPED 2026-08-25 on branch `hex-economy`** (canon in `design.md` → *The Hex Economy*).
+   Play-verified: "the closest the balance has been since before we added the map." The three
+   per-resource boost buildings left the Construction panel and became terrain-gated structures;
+   the alloy economy became mines you build. The starting trio now arrives full, which killed the
+   last load-bearing idle beat in the game.
+   **Still open from X.2 — the construction panel's death, and it forks:**
+   - *Unambiguous:* the **capital tier** (Camp → Village → Town → City as a levelling hex build
+     carrying dominion cap, army capacity and possibly era prerequisites), and the **Forge**
+     becoming a hex build — a smelter is a physical works a rival can burn.
+   - *Genuinely undecided:* the military and civic gates (Barracks, Archery Range, Stables, Siege
+     Workshop, War Camp / Muster Ground, Infirmary). Under the three-bucket test they are hex
+     builds — all of them are burnable — but **where** they stand only starts to matter once
+     armies have positions. Building that now is guessing at a system that does not exist. Decide
+     it with step 6, or take the design call first.
+   - *Live tuning note:* storage caps fill quickly once camps and pits are up (accepted — the era
+     is the budget). And a realm that spreads hard onto barren ground can still go food-negative
+     in the extreme case; real play paces claims by cost and travel time, so it did not bite,
+     but the ratio is the thing to watch if it ever does.
+5. **The per-player refactor (review Part I), as one campaign** ← **NEXT** — `players[]`, `tile.owner`,
    per-player fog, seats, `active(civ)`, module-local state onto the player object, with the
    `map/map.js` split and the sim→UI event-bus inversion in the same pass. **This is 4d's real
    shape, and it must land BEFORE armies-on-hexes** — armies are the next big state object, and

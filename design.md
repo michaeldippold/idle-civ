@@ -560,8 +560,15 @@ verb that answers overextension with a reward rather than a tax); **terrain-awar
 
 ---
 
-### Allocation — the permanent verb
+### Allocation — the permanent verb *(RETIRED 2026-08-25 — see The Hex Economy below)*
 
+> **DEAD, and the whole section with it.** One resource per terrain replaced the choice this verb
+> made: a forest makes wood, a hex cannot be pointed anywhere, and there is no rest state. The
+> trade-off did not vanish — it moved up to *which ground you claim and what you build on it*,
+> which is where a 4X wants it. Kept only as the reasoning trail for a verb that ran the economy
+> for two months, and because the argument it makes about re-denomination still holds for the
+> verbs that survived.
+>
 > **Half superseded 2026-08-23 by *Population Lives Somewhere*, above.** The verb is unchanged and
 > the section's central argument — that allocation re-denominates rather than retiring — is not
 > only intact but strengthened: it now runs from the FIRST minute rather than arriving at Iron.
@@ -612,6 +619,74 @@ seconds; hex allocation is a decision every few minutes, with expeditions and wa
 filling the gaps. That is probably the right rhythm for the era, but the *density never falls* pillar
 is the one most at risk here, and it is measurable.
 
+### The Hex Economy — one resource per ground *(settled and shipped 2026-08-25)*
+
+**A forest makes wood.** Not "wood at 1.0, food at 0.5, stone at 0.2" — wood. Each terrain yields
+exactly one resource, at one rate, and the hex cannot be pointed anywhere else:
+
+| terrain | yields | rate |
+|---|---|---|
+| plains | food | 1.0 |
+| river | food | 1.3 |
+| forest | wood | 1.0 |
+| hills | stone | 1.0 |
+| water | — | — |
+
+**What this replaced, and why.** The old `works` matrix let every terrain work everything at a
+penalty. It existed to rescue a bad map roll, and it charged three things to do it: the player
+juggled 0.3 of this against 0.4 of that, balancing meant tuning an N-by-N table whose every cell
+moved with every other, and **the map lost its power to send you anywhere**, because everything was
+available everywhere. Bare ground now works itself automatically — there is no allocation verb, no
+resting hex, and no default to forget to set.
+
+**Bad luck is answered at three other layers, each one dial.** This is the part that makes the
+above safe to ship, and it is deliberately not "make every hex flexible again":
+
+1. **The generator floor guarantee.** Every seat gets hills within reach and timber **adjacent**.
+   The distinction is load-bearing: the opening trio is drawn from the seat's neighbours and a
+   claim costs wood, so a seat with forest three rings off and none beside it produces no timber,
+   can never afford a claim, and deadlocks on a map that looks perfectly friendly. A *floor*, not
+   equality — one seat gets a single forest at the edge of its ring and another sits in a timber
+   empire, and that difference is the map being interesting. Civ seeds start bias the same way.
+2. **The Market**, a hex build opening bank trade at 4:1, improving 0.5 per market to a floor of 2.
+   Always a loss, deliberately: a market is how a realm *survives* scarcity, never how it gets
+   rich. Catan's answer, and the same reason — scarcity should start a decision, not end a run.
+3. **Era recipes.** Stone runs on food, wood and stone, the three the floor covers; the specialised
+   demands arrive later, when reach, the market and the military exist to answer them.
+
+**Beyond those three layers, scarcity is intentional.** "I need tin, and the scout just found a
+hills range held by a minor" is the moment this game is *for*. A map where everything is available
+everywhere never forces anyone anywhere.
+
+**Improvement is something you do to a HEX.** The three per-resource boost buildings that used to
+live in the Construction panel — Drying Racks, Lumber Camp, Stone Pit — are structures standing on
+the ground they improve. A kingdom-wide "+12% wood" in a side panel was invisible power: no rival
+could scout it, raid it or burn it, and it asked nothing of the map. The same building on a forest
+hex is a thing you can lose. Multipliers are **tech only** now.
+
+**The alloy economy is something you BUILD.** Hills do not start yielding copper because the
+calendar turned — you sink a mine, and that hills hex stops being a stone hex to do it. Bronze
+wants stone *and* copper *and* tin, all out of the same terrain, which is what makes hills the
+contested ground of that age. Iron does the same with the Iron Mine.
+
+**The starting trio arrives full** *(owner ruling, from live play the same day)*. Your opening
+ground is worked to what its terrain supports from the first frame. This began as an economy bug —
+food is capped by your food ground while every hex adds mouths, so a third-full trio barely fed
+itself and a fourth barren claim tipped it permanently negative — and turned out to be the last
+load-bearing idle beat in the game: "a wanderer joins your settlement" was how you reached viable
+production, which made the opening a *wait*. Ground taken later still arrives as a settling party
+and grows into the place, so a claim stays an investment.
+
+**Known and accepted:** storage caps fill quickly once the camps and pits are up. That is
+*the era is the budget* working — spend it or waste it.
+
+**Open, flagged not scheduled:** famine now **converges** rather than killing. Each death shrinks
+the deficit and emptied frontier hexes fall out of the dominion, so an over-spread realm shrinks
+back to what its ground can feed and stabilises. Total extinction needs the seat itself to feed
+nobody, and the seat is always food terrain by generation — so starvation is a punishing
+correction, not a loss condition. Whether the game should still *have* a starvation loss is an
+open design question.
+
 ### Building on a Hex — the design space, and its one law
 
 *(Owner direction, 2026-08-25; **first two structures shipped the same day**. The shape below is the
@@ -623,9 +698,12 @@ bare ground and forfeits everything else the hex could produce; the **March-hold
 Both follow every rule below without exception, which is the useful thing about having written them
 down first.
 
-**A hex is exactly one thing, and that is not a new rule.** `S.map.work[id]` already holds a single
-value: a hex is turned to food *or* wood *or* stone, never several, with mutually-exclusive controls
-and a `rest` state. Building on a hex widens that same slot rather than adding a second one — a
+**A hex is exactly one thing.** *(Amended 2026-08-25: the slot used to hold either a chosen
+resource or a prefixed structure ref, because a hex could be pointed at any resource its terrain
+would grudgingly give. Terrain decides that now, so the slot only ever holds a structure id and
+`S.map.work` became `S.map.built` — which is what it always meant. A hex is BARE, working the
+ground it is made of, or it carries exactly one structure. There is no rest state.)* Building on a
+hex fills that one slot rather than adding a second one — a
 hex's use is a **resource or a structure**, never both, and never a parallel town alongside its
 fields. *"You are not building a parallel town there, it's either a resource hex or a farm or a
 fortification. Never mixed."*

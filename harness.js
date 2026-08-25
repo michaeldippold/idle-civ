@@ -42,6 +42,7 @@ import * as mContinents from "./src/map/continents.js";
 import * as mMapCore from "./src/map/map.js";
 import * as mMapUi from "./src/ui/map.js";
 import * as mPalette from "./src/core/palette.js";
+import * as mJournal from "./src/core/journal.js";
 import fs from "node:fs";
 import nodePath from "node:path";
 import { fileURLToPath } from "node:url";
@@ -50,7 +51,7 @@ const MODS = [mConfig, mRng, mLib, mStone, mBronze, mIron, mCompile, mIcons, mSt
   mContinents,
   mDerived, mCombat, mEvents, mExped, mStep, mActions, mEra, mLog, mDom,
   mPLedger, mPPeople, mPHold, mPBuy, mExpedUi, mModal, mChrome, mPersist,
-  mMapModel, mMapGen, mMapCore, mMapUi, mPalette];
+  mMapModel, mMapGen, mMapCore, mMapUi, mPalette, mJournal];
 
 function fakeEl() {
   const el = {
@@ -4191,5 +4192,66 @@ console.log("\n--- Seeded RNG: determinism and the source ban ---");
   check("Math.random appears nowhere in src/", offenders.length === 0);
   if (offenders.length) console.log("   offenders:", offenders.join(", "));
 }
+
+console.log("\n--- The action layer: one seam for every player verb ---");
+{
+  // Allocation was the one verb that lived only as a DOM click handler --
+  // unreachable to a bot, invisible to the journal, unreplayable by a peer.
+  reset();
+  api.ensureMap();
+  const seat = api.world.home;
+  api.clearJournal();
+
+  const beforeStamp = api.workStamp();
+  check("setWork is a real verb, callable with no UI in the room",
+    api.setWork(seat, "food") === true && api.hexUse(seat).res === "food");
+  check("allocation bumps the render stamp instead of stringifying the work map",
+    api.workStamp() > beforeStamp);
+  check("clearing to rest is the same verb with a null",
+    api.setWork(seat, null) === true && api.hexUse(seat).kind === "rest");
+
+  // Validation lives in the verb now, not in the panel that used to be its
+  // only caller: a bot calling this cannot do what a player could not.
+  check("a hex you do not own refuses the order", api.setWork("999,999", "food") === false);
+  check("a resource this ground cannot work refuses the order",
+    api.setWork(seat, "unobtanium") === false);
+
+  // ONE WRITER: every path that touches S.map.work goes through setHexWork,
+  // so the render stamp cannot be forgotten by the eighth caller.
+  const srcDir = fileURLToPath(new URL("./src", import.meta.url));
+  const mapSrc = fs.readFileSync(nodePath.join(srcDir, "map", "map.js"), "utf8");
+  const uiSrc = fs.readFileSync(nodePath.join(srcDir, "ui", "map.js"), "utf8");
+  const actSrc = fs.readFileSync(nodePath.join(srcDir, "core", "actions.js"), "utf8");
+  const writes = (t) => (t.match(/S\.map\.work\[[^\]]*\]\s*=/g) || []).length;
+  const deletes = (t) => (t.match(/delete\s+S\.map\.work\[/g) || []).length;
+  check("no module outside map.js writes S.map.work directly",
+    writes(uiSrc) === 0 && deletes(uiSrc) === 0 &&
+    writes(actSrc) === 0 && deletes(actSrc) === 0);
+  check("inside map.js, setHexWork is the only writer",
+    writes(mapSrc) === 1 && deletes(mapSrc) === 1);
+
+  // The journal: accepted verbs record themselves with the tick they ran on.
+  const j = api.journal();
+  check("accepted verbs are journalled", j.length === 2);
+  check("refused verbs are NOT journalled -- a journal replays what happened",
+    j.every((e) => e.verb === "setWork"));
+  check("every entry carries a tick and a player from the first entry on",
+    j.every((e) => Number.isInteger(e.tick) && e.pid === 0));
+
+  api.clearJournal();
+  S().res.wood = 500; S().res.stone = 500; S().res.food = 500;
+  api.build(findB("dryingRack"));
+  const j2 = api.journal();
+  check("build records itself too", j2.length === 1 && j2[0].verb === "build");
+  check("a refused build records nothing", (() => {
+    api.clearJournal();
+    S().res.wood = 0; S().res.stone = 0; S().res.food = 0;
+    api.build(findB("dryingRack"));
+    return api.journal().length === 0;
+  })());
+  check("the journal stays out of the save -- snapshots and tapes have different lifetimes",
+    JSON.parse(JSON.stringify(S())).journal === undefined);
+}
+
 
 console.log(`\n${fails === 0 ? "ALL CHECKS PASSED" : fails + " CHECK(S) FAILED"}`);

@@ -136,7 +136,7 @@ export function syncDominion() {
   if (!world || !S.map) return;
   const owned = S.map.owned;
   if (!owned.includes(world.home)) owned.unshift(world.home);
-  for (const tid in S.map.work) if (!owned.includes(tid)) delete S.map.work[tid];
+  for (const tid in S.map.work) if (!owned.includes(tid)) setHexWork(tid, null);
   ensurePop();
   syncPopMirror();
 }
@@ -281,7 +281,7 @@ export function defaultAssignments() {
   if (!S.map || !S.map.work) return;
   let assigned = 0;
   for (const tid of S.map.owned) {
-    if (!S.map.work[tid]) { S.map.work[tid] = "food"; assigned += 1; }
+    if (!S.map.work[tid]) { setHexWork(tid, "food"); assigned += 1; }
   }
   return assigned;
 }
@@ -333,6 +333,25 @@ export function hexUse(id) {
     return { kind: "structure", id: w.slice(STRUCTURE.length) };
   }
   return { kind: "resource", res: w };
+}
+
+// THE ONLY WRITER of S.map.work. Seven places used to poke the object
+// directly, which made the version stamp below impossible to keep honest --
+// an eighth site would simply have forgotten it. Pass null to clear.
+//
+// `workVersion` is a render-cache stamp, not game state: it exists so
+// ui/map.js can ask "did allocation change?" in O(1) instead of
+// JSON.stringify-ing the whole work map five times a second. It deliberately
+// does NOT ride in the save -- a reload rebuilds the stage from nothing, so
+// starting back at zero is correct.
+let workVersion = 0;
+export function workStamp() { return workVersion; }
+
+export function setHexWork(id, value) {
+  if (!S.map || !S.map.work) return;
+  if (value == null) delete S.map.work[id];
+  else S.map.work[id] = value;
+  workVersion += 1;
 }
 
 // WHAT A HEX YIELDS, and the rate it yields it at: `{res, rate}` or null.
@@ -643,7 +662,7 @@ export function loseHexIfEmpty(id) {
   const built = hexUse(id);
   S.map.owned = S.map.owned.filter((t) => t !== id);
   delete S.map.pop[id];
-  delete S.map.work[id];            // the use goes with the ground
+  setHexWork(id, null);             // the use goes with the ground
   const noun = (active().map && active().map.tileNoun.singular) || "holding";
   // A structure is destroyed with the hex, and there is no refund -- the same
   // trade the deliberate demolish carries (design.md, Building on a Hex).
@@ -743,7 +762,7 @@ export function captureTile(id, viaSettle) {
   if (!world || !S.map || S.map.owned.includes(id)) return false;
   S.map.owned.push(id);
   delete S.map.minors[id];
-  S.map.work[id] = "food";   // the designed default: bread first
+  setHexWork(id, "food");    // the designed default: bread first
   ensurePop();               // the new holding enters the books with its party
   syncPopMirror();           // S.pop is a MIRROR: recomputed here, never bumped
                              // by hand (a stray += 1 lived on this line until

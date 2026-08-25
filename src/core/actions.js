@@ -1,8 +1,9 @@
 import { buildCost, canAfford, civilians, defById, isCapped, levyCap, levyUsed, pendingCount, playtime, reserved } from "./derived.js";
 import { active } from "../content/compile.js";
 import { CONFIG } from "./config.js";
-import { atDominionCap, hexUse, isOwned, marchFactor, routeCost, world, captureTile, STRUCTURE, structureCount, structureDef, syncPopMirror } from "../map/map.js";
+import { atDominionCap, hexUse, isOwned, marchFactor, routeCost, world, captureTile, setHexWork, STRUCTURE, structureCount, structureDef, syncPopMirror } from "../map/map.js";
 import { S } from "./state.js";
+import { record } from "./journal.js";
 import { save } from "./persist.js";
 import { advanceEra } from "../sim/era.js";
 import { fmtTime, renderAll } from "../ui/chrome.js";
@@ -11,6 +12,38 @@ import { log } from "../ui/log.js";
 // ---------- Actions -----------------------------------------
 // assign() -- the stepper verb -- died here in E2. Allocation lives on the
 // map: click a hex, set what its people work.
+//
+// EVERY player verb lives in this file (or sim/expeditions.js) and nowhere
+// else. The rule is not tidiness: a verb that exists only as a DOM click
+// handler is a verb no bot can call, no journal can record and no peer can
+// replay -- so the moment adversaries start using the player's own systems,
+// it is the one move they cannot make. Allocation was exactly that hole
+// until 2026-08-25; see setWork below.
+
+// Set what a hex works, or clear it to rest. `res` null means rest.
+// Returns true if the order took.
+export function setWork(tileId, res) {
+  if (S.dead || !isOwned(tileId)) return false;
+  // A BUILT HEX HAS NO ALLOCATION -- one hex, one use. The UI hides the
+  // buttons, but the verb refuses on its own, because the UI is not the only
+  // caller any more.
+  if (hexUse(tileId).kind === "structure") return false;
+  if (res != null) {
+    // The hex must actually be able to work it this era (terrain x era
+    // yields). Refusing here rather than silently storing a dead assignment
+    // keeps the books honest for whoever asks next.
+    const spec = active().map;
+    const works = spec && spec.works ? spec.works : null;
+    if (works && world && world.places[tileId]) {
+      const row = works[world.places[tileId].terrain];
+      if (row && !(res in row)) return false;
+    }
+  }
+  setHexWork(tileId, res == null ? null : res);
+  record("setWork", { tile: tileId, res: res == null ? null : res }, S.tick);
+  save();
+  return true;
+}
 
 export function build(def) {
   if (S.dead) return;
@@ -27,6 +60,7 @@ export function build(def) {
   for (const k in cost) S.res[k] -= cost[k];
   const wasEmpty = S.buildQueue.length === 0;
   S.buildQueue.push({ id: def.id, kind: def.kind, uid: ++S.buildSeq, total: def.buildTime, remaining: def.buildTime, cost });
+  record("build", { id: def.id, kind: def.kind }, S.tick);
   // Pacing telemetry (console only): stamp the game clock when age research
   // starts, so playtest timing doesn't require watching the clock.
   if (CAPSTONES[def.id]) console.log(`[pacing] ${def.name} research started at ${fmtTime(playtime())} (t${S.tick})`);
@@ -60,6 +94,7 @@ export function cancelBuild(uid) {
   if (S.dead) return;
   const idx = S.buildQueue.findIndex((q) => q.uid === uid);
   if (idx === -1) return;
+  record("cancelBuild", { uid }, S.tick);
   const item = dropQueueItem(idx);
   if (CAPSTONES[item.id]) console.log(`[pacing] ${defById(item.id).name} research cancelled at ${fmtTime(playtime())} (t${S.tick})`);
   log(`Construction of the ${defById(item.id).name} is called off; materials recovered.`);
@@ -110,6 +145,7 @@ export function launchSettle(tileId) {
   if (!plan || pendingSettle(tileId)) return;
   if (!canAfford(plan.cost)) return;
   for (const k in plan.cost) S.res[k] -= plan.cost[k];
+  record("settle", { tile: tileId }, S.tick);
   const terrain = world.places[tileId].terrain;
   S.buildQueue.push({ id: "settle", kind: "settle", uid: ++S.buildSeq,
     total: plan.time, remaining: plan.time, cost: plan.cost,
@@ -166,6 +202,7 @@ export function launchStructure(tileId, sid) {
   const plan = structurePlan(sid);
   if (!plan || !canAfford(plan.cost)) return;
   for (const k in plan.cost) S.res[k] -= plan.cost[k];
+  record("structure", { tile: tileId, id: sid }, S.tick);
   S.buildQueue.push({ id: sid, kind: "structure", uid: ++S.buildSeq,
     total: plan.time, remaining: plan.time, cost: plan.cost,
     tile: tileId, label: `Raising a ${plan.def.name}` });
@@ -181,7 +218,8 @@ export function demolishStructure(tileId) {
   const u = hexUse(tileId);
   if (u.kind !== "structure") return;
   const def = structureDef(u.id);
-  delete S.map.work[tileId];              // back to resting, unbuilt ground
+  record("demolish", { tile: tileId, id: u.id }, S.tick);
+  setHexWork(tileId, null);              // back to resting, unbuilt ground
   log(`The ${def ? def.name : "works"} is pulled down. The ground is plain again, and nothing comes back.`);
   save();
   renderAll();
@@ -197,7 +235,7 @@ export function completeConstruction(site) {
       return;
     }
     const def = structureDef(site.id);
-    S.map.work[site.tile] = STRUCTURE + site.id;
+    setHexWork(site.tile, STRUCTURE + site.id);
     log(`${def ? def.name : "The works"} stands finished. The hex answers to it now.`, "good");
     return;
   }

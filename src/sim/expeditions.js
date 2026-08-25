@@ -5,6 +5,7 @@ import { availableUnits } from "../core/derived.js";
 import { save } from "../core/persist.js";
 import { atDominionCap, captureTile, marchFactor, routeCost, seatOf, syncPopMirror, world } from "../map/map.js";
 import { S } from "../core/state.js";
+import { record } from "../core/journal.js";
 import { armorFactor, weaponMultiplier } from "./combat.js";
 import { renderAll } from "../ui/chrome.js";
 import { log } from "../ui/log.js";
@@ -258,6 +259,7 @@ export function launchCampaign(advId, unitCounts) {
   S.res.food -= provisions;
   S.expeditions.push({ uid: ++S.buildSeq, type: "campaign", adversary: plan.target.ref,
     units: Object.assign({}, unitCounts), total: plan.time, remaining: plan.time });
+  record("campaign", { target: plan.target.ref, units: Object.assign({}, unitCounts) }, S.tick);
   // The word follows the SIZE of the thing that actually left, not an era
   // fact: a handful of spears is a war party in any age, and twenty is a
   // column even in Bronze if you can feed them that far.
@@ -284,6 +286,7 @@ export function launchCaravan(advId, escort) {
     cargo: { res: adv.buys.res, amount: adv.buys.amount }, total: adv.caravanTime, remaining: adv.caravanTime };
   if (guards > 0) ex.units = Object.assign({}, escort);
   S.expeditions.push(ex);
+  record("caravan", { target: advId, escort: guards > 0 ? Object.assign({}, escort) : null }, S.tick);
   log(`A caravan sets out for ${adv.name}, laden with ${adv.buys.amount} ${adv.buys.res}${guards ? `, under guard of ${guards}` : ""}.`);
   save();
   renderAll();

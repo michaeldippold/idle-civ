@@ -2,8 +2,8 @@ import { active } from "../content/compile.js";
 import { S } from "../core/state.js";
 import { canAfford, caps, capWord, seatIsNamed, seatName } from "../core/derived.js";
 import { save } from "../core/persist.js";
-import { canBuildOn, demolishStructure, launchSettle, launchStructure, pendingBuild, pendingSettle, settlePlan, structurePlan, structureUnlocked } from "../core/actions.js";
-import { world, isOwned, isCharted, isVisible, capOf, hexPop, hexResource, hexUse, hexYield, structureDef, atDominionCap, dominionCap, holdsUsed } from "../map/map.js";
+import { canBuildOn, demolishStructure, launchSettle, launchStructure, pendingBuild, pendingSettle, setWork, settlePlan, structurePlan, structureUnlocked } from "../core/actions.js";
+import { world, isOwned, isCharted, isVisible, capOf, hexPop, hexResource, hexUse, hexYield, structureDef, atDominionCap, dominionCap, holdsUsed, workStamp } from "../map/map.js";
 import { FOREIGN, FOREIGN_MINOR, playerColor } from "../core/palette.js";
 import { hexDistance, hexPoints, toPixel } from "../map/model.js";
 import { campaignPlan, expeditionOut, musterBuilt, standingWord } from "../sim/expeditions.js";
@@ -376,10 +376,15 @@ function titleFor(p) {
 // ---------- Stage rendering ---------------------------------
 function signature() {
   if (!world) return "none";
+  // Allocation contributes a monotonic STAMP, not a serialisation of the work
+  // map. This runs on every renderMapStage -- five times a second -- and it
+  // used to JSON.stringify an object that grows with the dominion, in the one
+  // function whose entire job is making the common case cheap. setHexWork is
+  // the only writer, so a counter it bumps is exactly as sensitive and O(1).
   return [S.era, ((S.map && S.map.owned) || []).join("|"),
     ((S.map && S.map.revealed) || []).length,
     ((S.map && S.map.sighted) || []).length,
-    JSON.stringify((S.map && S.map.work) || {}), selectedId].join("~");
+    workStamp(), selectedId].join("~");
 }
 
 // What owned country REPORTS: the resource it is working, or a quiet dash if
@@ -706,11 +711,9 @@ export function initMapStage() {
         return;
       }
       if (act === "work" || act === "rest") {
-        const tid = btn.dataset.tile;
-        if (!isOwned(tid)) return;
-        if (act === "work") S.map.work[tid] = btn.dataset.res;
-        else delete S.map.work[tid];
-        save();               // a player action commits, like any other
+        // Through the action layer like every other verb -- validation,
+        // journalling and the save all live there now, not here.
+        if (!setWork(btn.dataset.tile, act === "work" ? btn.dataset.res : null)) return;
         lastSignature = "";   // the work glyph changed
         renderMapStage();
         renderTileDetail();

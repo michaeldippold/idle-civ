@@ -1,7 +1,7 @@
 import { active } from "../content/compile.js";
 import { DEFAULT_STANCE, stanceById } from "./battle.js";
 import { CONFIG } from "../core/config.js";
-import { isOwned, pathBetween, world } from "../map/map.js";
+import { chartGround, isOwned, pathBetween, world } from "../map/map.js";
 import { S, me, playerById } from "../core/state.js";
 
 // ---------- ARMIES ------------------------------------------
@@ -308,6 +308,9 @@ export function marchArmies(dt, p, hooks) {
       // destination if the very next hex turns out to hold a battle they lose.
       army.lastHex = army.at;
       army.at = next;
+      // The column charts the road it walks (fog.js) -- sticky, like all
+      // charting. This is why your own disc never stands in the void.
+      if (who.id === S.me) chartGround([next]);
       army.step++;
       if (hooks && hooks.entered && hooks.entered(army, who, next) === "halt") break;
       if (army.step >= army.path.length) { arrive(army, who, hooks); break; }

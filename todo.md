@@ -382,10 +382,12 @@ several tempting ideas later, and it should.
    real inbound armies replace raids as a system, and then the system dies whole.
 
    *Found in browser verification of A4, both open:*
-   - **Armies do not emit sight.** Fog gates foreign armies on the *sighted* tier, and nothing makes
-     an army's own hex sighted — so the composition of an enemy you are ACTIVELY FIGHTING can be
-     invisible in the panel. Vision-from-armies belongs to the scouting slice; until then this is a
-     known hole, not a rule.
+   - ~~Armies do not emit sight~~ — **closed 2026-08-26, the day the owner watched his own disc
+     march off the edge of the drawn world.** Two halves, per the fog canon ("sight is emitted by
+     your units..."): a marching column **charts the road it walks** (`chartGround`, fog.js —
+     sticky, like all charting), and **presence is eyes** (`canSeeArmyAt`, ui/map.js — a foreign
+     army is visible when your own stands on or beside its hex, stateless so it moves when the army
+     does). The scouting slice still owns ranges, stances, and anything cleverer.
    - ~~Held ground could be SETTLED out from under its owner~~ — **fixed same day**: `settlePlan`
      only excluded *your* hexes (`isOwned` defaults to the human), latent since the per-player split
      because rivals could not own ordinary hexes before armies. Harness-pinned.

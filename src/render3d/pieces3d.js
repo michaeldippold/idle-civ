@@ -80,6 +80,10 @@ let discGeo = null;
 function makeDisc(color, count, height, selected) {
   if (!discGeo) discGeo = new THREE.CylinderGeometry(1, 1, 1, 24);
   const side = new THREE.MeshStandardMaterial({ color, roughness: 0.55 });
+  // Emissive is pre-wired at zero so hover can lift it without rebuilding the
+  // material -- see setHoveredPiece.
+  side.emissive = new THREE.Color(color);
+  side.emissiveIntensity = 0;
   // THE TOP IS UNLIT. Facing straight up, a lit material takes the sun full
   // on and washes the player colour toward white (owner, from a screenshot:
   // "the much lighter background color on the top is making them harder to
@@ -88,18 +92,23 @@ function makeDisc(color, count, height, selected) {
   // and keep the object looking like an object.
   const top = new THREE.MeshBasicMaterial({ map: topTexture(color, count) });
   const bottom = new THREE.MeshStandardMaterial({ color, roughness: 0.8 });
-  if (selected) {
-    side.emissive = new THREE.Color(color); side.emissiveIntensity = 0.35;
-  }
+  if (selected) side.emissiveIntensity = 0.35;
   const m = new THREE.Mesh(discGeo, [side, top, bottom]);
   m.scale.set(DISC_RADIUS, height, DISC_RADIUS);
   m.castShadow = true;
+  m.userData.baseEmissive = selected ? 0.35 : 0;
   // The hover silhouette: the same cylinder, slightly larger, back faces
   // only, white -- an outline that costs one mesh and no post-processing.
   // A child, so it inherits position and the hop for free; picking uses a
   // non-recursive intersect, so it can never eat its parent's click.
+  // CHARCOAL, NOT WHITE (owner, from two screenshots): a white hull reads
+  // crisply against distant dark terrain and vanishes against a sunlit hex
+  // top two feet away -- the background was deciding whether hover worked.
+  // Dark ink outlines the piece on light ground the way every printed token
+  // is outlined; the emissive lift below covers the dark-ground case, so the
+  // two channels together read on any backdrop.
   const rim = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({
-    color: "#ffffff", side: THREE.BackSide,
+    color: "#12151b", side: THREE.BackSide,
   }));
   rim.scale.set(1.09, 1.06, 1.09);
   rim.visible = false;
@@ -198,12 +207,17 @@ export function pickPiece(raycaster) {
   return hits.length ? hits[0].object.userData.pieceKey : null;
 }
 
-// Hover: the white silhouette on exactly one disc, or none. The stage calls
-// this from pointermove; the disc under the cursor is the disc that lights.
+// Hover: a dark silhouette AND a lift in the body's own glow, on exactly one
+// disc. Two channels because no single one reads everywhere -- the rim wins
+// on bright ground, the glow wins in the dark. The glow stacks on top of the
+// selection glow rather than replacing it.
 export function setHoveredPiece(key) {
   for (const [k, rec] of meshes) {
+    const on = k === key;
     const rim = rec.mesh.children.find((c) => c.name === "rim");
-    if (rim) rim.visible = k === key;
+    if (rim) rim.visible = on;
+    const side = rec.mesh.material[0];
+    side.emissiveIntensity = (rec.mesh.userData.baseEmissive || 0) + (on ? 0.28 : 0);
   }
 }
 

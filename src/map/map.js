@@ -36,7 +36,7 @@ import { syncCharted } from "./fog.js";
 // detail of the package, not of its callers.
 export { world, setPickedContinent } from "./world.js";
 export { claimTile, holdCount, holdings, isOwned, ownerMap, ownerOf, releaseTile } from "./ownership.js";
-export { isCharted, isSighted, isVisible, revealAll, setRevealAll, syncCharted, syncSighted } from "./fog.js";
+export { chartGround, isCharted, isSighted, isVisible, revealAll, setRevealAll, syncCharted, syncSighted } from "./fog.js";
 export {
   builtCount, fortStrength, healersNear, hexProduces, hexResource, hexUse, hexYield,
   setHexBuild, structureCount, structureDef, terrainYield, workStamp,

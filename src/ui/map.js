@@ -294,13 +294,30 @@ function noReachLine() {
 // you are actually SIGHTING its ground -- the fog rule pieces inherited from
 // the banner. Socket by pid, so two players' discs on one contested hex stand
 // apart deterministically.
+// CAN THE PLAYER SEE AN ARMY STANDING HERE? Sighted ground, or PRESENCE:
+// their own army on this hex or beside it. Presence is what closes the
+// logged A4 gap where the enemy you were actively fighting was invisible --
+// your soldiers are standing in front of them, and eyes are things you
+// currently have. Stateless on purpose: presence moves when the army does,
+// which is what "sighted is presence, charted is memory" means.
+export function canSeeArmyAt(hexId) {
+  if (isSighted(hexId)) return true;
+  const mineHere = armyAt(hexId, me());
+  if (mineHere) return true;
+  const place = world && world.places[hexId];
+  if (place) {
+    for (const n of place.adj) if (armyAt(n, me())) return true;
+  }
+  return false;
+}
+
 export function piecesForBoard() {
   const out = [];
   if (!world) return out;
   for (const pl of S.players || []) {
     const mine = pl.id === S.me;
     for (const a of (pl.armies || [])) {
-      if (!mine && !isSighted(a.at)) continue;
+      if (!mine && !canSeeArmyAt(a.at)) continue;
       const place = world.places[a.at];
       if (!place) continue;
       const n = armySize(a);
@@ -390,7 +407,7 @@ function armyHTML(p) {
     const a = armyAt(p.id, pl);
     if (!a) continue;
     const mine = pl.id === S.me;
-    if (!mine && !isSighted(p.id)) continue;
+    if (!mine && !canSeeArmyAt(p.id)) continue;
     standing.push(`<button class="map-act army-link${mine ? " mine" : ""}" data-act="viewarmy" data-key="${
       pl.id}:${a.uid}">\u2691 ${mine ? "Your army" : civLabel(pl)} — ${armySize(a)} \u2192</button>`);
   }

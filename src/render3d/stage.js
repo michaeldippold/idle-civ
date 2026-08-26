@@ -354,37 +354,73 @@ export function setPieces(list) {
   setPieceMeshes(list || [], elev);
 }
 
-// THE MARCH LINE (owner, 2026-08-26): the road itself, drawn from under the
-// selected disc through every hex it has still to walk, ending at the
-// destination ring. The dots said WHICH hexes; the line says the ORDER they
-// come in, which is the difference between knowing the stops and knowing the
-// route -- "not being sure HOW it is going to get there makes the game harder
-// to predict." Dashed, in the player's colour, dying with the selection like
-// every other preview.
-let marchLine = null;
+// THE MARCH TRAIL (owner, 2026-08-26; reworked the same day). First draft was
+// a THREE.Line: one pixel wide on every platform that matters, and a straight
+// segment between two hex centres of different height CUTS THROUGH the higher
+// hex's lip -- both caught by the owner at first sight. The trail is real
+// geometry now: short unlit boxes laid along the route like a board game's
+// printed dashes -- thickness, dashing, and terrain-following out of one
+// mechanism, no addon. The polyline runs centre -> edge -> centre with every
+// point lifted above the TALLER of the two hexes it sits between, so no dash
+// can dip into a hex side. Unlit for the same reason the disc top is: a route
+// marker is a READOUT, and readouts do not get to be washed out by the sun.
+let marchTrail = null;
+const DASH_LEN = 0.20, DASH_GAP = 0.13, DASH_LIFT = 0.10;
 export function setMarchPath(hexIds, colorHex) {
-  if (marchLine) {
-    scene.remove(marchLine);
-    marchLine.geometry.dispose();
-    marchLine.material.dispose();
-    marchLine = null;
+  if (marchTrail) {
+    scene.remove(marchTrail);
+    marchTrail.geometry.dispose();
+    marchTrail.material.dispose();
+    marchTrail = null;
   }
   if (!hexIds || hexIds.length < 2) return;
+  // The route, over the terrain: hex centres plus edge midpoints, each lifted
+  // above the taller neighbour.
   const pts = [];
+  let prev = null;
   for (const id of hexIds) {
     const p = byId[id];
-    if (!p) continue;
+    if (!p) { prev = null; continue; }
     const w = axialToWorld(p.q, p.r);
-    pts.push(new THREE.Vector3(w.x, (elev[id] || 0) + 0.06, w.z));
+    const top = (elev[id] || 0) + DASH_LIFT;
+    if (prev) {
+      const midY = Math.max(prev.y, top);
+      pts.push(new THREE.Vector3((prev.x + w.x) / 2, midY, (prev.z + w.z) / 2));
+    }
+    pts.push(new THREE.Vector3(w.x, top, w.z));
+    prev = { x: w.x, y: top, z: w.z };
   }
   if (pts.length < 2) return;
-  const geo = new THREE.BufferGeometry().setFromPoints(pts);
-  marchLine = new THREE.Line(geo, new THREE.LineDashedMaterial({
-    color: colorHex || "#c3a3ff", dashSize: 0.14, gapSize: 0.09,
-    transparent: true, opacity: 0.9,
-  }));
-  marchLine.computeLineDistances();
-  scene.add(marchLine);
+  // Walk the polyline emitting dash centres at a fixed cadence.
+  const dashes = [];
+  let carry = 0;
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1], b = pts[i];
+    const seg = a.distanceTo(b);
+    if (seg < 1e-6) continue;
+    const dir = b.clone().sub(a).normalize();
+    let t = carry;
+    while (t + DASH_LEN <= seg) {
+      dashes.push({ pos: a.clone().addScaledVector(dir, t + DASH_LEN / 2), dir });
+      t += DASH_LEN + DASH_GAP;
+    }
+    carry = t - seg;
+  }
+  if (!dashes.length) return;
+  const geo = new THREE.BoxGeometry(DASH_LEN, 0.045, 0.085);
+  const mat = new THREE.MeshBasicMaterial({ color: colorHex || "#c3a3ff" });
+  marchTrail = new THREE.InstancedMesh(geo, mat, dashes.length);
+  const m = new THREE.Matrix4();
+  const q = new THREE.Quaternion();
+  const X = new THREE.Vector3(1, 0, 0);
+  const one = new THREE.Vector3(1, 1, 1);
+  for (let i = 0; i < dashes.length; i++) {
+    q.setFromUnitVectors(X, dashes[i].dir);
+    m.compose(dashes[i].pos, q, one);
+    marchTrail.setMatrixAt(i, m);
+  }
+  marchTrail.instanceMatrix.needsUpdate = true;
+  scene.add(marchTrail);
 }
 
 export function setSelected(id) {

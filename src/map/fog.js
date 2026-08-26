@@ -30,6 +30,29 @@ export function syncCharted() {
   }
 }
 
+// AN ARMY CHARTS THE GROUND IT WALKS. The fog canon (review, 2026-08-25)
+// already says sight is emitted by "your units, your structures, and owned
+// hexes" -- armies just never emitted until they became board objects and the
+// owner watched his own disc march off the edge of the drawn world into the
+// void. Marching charts the road and its ring, sticky like all charting: the
+// column walked it, so the realm remembers it. The scouting slice will refine
+// this (stances, ranges); the basic emission is canon already.
+//
+// Additive and me-only, same as syncCharted -- and NOT a loop over armies,
+// because the map package must never import the sim. The marcher calls this
+// with the hex it just landed on.
+export function chartGround(ids) {
+  if (!world || !S.map) return;
+  if (!me().revealed) me().revealed = [];
+  const seen = new Set(me().revealed);
+  for (const id of ids || []) {
+    if (!world.places[id]) continue;
+    seen.add(id);
+    for (const n of world.places[id].adj) seen.add(n);
+  }
+  me().revealed = Array.from(seen);
+}
+
 // QA ONLY (owner request, 2026-08-24): show the whole board, on demand, so a
 // continent's shape can be judged without playing out to it. Deliberately NOT
 // in the save and NOT in the signature -- it is a lens on the world, like

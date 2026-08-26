@@ -5912,6 +5912,36 @@ console.log("\n--- The pieces: discs, tiers, sockets, and who gets drawn ---");
     return sigBefore === false && sigAfter === true;
   })());
 
+  check("a marching column charts the road it walks", (() => {
+    const P3 = api.me();
+    const a = api.armiesOf(P3).find((x) => !x.order) || api.armiesOf(P3)[0];
+    if (!a) return false;
+    // Send it two steps into ground the realm has never seen.
+    const dark = Object.values(api.world.places).find((x) =>
+      x.terrain !== "water" && !api.isCharted(x.id) && api.pathBetween(a.at, x.id, P3));
+    if (!dark) return false;
+    api.orderMarch(a.uid, dark.id, P3);
+    let guard = 0;
+    while (a.order && guard++ < 800) api.marchArmies(1, P3);
+    return a.at === dark.id && api.isCharted(dark.id);
+  })());
+
+  check("presence is eyes: an enemy your army stands beside is visible unsighted", (() => {
+    // The A4 gap, closed: the foe you are actively fighting was invisible
+    // because armies emitted no sight. Presence is stateless -- it moves when
+    // the army does.
+    const P3 = api.me(), R3 = api.rivals()[0];
+    const mineA = api.armiesOf(P3)[0];
+    if (!mineA) return false;
+    const theirs = api.formArmy(api.holdings(R3.id)[0] || land.id, { soldier: 3 }, "never", R3)
+      || api.armiesOf(R3)[0];
+    if (!theirs) return false;
+    theirs.at = mineA.at;                       // squared up on one hex
+    const visible = api.piecesForBoard().some((x) => x.key === R3.id + ":" + theirs.uid);
+    const sighted = api.isSighted(mineA.at);
+    return visible && (sighted || api.canSeeArmyAt(mineA.at));
+  })());
+
   check("scenery scatter never lands inside a piece socket's clearance", (() => {
     // The slot function is deterministic, so sweep it with the REAL hash and
     // the REAL socket table (hex3d.js is pure math and imports no GPU). This

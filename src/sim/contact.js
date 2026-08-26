@@ -6,8 +6,8 @@ import { S, me, playerById } from "../core/state.js";
 import { armiesOf, armyAt, armySize, marchArmies } from "./armies.js";
 import { resolveBattle } from "./battle.js";
 import {
-  atDominionCap, claimTile, ensurePop, isOwned, ownerOf, releaseTile,
-  structureDef, syncCharted, syncPopMirror, world,
+  atDominionCap, chartGround, claimTile, ensurePop, isOwned, ownerOf,
+  releaseTile, structureDef, syncCharted, syncPopMirror, world,
 } from "../map/map.js";
 
 // ---------- CONTACT (slice A4) ------------------------------
@@ -234,6 +234,7 @@ function retreatArmy(p, army, preferred) {
     return;
   }
   army.at = dest;
+  if (p.id === S.me) chartGround([dest]);
   // Falling back onto one of your own armies merges into it, host's stance
   // standing -- the same law as an ordinary arrival, because it is one.
   const host = armiesOf(p).find((a) => a !== army && a.at === dest);

@@ -198,8 +198,78 @@ rather than part of its resolution.
   exact reason they lost, and an improbable win becomes a story worth telling. *"My one infantry
   killed six German tanks"* is a thing that actually happens in Axis & Allies.
 
-*Still open:* whether the counter matrix (archer beats massed) survives as a to-hit modifier or
-dies in favour of differentiated per-unit stats.
+*Owner rulings, 2026-08-26 (second pass):*
+- **NEVER print the odds.** Not "you win this 70% of the time", not ever. Two reasons, and the
+  second is the load-bearing one: no board game does this, and a printed number collapses the
+  decision into a threshold check — the player stops reading the board and starts reading the
+  number, and the skill the game is about evaporates. *"I forbid you to ever tell them the exact
+  odds."*
+- **Legibility is inspectable INPUTS, not computed outputs.** Armies are drawn on the board,
+  clicking one shows its composition, and there is a pause button. That is enough. *"I really do
+  not think players have an excuse for being blindsided besides 'I am bad at the game'. We are
+  building this game for players who constantly check unit strengths when they can see them."*
+  Consequence: the to-hit number must be printed on the unit **everywhere a unit appears**. "6
+  Spearmen" supports no estimate; "6 Spearmen · hits on 7+" is the whole estimate.
+- **The panel always opens** — it is never withheld for being a small fight, because that would
+  hide something the player wanted. It gets a prominent close / "just tell me the result" button;
+  closing it lets the roll-off finish in the background and the Chronicle logs the outcome. The
+  frequency worry answers itself: fanning out into many small battles is a losing strategy, so
+  there will not be many. Default always-show; an option may turn it off, but the game never
+  *infers* the preference from a close.
+- **Past 1–2× speed the animation degrades**, stepping down from rolling dice to faces appearing
+  to a round summary. The battle is computed at once and *presented* as replay, so the panel can
+  never desync from the result and can be closed, reopened (jumping to live), or re-watched.
+- **Withdrawal is a GROUP STANCE**, set once and persistent, not a per-battle or per-dispatch
+  choice — a standing order, which is strategy rather than micro. It must cost something or
+  "withdraw at half" is strictly optimal: pull back to the hex you came from and forfeit the
+  round, so the enemy fires and you do not.
+- **Extra dice per unit is a tech-tree lever.** Power scales through dice count as much as through
+  the to-hit number, which keeps every number on screen legible across twelve eras instead of
+  inflating toward "hits on 2+".
+
+**FORTIFICATIONS, AND THE COUNTER MATRIX'S REPLACEMENT.** The open fork above is closed, and the
+answer is better than either branch: *the counters come from WHERE the fight is happening, not from
+a unit-vs-unit lookup table.*
+
+- **A battle is sealed when it joins.** The roster is fixed at the start — a reinforcement arriving
+  mid-fight cannot join it. This matches the board games, keeps the panel honest (who you see lined
+  up is who is fighting), and forbids drip-feeding units in, which is micro in disguise.
+- **A battle is one ENGAGEMENT; engagements repeat while the hex is contested.** Inside an
+  engagement everything is sealed and scripted; between them armies arrive, stances fire, and
+  fallen walls stay fallen. A siege is a stack of engagements against the same wall pool, and a
+  relief force joins the next one.
+- **While walls stand, the attacker's hits go to the WALLS, not the garrison.** The defenders keep
+  firing the whole time. Cracking a walled hex therefore needs overwhelming force rather than
+  marginal force. When the walls break, it becomes an ordinary fight *in the same engagement* —
+  the roster is sealed, the wall state is not, and that turn is the drama the panel exists to show.
+- **Only ARCHERS fire from inside a fortification.** Melee units stand there and hope the walls
+  hold (owner's idea, 2026-08-26). They are not free hit points — hits go to the walls, so melee
+  in a fort does *nothing at all* until the breach, at which point every one of them wakes up at
+  once. They are the reserve, and they are why storming a breach is terrifying.
+- Therefore archers must be **worse than melee in the open**, or they are strictly better and the
+  choice is fake. A garrison wants archers, a field army wants melee, and a mixed force is a
+  compromise — which is the decision we want to force.
+- **Walls without archers are a TIMER, not a defence.** They absorb hits and buy time for a relief
+  force; they never kill anyone. Garrisoning stays mandatory, and an empty fortification is still
+  strategically worth having.
+- This opens a third slot: a **siege engine**, the only thing that efficiently reduces walls and
+  nearly helpless in an open field. Melee / archer / siege is a rock-paper-scissors the *board*
+  explains, with no matrix to look up.
+- **Population does not fight.** It is the prize, not a participant. An undefended hex falls with
+  no dice and no panel — one Chronicle line. If population fought, every hex would be a battle and
+  armies would be pointless. Spreading wide therefore leaves you genuinely exposed, the same
+  self-correction the food economy already has.
+- The exception is the capital, and walls are its mechanism — which finally gives the **capital
+  tier** (Camp → Village → Town → City) a mechanical job: each tier is a larger wall pool. Growing
+  your capital stops being cosmetic.
+- A structure that is *designed* to shoot (a Tower) may fire a pre-battle volley, the idiom both
+  A&A and TI4 landed on for static defences. Walls themselves do not — one job each.
+
+**THE PANEL CONSTRAINS THE RULES.** Everything that fires in a battle is standing on the hex. No
+adjacency bonuses, no off-board modifiers, no tower two hexes away covering this one. The panel
+must show the player exactly why they lost, and it can only show what it can line up on screen —
+so anything that cannot be drawn as a row of dice cannot be in the combat system. This will kill
+several tempting ideas later, and it should.
 
 7. **Armies, combat, per-player era content** — built on the new shape, so bots and the human
    share the systems from birth. Slice 6 scouting is still the prerequisite.

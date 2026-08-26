@@ -1,22 +1,52 @@
-import { DEF_INDEX, active } from "../content/compile.js";
+import { active } from "../content/compile.js";
 import { S, me } from "../core/state.js";
-import { CONFIG } from "../core/config.js";
-import { rng } from "../core/rng.js";
 import { log } from "../ui/log.js";
-import { CONTINENTS, SIGHT_RANGE } from "./continents.js";
+import { CONTINENTS } from "./continents.js";
 import { generateMap, GEN_VERSION, pickContinent } from "./generate.js";
-import { hexDistance } from "./model.js";
 import { hashStr } from "./model.js";
+import { world, setWorld, pickedContinent } from "./world.js";
+import { claimTile, holdCount, holdings, isOwned, ownerOf, releaseTile } from "./ownership.js";
+import { setHexBuild, structureDef, terrainYield } from "./structures.js";
+import { ensurePop, fillStartingGround, hexPop, syncPopMirror } from "./population.js";
+import { syncCharted } from "./fog.js";
 
-// ---------- The world, wired to state (map.md §2) -----------
-// `world` is runtime geometry, rebuilt from the seed at every load and era
-// entry -- never saved. What persists is S.map, and it is tiny: the sub-seed,
-// the generator version, the tile noun it was cut for, and the mutable
-// per-place facts (today: which tiles are yours). The living remnants that
-// already survive era flips (S.adversaries -- stock, standing, walls) are
-// keyed by adversary id, not geometry, so they reattach to a rebuilt world
-// for free.
-export let world = null;
+// ---------- The map package, and what this file is now ----------
+// SPLIT 2026-08-26 (review Part VII). This file was 917 lines and a third of
+// the simulation wearing a map module's name: fog, population growth, famine,
+// upkeep pricing, pathfinding, combat targeting, structures and capture all
+// lived here, every one of them per-player logic a bot must run.
+//
+// It is the LIFECYCLE and the HUB now -- it builds the world, keeps the
+// dominion honest, and re-exports the package so nothing outside had to learn
+// the new shape. The seams the split follows are the ones the sections already
+// named:
+//
+//   world.js       the runtime geometry binding -- the leaf everything reads
+//   ownership.js   who holds what, keyed by tile
+//   fog.js         charted vs sighted, per civ
+//   structures.js  what a hex IS and what it yields
+//   population.js  people on the land, growth, famine, and who a blow lands on
+//   routes.js      the two distances, and never the same one
+//
+// Import order below IS the dependency order, and it is acyclic on purpose:
+// world.js imports nothing of ours, and nothing imports this file back.
+
+// Re-exported so every existing `from "../map/map.js"` keeps working. The
+// package is the unit; which file a function sits in is an implementation
+// detail of the package, not of its callers.
+export { world, setPickedContinent } from "./world.js";
+export { claimTile, holdCount, holdings, isOwned, ownerMap, ownerOf, releaseTile } from "./ownership.js";
+export { isCharted, isSighted, isVisible, revealAll, setRevealAll, syncCharted, syncSighted } from "./fog.js";
+export {
+  builtCount, fortStrength, healersNear, hexProduces, hexResource, hexUse, hexYield,
+  setHexBuild, structureCount, structureDef, terrainYield, workStamp,
+} from "./structures.js";
+export {
+  capOf, endFamine, ensurePop, fillStartingGround, growPopulation, growthSpendRate,
+  hexPop, hexPopSum, killAt, loseHexIfEmpty, starveTick, strikeHex, syncPopMirror,
+  upkeepMouths,
+} from "./population.js";
+export { adminDistance, marchFactor, routeCost } from "./routes.js";
 
 // Idempotent, like initAdversaries(), and called from the same places: boot,
 // load, era entry. **The map is generated once and NEVER regenerates**
@@ -36,19 +66,9 @@ function forcedContinent() {
   } catch (e) { return null; }
 }
 
-// The continent the player PICKED on the start screen, or null for Random.
-// Set once during boot, before ensureMap() runs, from the choice the start
-// screen stashed across its reload. Null is not a failure: it means "Random",
-// and Random is simply the absence of a pick -- the continent then comes from
-// the run seed, which is what makes a bare seed number reproduce a random run.
-let picked = null;
-export function setPickedContinent(id) {
-  picked = id && CONTINENTS.some((c) => c.id === id) ? id : null;
-}
-
 export function ensureMap() {
   const spec = active().map;
-  if (!spec) { world = null; return; }   // an era without a map (Stone)
+  if (!spec) { setWorld(null); return; }   // an era without a map (Stone)
 
   const noun = spec.tileNoun.singular;
   if (!S.map || S.map.gen !== GEN_VERSION) {
@@ -65,7 +85,7 @@ export function ensureMap() {
       // Order matters: the URL is a QA OVERRIDE and outranks everything, then
       // the player's pick, then the seed (which is what "Random" means).
       continent: S.map && S.map.continent ? S.map.continent
-        : forcedContinent() || picked || pickContinent(S.seed),
+        : forcedContinent() || pickedContinent() || pickContinent(S.seed),
       // WHO HOLDS WHAT, keyed by tile. The seat is claimed here so it is the
       // first ground this civ ever held, which is also what makes the trio
       // read seat-then-neighbours. (This was `owned: ["0,0"]` -- an array on
@@ -80,7 +100,7 @@ export function ensureMap() {
       log("Your people mark the ground they stand on. The world is wider than this.", "good");
     }
   }
-  world = generateMap(S.map.seed, spec, S.map.continent);
+  setWorld(generateMap(S.map.seed, spec, S.map.continent));
   // THE 3-HEX START (owner ruling, 2026-08-23, ratifying the E2 bridge's
   // accident): a fresh run opens with the seat plus two adjacent land hexes.
   //
@@ -155,52 +175,6 @@ export function ensureMap() {
   // answer if a hex is ever left unassigned.)
 }
 
-// ---------- WHO HOLDS WHAT (the ownership seam) ----------
-// OWNERSHIP IS A PROPERTY OF THE TILE (2026-08-26, review Part I.2). It used to
-// be an array on the player -- `S.map.owned` -- which is the same defect the
-// player split fixed one layer up: it encodes "there is one civ and this is
-// their list". The world model already did it right for everyone else
-// (`place.adversary` is an id); the player was the one holder whose ownership
-// was not.
-//
-// `S.map.owner[tileId] = playerId`. One field answers "whose is this?" for any
-// tile and any civ, which is what a second civ needs and what a rival's rim
-// colour reads. The per-player LIST is derived from it, never stored, so the
-// two can never disagree.
-export function ownerMap() {
-  if (!S.map.owner) S.map.owner = {};
-  return S.map.owner;
-}
-export function ownerOf(id) {
-  const o = S.map && S.map.owner ? S.map.owner[id] : undefined;
-  return o === undefined ? null : o;
-}
-export function isOwned(id, pid) {
-  return ownerOf(id) === (pid == null ? S.me : pid);
-}
-// Every tile a civ holds. Derived on demand: the board is ~120 tiles, and a
-// stored list is a second copy of a fact that can drift from the first.
-export function holdings(pid) {
-  const who = pid == null ? S.me : pid;
-  const out = [];
-  const owner = (S.map && S.map.owner) || {};
-  for (const id in owner) if (owner[id] === who) out.push(id);
-  return out;
-}
-export function holdCount(pid) {
-  const who = pid == null ? S.me : pid;
-  const owner = (S.map && S.map.owner) || {};
-  let n = 0;
-  for (const id in owner) if (owner[id] === who) n++;
-  return n;
-}
-export function claimTile(id, pid) {
-  ownerMap()[id] = pid == null ? S.me : pid;
-}
-export function releaseTile(id) {
-  if (S.map && S.map.owner) delete S.map.owner[id];
-}
-
 // The pop-tiles LOCKSTEP died in E3 (it was the E2 bridge, and its runaway
 // was live-confirmed: huts handed out provinces until the whole world was
 // free real estate). Dominion now changes ONLY by claim, capture and fealty.
@@ -217,432 +191,6 @@ export function syncDominion() {
   for (const tid in S.map.built) if (!isOwned(tid)) setHexBuild(tid, null);
   ensurePop();
   syncPopMirror();
-}
-
-// me().pop is a MIRROR now (E3): the floored hex sum plus the standing army.
-// Everything legacy that still reads me().pop -- reveal gates, the levy cap,
-// event scaling, civilians() -- sees the real population, until E5 re-homes
-// the army and me().pop can retire outright.
-export function syncPopMirror() {
-  if (!S.map || !S.map.pop) return;
-  let units = 0;
-  for (const k in me().units) units += me().units[k] || 0;
-  me().pop = hexPopSum() + units;
-}
-
-// What the player has SEEN. Sticky and additive, never removed -- the
-// interface's reveals-are-sticky law applied to geography. You always see the
-// country adjacent to what you hold; reaching beyond that is what the scouting
-// verb is for (slice 6). Fog hides the BOARD, never the pieces: an unrevealed
-// tile shows as unpainted board, and what it turns out to be is honest ground
-// that was always there.
-// Charting new ground can put new sea -- and new shores -- in view.
-export function syncCharted() {
-  if (!world || !S.map) return;
-  if (!me().revealed) me().revealed = [];
-  const seen = new Set(me().revealed);
-  for (const id of holdings()) {
-    seen.add(id);
-    const p = world.places[id];
-    if (p) for (const n of p.adj) seen.add(n);
-  }
-  me().revealed = Array.from(seen);
-  const sightedLand = syncSighted();
-  if (sightedLand > 0 && S.seen.mapCharted) {
-    log(sightedLand === 1
-      ? "From the shore, your people make out land across the water."
-      : "From the shore, your people make out land across the water — more of it than they expected.",
-      "good");
-  }
-}
-
-// QA ONLY (owner request, 2026-08-24): show the whole board, on demand, so a
-// continent's shape can be judged without playing out to it. Deliberately NOT
-// in the save and NOT in the signature -- it is a lens on the world, like
-// pause and speed, and the button invalidates the stage by hand when it
-// flips. The charted set underneath is untouched, so flipping it back leaves
-// the run exactly as honest as it was.
-export let revealAll = false;
-export function setRevealAll(v) { revealAll = v; }
-
-export function isCharted(id) {
-  if (revealAll) return true;
-  return !!S.map && !!me().revealed && me().revealed.includes(id);
-}
-
-// ---------- Sight across water (map.md 2.6, slice 4b) ----------
-// Standing on a charted coast you can see out to sea, and you can see THAT
-// there is land across it -- never what is on that land. A ray leaves every
-// charted coastal hex, travels through WATER ONLY up to SIGHT_RANGE steps,
-// and is STOPPED by the first land it touches: you see an island's near
-// shore, never behind it, so even a sighted island keeps its size secret.
-//
-// Sight reveals the BOARD, never the PIECES -- the charted honesty rule,
-// inverted. Sighted ground draws its true terrain (if you can genuinely see
-// it, showing anything else would be a lie) and carries no props, no marks
-// and no interaction. Charted-versus-sighted reads as inhabited-versus-
-// silhouette, which is also just true: you cannot make out dwellings at that
-// distance.
-//
-// Sticky and additive, like charting. Returns how many new LAND hexes came
-// into view, so the Chronicle can mark the moment.
-export function syncSighted() {
-  if (!world || !S.map) return 0;
-  if (!me().sighted) me().sighted = [];
-  const wet = (p) => !p || p.ocean || p.terrain === "water";
-  const seen = new Set(me().sighted);
-  let newLand = 0;
-
-  // RAYS LEAVE FROM GROUND YOU STAND ON, not from ground you have merely
-  // glimpsed. This read `me().revealed` until 2026-08-24, and charted
-  // includes every NEIGHBOUR of every owned hex -- so a fresh game cast rays
-  // from about twelve hexes instead of three, from shorelines nobody had ever
-  // walked to. It compounded as you settled, since each new claim charted a
-  // new ring of vantage points it did not own.
-  //
-  // Measured on the old rule: 34 hexes visible from a 3-hex dominion, with
-  // land showing FIVE steps from the nearest owned tile (a charted hex one
-  // step out, plus three of open water, plus the far shore). Owner caught it
-  // in play: "my starting revealed slices keep getting bigger and bigger."
-  for (const id of holdings()) {
-    const from = world.places[id];
-    if (!from || wet(from)) continue;          // rays leave dry, OWNED ground
-    const dist = {};
-    let frontier = [];
-    for (const n of from.adj) {
-      if (!wet(world.places[n]) || dist[n] !== undefined) continue;
-      dist[n] = 1; frontier.push(n);
-    }
-    while (frontier.length) {
-      const next = [];
-      for (const w of frontier) {
-        seen.add(w);                            // the sea itself is seen
-        for (const n of world.places[w].adj) {
-          const q = world.places[n];
-          if (!wet(q)) {                        // land stops the ray
-            if (!seen.has(n) && !isCharted(n)) newLand += 1;
-            seen.add(n);
-            continue;
-          }
-          if (dist[n] !== undefined) continue;
-          if (dist[w] >= SIGHT_RANGE) continue; // no further open water
-          dist[n] = dist[w] + 1;
-          next.push(n);
-        }
-      }
-      frontier = next;
-    }
-  }
-
-  me().sighted = Array.from(seen);
-  return newLand;
-}
-
-// Seen from afar but not charted: drawn, never touched.
-export function isSighted(id) {
-  if (revealAll) return false;                  // the lens charts everything
-  return !!S.map && !!me().sighted && me().sighted.includes(id) && !isCharted(id);
-}
-
-// Drawn at all: charted ground, or ground the eye can reach.
-export function isVisible(id) {
-  return isCharted(id) || isSighted(id);
-}
-
-// (defaultAssignments() died here 2026-08-25 with the allocation verb. It
-// existed because a fresh dominion arrived pointed at nothing and starved
-// while the player worked out what a stepper was; ground works itself now,
-// so there is no default left to ship.)
-
-// ---------- Population lives on hexes (engine rework E1) ----------
-// design.md, "Population Lives Somewhere". In E1 this is pure state: it
-// grows, saves, and displays, and NOTHING reads it yet -- steppers still run
-// the economy, so the curve can be watched and tuned live before anything
-// depends on it. Population is a VARIABLE, not a control: no setter is
-// exported to the UI, only to the world (growth here; plague/raids/starvation
-// write to it in later slices).
-
-// Carrying capacity of a hex: terrain x era. Missing terrain (water) is 0.
-export function capOf(id) {
-  const spec = active().map;
-  if (!spec || !spec.popCaps || !world || !world.places[id]) return 0;
-  return spec.popCaps[world.places[id].terrain] || 0;
-}
-
-export function hexPop(id) {
-  return S.map && S.map.pop ? Math.floor(S.map.pop[id] || 0) : 0;
-}
-
-// The odometer: total population is the SUM of real per-hex numbers.
-// ---------- What a hex IS (the use seam) ----------
-// ONE HEX, ONE USE. A hex is BARE -- working the ground it is made of -- or it
-// carries exactly one STRUCTURE. There is no third state and no parallel town
-// beside the fields (design.md, Building on a Hex).
-//
-// SIMPLIFIED 2026-08-25 with the hex economy. The slot used to hold either a
-// chosen RESOURCE ("wood") or a prefixed structure ref ("build:farm"), because
-// a hex could be pointed at any resource its terrain would grudgingly give.
-// Terrain decides that now -- a forest makes wood -- so the slot only ever
-// holds a structure id, the prefix has nothing to disambiguate from, and
-// `S.map.work` became `S.map.built`, which is what it always meant.
-//
-// A bare hex is not an idle hex: it works its ground automatically. "Rest" is
-// gone with the allocation verb that needed it.
-
-export function hexUse(id) {
-  const b = (S.map && S.map.built) ? S.map.built[id] : null;
-  return b ? { kind: "structure", id: b } : { kind: "bare" };
-}
-
-// THE ONLY WRITER of S.map.built. Every path that changes what stands on a hex
-// -- raising, demolishing, capture, losing the ground -- comes through here, so
-// the render stamp below cannot be forgotten by the next caller. Pass null to
-// clear the hex back to bare ground.
-//
-// `buildVersion` is a render-cache stamp, not game state: it lets ui/map.js ask
-// "did anything on the board change?" in O(1) instead of serialising the whole
-// map five times a second. It deliberately does NOT ride in the save -- a
-// reload rebuilds the stage from nothing, so starting back at zero is correct.
-let buildVersion = 0;
-export function workStamp() { return buildVersion; }
-
-export function setHexBuild(id, value) {
-  if (!S.map || !S.map.built) return;
-  if (value == null) delete S.map.built[id];
-  else S.map.built[id] = value;
-  buildVersion += 1;
-}
-
-// WHAT A HEX YIELDS, and the rate it yields it at: `{res, rate}` or null.
-//
-// CORRECTED 2026-08-25, one day after the seam was built. It originally said a
-// structure never produces -- and the very first structure, the farm, produces
-// food at a better rate than any bare ground. The rule was wrong, not the farm:
-// a structure occupies a hex INSTEAD OF working it, which is not the same as
-// yielding nothing. A structure may declare a `yield`, and if it does this is
-// where it answers.
-//
-// The rate lives here too, so callers never have to know that worked ground
-// reads the terrain table while a structure carries its own flat number. That
-// asymmetry is the whole point of the farm: it is better than the ground it
-// stands on, which is why it is worth paying for.
-export function hexYield(id) {
-  const u = hexUse(id);
-  if (u.kind === "structure") {
-    const def = structureDef(u.id);
-    // A structure with no declared yield produces nothing -- a March-hold and
-    // a Market are both exactly that, and it is a legitimate answer rather
-    // than a missing one. A structure REPLACES the ground's own yield, which
-    // is why raising one costs you whatever the hex was already doing.
-    return def && def.yield ? { res: def.yield.res, rate: def.yield.rate } : null;
-  }
-  // Bare ground works itself. One resource per terrain (2026-08-25): the hex
-  // does not choose and cannot be pointed elsewhere.
-  return terrainYield(id);
-}
-
-// What the GROUND under a hex gives, ignoring anything built on it. Kept
-// separate from hexYield so the interface can say "this forest would give
-// wood" about country you do not own, and so a structure's description can be
-// honest about what it is replacing.
-export function terrainYield(id) {
-  const terrain = world && world.places[id] ? world.places[id].terrain : null;
-  const yields = (active().map && active().map.yields) || {};
-  const y = terrain ? yields[terrain] : null;
-  return y ? { res: y.res, rate: y.rate } : null;
-}
-
-// The structures this era can build. Declared per manifest and inherited, so an
-// age that says nothing keeps what it could already raise.
-export function structureDef(id) {
-  // Active era first, then the cross-era index -- exactly what defById does
-  // for everything else. A queued Forge whose era turned over while it was
-  // still building must still know its own name.
-  return (active().structures || []).find((d) => d.id === id) || DEF_INDEX[id] || null;
-}
-
-// Does this hex yield anything into the ledger? Resting ground does not, and
-// neither does a structure with nothing to give.
-export function hexProduces(id) { return !!hexYield(id); }
-
-// The resource a hex is turned to, or null. The one accessor every producer,
-// glyph and panel should ask.
-export function hexResource(id) {
-  const y = hexYield(id);
-  return y ? y.res : null;
-}
-
-// THE WALLS THAT COVER THIS HEX. Sums every march-hold within `fortRange`,
-// including one standing on the hex itself. Flat strength, added to the army
-// rather than scaling it -- see CONFIG.fortStrength.
-//
-// This is a RESOLUTION input and never a selection one (design.md: selection and
-// resolution are separate phases). Nothing here may influence whether a raid
-// happens or where it lands; it only changes what happens when one arrives.
-export function fortStrength(hexId) {
-  if (!S.map || !world || !world.places[hexId]) return 0;
-  let n = 0;
-  for (const id of holdings()) {
-    const u = hexUse(id);
-    if (u.kind !== "structure") continue;
-    const def = structureDef(u.id);
-    if (!def || !def.fortifies) continue;
-    const a = world.places[id], b = world.places[hexId];
-    if (hexDistance(a.q, a.r, b.q, b.r) <= CONFIG.fortRange) n++;
-  }
-  return n * CONFIG.fortStrength;
-}
-
-// HEALERS COVERING THIS HEX. Same shape as fortStrength, and deliberately so:
-// range is how this board says "near", and the two systems that care about
-// nearness should say it the same way.
-//
-// POSITIONAL FROM 2026-08-25 (owner ruling). As a panel building the infirmary
-// stacked for no reason except that it could -- three was strictly better than
-// one and asked nothing of you. Standing on ground, the second one exists
-// because your realm got WIDER, and a corner of it left uncovered is a real
-// consequence of a real choice.
-//
-// This is a RESOLUTION input, never a selection one: it cannot change whether
-// sickness happens or where it lands, only what happens when it arrives.
-export function healersNear(hexId) {
-  if (!S.map || !world || !world.places[hexId]) return 0;
-  let n = 0;
-  for (const id of holdings()) {
-    const u = hexUse(id);
-    if (u.kind !== "structure") continue;
-    const def = structureDef(u.id);
-    if (!def || !def.heals) continue;
-    const a = world.places[id], b = world.places[hexId];
-    if (hexDistance(a.q, a.r, b.q, b.r) <= CONFIG.healRange) n++;
-  }
-  return n;
-}
-
-// Every structure of this kind standing anywhere in the dominion, with its
-// def -- what a converter needs, and what a "do I own one at all?" reveal
-// predicate needs. The board is the source of truth: no counter to drift.
-export function builtCount(sid) {
-  if (!S.map || !S.map.built) return 0;
-  let n = 0;
-  for (const id of holdings()) if (S.map.built[id] === sid) n++;
-  return n;
-}
-
-// How many hexes already carry this structure -- the per-copy cost escalator,
-// derived rather than stored so it can never drift from the board.
-export function structureCount(sid) {
-  if (!S.map || !S.map.built) return 0;
-  let n = 0;
-  for (const id of holdings()) {
-    const u = hexUse(id);
-    if (u.kind === "structure" && u.id === sid) n++;
-  }
-  return n;
-}
-
-export function hexPopSum() {
-  if (!S.map || !S.map.pop) return 0;
-  let sum = 0;
-  for (const id of holdings()) sum += Math.floor(S.map.pop[id] || 0);
-  return sum;
-}
-
-// Seed population for owned hexes that have none, prune entries for hexes no
-// longer owned. Idempotent, like everything else at this layer. The seat
-// starts at startPop (the three survivors); any other hex enters the books at
-// 2 -- the party that claimed it.
-export function ensurePop() {
-  if (!S.map || !world) return;
-  if (!S.map.pop) S.map.pop = {};
-  // Ground taken LATER arrives as a settling party and grows into the place:
-  // that dip is what makes a claim an investment rather than a free upgrade.
-  for (const id of holdings()) {
-    if (!(id in S.map.pop)) S.map.pop[id] = 2;
-  }
-  for (const id in S.map.pop) if (!isOwned(id)) delete S.map.pop[id];
-}
-
-// THE STARTING TRIO ARRIVES FULL (owner ruling, 2026-08-25). Your opening
-// ground is worked to what its terrain supports from the first frame.
-//
-// This began as an economy bug and turned out to be an idle-game remnant.
-// Under one resource per terrain, food is capped by your FOOD ground while
-// EVERY hex adds mouths -- so a realm holding one plains, one forest and one
-// hills at a third of capacity produced barely more food than it ate, and
-// claiming a fourth barren hex tipped it permanently negative: stranded at
-// zero food, unable to grow and unable to afford the claim that would fix it.
-// Raising yields would have papered over it. The actual defect was that "a
-// wanderer joins your settlement" was LOAD-BEARING -- the opening was a wait,
-// which is precisely what this game stopped being two pivots ago.
-//
-// Wanderers still arrive. They arrive to fill ground you have just taken,
-// which is a 4X sentence rather than an idle one.
-export function fillStartingGround() {
-  if (!S.map || !S.map.pop || !world) return;
-  for (const id of holdings()) S.map.pop[id] = Math.max(2, capOf(id));
-}
-
-// Logistic growth toward each hex's cap: dP/dt = r * P * (1 - P/cap).
-// Fractional population is stored; every reader floors for display. Growth
-// only -- this function never lowers a number (loss belongs to the world's
-// events, in later slices), so a hex above a shrunken cap simply holds.
-// What the larder spent on growth LAST TICK, per second -- display only.
-// Published by growPopulation so the ledger can show the TRUE food line
-// (owner bug report, 2026-08-25 late: "+0.22/s" printed while the stock fell,
-// because growth's spending was invisible to the rate). One source of truth:
-// this is measured from the actual deduction, never re-derived.
-export let growthSpendRate = 0;
-
-export function growPopulation(dt) {
-  growthSpendRate = 0;
-  if (!S.map || !S.map.pop || !world) return;
-  // No one is born during a famine: growth waits for the larder.
-  if (me().res.food <= 0) return;
-  const r = CONFIG.popGrowthRate;
-  const before = hexPopSum();
-  // What the larder can actually raise this tick. Growth is BOUGHT, not free
-  // (CONFIG.growthFoodCost), so a thin surplus grows slowly and a full one
-  // grows fast -- and a settlement that is only just feeding itself cannot
-  // replace what a raid took.
-  const perHead = CONFIG.growthFoodCost * (1 + (me().pop || 0) / CONFIG.growthCostPopScale);
-  let budget = me().res.food / perHead;
-  for (const id of holdings()) {
-    const cap = capOf(id);
-    if (cap <= 0) continue;
-    let p = S.map.pop[id] || 0;
-    // No rekindling: an emptied hex is not yours to repopulate any more, it is
-    // unsettled ground you may claim again (loseHexIfEmpty above). The old
-    // 0.2-soul revival died with rule 9 on 2026-08-25.
-    if (p <= 0) continue;
-    if (p >= cap) continue;
-    if (budget <= 0) break;                       // the larder is spent for now
-    let gain = r * p * (1 - p / cap) * dt;
-    if (gain > budget) gain = budget;             // grow only what you can feed
-    budget -= gain;
-    me().res.food -= gain * perHead;
-    growthSpendRate += (gain * perHead) / dt;
-    const next = p + gain;
-    // The logistic APPROACHES its cap and never attains it; snap the last
-    // hundredth so a full hex eventually reads "8 of 8" instead of hovering
-    // at 7 forever. (~7 minutes from the far side of the curve at r=0.015.)
-    S.map.pop[id] = cap - next < 0.01 ? cap : next;
-  }
-  const after = hexPopSum();
-  if (after !== before) {
-    syncPopMirror();
-    // Lifetime arrivals, for the game-over screen. Counted in WHOLE people
-    // crossing an integer, so the stat matches what the Chronicle announced
-    // rather than the fractional curve underneath it. (me().bought was declared
-    // in E1 and never incremented until 2026-08-25 -- the end screen read
-    // "Arrivals welcomed: 0" for every run ever played.)
-    if (after > before) me().bought += Math.max(0, Math.floor(after) - Math.floor(before));
-    // The Chronicle keeps its pulse: each whole arrival is told in the era's
-    // own words -- but only while the settlement is SMALL. A hundred-soul
-    // dominion gaining a person a second would drown the Chronicle in birth
-    // announcements.
-    if (after > before && after <= 25) log(active().arrivalLine, "good");
-  }
 }
 
 // The era's scope (owner ruling, 2026-08-24): how many lands this age can
@@ -663,235 +211,6 @@ export function atDominionCap() {
 export function ownedTiles() { return holdings(); }
 // (The second isOwned() that lived here -- an includes() over the owner's own
 // array -- was replaced by the ownership seam above on 2026-08-26.)
-
-// ---------- The world strikes hexes (E5) ----------
-// Sickness and raids stopped killing "someone, nowhere" -- they strike a HEX
-// and kill people there. The two weightings are the two mitigation tracks:
-// sickness is person-weighted (every soul equally at risk, so dense hexes
-// host more fevers), raids are exposure-weighted (population x administrative
-// distance -- the frontier is where the torches come).
-export function strikeHex(kind) {
-  if (!S.map || !S.map.pop || !world) return null;
-  const weights = [];
-  let total = 0;
-  for (const id of holdings()) {
-    const p = Math.floor(S.map.pop[id] || 0);
-    if (p < 1) continue;
-    const w = kind === "raid" ? p * (1 + adminDistance(id)) : p;
-    weights.push([id, w]);
-    total += w;
-  }
-  if (!total) return null;
-  let roll = rng() * total;
-  for (const [id, w] of weights) {
-    if (roll < w) return id;
-    roll -= w;
-  }
-  return weights[weights.length - 1][0];
-}
-
-// Kill n people at a hex. Returns how many actually died. Land is never
-// lost; the mirror and the reservation books are settled immediately.
-export function killAt(id, n) {
-  if (!S.map || !S.map.pop || !(id in S.map.pop)) return 0;
-  const before = Math.floor(S.map.pop[id]);
-  const killed = Math.min(before, Math.max(0, Math.floor(n)));
-  S.map.pop[id] = Math.max(0, S.map.pop[id] - killed);
-  syncPopMirror();
-  // A raid or a plague that takes the last person takes the ground with it --
-  // the same rule famine follows, because losing ground is a property of the
-  // hex being empty rather than of what emptied it.
-  loseHexIfEmpty(id);
-  return killed;
-}
-
-// WHAT THE EMPIRE COSTS TO HOLD, in mouths-equivalent.
-//
-// Every person eats `CONFIG.upkeep`; a person living FAR from the seat eats
-// more, because getting anything to them costs more. The multiplier is
-// `1 + upkeepPerDistance x adminDistance`, so the seat itself is at par and the
-// frontier is dear.
-//
-// The shape is what matters, not the number: this makes upkeep grow with
-// dominion SPREAD as well as size, which is the only way a sink outruns a
-// per-capita source. A compact realm of forty is cheap; a stretched realm of
-// forty is not. Geography becomes an economic decision rather than only a
-// logistical one.
-//
-// The army is charged at par -- it lives with you, not out on the frontier --
-// and returns as a plain headcount so callers that only want mouths still work.
-export function upkeepMouths() {
-  if (!S.map || !S.map.pop || !world) return 0;
-  let mouths = 0;
-  for (const id of holdings()) {
-    const people = Math.floor(S.map.pop[id] || 0);
-    if (people <= 0) continue;
-    const d = adminDistance(id);
-    const far = Number.isFinite(d) ? d : 0;
-    mouths += people * (1 + CONFIG.upkeepPerDistance * far);
-  }
-  return mouths;
-}
-
-// ---------- Administrative distance & the famine drain (E4) ----------
-// Two distances, and conflating them is the trap (map.md 2.7): routeCost()
-// below measures from your NEAREST holding (logistics -- how long is the
-// march); adminDistance() measures from your SEAT (administration -- how well
-// can you hold it). A tendril of hexes is logistically close and
-// administratively terrible, which is exactly what the famine drain punishes.
-// MEASURED FROM THE ASKING CIV'S SEAT (2026-08-26). "How well can you hold
-// this?" is a question about a specific capital, so a rival's frontier is far
-// from THEIR seat, not from yours -- and roads through THEIR country are what
-// is cheap for them.
-export function adminDistance(targetId, civ) {
-  if (!world || !S.map || !world.places[targetId]) return Infinity;
-  const p = civ || me();
-  const from = p.seat || world.home;
-  if (!world.places[from]) return Infinity;
-  const stepInto = (id) => {
-    if (isOwned(id, p.id)) return 0.5;
-    return world.places[id].terrain === "water" ? 3 : 1;
-  };
-  const dist = {};
-  const queue = [from];
-  dist[from] = 0;
-  while (queue.length) {
-    let bi = 0;
-    for (let i = 1; i < queue.length; i++) if (dist[queue[i]] < dist[queue[bi]]) bi = i;
-    const id = queue.splice(bi, 1)[0];
-    if (id === targetId) return dist[id];
-    for (const n of world.places[id].adj) {
-      const d = dist[id] + stepInto(n);
-      if (dist[n] === undefined || d < dist[n]) {
-        if (dist[n] === undefined) queue.push(n);
-        dist[n] = d;
-      }
-    }
-  }
-  return dist[targetId] !== undefined ? dist[targetId] : Infinity;
-}
-
-// AN EMPTY HEX IS LOST (owner ruling, 2026-08-25, reversing rule 9).
-//
-// Ground used to stay yours when it emptied -- a ghost that rekindled from 0.2
-// souls once the larder refilled, on the reasoning that "a ghost town you can
-// bring back is more interesting than a hex that vanishes". The `dominionCap`
-// shipped two days AFTER that ruling and changed its arithmetic: under a cap, a
-// ghost occupies one of your seven slots while producing nothing, so you were
-// punished twice and could not re-plan. Losing it frees the slot.
-//
-// What actually changed is narrower than it sounds. A ghost and a lost hex both
-// yield nothing; the difference is FREE RECOVERY versus paying the claim again.
-// So famine now costs the investment, not only the people -- which is the point:
-// it punishes stretching yourself thin, or not watching a threat.
-//
-// It self-corrects rather than spiralling, because claim escalation reads
-// `owned.length` (actions.js): losing ground makes the next claim CHEAPER.
-//
-// ONE function, called from every path that can empty a hex -- famine, sickness,
-// a raid -- because "you lose ground when nobody is left on it" is a property of
-// the ground being empty, not of what emptied it.
-export function loseHexIfEmpty(id) {
-  if (!S.map || !world || id === world.home) return false;   // the seat ends the run instead
-  if (!isOwned(id)) return false;
-  if ((S.map.pop[id] || 0) >= 1) return false;
-
-  const built = hexUse(id);
-  releaseTile(id);
-  delete S.map.pop[id];
-  setHexBuild(id, null);            // whatever stood here goes with the ground
-  const noun = (active().map && active().map.tileNoun.singular) || "holding";
-  // A structure is destroyed with the hex, and there is no refund -- the same
-  // trade the deliberate demolish carries (design.md, Building on a Hex).
-  if (built.kind === "structure") {
-    log(`The last of them leave the ${noun}. What they built there is abandoned to the weather.`, "bad");
-  } else {
-    log(`The last of them leave the ${noun}. The ground is no longer yours.`, "bad");
-  }
-  syncPopMirror();
-  syncDominion();
-  return true;
-}
-
-// The famine drain: distance governs EXPOSURE, never efficiency. When the
-// larder is empty, unpaid upkeep accumulates, and every `starveCost` worth of
-// it kills one person at the peopled hex FURTHEST from the seat -- the empire
-// starves from its frontier inward, and dies only when the seat itself empties.
-// An emptied holding is LOST, not ghosted (see loseHexIfEmpty above).
-let famineAnnounced = false;
-export function starveTick(deficit, dt) {
-  if (!S.map || !S.map.pop || !world) return false;
-  S.map.starve = (S.map.starve || 0) + deficit * dt;
-  if (!famineAnnounced) {
-    famineAnnounced = true;
-    log("Famine. The stores are empty, and the frontier feels it first.", "bad");
-  }
-  while (S.map.starve >= CONFIG.starveCost) {
-    S.map.starve -= CONFIG.starveCost;
-    // The victim: the peopled hex with the greatest administrative distance,
-    // ties broken by id so the order is deterministic.
-    let victim = null, worst = -1;
-    for (const id of holdings()) {
-      if ((S.map.pop[id] || 0) < 1) continue;
-      const d = adminDistance(id);
-      if (d > worst || (d === worst && victim !== null && id > victim)) { worst = d; victim = id; }
-    }
-    if (!victim) return true;   // no one left anywhere: the caller ends the run
-    S.map.pop[victim] = Math.max(0, S.map.pop[victim] - 1);
-    if (S.map.pop[victim] < 1) {
-      S.map.pop[victim] = 0;
-      if (victim === world.home) { syncPopMirror(); return true; }   // the seat is empty: the caller ends the run
-      loseHexIfEmpty(victim);
-    }
-  }
-  syncPopMirror();
-  return false;
-}
-
-// Famine ends the moment the books balance again; the next one announces anew.
-export function endFamine() { famineAnnounced = false; if (S.map) S.map.starve = 0; }
-
-// Effective route cost from your dominion to a tile (the supply-route rule,
-// user ruling): multi-source Dijkstra from every owned tile, where marching
-// through your OWN country costs half a step, unowned land a full step, and
-// water three -- slow crossings, never impossible, so an island seat can't
-// deadlock a run. Conquering or settling a line toward a rival is literally
-// building a road. Returns Infinity only when there is no map.
-export function routeCost(targetId) {
-  if (!world || !S.map || !world.places[targetId]) return Infinity;
-  const stepInto = (id) => {
-    if (isOwned(id)) return 0.5;
-    return world.places[id].terrain === "water" ? 3 : 1;
-  };
-  const dist = { };
-  const queue = [];
-  for (const id of holdings()) { dist[id] = 0; queue.push(id); }
-  while (queue.length) {
-    // Small worlds: a plain scan-for-min is simpler than a heap and fast
-    // enough at a few hundred places.
-    let bi = 0;
-    for (let i = 1; i < queue.length; i++) if (dist[queue[i]] < dist[queue[bi]]) bi = i;
-    const id = queue.splice(bi, 1)[0];
-    if (id === targetId) return dist[id];
-    for (const n of world.places[id].adj) {
-      const d = dist[id] + stepInto(n);
-      if (dist[n] === undefined || d < dist[n]) {
-        if (dist[n] === undefined) queue.push(n);
-        dist[n] = d;
-      }
-    }
-  }
-  return dist[targetId] !== undefined ? dist[targetId] : Infinity;
-}
-
-// How route cost bends a campaign: multiplies base march time and the food
-// provision. Near targets (or well-roaded ones) march cheap; far ones cost.
-// First-guess curve, tuned toward too-hard as always.
-export function marchFactor(targetId) {
-  const r = routeCost(targetId);
-  if (!Number.isFinite(r)) return 1;   // no map (harness fixtures): par
-  return Math.min(2, Math.max(0.6, 0.5 + r / 6));
-}
 
 // Capture: the tile becomes a holdfast of yours. One place, one rule --
 // campaigns (subdue) and the settle verb both end here.

@@ -4498,7 +4498,8 @@ console.log("\n--- The action layer: one seam for every player verb ---");
   }
 
   const srcDir = fileURLToPath(new URL("./src", import.meta.url));
-  const mapSrc = fs.readFileSync(nodePath.join(srcDir, "map", "map.js"), "utf8");
+  // setHexBuild lives in map/structures.js since the package split (2026-08-26).
+  const mapSrc = fs.readFileSync(nodePath.join(srcDir, "map", "structures.js"), "utf8");
   const uiSrc = fs.readFileSync(nodePath.join(srcDir, "ui", "map.js"), "utf8");
   const actSrc = fs.readFileSync(nodePath.join(srcDir, "core", "actions.js"), "utf8");
   // ONE WRITER, counted without a regex: an earlier version of this check used
@@ -4515,10 +4516,10 @@ console.log("\n--- The action layer: one seam for every player verb ---");
     return n;
   };
   const deletes = (t) => t.split("delete S.map.built[").length - 1;
-  check("no module outside map.js writes S.map.built directly",
+  check("no module outside the structures seam writes S.map.built directly",
     writes(uiSrc) === 0 && deletes(uiSrc) === 0 &&
     writes(actSrc) === 0 && deletes(actSrc) === 0);
-  check("inside map.js, setHexBuild is the only writer",
+  check("inside structures.js, setHexBuild is the only writer",
     writes(mapSrc) === 1 && deletes(mapSrc) === 1);
 
   // THE MARKET: the release valve for one-resource-per-hex, and the shape a
@@ -4829,6 +4830,65 @@ console.log("\n--- A seat is a civ's own, and distance is measured from it ---")
     return probe && api.adminDistance(probe, api.me()) < api.adminDistance(probe, rival);
   })());
   S().players.pop();
+}
+
+console.log("\n--- The map package: split along its own seams, and acyclic ---");
+{
+  // Review Part VII. map/map.js was 917 lines and a third of the simulation
+  // wearing a map module's name. The split follows the seams the sections
+  // already named, and the LAYERING is the thing worth pinning: a cycle here
+  // would be a bug on a timer, since every entry point would have to remember
+  // to import the right file first (the lib->combat->compile->lib lesson).
+  const dir = nodePath.join(fileURLToPath(new URL("./src", import.meta.url)), "map");
+  const read = (n) => fs.readFileSync(nodePath.join(dir, n), "utf8");
+  const localImports = (n) => {
+    const out = [];
+    for (const m of read(n).matchAll(/from "\.\/([a-z0-9]+)\.js"/g)) out.push(m[1] + ".js");
+    return [...new Set(out)];
+  };
+
+  // Depth 0 modules import nothing of ours: they are what everything reads.
+  check("world.js and ownership.js are leaves the rest can share", (() => {
+    const w = localImports("world.js").filter((f) => f !== "continents.js");
+    return w.length === 0 && localImports("ownership.js").length === 0;
+  })());
+
+  // NOTHING IMPORTS THE HUB BACK. This is the property that makes the package
+  // safe to enter from any file, and it caught a real edge while splitting:
+  // loseHexIfEmpty called syncDominion, which would have made population
+  // depend on the hub that depends on population.
+  check("nothing in the package imports map.js back",
+    ["world.js", "ownership.js", "fog.js", "structures.js", "population.js", "routes.js"]
+      .every((f) => !localImports(f).includes("map.js")));
+
+  // And the graph has no cycle at all, checked rather than asserted by eye.
+  check("the map package's import graph is acyclic", (() => {
+    const files = ["world.js", "ownership.js", "fog.js", "structures.js",
+                   "population.js", "routes.js", "map.js"];
+    const seen = {}, stack = {};
+    const walk = (f) => {
+      if (stack[f]) return false;
+      if (seen[f]) return true;
+      seen[f] = stack[f] = true;
+      for (const d of localImports(f)) {
+        if (!files.includes(d)) continue;
+        if (!walk(d)) return false;
+      }
+      stack[f] = false;
+      return true;
+    };
+    return files.every(walk);
+  })());
+
+  check("the hub is a hub -- lifecycle and re-exports, not a third of the sim",
+    read("map.js").split("\n").length < 300);
+
+  // The package is the unit: callers import map.js and never learn which file
+  // a function ended up in.
+  check("the package still answers as one module",
+    typeof api.isOwned === "function" && typeof api.hexYield === "function" &&
+    typeof api.adminDistance === "function" && typeof api.growPopulation === "function" &&
+    typeof api.isCharted === "function" && typeof api.ensureMap === "function");
 }
 
 console.log(`\n${fails === 0 ? "ALL CHECKS PASSED" : fails + " CHECK(S) FAILED"}`);

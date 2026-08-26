@@ -125,6 +125,17 @@ export const CONFIG = {
   // one that actually has fighters should feel the difference.
   fortStrength: 4,        // strength each march-hold contributes in range
   fortRange: 1,           // hex distance it reaches: itself and the ring around it
+
+  // ---- The roll-off (2026-08-26) ----
+  // A runaway guard, not a rule: a battle cannot actually stall, because every
+  // attacker always rolls, so walls always come down and someone always dies.
+  // The harness asserts ordinary play never reaches it.
+  battleMaxRounds: 200,
+  // WALLS ARE A POOL OF HITS, and the pool is a PACING knob as much as a
+  // strength one: rounds play over ticks, so this number is most of how long a
+  // siege takes. Per fortifying structure standing ON the hex -- range died
+  // with the panel law (everything that fires is standing on the hex).
+  wallPool: 12,
   armyPerHex: 2,          // the army cap (E5): each held hex supports this many standing
                           // units, in every era -- the levy re-homed to the land, per the
                           // owner's ruling ("make it serve the hex"). Territory is what

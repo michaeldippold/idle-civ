@@ -21,6 +21,7 @@ import * as mIcons from "./src/ui/icons.js";
 import * as mState from "./src/core/state.js";
 import * as mDerived from "./src/core/derived.js";
 import * as mCombat from "./src/sim/combat.js";
+import * as mBattle from "./src/sim/battle.js";
 import * as mEvents from "./src/sim/events.js";
 import * as mExped from "./src/sim/expeditions.js";
 import * as mStep from "./src/core/step.js";
@@ -51,7 +52,7 @@ import { fileURLToPath } from "node:url";
 
 const MODS = [mConfig, mRng, mLib, mStone, mBronze, mIron, mCompile, mIcons, mState,
   mContinents,
-  mDerived, mCombat, mEvents, mExped, mStep, mActions, mEra, mLog, mDom,
+  mDerived, mCombat, mBattle, mEvents, mExped, mStep, mActions, mEra, mLog, mDom,
   mPLedger, mPPeople, mPHold, mPBuy, mExpedUi, mModal, mChrome, mPersist,
   mMapModel, mMapGen, mMapCore, mMapUi, mPalette, mJournal, mBus, mEraClock];
 
@@ -5218,6 +5219,199 @@ console.log("\n--- The clock's wire: a raid knows who sent it ---");
     // Nothing counters a plain warband in any age, so it is the unanswerable
     // shape for both defenders -- and only the gapped one should see more.
     return gapped.warband > levelled.warband * 1.1;
+  })());
+}
+
+console.log("\n--- The battle resolver: dice, walls, and who fires from behind them ---");
+{
+  // Synthetic defs, not the manifest's: these checks are about the RULES, and
+  // pinning them to authored stats would turn every balance tweak into a red
+  // harness. The manifest's own numbers are checked at the end of the section.
+  const D = (id, o) => ({ id, name: id, dice: 1, hit: 7, role: "melee", base: { wood: 12 }, ...o });
+  const SOLDIER = D("soldier", {});
+  const ARCHER  = D("archer",  { hit: 8, role: "ranged", base: { wood: 14, bronze: 6 } });
+  const HORSE   = D("horseman",{ hit: 5, base: { wood: 20, bronze: 14 } });
+  const SIEGE   = D("siege",   { hit: 9, role: "siege", wallDamage: 6, base: { wood: 45, stone: 30, iron: 12 } });
+  const ACE     = D("ace", { hit: 2 });
+  const DUD     = D("dud", { hit: 10 });
+
+  // The resolver takes its dice as an argument, so the harness hands it a
+  // private stream and never touches the game's own.
+  const stream = (seed) => { let a = seed | 0; return () => {
+    a = (a + 0x6D2B79F5) | 0; let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+  const R = (atk, def, walls, o = {}) => api.resolveBattle({
+    attacker: { roster: atk.map((x) => ({ ...x })), stance: o.atkStance },
+    defender: { roster: def.map((x) => ({ ...x })), stance: o.defStance },
+    walls, rng: stream(o.seed == null ? 7 : o.seed),
+  });
+  const left = (side) => side.reduce((n, s) => n + s.n, 0);
+  const many = (n, f) => { let c = 0; for (let i = 0; i < n; i++) if (f(i)) c++; return c; };
+
+  check("same dice and same spec produce an identical script", (() => {
+    const a = JSON.stringify(R([{ def: SOLDIER, n: 9 }], [{ def: SOLDIER, n: 8 }], 6, { seed: 3 }));
+    const b = JSON.stringify(R([{ def: SOLDIER, n: 9 }], [{ def: SOLDIER, n: 8 }], 6, { seed: 3 }));
+    return a === b && a.length > 200;
+  })());
+
+  check("high rolls are better: hits-on-2 beats hits-on-10",
+    many(60, (i) => R([{ def: ACE, n: 5 }], [{ def: DUD, n: 5 }], 0, { seed: i }).holder === "attacker") >= 58);
+
+  check("power scales through DICE COUNT, not the to-hit number",
+    many(80, (i) => R([{ def: D("twice", { dice: 2 }), n: 5 }], [{ def: SOLDIER, n: 5 }], 0,
+      { seed: i + 1000 }).holder === "attacker") >= 70);
+
+  // The whole reason one infantry can kill six tanks.
+  check("a dying unit still shoots -- both sides roll off the PRE-round roster",
+    many(80, (i) => {
+      const r = R([{ def: ACE, n: 1 }], [{ def: SOLDIER, n: 30 }], 0, { seed: i + 100 });
+      return r.outcome === "attackerWiped" && r.rounds[0].defender.lost.length > 0;
+    }) >= 55);
+
+  check("behind walls only the archers roll; the melee stand there", (() => {
+    const r = R([{ def: SOLDIER, n: 5 }], [{ def: ARCHER, n: 3 }, { def: HORSE, n: 3 }], 20, { seed: 5 });
+    const one = r.rounds[0];
+    const a = one.defender.roll.stacks.find((x) => x.id === "archer");
+    const h = one.defender.roll.stacks.find((x) => x.id === "horseman");
+    return one.behindWalls && !a.silent && a.faces.length === 3 && h.silent && h.faces.length === 0;
+  })());
+
+  check("while walls stand the garrison takes no casualties at all", (() => {
+    for (let i = 0; i < 40; i++) {
+      const r = R([{ def: SOLDIER, n: 6 }], [{ def: ARCHER, n: 4 }], 30, { seed: i + 200 });
+      for (const rd of r.rounds) if (rd.behindWalls && rd.defender.lost.length) return false;
+    }
+    return true;
+  })());
+
+  check("the round that breaks the wall kills nobody behind it (no spill)", (() => {
+    for (let i = 0; i < 60; i++) {
+      const r = R([{ def: SOLDIER, n: 12 }], [{ def: ARCHER, n: 3 }], 12, { seed: i + 300 });
+      const br = r.rounds.find((x) => x.breached);
+      if (br && br.defender.lost.length) return false;
+    }
+    return true;
+  })());
+
+  check("the breach wakes every melee row at once", (() => {
+    const r = R([{ def: SOLDIER, n: 20 }], [{ def: ARCHER, n: 2 }, { def: HORSE, n: 4 }], 8, { seed: 11 });
+    const i = r.rounds.findIndex((x) => x.breached);
+    if (i < 0 || i + 1 >= r.rounds.length) return false;
+    const before = r.rounds[i].defender.roll.stacks.find((x) => x.id === "horseman");
+    const after = r.rounds[i + 1].defender.roll.stacks.find((x) => x.id === "horseman");
+    return before.silent && after && !after.silent && after.faces.length > 0;
+  })());
+
+  check("worst goes first, and worst means cheapest",
+    api.casualtyOrder([{ def: SIEGE, n: 1 }, { def: HORSE, n: 1 }, { def: ARCHER, n: 1 }, { def: SOLDIER, n: 1 }])
+      .join(",") === "soldier,archer,horseman,siege");
+
+  // The reason worst-first is priced by COST and not by combat value: ordering
+  // by value would kill the siege train while the walls still stand -- exactly
+  // the units doing the work.
+  check("the siege train dies only once the infantry is gone", (() => {
+    for (let i = 0; i < 50; i++) {
+      const r = R([{ def: SOLDIER, n: 8 }, { def: SIEGE, n: 3 }], [{ def: ARCHER, n: 10 }], 10, { seed: i + 400 });
+      let soldiers = 8;
+      for (const rd of r.rounds) {
+        const ls = (rd.attacker.lost.find((l) => l.id === "siege") || { n: 0 }).n;
+        soldiers -= (rd.attacker.lost.find((l) => l.id === "soldier") || { n: 0 }).n;
+        if (ls > 0 && soldiers > 0) return false;
+      }
+    }
+    return true;
+  })());
+
+  check("siege engines bring a wall down far faster than infantry", (() => {
+    const when = (roster) => { let t = 0; for (let i = 0; i < 80; i++)
+      t += (R(roster, [{ def: ARCHER, n: 1 }], 36, { seed: i + 1100 }).breachedAt || 99); return t / 80; };
+    return when([{ def: SOLDIER, n: 6 }, { def: SIEGE, n: 4 }]) < when([{ def: SOLDIER, n: 10 }]) * 0.75;
+  })());
+
+  check("population does not fight: an open undefended hex falls with no dice", (() => {
+    const r = R([{ def: SOLDIER, n: 3 }], [], 0, { seed: 1 });
+    return r.outcome === "undefended" && r.rounds.length === 0 && r.holder === "attacker";
+  })());
+
+  check("walls with no garrison are a TIMER, not a defence", (() => {
+    const r = R([{ def: SOLDIER, n: 6 }], [], 18, { seed: 2 });
+    return r.holder === "attacker" && r.rounds.length >= 3 && left(r.attacker) === 6;
+  })());
+
+  check("a bigger wall pool makes a longer siege (the pacing knob)", (() => {
+    const len = (w) => { let t = 0; for (let i = 0; i < 80; i++)
+      t += R([{ def: SOLDIER, n: 12 }], [{ def: ARCHER, n: 3 }], w, { seed: i + 900 }).rounds.length; return t / 80; };
+    return len(0) < len(12) && len(12) < len(30);
+  })());
+
+  check("a cautious stance brings an army home where a stubborn one loses it", (() => {
+    let cautious = 0, stubborn = 0;
+    for (let i = 0; i < 120; i++) {
+      cautious += left(R([{ def: SOLDIER, n: 10 }], [{ def: SOLDIER, n: 12 }], 0, { seed: i + 500, atkStance: "quarter" }).attacker);
+      stubborn += left(R([{ def: SOLDIER, n: 10 }], [{ def: SOLDIER, n: 12 }], 0, { seed: i + 500, atkStance: "never" }).attacker);
+    }
+    return cautious > stubborn * 2;
+  })());
+
+  check("no withdrawal before the first round has finished", (() => {
+    for (let i = 0; i < 60; i++) {
+      const r = R([{ def: SOLDIER, n: 8 }], [{ def: HORSE, n: 12 }], 0, { seed: i + 600, atkStance: "quarter" });
+      if (r.rounds.length < 1) return false;
+    }
+    return true;
+  })());
+
+  check("when both sides would withdraw, the defender keeps the ground", (() => {
+    for (let i = 0; i < 80; i++) {
+      const r = R([{ def: SOLDIER, n: 8 }], [{ def: SOLDIER, n: 8 }], 0,
+        { seed: i + 800, atkStance: "quarter", defStance: "quarter" });
+      if (r.outcome === "attackerWithdrew" && r.holder !== "defender") return false;
+    }
+    return true;
+  })());
+
+  check("every roll records its faces, so the panel can show the why", (() => {
+    const r = R([{ def: SOLDIER, n: 4 }], [{ def: SOLDIER, n: 4 }], 0, { seed: 4 });
+    const st = r.rounds[0].attacker.roll.stacks[0];
+    return st.faces.length === 4 && st.faces.every((f) => f >= 1 && f <= 10) &&
+      st.faces.filter((f) => f >= st.hit).length === st.hits;
+  })());
+
+  check("ordinary play never comes near the runaway round cap", (() => {
+    let worst = 0;
+    for (let i = 0; i < 300; i++) {
+      const r = R([{ def: SOLDIER, n: 1 + (i % 25) }], [{ def: ARCHER, n: 1 + (i % 17) }], (i % 5) * 9, { seed: i + 700 });
+      if (r.outcome === "stalemate") return false;
+      worst = Math.max(worst, r.rounds.length);
+    }
+    return worst < api.CONFIG.battleMaxRounds / 4;
+  })());
+
+  // The manifest's own numbers, which the rule checks above are deliberately
+  // blind to. These are the ones that should go red when balance moves too far.
+  check("every unit in every era carries dice, a to-hit number and a role", (() => {
+    for (const era of api.ERA_ORDER) {
+      for (const u of api.MANIFESTS[era].units) {
+        if (!(u.dice >= 1) || !(u.hit >= 2 && u.hit <= 10)) return false;
+        if (!["melee", "ranged", "siege"].includes(u.role)) return false;
+      }
+    }
+    return true;
+  })());
+
+  check("an archer is worse in the open than the melee of its own age", (() => {
+    const b = api.MANIFESTS.bronze.units;
+    const a = b.find((u) => u.id === "archer"), h = b.find((u) => u.id === "horseman");
+    return a && h && api.expectedHits(a) < api.expectedHits(h);
+  })());
+
+  check("the siege engine is nearly helpless against people, decisive against stone", (() => {
+    const s = api.MANIFESTS.iron.units.find((u) => u.id === "siegeEngine");
+    const sol = api.MANIFESTS.stone.units.find((u) => u.id === "soldier");
+    return s && api.expectedHits(s) < api.expectedHits(sol) &&
+      api.unitWallDamage(s) >= 4 * api.unitWallDamage(sol);
   })());
 }
 

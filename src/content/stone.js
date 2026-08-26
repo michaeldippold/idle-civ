@@ -256,6 +256,7 @@ export const STONE = {
   units: [
     {
       id: "soldier", name: "Soldier", kind: "unit", popCost: 1, strength: 1.0,
+        dice: 1, hit: 7, role: "melee",
       casualtyWeight: 1.0,
       desc: "A settler permanently trained for defense. Holds the line, and takes the worst of it.",
       base: { wood: 12 }, buildTime: 15,

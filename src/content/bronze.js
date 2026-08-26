@@ -153,6 +153,11 @@ export const BRONZE_DELTA = {
       {
         id: "archer", name: "Archer", kind: "unit", popCost: 1,
         strength: 1.0, counters: "massed", casualtyWeight: 0.35,
+        // WORSE IN THE OPEN THAN A SOLDIER, and the only thing that fires from
+        // inside a fortification. One rule does two jobs: the same penalty that
+        // keeps archers out of field armies is what stops an all-archer garrison
+        // being strictly correct, because a breach is fought in the open.
+        dice: 1, hit: 8, role: "ranged",
         desc: "Deadly against a massed charge, and safer than most — they fight from behind the line.",
         base: { wood: 14, bronze: 6 }, buildTime: 18,
         reveal: () => !!me().upgrades.archeryRange,
@@ -160,6 +165,9 @@ export const BRONZE_DELTA = {
       {
         id: "horseman", name: "Horseman", kind: "unit", popCost: 1,
         strength: 1.5, counters: "riders", casualtyWeight: 0.6,
+        // The strong melee, and behind a wall it does nothing at all: cavalry
+        // cannot engage cavalry from inside a castle. It waits for the breach.
+        dice: 1, hit: 5, role: "melee",
         desc: "Strong in any fight, quick enough to run down mounted raiders, and quick enough to withdraw.",
         base: { wood: 20, bronze: 14 }, buildTime: 24,
         reveal: () => !!me().upgrades.stables,

@@ -185,6 +185,12 @@ export const IRON_DELTA = {
         // against stone.
         id: "siegeEngine", name: "Siege Engine", kind: "unit", popCost: 1,
         strength: 1.0, siege: true, casualtyWeight: 0.5,
+        // Nearly helpless against people and decisive against masonry: six wall
+        // damage a hit against everyone else's one. Time is the defender's ally
+        // in a siege -- every round the walls stand, the attacker's dice go into
+        // stone while the garrison's archers go into people -- so this unit is
+        // the answer to a pressure the rules create rather than a bonus on top.
+        dice: 1, hit: 9, role: "siege", wallDamage: 6,
         desc: "Engineers and their machine. Tears down walls like nothing else; fights and defends like anyone else.",
         base: { wood: 45, stone: 30, iron: 12 }, buildTime: 30,
         reveal: () => !!me().upgrades.siegeWorkshop,

@@ -1308,7 +1308,9 @@ and forbidden from exceeding a maximum height; pieces are deliberately oversized
 - **It costs no flavour.** Twenty small trees read as *forest*; four big ones read as *four trees*.
   Miniaturised scenery becomes **texture**, and texture is what makes pieces pop — today scenery and
   markers compete because they carry similar visual weight. The board ends up looking more like a
-  tabletop, not less.
+  tabletop, not less. *(**Confirmed in play, 2026-08-26**, owner: "it might even strengthen it — the
+  small trees feel a lot closer to what the hex is supposed to be: not a small clearing with a few
+  trees, but a big forest.")*
 - It also solves collision without collision *detection*: a piece owns a vertical corridor nothing
   else may enter.
 

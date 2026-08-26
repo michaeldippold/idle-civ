@@ -381,6 +381,17 @@ several tempting ideas later, and it should.
    gospel"*), so they are not bridged into the resolver — they keep running in their corner until
    real inbound armies replace raids as a system, and then the system dies whole.
 
+   **NEXT SESSION: A5, and a combat system two players can actually engage in** (the owner's stated
+   goal at the 2026-08-26 pause). The pieces, the resolver, contact, and the depiction are all live
+   and validated in play — what remains is making the OTHER side use them. The shape of the work:
+   the bots raise real armies out of their own rosters and march them at real hexes (the era-clock
+   wire already decides what force an age can field — it feeds `formArmy` + `orderMarch` now instead
+   of a dice table); the raid EVENTS die as a system, and `repelChance`, `militaryStrength`,
+   `counterCoverage` and the counter-matrix remnants go with them; a raid becomes a brown disc
+   walking out of the hills toward your border, visible under the same fog rules as everything else.
+   After that, showing the players the DICE — the battle panel — is what makes it fully the board
+   game ("when we start showing players dice, we'll be fully there").
+
    *Found in browser verification of A4, both open:*
    - ~~Armies do not emit sight~~ — **closed 2026-08-26, the day the owner watched his own disc
      march off the edge of the drawn world.** Two halves, per the fog canon ("sight is emitted by

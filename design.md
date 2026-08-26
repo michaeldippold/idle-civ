@@ -1323,7 +1323,12 @@ individual units. See the 8/25 design brief.)*
 
 **Eras are per-player.** Each civilization — yours and every rival's — advances on its own clock,
 and advancing first is a real advantage. There is no shared world era. *(Settled 2026-08-25;
-Empire Earth is the reference.)*
+Empire Earth is the reference. **Built 2026-08-26:** every civ carries its own `era`, `active(civ)`
+answers a different world for each, and any of them can cross a border without touching the
+others. What is not built yet is the thing that decides WHEN a neighbour advances — the hidden
+countdowns below — so rivals currently keep level with you. That is one function, `paceRivals()`,
+and it is the old behaviour expressed through the new verb: nothing reads your clock any more, and
+a neighbour's strength and larder now come from **its own** age.)*
 
 **The transition mechanism is settled:** advancing is a hidden, one-time capstone Upgrade that reveals
 once its prerequisites are quietly met and otherwise behaves like any other Upgrade — same queue, real
@@ -1687,8 +1692,15 @@ wholesale annexation of a major is worth.*
 
 ### Every Civilization Keeps Its Own Time — the era clock
 
-*(Consensus 2026-08-25; not yet built. The night's arc: the caps discussion → "the game is still not
-hard enough" → this. The owner's framing, which is the whole idea:)*
+*(Consensus 2026-08-25. **The mechanism shipped 2026-08-26 with the per-player refactor; the
+countdown below is what remains.** Every civilization now carries its own era, is authored out of
+its own manifest, restocks when its own clock turns, and can cross a border without touching
+anyone else's screen or speed. What is missing is only the POLICY that decides when a neighbour
+advances — `paceRivals()` in `sim/era.js`, which today keeps them level with the human. Replacing
+that one function with the countdowns described here is the whole remaining job.)*
+
+*(The night's arc: the caps discussion → "the game is still not hard enough" → this. The owner's
+framing, which is the whole idea:)*
 
 > *"In Age of Empires and especially Empire Earth, they never just beat you with width. They ADVANCE
 > FASTER. You're like alright lads, let's carefully load those muskets, and then a Panzer division

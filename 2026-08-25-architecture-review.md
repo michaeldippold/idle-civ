@@ -26,6 +26,12 @@ subtraction. Line numbers are as of commit `a26881a`.*
 >   became hex structures — positional healing and a demolishable smelter. Canon in `design.md`.
 >   **The capital tier remains unbuilt**; see `todo.md`.
 >
+> - ✅ **Part I (all of it), Part II.3 and Part VII** — the per-player refactor, shipped
+>   2026-08-26 and merged. `players[]`, `tile.owner`, per-player fog, seats, `active(civ)`,
+>   the map package split, the sim→UI event bus, and adversaries as civilizations. The two
+>   bugs this document predicted both turned out to be real and are fixed. Live canon is in
+>   `tech.md`; `todo.md` carries what is left.
+>
 > Everything else stands as written.
 
 ---

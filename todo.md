@@ -118,19 +118,38 @@ cold start **before** this file's older sections:
      entirely, but that is a balance question and most of the game model it would be balanced
      against — armies, per-player eras, the capital — is not built yet. Not worth tearing out
      now to re-derive later.)*
-5. **The per-player refactor (review Part I), as one campaign** ← **NEXT** — `players[]`, `tile.owner`,
-   per-player fog, seats, `active(civ)`, module-local state onto the player object, with the
-   `map/map.js` split and the sim→UI event-bus inversion in the same pass. **This is 4d's real
-   shape, and it must land BEFORE armies-on-hexes** — armies are the next big state object, and
-   born singleton they grow the refactor by the size of the military system. Multi-session, so
-   it branches per the branch ruling.
-6. **Armies, combat, per-player era content** — built on the new shape, so bots and the human
+5. ~~**The per-player refactor (review Part I), as one campaign**~~ **SHIPPED 2026-08-26**
+   (branch `per-player`, merged; canon in `tech.md` → *State Shape*, *Module Structure*,
+   *The Event Bus*, *Adversaries & Expeditions*). Play-verified through to Bronze.
+   Seven commits, each with its own harness section, 902 checks green:
+   - **A civilization is a record.** Everything a civ owns moved off `S` into `S.players`;
+     the human is `S.players[S.me]`, reached through `me()`.
+   - **Ownership is a property of the tile** (`S.map.owner[tileId] = playerId`), with the
+     per-civ list derived so there is no second copy to drift.
+   - **Fog belongs to the knower** — `revealed`/`sighted` are the civ's, not the map's.
+   - **Every civ keeps its own time** — `active(civ)`, and `advanceEra(era, civ)` sorted its
+     side effects into "this civ's books" and "the human's screen".
+   - **A seat is a civ's own** — `player.seat`, and `adminDistance` measures from the asking
+     civ's capital.
+   - **The map module became a package** — 917 lines to 236, acyclic *by check*.
+   - **The sim stopped knowing the interface exists** — `core/bus.js` + `ui/wire.js`; the
+     whole simulation now imports and runs headless with no DOM in scope.
+   - **Neighbours became civilizations** — their `stock` became `res`, and they are authored
+     out of their own age rather than yours.
+   *Two real bugs it surfaced, both predicted by the review:* a bot reaching Bronze would have
+   reset the human's game speed and opened the human's ceremony modal; and the owned-ground
+   discount in pathfinding would have let your roads cheapen a rival's frontier.
+6. **The era clock (4d) — now cheap** ← **NEXT, and the smallest high-value thing left.**
+   The mechanism shipped with the refactor; what remains is the POLICY in `paceRivals()`
+   (`sim/era.js`): hidden per-civ countdowns, one speedster guaranteed, the Chronicle
+   telegraphing the race. Replacing that one function is the whole job.
+7. **Armies, combat, per-player era content** — built on the new shape, so bots and the human
    share the systems from birth. Slice 6 scouting is still the prerequisite.
-7. **The docs collapse, ten → four** (review IX.0): harvest `map.md` and `interface.md` into
+8. **The docs collapse, ten → four** (review IX.0): harvest `map.md` and `interface.md` into
    `design.md`/`tech.md`, then delete them; prune `todo.md`'s archive. Best done at a hold near
    the refactor, since the refactor obsoletes more passages and `tech.md`'s rewrite should
    describe the new state shape.
-8. **Performance (review Part V)** — set-based fog, one cached seat Dijkstra. Measure first.
+9. **Performance (review Part V)** — set-based fog, one cached seat Dijkstra. Measure first.
 
 **The branch ruling (2026-08-25) still stands:** one-session work lands on main; multi-session
 work branches. Steps 1–3 were one session and landed on main.

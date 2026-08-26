@@ -131,9 +131,41 @@ load-bearing rather than theoretical. What exists:
 
 ## Module Structure
 
-**Status: shipped (phase 1, 2026-08-22).**
+**Status: shipped (phase 1, 2026-08-22); reshaped 2026-08-26 by the per-player refactor.**
 
-`game.js` split along its own section banners into 26 modules — pure slicing, no logic changed. The shipped tree (line counts as of the split):
+Two structural facts now govern the tree, and both are checked by the harness
+rather than trusted to the eye:
+
+**1. The simulation does not import the interface.** Nothing under `core/`,
+`sim/`, `map/` or `content/` reaches into `ui/`. The sim emits on
+`core/bus.js`; `ui/wire.js` is the only module that knows both sides. The proof
+is that the whole simulation imports and runs headless with no `document`, no
+`localStorage` and no `window` in scope at all — which is also why the harness
+no longer stubs them to load the game.
+
+**2. `map/` is a package, not a file.** `map.js` was 917 lines and a third of
+the simulation wearing a map module's name. It is split along the seams its own
+section banners named, and the layering is acyclic *by check*: `world.js` and
+`ownership.js` import nothing of ours, and nothing imports the hub back.
+
+```
+  map/
+    world.js        the runtime geometry binding — the leaf everything reads
+    ownership.js    who holds what, keyed by tile
+    fog.js          charted vs sighted, per civ
+    structures.js   what a hex IS and what it yields; setHexBuild is its only writer
+    population.js   people on the land, growth, famine, and who a blow lands on
+    routes.js       the two distances, and never the same one
+    map.js          lifecycle + re-exports — the package is the unit
+```
+
+That last line is the contract: callers import `map/map.js` and never learn
+which file a function ended up in.
+
+The original split (phase 1) took `game.js` apart along its own section banners
+into 26 modules — pure slicing, no logic changed. The tree below is that split,
+with line counts as of the day it happened; it is kept because the REASONING
+for each seam is still the reasoning, not because the counts are current.
 
 ```
 index.html
@@ -411,31 +443,62 @@ Any field present in `freshState()` but absent from an old save (a new resource,
 
 ## State Shape
 
-**Status: shipped.** `freshState()` is the authoritative shape; this table is the annotated version.
+**Status: shipped; rewritten 2026-08-26 by the per-player refactor.** `freshState()`
+and `freshPlayer()` are the authoritative shapes; this is the annotated version.
+
+**The split is the point.** Before the refactor everything below hung off `S`,
+which encoded "there is one player and the world is theirs" into every read in
+the codebase — a second civilization had nowhere to exist. Now there are two
+kinds of state, and which kind a field is answers "whose?" before anything asks.
+
+### `S` — the world and the run
 
 | Field | Type | Purpose |
 |---|---|---|
-| `res` | one key per resource id (all eras) | Current stockpiles |
-| `jobs` | one key per job id (all eras) | Civilians assigned per gather job |
-| `builds` | one key per building id (all eras) | Completed building counts (repeatable unless `cap`ped) |
-| `units` | one key per unit id | Trained person-types. Separate from `builds` so it renders in Your People, not Settlement |
+| `seed` | number | The run's permanent identity — shown on the game-over screen, logged at boot |
+| `rngState` | number | The dice stream's position, advanced by every `rng()` draw and carried in the save so a reload resumes mid-stream |
+| `players` | `[civ]` | **Every civilization.** Index 0 is the human today; the three neighbours follow |
+| `me` | number | Which civ the interface is looking through. A field rather than a constant precisely so "render from another seat" is a value change |
+| `adversaries` | `{}` | Vestigial — the living remnants moved into `players` on 2026-08-26. Kept so old saves land somewhere |
+| `map` | `{seed, gen, tileNoun, continent, owner, built, pop, minors, starve}` | The persisted half of the board. Geometry is REGENERATED from the seed at load |
+| `map.owner` | `{[tileId]: playerId}` | **Ownership is a property of the tile.** One field answers "whose is this?" for any tile and any civ |
+| `tick` | number | The master clock: fixed `TICK_SECONDS` slices actually simulated |
+| `seen` | `{[id]: true}` | Reveal latches and one-time interface flags |
+| `dead` | boolean | The RUN is over — today, when the human falls |
+
+### A civilization — `S.players[n]`
+
+| Field | Type | Purpose |
+|---|---|---|
+| `id` | number | The index, and the identity: it keys ownership on the board and stamps the journal |
+| `key` | string \| null | The manifest id this civ is authored under (`"hillClans"`), or null for the human — nobody authored them |
+| `color` | string | What this civ wears on the board (`core/palette.js`) |
+| `seatName` | string | What it calls its capital; empty means the game's own words |
+| `seat` | tileId \| null | Where it sits, and the point every administrative distance is measured from |
+| `era` | string | **The age THIS civ is living in.** Per-player: the shared world clock is dead |
+| `eraHistory` | `{[era]: snapshot}` | Frozen pre-transition snapshots of THIS civ's books |
+| `res` | one key per resource id | Current stockpiles. A neighbour's larder is this same field — plundering takes from resources |
+| `builds` | one key per building id | Inert since the Construction panel retired; kept so legacy counts land somewhere |
+| `units` | one key per unit id | Trained person-types |
 | `upgrades` | `{[id]: true}` | One-time upgrades; key presence = owned |
-| `buildQueue` | `[{id, kind, uid, total, remaining, cost}]` | FIFO, shared by buildings/upgrades/units; only `[0]` progresses. `cost` is the exact price paid, stored for cancel-refunds |
+| `buildQueue` | `[{id, kind, uid, total, remaining, cost}]` | FIFO; only `[0]` progresses. `cost` is the exact price paid, for cancel-refunds |
 | `buildSeq` | number | Monotonic counter for queue `uid`s (the DOM diffing key) |
-| `pop` | number | Total population, **including** trained units — they eat and occupy housing |
-| `growth` | number | Seconds accrued toward the next free settler; **freezes** (not resets) while housing is full |
-| `bought` | number | Lifetime settlers grown — a game-over stat only |
-| `era` | string | `"stone" \| "bronze" \| "iron"` — the key into `MANIFESTS`. The entire era system is this one string |
-| `eraHistory` | `{[era]: snapshot}` | Frozen pre-transition snapshot, archived by `advanceEra()`; migration formulas read it, humans debug with it |
-| `playtime` | number | Seconds the simulation has actually advanced (frozen while paused) |
-| `seen` | `{[revealId]: true}` | One-time reveal hints already fired, plus sticky `rev:` entries |
-| `dead` | boolean | Game-over flag |
-| `adversaries` | `{[id]: {stock, standing, walls}}` | The living remnant per adversary (see Adversaries & Expeditions) |
 | `expeditions` | `[{uid, type, adversary, units?, cargo?, total, remaining}]` | At most one campaign and one caravan |
+| `revealed` / `sighted` | `[tileId]` | **What THIS civ knows of the board.** Knowledge, not board truth: a bot reading the true map is cheating, one reading yours is broken |
+| `pop` | number | MIRROR of the floored hex sums plus the standing army |
+| `bought` | number | Lifetime arrivals — the game-over screen's one stat |
+| `standing` / `walls` | number | Adversary-shaped today; both on the road to becoming ordinary (walls want to be fortification structures) |
 
-**Pending additions:** `S.tick` (phase 4), `S.seed` / `S.rngState` (phase 2), `S.pending` (phase 7).
+**Reaching a civ.** `me()` is the seat the interface is looking through and the
+default everywhere; `playerById(id)`, `playerByKey(key)` and `rivals()` are how
+the systems that already know whose turn it is get there. Reading player state
+through `me()` rather than off `S` is what makes "whose?" a visible question at
+every site instead of an assumption.
 
-Population is **not** `jobs` summed plus idle. A person is in one of three states: assigned to a civilian job, idle, or converted to a unit (permanently outside the assignable pool). See *Units & Military* for the derived-value math.
+**Migration.** `load()` reads whichever schema a save carries — its own player
+record if it has one, the save itself if it does not — so a pre-split save
+migrates without a version branch, and keeps working when a third field moves.
+The old `map.owned` array becomes owner entries; map-level fog moves onto the civ.
 
 ## `step()` — Order of Operations
 
@@ -746,7 +809,39 @@ Conflict is the one hazard allowed to end a run (`design.md`, *Failure*), which 
 
 **`adversaries` is a manifest category declared wholesale per era, never inherited.** *(Stone and Bronze used to declare `[]`; since 2026-08-25 all three eras seat the SAME three peoples, re-dressed per age — the roster is fixed at generation and only the era changes what they have grown into. `contact` is what gates whether you can act on them, not their existence.)* Shape: `{id, name, disposition: "peaceful"|"warlike", strength, walls?, fightsAs: raidTypeId, stock: {resId: n}, buys?: {res, amount, pays}, campaignTime, caravanTime?, desc}`.
 
-**State** (additive, defensively merged): `S.adversaries = {[id]: {stock, standing, walls}}`. The manifest entry is the *template*; the state entry is the *living remnant* that depletes. `S.expeditions` holds at most one campaign and one caravan (`expeditionOut(type)` guards per type — never two of a kind).
+**State: neighbours ARE civilizations** *(2026-08-26, the per-player refactor)*.
+They were `S.adversaries = {[id]: {stock, standing, walls, era}}` — a parallel
+track by construction: a record shaped nothing like a civilization, that no
+player system could read and no player verb could act on. They are entries in
+`S.players` now, carrying every field you carry, found with `playerByKey(id)`
+or listed with `rivals()`.
+
+The merge that matters is one field: **their `stock` became `res`.** Plundering
+a neighbour takes from their RESOURCES, the same pile yours comes out of, so
+the day a bot spends its own wood on its own buildings there is nothing left to
+convert. `standing` and `walls` ride on the record too, both on the road to
+becoming ordinary — walls want to be fortification structures standing on their
+hexes.
+
+The manifest entry is still the *template*, and a neighbour is authored out of
+**its own age**: `active(civ)` reads that civ's era, and its larder refills when
+THAT clock turns. Comparing against the human's era was the "rival strength
+keyed to your progress" defect — scale to the player and you get the Oblivion
+problem, where bandits appear in glass armour.
+
+**Minors are NOT players.** A steading is still a remnant on the map
+(`S.map.minors[tileId].stock`), so a campaign target carries its `larder` under
+one name and resolution never has to know which kind it is holding.
+
+**`paceRivals()` is a POLICY, not a mechanism.** The mechanism is finished: any
+civ can cross a border on its own clock. What decides *when* a neighbour
+advances — the hidden per-civ countdowns of `design.md` → *Every Civilization
+Keeps Its Own Time* — is not built, so rivals currently keep level with the
+human. That is the old behaviour expressed through the new verb; replacing it
+with countdowns is a change to that one function and nothing else.
+
+Each civ's `expeditions` holds at most one campaign and one caravan
+(`expeditionOut(type)` guards per type — never two of a kind).
 
 **Deployment thins home defense, genuinely.** `deployedCount(unitId)` sums over active expeditions; `unitStrength()` counts `S.units[id] - deployed(id)`, and the home-side casualty draw only touches undeployed units. Campaign casualties draw from the deployed set with the same exposure weights and decrement `S.units` + `S.pop` on resolution. An army on campaign is not home; that is a mechanic, not flavor.
 
@@ -849,6 +944,44 @@ not emptied still climbs its logistic back toward its cap.
 takes 1–2, so a freshly claimed hex can be lost within seconds — measured at 0.3% inside five
 seconds. Raids also pick exposure-weighted by population × administrative distance, so a new frontier
 hex is both the likeliest target and the most fragile.
+
+## The Event Bus — the sim/interface seam
+
+**Status: shipped 2026-08-26** (review Part II.3).
+
+`core/`, `sim/`, `map/` and even `content/` used to import `ui/` directly:
+`step.js` did DOM surgery to end a run, `era.js` opened a modal and reset the
+player's clock, and every corner of the sim wrote straight into the Chronicle.
+
+That inverted edge cost three things. The harness had to stub `document`,
+`localStorage` and `window` merely to IMPORT the simulation. A bot doing
+anything at all would have seized the human's screen — the first rival to reach
+Bronze would have reset your clock and held your ceremony modal open. And every
+line the sim wrote had no answer to the question the player split made
+unavoidable: **whose Chronicle is this?**
+
+`core/bus.js` carries what the simulation says:
+
+| Event | Emitted by | Payload |
+|---|---|---|
+| `chronicle` | anywhere in the sim, via `chronicle(text, cls, pid)` | `{text, cls, pid}` |
+| `render` | actions, expeditions, `die()` | — |
+| `speed` | `advanceEra` | `{value}` |
+| `eraAdvanced` | `advanceEra` | `{era, pid}` |
+| `runEnded` | `die()` | `{cause}` |
+
+`ui/wire.js` is the **only** module that knows both sides, called once from
+`main.js` before boot. A headless run simply never calls it, and emits land on
+an empty registry — silence rather than a special case, which is what lets the
+whole simulation run with no DOM at all.
+
+**Every line says whose it is.** `chronicle()` defaults `pid` to the seat being
+watched, so existing calls kept their meaning; the interface drops what is not
+yours. Your own border is a ceremony, somebody else's is news — and news
+belongs to the notifications system as a different sentence entirely.
+
+`fmtTime` moved from `ui/chrome.js` to `core/derived.js` on the same pass: the
+simulation's own pacing telemetry prints it, and a formatter is not a view.
 
 ## Rendering
 

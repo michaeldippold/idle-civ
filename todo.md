@@ -164,6 +164,32 @@ cold start **before** this file's older sections:
    `news` severity in the log are the first thread — facts arriving from the world, marked and
    styled apart from settlement flavour so the two can be separated when the rest of the
    Chronicle's idle-era prose is retired.
+**DIRECTION, NOT CANON — the combat model gets torn up** *(owner, 2026-08-26)*. Recorded here
+rather than in `design.md` because it is how the owner first imagined it resolving, not a settled
+ruling — but it should stop anyone investing further in the current model.
+
+`strength` was an IDLE-GAME simplification: one number per unit, and a fight resolved as
+`repelChance = defense / (defense + raidSize)`. The intended replacement is the Axis & Allies /
+Twilight Imperium family, which share a system: **each unit has a number it must roll to hit and
+contributes dice; dice needing the same number are rolled together; both sides roll SIMULTANEOUSLY
+and casualties are removed after, so a unit that dies still got to shoot; repeat rounds until one
+side is gone.**
+
+Two properties the owner is buying deliberately: what you bring to the roll-off is the skill and
+the dice are the variance, and **fight length solves itself** — fewer units means fewer dice means
+a quicker battle, with genuine tail risk when both sides whiff several rounds running.
+
+*What this means for the existing code:* `repelChance` is the thing that dies — it was always the
+idle abstraction. `casualtyWeight` survives as casualty ordering, `armorFactor` and
+`weaponMultiplier` become to-hit modifiers cleanly, and `fortStrength` wants to become pre-round
+fire (an AA gun in A&A, PDS in TI4) rather than a flat addend. **What the era clock's wire built
+also survives** — raid size and shape decide *what force arrives*, which is the input to a roll-off
+rather than part of its resolution.
+
+*Two forks left open:* whether the counter matrix (archer beats massed) survives as a to-hit
+modifier or dies in favour of differentiated per-unit stats; and whether a battle resolves at once
+on arrival or plays out over ticks, which decides whether reinforcements can join mid-fight.
+
 7. **Armies, combat, per-player era content** — built on the new shape, so bots and the human
    share the systems from birth. Slice 6 scouting is still the prerequisite.
 8. **The docs collapse, ten → four** (review IX.0): harvest `map.md` and `interface.md` into

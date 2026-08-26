@@ -6,6 +6,7 @@ import { canBuildOn, demolishStructure, hasMarket, launchSettle, launchStructure
 import { atDominionCap, capOf, dominionCap, hexPop, hexResource, hexUse, hexYield, holdings, holdsUsed, isCharted, isOwned, isSighted, isVisible, structureDef, terrainYield, workStamp, world } from "../map/map.js";
 import { armyAt, armyById, armyRoster, armySize, disbandArmy, disbandRefusal, haltArmy, marchRefusal, marchingTo, orderMarch } from "../sim/armies.js";
 import { stanceById, unitHit, unitRole } from "../sim/battle.js";
+import { battleAt } from "../sim/contact.js";
 import { FOREIGN, FOREIGN_MINOR, playerColor } from "../core/palette.js";
 import { hexDistance, hexPoints, toPixel } from "../map/model.js";
 import { campaignPlan, expeditionOut, musterBuilt, standingWord } from "../sim/expeditions.js";
@@ -299,6 +300,14 @@ function unitLine(def, n) {
 
 function armyHTML(p) {
   const out = [];
+  // A CONTESTED HEX SAYS SO FIRST. The battle is the most important thing
+  // happening anywhere on the board; the cards below it show both sides, and
+  // their buttons are gone because a sealed army takes no orders.
+  const b = battleAt(p.id);
+  if (b) {
+    out.push(`<div class="army-card battle"><div class="army-head">⚔ <b>A battle rages here</b> — round ${
+      (b.round || 0) + 1}. No one enters, and no one is called away, until it is decided.</div></div>`);
+  }
   for (const pl of S.players || []) {
     const a = armyAt(p.id, pl);
     if (!a) continue;
@@ -306,14 +315,17 @@ function armyHTML(p) {
     if (!mine && !isSighted(p.id)) continue;
     const rows = armyRoster(a, pl).map((s) => unitLine(s.def, s.n)).join("");
     const dest = marchingTo(a);
-    const where = dest && world.places[dest]
+    const where = a.inBattle ? "Locked in the fighting."
+      : dest && world.places[dest]
       ? `Marching on ${titleFor(world.places[dest])}.`
       : "Holding this ground.";
     out.push(
       `<div class="army-card${mine ? " mine" : " foe"}">` +
         `<div class="army-head">⚑ <b>${civLabel(pl)}</b> — ${armySize(a)} under arms</div>` +
         rows +
-        (mine
+        (mine && a.inBattle
+          ? `<div class="army-orders">${where} Standing order: <b>${stanceById(a.stance).name}</b> — frozen until the dice are done.</div>`
+          : mine
           ? `<div class="army-orders">${where} Standing order: <b>${stanceById(a.stance).name}</b>.</div>` +
             `<div class="map-actions">` +
               `<button class="map-act" data-act="send" data-army="${a.uid}">${

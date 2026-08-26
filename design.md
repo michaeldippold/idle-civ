@@ -1249,6 +1249,11 @@ below because it explains the shape.
 - **The silhouette is unused.** The board already spends hexes, cones (trees), icosahedra (rocks) and
   boxes (buildings). A cylinder reads as a *token* and reads as nothing else — a cube would risk
   reading as a small building.
+- **A fixed diameter makes collision trivial** (owner, 2026-08-26): mark the disc's centre point on
+  the hex and forbid scenery within that radius — one number, one circle. A banner could never give
+  this: wider at the top than the bottom, much wider in one direction than the other, its clearance
+  zone would be a shape that changes with the camera. The disc's footprint is a circle from every
+  angle because it is a circle.
 - **It is a real 3D object with its own picking**, not an overlay label. See *An army is an object,
   not a property of a hex* below, which is the reason this matters more than the shape does.
 

@@ -23,6 +23,7 @@ import * as mDerived from "./src/core/derived.js";
 import * as mCombat from "./src/sim/combat.js";
 import * as mBattle from "./src/sim/battle.js";
 import * as mArmies from "./src/sim/armies.js";
+import * as mContact from "./src/sim/contact.js";
 import * as mEvents from "./src/sim/events.js";
 import * as mExped from "./src/sim/expeditions.js";
 import * as mStep from "./src/core/step.js";
@@ -53,7 +54,7 @@ import { fileURLToPath } from "node:url";
 
 const MODS = [mConfig, mRng, mLib, mStone, mBronze, mIron, mCompile, mIcons, mState,
   mContinents,
-  mDerived, mCombat, mBattle, mArmies, mEvents, mExped, mStep, mActions, mEra, mLog, mDom,
+  mDerived, mCombat, mBattle, mArmies, mContact, mEvents, mExped, mStep, mActions, mEra, mLog, mDom,
   mPLedger, mPPeople, mPHold, mPBuy, mExpedUi, mModal, mChrome, mPersist,
   mMapModel, mMapGen, mMapCore, mMapUi, mPalette, mJournal, mBus, mEraClock];
 
@@ -4707,7 +4708,10 @@ console.log("\n--- The player split: a civilization is a record, not the world -
   // lives in S.players, and the human is simply the one at S.me. Before this
   // split a second civilization had nowhere to exist.
   reset();
-  const WORLD_ONLY = ["seed", "rngState", "players", "me", "adversaries", "map", "tick", "seen", "dead"];
+  // battles/battleSeq joined 2026-08-26 (contact, A4): a battle is WORLD state
+  // by definition -- it has two sides, so it cannot live in one player's record.
+  const WORLD_ONLY = ["seed", "rngState", "players", "me", "adversaries", "map", "tick", "seen", "dead",
+    "battles", "battleSeq"];
   check("S carries world and run state only",
     Object.keys(S()).every((k) => WORLD_ONLY.includes(k)));
   check("...and nothing a civilization owns", (() => {
@@ -5658,6 +5662,182 @@ console.log("\n--- Armies march: the road is decided at dispatch ---");
     const after = api.armyById(b.uid, api.me());
     return after && after.order && after.order.to === open &&
       Array.isArray(after.path) && after.progress > 0;
+  })());
+}
+
+console.log("\n--- Contact: two armies on one hex, and the dice decide it ---");
+{
+  // One fixture, rebuilt per check: a human army, a rival with ground of their
+  // own, and the tickMilitary loop -- the REAL world tick, not the hookless
+  // walk -- carrying them into each other.
+  const setupWar = (seed) => {
+    reset(); S().seed = seed; S().rngState = seed; S().map = null; S().seen = {};
+    api.ensureMap(); api.initAdversaries();
+    const P = api.me();
+    const R = api.rivals()[0];
+    P.units.soldier = 60; R.units.soldier = 60;
+    // The rival gets a land hex adjacent to open ground the human can reach.
+    const target = Object.values(api.world.places).find((x) =>
+      x.terrain !== "water" && !x.adversary && !x.minor && !api.ownerOf(x.id) &&
+      x.adj.some((n) => api.world.places[n].terrain !== "water" && !api.ownerOf(n)));
+    api.claimTile(target.id, R.id);
+    return { P, R, hex: target.id };
+  };
+  const run = (seconds) => { let t = 0; while (t < seconds) { api.tickMilitary(1); t++; } };
+  const runUntilQuiet = () => { let guard = 0; while (api.battleCount() > 0 && guard++ < 600) api.tickMilitary(1); return guard < 600; };
+  const march = (P, army, dest) => { api.orderMarch(army.uid, dest, P); run(600); };
+
+  check("marching onto a defended hex seals a battle and freezes both sides", (() => {
+    const { P, R, hex } = setupWar(11001);
+    const garrison = api.formArmy(hex, { soldier: 10 }, "never", R);
+    const mine = api.formArmy(api.holdings(P.id)[0], { soldier: 10 }, "never", P);
+    api.orderMarch(mine.uid, hex, P);
+    let guard = 0;
+    while (api.battleCount() === 0 && guard++ < 600) api.tickMilitary(0.5);
+    const b = api.battleAt(hex);
+    return b && mine.inBattle && garrison.inBattle && mine.order === null &&
+      b.atk.roster.soldier === 10 && b.def.roster.soldier === 10 &&
+      mine.at === hex && garrison.at === hex;
+  })());
+
+  check("a contested hex bars the road: the second wave parks and its order dies", (() => {
+    const { P, R, hex } = setupWar(11002);
+    api.formArmy(hex, { soldier: 20 }, "never", R);
+    const first = api.formArmy(api.holdings(P.id)[0], { soldier: 20 }, "never", P);
+    api.orderMarch(first.uid, hex, P);
+    let guard = 0;
+    while (api.battleCount() === 0 && guard++ < 600) api.tickMilitary(0.5);
+    if (!api.battleAt(hex)) return false;
+    const second = api.formArmy(api.holdings(P.id)[1], { soldier: 5 }, "never", P);
+    api.orderMarch(second.uid, hex, P);
+    // Walk the second army with the bare barred hook and NO battle ticking, so
+    // the fight at the door cannot conclude before they reach it. 300s covers
+    // any road this fixture's map can deal.
+    for (let i = 0; i < 300 && second.order; i++) api.marchArmies(1, P, { barred: (h) => !!api.battleAt(h) });
+    return second.order === null && second.at !== hex && api.armySize(second) === 5;
+  })());
+
+  check("the battle plays over ticks, and casualties land on the real rosters", (() => {
+    const { P, R, hex } = setupWar(11003);
+    api.formArmy(hex, { soldier: 12 }, "never", R);
+    const mine = api.formArmy(api.holdings(P.id)[0], { soldier: 12 }, "never", P);
+    api.orderMarch(mine.uid, hex, P);
+    let guard = 0;
+    while (api.battleCount() === 0 && guard++ < 600) api.tickMilitary(0.5);
+    const b = api.battleAt(hex);
+    if (!b) return false;
+    const unitsBefore = P.units.soldier + R.units.soldier;
+    const round0 = b.round;
+    api.tickMilitary(api.CONFIG.battleRoundSeconds);       // exactly one round
+    const afterOne = P.units.soldier + R.units.soldier;
+    const advanced = api.battleCount() === 0 || b.round > round0;
+    // The sealed snapshot never mutates -- it is the script's recompute input.
+    return advanced && afterOne <= unitsBefore && b.atk.roster.soldier === 12;
+  })());
+
+  check("overwhelming force wipes the garrison and takes the ground", (() => {
+    const { P, R, hex } = setupWar(11004);
+    api.formArmy(hex, { soldier: 4 }, "never", R);
+    const mine = api.formArmy(api.holdings(P.id)[0], { soldier: 40 }, "never", P);
+    march(P, mine, hex);
+    if (!runUntilQuiet()) return false;
+    return api.ownerOf(hex) === P.id && api.armiesOf(R).length === 0 &&
+      R.units.soldier === 56 && api.armyAt(hex, P) && !api.armyAt(hex, P).inBattle;
+  })());
+
+  check("a cautious attacker withdraws to the hex it came from, and the ground holds", (() => {
+    const { P, R, hex } = setupWar(11005);
+    // 12 against 16 with a quarter-loss budget: outmatched enough to trip the
+    // stance in a round or two, not so outmatched that round one wipes them
+    // before the withdrawal check ever runs -- which the resolver correctly
+    // permits (no retreat before the first round is done), and which a 10-v-40
+    // draft of this fixture kept demonstrating.
+    api.formArmy(hex, { soldier: 16 }, "never", R);
+    const mine = api.formArmy(api.holdings(P.id)[0], { soldier: 12 }, "quarter", P);
+    march(P, mine, hex);
+    if (!runUntilQuiet()) return false;
+    const survivor = api.armiesOf(P)[0];
+    return api.ownerOf(hex) === R.id &&
+      survivor && survivor.at !== hex && api.armySize(survivor) > 0 && !survivor.inBattle;
+  })());
+
+  check("walls with no garrison are besieged, bloodless, broken, and razed", (() => {
+    const { P, R, hex } = setupWar(11006);
+    S().map.built = S().map.built || {};
+    S().map.built[hex] = "marchHold";
+    const mine = api.formArmy(api.holdings(P.id)[0], { soldier: 15 }, "never", P);
+    api.orderMarch(mine.uid, hex, P);
+    let guard = 0;
+    while (api.battleCount() === 0 && guard++ < 600) api.tickMilitary(0.5);
+    const b = api.battleAt(hex);
+    if (!b || !(b.walls > 0) || b.def.uid !== null) return false;   // a true siege: masonry alone
+    if (!runUntilQuiet()) return false;
+    return P.units.soldier === 60 &&                    // walls never kill anyone
+      api.ownerOf(hex) === P.id &&                       // and only buy time
+      S().map.built[hex] === undefined;                  // fallen walls stay fallen
+  })());
+
+  check("bare enemy ground falls with no dice and no battle -- population does not fight", (() => {
+    const { P, R, hex } = setupWar(11007);
+    const mine = api.formArmy(api.holdings(P.id)[0], { soldier: 8 }, "never", P);
+    march(P, mine, hex);
+    return api.battleCount() === 0 && api.ownerOf(hex) === P.id && P.units.soldier === 60;
+  })());
+
+  check("arriving on UNOWNED ground claims nothing -- settling is a different verb", (() => {
+    const { P } = setupWar(11008);
+    const open = Object.values(api.world.places).find((x) =>
+      x.terrain !== "water" && !x.adversary && !x.minor && !api.ownerOf(x.id));
+    const mine = api.formArmy(api.holdings(P.id)[0], { soldier: 8 }, "never", P);
+    march(P, mine, open.id);
+    return mine.at === open.id && !api.ownerOf(open.id) && api.battleCount() === 0;
+  })());
+
+  check("a battle survives save and load mid-fight, and the same war has the same ending", (() => {
+    const { P, R, hex } = setupWar(11009);
+    api.formArmy(hex, { soldier: 14 }, "never", R);
+    const mine = api.formArmy(api.holdings(P.id)[0], { soldier: 16 }, "never", P);
+    api.orderMarch(mine.uid, hex, P);
+    let guard = 0;
+    while (api.battleCount() === 0 && guard++ < 600) api.tickMilitary(0.5);
+    api.tickMilitary(api.CONFIG.battleRoundSeconds * 2);   // two rounds in
+    if (api.battleCount() === 0) return false;             // fixture must still be fighting
+    api.save();
+    if (!runUntilQuiet()) return false;
+    const endA = { owner: api.ownerOf(hex), mine: api.me().units.soldier, theirs: api.rivals()[0].units.soldier };
+    api.load();                                            // back to two rounds in
+    if (api.battleCount() !== 1) return false;             // the war came back with the save
+    if (!runUntilQuiet()) return false;
+    const endB = { owner: api.ownerOf(hex), mine: api.me().units.soldier, theirs: api.rivals()[0].units.soldier };
+    // A fresh row misses the WeakMap script cache, so this replay went down
+    // the RECOMPUTE path -- the sealed inputs and the one drawn seed are the
+    // whole battle, and the ending cannot come out different.
+    return endA.owner === endB.owner && endA.mine === endB.mine && endA.theirs === endB.theirs;
+  })());
+
+  check("held ground cannot be SETTLED out from under its owner", (() => {
+    // Found by clicking a hex mid-siege: settlePlan only excluded YOUR hexes
+    // (isOwned defaults to the human), so a rival-owned hex offered Settle --
+    // territory theft for the settle price, no battle. Latent since the
+    // per-player split; armies made it reachable.
+    const { P, R, hex } = setupWar(11011);
+    const open = Object.values(api.world.places).find((x) =>
+      x.terrain !== "water" && !x.adversary && !x.minor && !api.ownerOf(x.id));
+    return api.settlePlan(hex) === null && api.settlePlan(open.id) !== null;
+  })());
+
+  check("a battle won on ground the defender never held moves no borders", (() => {
+    const { P, R } = setupWar(11010);
+    // The rival's army stands on open unowned ground; the human attacks it there.
+    const open = Object.values(api.world.places).find((x) =>
+      x.terrain !== "water" && !x.adversary && !x.minor && !api.ownerOf(x.id) &&
+      x.adj.some((n) => api.world.places[n].terrain !== "water"));
+    const theirs = api.formArmy(api.holdings(R.id)[0], { soldier: 3 }, "never", R);
+    theirs.at = open.id;                                   // as if it had marched there
+    const mine = api.formArmy(api.holdings(P.id)[0], { soldier: 30 }, "never", P);
+    march(P, mine, open.id);
+    if (!runUntilQuiet()) return false;
+    return !api.ownerOf(open.id) && api.armiesOf(R).length === 0;
   })());
 }
 

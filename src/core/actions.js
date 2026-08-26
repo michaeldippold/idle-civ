@@ -1,7 +1,7 @@
 import { buildCost, canAfford, caps, civilians, defById, fmtTime, isCapped, levyCap, levyUsed, pendingCount, playtime, reserved } from "./derived.js";
 import { active } from "../content/compile.js";
 import { CONFIG } from "./config.js";
-import { atDominionCap, captureTile, hexUse, holdCount, holdings, isOwned, marchFactor, routeCost, setHexBuild, structureCount, structureDef, syncPopMirror, world } from "../map/map.js";
+import { atDominionCap, captureTile, hexUse, holdCount, holdings, isOwned, marchFactor, ownerOf, routeCost, setHexBuild, structureCount, structureDef, syncPopMirror, world } from "../map/map.js";
 import { S, me } from "./state.js";
 import { record } from "./journal.js";
 import { save } from "./persist.js";
@@ -105,7 +105,13 @@ export function settlePlan(tileId) {
   if (!world || !world.places[tileId]) return null;
   const p = world.places[tileId];
   if (p.terrain === "water" || p.adversary || p.minor) return null;
-  if (isOwned(tileId)) return null;
+  // OWNED BY ANYONE, not just by you. isOwned() defaults to the human, and
+  // before the per-player split that was the same test -- rivals could not own
+  // ordinary hexes, so "mine" and "owned at all" never differed. Armies ended
+  // that (A4): rivals hold real ground now, and this check as it stood offered
+  // SETTLE on it -- territory theft for the settle price, no battle, found by
+  // clicking a hex mid-siege. Taking held ground is what armies are for.
+  if (ownerOf(tileId) != null) return null;
   const factor = marchFactor(tileId);
   // The claim's price is an era-fact (E3): Stone pays food and time only --
   // the first claim must be affordable before wood exists -- and later eras

@@ -373,9 +373,22 @@ several tempting ideas later, and it should.
    share the systems from birth. **IN PROGRESS on branch `combat-dice`.** Shipped: the resolver
    (`f0998c4`), firing slots (`0447b69`), **A1** armies exist and are accounted for (`cbf2667`),
    **A2** they march (`c771973`), **A3** they are visible and inspectable (`86f949e`). Left:
-   **A4** contact — two armies on one hex seal a battle, the resolver runs for real, a contested hex
-   bars the road, and `repelChance` is finally deleted — and **A5** the bots, at which point a raid
-   stops being weather and becomes somebody's decision.
+   **A4 contact SHIPPED 2026-08-26** — two armies on one hex seal a battle, the resolver runs for
+   real over ticks, a contested hex bars the road, walls besiege, ground changes hands, battles
+   survive save/load mid-fight on one drawn seed. Left: **A5** the bots, at which point a raid stops
+   being weather and becomes somebody's decision — and **that is where `repelChance` dies**, not A4:
+   the raid EVENTS are idle-game holdover top to bottom (owner: *"don't take any of that code as
+   gospel"*), so they are not bridged into the resolver — they keep running in their corner until
+   real inbound armies replace raids as a system, and then the system dies whole.
+
+   *Found in browser verification of A4, both open:*
+   - **Armies do not emit sight.** Fog gates foreign armies on the *sighted* tier, and nothing makes
+     an army's own hex sighted — so the composition of an enemy you are ACTIVELY FIGHTING can be
+     invisible in the panel. Vision-from-armies belongs to the scouting slice; until then this is a
+     known hole, not a rule.
+   - ~~Held ground could be SETTLED out from under its owner~~ — **fixed same day**: `settlePlan`
+     only excluded *your* hexes (`isOwned` defaults to the human), latent since the per-player split
+     because rivals could not own ordinary hexes before armies. Harness-pinned.
 
    **HOW AN ARMY IS DEPICTED — SETTLED 2026-08-26.** Full canon and reasoning in `design.md` →
    *How an Army Is Depicted* / *The Army Detail Panel* / *The ERA Dot*. It is no longer blocking A4.

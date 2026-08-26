@@ -249,15 +249,30 @@ function mergeInto(host, comer, who) {
   if (i >= 0) list.splice(i, 1);
 }
 
-function arrive(army, who) {
+function arrive(army, who, hooks) {
   army.order = null; army.path = null; army.step = 0; army.progress = 0;
   const host = armiesOf(who).find((a) => a !== army && a.at === army.at);
   if (host) mergeInto(host, army, who);
+  // The survivor of a merge is the host; whoever stands here is who arrived.
+  // Contact (sieges, conquest of bare enemy ground) hangs off this seam --
+  // armies.js knows how to walk, not what a border means.
+  if (hooks && hooks.arrived) hooks.arrived(host || army, who);
 }
 
 // One player's armies, one tick. Deliberately not a pathfinding pass: the road
 // was decided at dispatch.
-export function marchArmies(dt, p) {
+//
+// The optional HOOKS are contact's seam (sim/contact.js), and they point one
+// way only -- contact imports armies, never the reverse:
+//   barred(hexId, army, who)  -> true bars the step: a contested hex is locked,
+//                                the army parks where it stands, its order dies
+//                                (the second wave is an affirmative new order).
+//   parked(army, who, hexId)  -> told after a bar, for the notification.
+//   entered(army, who, hexId) -> after each step; "halt" means a battle sealed
+//                                and this army stops being walkable.
+//   arrived(army, who)        -> at the order's end (sieges, conquest).
+// Hookless calls still walk -- the harness's older fixtures depend on it.
+export function marchArmies(dt, p, hooks) {
   const who = p || me();
   for (const army of armiesOf(who).slice()) {
     if (army.inBattle || !army.order || !army.path) continue;
@@ -267,13 +282,22 @@ export function marchArmies(dt, p) {
     // tick would silently slow down as the clock sped up.
     for (;;) {
       const next = army.path[army.step];
-      if (next === undefined) { arrive(army, who); break; }
+      if (next === undefined) { arrive(army, who, hooks); break; }
       const cost = stepCost(next, who);
       if (!Number.isFinite(cost) || army.progress < cost) break;
+      if (hooks && hooks.barred && hooks.barred(next, army, who)) {
+        army.order = null; army.path = null; army.step = 0; army.progress = 0;
+        if (hooks.parked) hooks.parked(army, who, next);
+        break;
+      }
       army.progress -= cost;
+      // Where they stepped FROM, kept on the army: it is the retreat
+      // destination if the very next hex turns out to hold a battle they lose.
+      army.lastHex = army.at;
       army.at = next;
       army.step++;
-      if (army.step >= army.path.length) { arrive(army, who); break; }
+      if (hooks && hooks.entered && hooks.entered(army, who, next) === "halt") break;
+      if (army.step >= army.path.length) { arrive(army, who, hooks); break; }
     }
   }
 }

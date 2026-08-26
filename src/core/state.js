@@ -141,6 +141,11 @@ export function freshState() {
     // it was cut for, and the per-tile facts. Geometry is REGENERATED from the
     // seed at load -- a world is a number (map.md §2).
     map: null,
+    // BATTLES IN PROGRESS (contact, A4): sim objects, global because a war
+    // has two sides. Each row keeps its seal-time rosters and one drawn seed,
+    // so a save mid-fight resumes the same dice. See sim/contact.js.
+    battles: [],
+    battleSeq: 0,
     tick: 0,          // the master clock: fixed TICK_SECONDS slices simulated -- see step()
     seen: {},         // reveal latches and one-time flags (interface state)
     dead: false,      // the RUN is over -- today, when the human falls

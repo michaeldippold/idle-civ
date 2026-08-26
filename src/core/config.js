@@ -149,6 +149,11 @@ export const CONFIG = {
   // through your own realm is fast, and an invasion is slow enough to be seen
   // coming, which is what makes a relief force a real idea.
   marchSeconds: 12,
+  // ONE BATTLE ROUND, in seconds. The resolver hands back the whole script at
+  // seal; this is how fast the world watches it happen. Tick-driven, so pause
+  // stops a war mid-round and fast-forward speeds it -- the same law the era
+  // clock obeys. The wall pool times this is roughly how long a siege takes.
+  battleRoundSeconds: 2,
   armyPerHex: 2,          // the army cap (E5): each held hex supports this many standing
                           // units, in every era -- the levy re-homed to the land, per the
                           // owner's ruling ("make it serve the hex"). Territory is what

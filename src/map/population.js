@@ -2,7 +2,7 @@ import { active } from "../content/compile.js";
 import { S, me } from "../core/state.js";
 import { CONFIG } from "../core/config.js";
 import { rng } from "../core/rng.js";
-import { log } from "../ui/log.js";
+import { chronicle } from "../core/bus.js";
 import { world } from "./world.js";
 import { holdings, isOwned, releaseTile } from "./ownership.js";
 import { hexUse, hexYield, setHexBuild } from "./structures.js";
@@ -141,7 +141,7 @@ export function growPopulation(dt) {
     // own words -- but only while the settlement is SMALL. A hundred-soul
     // dominion gaining a person a second would drown the Chronicle in birth
     // announcements.
-    if (after > before && after <= 25) log(active().arrivalLine, "good");
+    if (after > before && after <= 25) chronicle(active().arrivalLine, "good");
   }
 }
 
@@ -247,9 +247,9 @@ export function loseHexIfEmpty(id) {
   // A structure is destroyed with the hex, and there is no refund -- the same
   // trade the deliberate demolish carries (design.md, Building on a Hex).
   if (built.kind === "structure") {
-    log(`The last of them leave the ${noun}. What they built there is abandoned to the weather.`, "bad");
+    chronicle(`The last of them leave the ${noun}. What they built there is abandoned to the weather.`, "bad");
   } else {
-    log(`The last of them leave the ${noun}. The ground is no longer yours.`, "bad");
+    chronicle(`The last of them leave the ${noun}. The ground is no longer yours.`, "bad");
   }
   // syncDominion() stood here and was the one edge that would have made this
   // module import the hub back. What it does that matters after a release --
@@ -272,7 +272,7 @@ export function starveTick(deficit, dt) {
   S.map.starve = (S.map.starve || 0) + deficit * dt;
   if (!famineAnnounced) {
     famineAnnounced = true;
-    log("Famine. The stores are empty, and the frontier feels it first.", "bad");
+    chronicle("Famine. The stores are empty, and the frontier feels it first.", "bad");
   }
   while (S.map.starve >= CONFIG.starveCost) {
     S.map.starve -= CONFIG.starveCost;

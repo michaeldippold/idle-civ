@@ -11,6 +11,7 @@ import { checkReveals, log } from "./ui/log.js";
 import { closeModal, modalIsOpen, openInfoPanel, openResetModal } from "./ui/modal.js";
 import { setUpgradeTab } from "./ui/panels-buy.js";
 import { initStartScreen, pendingAutostart, pendingChoices } from "./ui/start.js";
+import { wireInterface } from "./ui/wire.js";
 
 
 // `?era=iron` jumps the run's era before the world is built. It exists for one
@@ -29,6 +30,11 @@ function forcedEra() {
 
 // ---------- Boot --------------------------------------------
 export function boot() {
+  // Connect the simulation's events to the interface BEFORE anything runs, so
+  // the first Chronicle line of a new run has somewhere to land. This is the
+  // one call that joins the two halves (ui/wire.js); nothing in the sim
+  // imports the interface any more.
+  wireInterface();
   const had = load();
   const era = forcedEra();
   if (era) {

@@ -1,7 +1,7 @@
 import { active } from "../content/compile.js";
 import { CONFIG, TICK_SECONDS } from "./config.js";
 import { S, freshPlayer, freshState, me, setS } from "./state.js";
-import { log } from "../ui/log.js";
+import { chronicle } from "../core/bus.js";
 
 // ---------- Save / load -------------------------------------
 // Save is load-bearing (design.md, Time, Presence & Pause): the world stops

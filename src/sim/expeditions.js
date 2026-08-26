@@ -7,8 +7,7 @@ import { atDominionCap, captureTile, marchFactor, routeCost, seatOf, syncPopMirr
 import { S, me } from "../core/state.js";
 import { record } from "../core/journal.js";
 import { armorFactor, weaponMultiplier } from "./combat.js";
-import { renderAll } from "../ui/chrome.js";
-import { log } from "../ui/log.js";
+import { chronicle, requestRender } from "../core/bus.js";
 
 // ---------- Adversaries & Expeditions -----------------------
 // The era's outward verbs. The Muster Ground stages ONE CAMPAIGN and ONE
@@ -267,9 +266,9 @@ export function launchCampaign(advId, unitCounts) {
   // fact: a handful of spears is a war party in any age, and twenty is a
   // column even in Bronze if you can feed them that far.
   const band = total <= 5 ? "A war party of" : "A column of";
-  log(`${band} ${total} marches against ${plan.target.name}. The walls are thinner until they return.`);
+  chronicle(`${band} ${total} marches against ${plan.target.name}. The walls are thinner until they return.`);
   save();
-  renderAll();
+  requestRender();
 }
 
 // `escort` is optional: units riding with the cargo. Escorts don't lower the
@@ -290,9 +289,9 @@ export function launchCaravan(advId, escort) {
   if (guards > 0) ex.units = Object.assign({}, escort);
   me().expeditions.push(ex);
   record("caravan", { target: advId, escort: guards > 0 ? Object.assign({}, escort) : null }, S.tick);
-  log(`A caravan sets out for ${adv.name}, laden with ${adv.buys.amount} ${adv.buys.res}${guards ? `, under guard of ${guards}` : ""}.`);
+  chronicle(`A caravan sets out for ${adv.name}, laden with ${adv.buys.amount} ${adv.buys.res}${guards ? `, under guard of ${guards}` : ""}.`);
   save();
-  renderAll();
+  requestRender();
 }
 
 // A campaign casualty: drawn from the DEPLOYED force (exposure-weighted, same
@@ -337,15 +336,15 @@ export function resolveCampaign(ex, target) {
     const fresh = st.walls >= (adv.walls || 0);
     if (power < st.walls) {
       st.walls -= power;
-      log(`The walls of ${adv.name} hold. Your column withdraws in good order — but its work is carved into the stone.`, "bad");
+      chronicle(`The walls of ${adv.name} hold. Your column withdraws in good order — but its work is carved into the stone.`, "bad");
       if (rng() < CONFIG.wallRetreatLoss * armorFactor()) {
         const lost = removeDeployedUnit(ex);
-        if (lost) log(`A ${lost} falls beneath the walls.`, "bad");
+        if (lost) chronicle(`A ${lost} falls beneath the walls.`, "bad");
       }
       return;
     }
     st.walls = 0;
-    log(fresh
+    chronicle(fresh
       ? `The walls of ${adv.name} come down in a single furious assault.`
       : `The battered walls of ${adv.name} finally give way.`, "big");
   }
@@ -362,10 +361,10 @@ export function resolveCampaign(ex, target) {
         if (st.stock[k] > 0) { me().res[k] = (me().res[k] || 0) + st.stock[k]; takes.push(`${st.stock[k]} ${k}`); }
       }
       captureTile(target.tile, false);
-      log(`${capMinor(target.name)} swears fealty to your banner — one more holdfast, and ${takes.length ? takes.join(", ") : "little else"} besides. The Chronicle records the name for the last time.`, "big");
+      chronicle(`${capMinor(target.name)} swears fealty to your banner — one more holdfast, and ${takes.length ? takes.join(", ") : "little else"} besides. The Chronicle records the name for the last time.`, "big");
       if (rng() < (adv.strength / (attack + adv.strength)) * armorFactor()) {
         const lost = removeDeployedUnit(ex);
-        if (lost) log(`The taking had a price — a ${lost} does not come home.`, "bad");
+        if (lost) chronicle(`The taking had a price — a ${lost} does not come home.`, "bad");
       }
       return;
     }
@@ -374,17 +373,17 @@ export function resolveCampaign(ex, target) {
       const take = Math.floor(st.stock[k] * CONFIG.plunderFraction);
       if (take > 0) { st.stock[k] -= take; me().res[k] = (me().res[k] || 0) + take; takes.push(`${take} ${k}`); }
     }
-    log(`Victory over ${adv.name}. The column returns with ${takes.length ? takes.join(", ") : "little worth taking"}.`, "big");
+    chronicle(`Victory over ${adv.name}. The column returns with ${takes.length ? takes.join(", ") : "little worth taking"}.`, "big");
     // Winning can still cost someone -- softened by armor, same dial as home.
     if (rng() < (adv.strength / (attack + adv.strength)) * armorFactor()) {
       const lost = removeDeployedUnit(ex);
-      if (lost) log(`The victory had a price — a ${lost} does not come home.`, "bad");
+      if (lost) chronicle(`The victory had a price — a ${lost} does not come home.`, "bad");
     }
   } else {
     const losses = Math.min(totalDeployed(ex), 1 + Math.floor(adv.strength / 8));
     let fell = 0;
     for (let i = 0; i < losses; i++) if (removeDeployedUnit(ex)) fell++;
-    log(`The campaign against ${adv.name} is broken. ${fell > 0 ? `${fell} of your fighters fall covering the retreat.` : "The column limps home."}`, "bad");
+    chronicle(`The campaign against ${adv.name} is broken. ${fell > 0 ? `${fell} of your fighters fall covering the retreat.` : "The column limps home."}`, "bad");
   }
 }
 
@@ -396,19 +395,19 @@ export function resolveCaravan(ex, adv, st) {
   if (raiders && rng() < CONFIG.caravanRaidChance) {
     const escortStr = ex.units ? campaignStrength(ex.units, raiders) : 0;
     if (escortStr <= 0) {
-      log(`Your caravan to ${adv.name} never arrives — ${raiders.name} took it on the road. The cargo is lost.`, "bad");
+      chronicle(`Your caravan to ${adv.name} never arrives — ${raiders.name} took it on the road. The cargo is lost.`, "bad");
       return;
     }
     if (rng() < escortStr / (escortStr + raiders.strength)) {
-      log(`${raiders.name} fall on your caravan — and the escort fights them through.`, "good");
+      chronicle(`${raiders.name} fall on your caravan — and the escort fights them through.`, "good");
       if (rng() < (raiders.strength / (escortStr + raiders.strength)) * armorFactor()) {
         const lost = removeDeployedUnit(ex);
-        if (lost) log(`The road took its toll — a ${lost} does not come home.`, "bad");
+        if (lost) chronicle(`The road took its toll — a ${lost} does not come home.`, "bad");
       }
       // ...and the trade goes ahead below.
     } else {
       const lost = removeDeployedUnit(ex);
-      log(`${raiders.name} overwhelm your caravan${lost ? ` — a ${lost} falls defending it` : ""}. The cargo is lost.`, "bad");
+      chronicle(`${raiders.name} overwhelm your caravan${lost ? ` — a ${lost} falls defending it` : ""}. The cargo is lost.`, "bad");
       return;
     }
   }
@@ -423,12 +422,12 @@ export function resolveCaravan(ex, adv, st) {
   me().res.gold = (me().res.gold || 0) + pays;
   bumpStanding(st, 1);
   if (pays <= 0) {
-    log(`The caravan returns from ${adv.name} unpaid — they have no gold left to give.`, "bad");
+    chronicle(`The caravan returns from ${adv.name} unpaid — they have no gold left to give.`, "bad");
   } else if (wary) {
     // The rep system, hinted through narration rather than printed as a number.
-    log(`The caravan returns from ${adv.name} with ${pays} gold, counted out in silence under armed watch. They have not forgotten.`);
+    chronicle(`The caravan returns from ${adv.name} with ${pays} gold, counted out in silence under armed watch. They have not forgotten.`);
   } else {
-    log(`The caravan returns from ${adv.name} with ${pays} gold.`, "good");
+    chronicle(`The caravan returns from ${adv.name} with ${pays} gold.`, "good");
   }
 }
 

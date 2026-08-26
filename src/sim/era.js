@@ -1,12 +1,10 @@
 import { DEF_CATEGORIES, active } from "../content/compile.js";
-import { playtime } from "../core/derived.js";
+import { fmtTime, playtime } from "../core/derived.js";
 import { ensureMap, syncDominion } from "../map/map.js";
 import { initAdversaries } from "../core/persist.js";
 import { S, me } from "../core/state.js";
+import { chronicle, eraAdvanced, requestSpeed } from "../core/bus.js";
 
-import { fmtTime, setSpeed } from "../ui/chrome.js";
-import { log } from "../ui/log.js";
-import { openEraModal } from "../ui/modal.js";
 
 // ONE CIVILIZATION CROSSES A BORDER (2026-08-26). Eras are per-player, so this
 // is something a civ DOES rather than something the world undergoes -- and the
@@ -56,9 +54,9 @@ export function advanceEra(era, civ) {
   // before its modal was even closed): the ceremony modal already holds the
   // world; this makes sure it resumes at a watchable pace. The player can
   // spin it back up the moment they've found their feet.
-  setSpeed(1);
-  log(`The ${toM.name} begins.`, "big");
-  openEraModal(era);
+  requestSpeed(1);
+  chronicle(`The ${toM.name} begins.`, "big");
+  eraAdvanced(era);
 }
 
 // Applies an era's state migrations. Implicit default: everything carries.
@@ -94,7 +92,7 @@ export function runEraMigrations(fromM, toM, snapshot, civ) {
     // through re-denominates in silence. (Rival news arrives through the
     // notifications system when that lands -- "the Hill Clans have entered the
     // Bronze Age" is a different sentence from your own books changing.)
-    if (ins.narrate && (civ || me()) === me()) log(ins.narrate);
+    if (ins.narrate && (civ || me()) === me()) chronicle(ins.narrate);
   }
 }
 

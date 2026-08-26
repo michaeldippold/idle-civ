@@ -6,9 +6,7 @@ import { S, loopId, me, saveId } from "./state.js";
 import { endFamine, growPopulation, starveTick } from "../map/map.js";
 import { resolveEvents, runConverters } from "../sim/events.js";
 import { resolveExpeditions } from "../sim/expeditions.js";
-import { renderAll } from "../ui/chrome.js";
-import { log } from "../ui/log.js";
-import { openGameOverModal } from "../ui/modal.js";
+import { chronicle, requestRender, runEnded } from "../core/bus.js";
 
 // ---------- Core simulation ---------------------------------
 // One fixed tick of the simulation: exactly TICK_SECONDS of world time,
@@ -93,18 +91,17 @@ export function die(cause) {
   // One terse line so the Chronicle -- the settlement's memory -- still ends
   // with its own ending. The dramatic version and the actionable bits live in
   // the game-over modal instead.
-  if (cause === "conflict") log("The last defenders fall. The settlement is overrun.", "big");
-  else log("The last of your people starve. The settlement falls silent.", "big");
-  const badge = document.getElementById("ageBadge");
-  const badgeText = document.getElementById("ageBadgeText");
-  if (badgeText) badgeText.textContent = "Fallen";
-  if (badge) badge.classList.add("fallen");
-  document.body && document.body.classList.add("dead");
+  if (cause === "conflict") chronicle("The last defenders fall. The settlement is overrun.", "big");
+  else chronicle("The last of your people starve. The settlement falls silent.", "big");
+  // The badge, the body class and the modal are the INTERFACE's business --
+  // ui/wire.js does that when it hears runEnded. This function used to do DOM
+  // surgery inline, which is what forced the harness to stub `document` merely
+  // to import the simulation.
   try { localStorage.removeItem(CONFIG.saveKey); } catch (e) {}
   if (loopId) clearInterval(loopId);
   if (saveId) clearInterval(saveId);
   // Last render before the loop stops, so the clock shows the run's final time.
-  renderAll();
-  openGameOverModal(cause);
+  requestRender();
+  runEnded(cause);
 }
 

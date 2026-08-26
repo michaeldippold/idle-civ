@@ -5,7 +5,7 @@ import { S, me } from "../core/state.js";
 import { CONFLICT_FLAVOR, armorFactor, counterCoverage, militaryStrength, pick, raidGround, removeRandomUnit, reconcileReservations, rollRaidSize, rollRaidType, sentenceCase, stealResources } from "../sim/combat.js";
 import { builtCount, fortStrength, healersNear, hexPop, holdCount, killAt, strikeHex, world } from "../map/map.js";
 import { hostilityMultiplier, raidAttribution } from "../sim/expeditions.js";
-import { log } from "../ui/log.js";
+import { chronicle } from "../core/bus.js";
 
 // ---------- Event library -----------------------------------
 // Every event that exists in ANY era, keyed by id. Which of these are live is
@@ -103,7 +103,7 @@ export const EVENT_LIB = {
       const per = me().upgrades.herbalMedicine ? 0.35 : 0.2;
       const negate = Math.min(1 - CONFIG.counterFloor, healers * per);
       if (rng() < negate) {
-        log(healers > 0
+        chronicle(healers > 0
           ? pick([
               "Sickness threatens the settlement, but healers are close enough to keep it at bay.",
               "A fever passes through -- your healers see everyone through it.",
@@ -121,7 +121,7 @@ export const EVENT_LIB = {
       // player is being taught: a corner of the realm left uncovered is a
       // choice with a consequence, and the Chronicle should name it.
       const far = healers === 0 ? " No healers were near enough to help." : "";
-      log(died === 1
+      chronicle(died === 1
         ? `A fever sweeps the ${where}. One of your people does not recover.${far}`
         : `A fever sweeps the ${where} — ${died} of your people do not recover.${far}`, "bad");
     },
@@ -162,7 +162,7 @@ export const EVENT_LIB = {
         const line = raiders
           ? pick(named).replace(/\{who\}/g, raiders.name).replace("{ground}", raidGround(raiders))
           : pick(anon);
-        log(sentenceCase(line.replace("{raid}", raid.name)), sev);
+        chronicle(sentenceCase(line.replace("{raid}", raid.name)), sev);
       };
 
       if (rng() < repelChance) {
@@ -172,7 +172,7 @@ export const EVENT_LIB = {
         const costlyChance = (raidSize / (defense + raidSize)) * armorFactor() * relief;
         if (rng() < costlyChance) {
           const lost = removeRandomUnit();
-          log(`The ${raid.name} is driven off, but not without cost — a ${lost || "defender"} falls in the fighting.`, "bad");
+          chronicle(`The ${raid.name} is driven off, but not without cost — a ${lost || "defender"} falls in the fighting.`, "bad");
         } else {
           say(CONFLICT_FLAVOR.repelledClean, CONFLICT_FLAVOR.repelledCleanNamed, "good");
         }
@@ -203,7 +203,7 @@ export const EVENT_LIB = {
               // neighbours doing it, which is a different sentence entirely.
               const toll = died === 1 ? "a soul is" : died + " souls are";
               const who = raiders ? sentenceCase(raiders.name) : "Raiders";
-              log(`${who} put the ${world.places[at].terrain} to the torch — ${toll} lost.`, "bad");
+              chronicle(`${who} put the ${world.places[at].terrain} to the torch — ${toll} lost.`, "bad");
             }
           }
         }

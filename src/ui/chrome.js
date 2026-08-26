@@ -20,13 +20,14 @@ export let paused = false;
 // would be a nasty surprise. Pause is really just speed 0, but it stays its own
 // control because it's the one you reach for without looking.
 export let speed = 1;
-export function fmtTime(totalSec) {
-  const t = Math.max(0, Math.floor(totalSec));
-  const s = t % 60, m = Math.floor(t / 60) % 60, h = Math.floor(t / 3600);
-  return h > 0
-    ? `${h}h ${String(m).padStart(2, "0")}m`
-    : `${m}m ${String(s).padStart(2, "0")}s`;
-}
+// (fmtTime moved to core/derived.js on 2026-08-26. It is a pure formatter --
+// seconds to "3m 20s" -- and the simulation's pacing telemetry needed it,
+// which was one of the edges dragging `ui/` into `core/`. Re-exported here so
+// the interface keeps importing it from where it always did.)
+// Imported as well as re-exported: a bare `export ... from` forwards the name
+// without binding it locally, and this module formats its own clock.
+import { fmtTime } from "../core/derived.js";
+export { fmtTime };
 
 // Not guarded on S.dead -- how long a run lasted is worth seeing afterward.
 export function renderClock() {

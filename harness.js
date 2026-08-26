@@ -43,6 +43,7 @@ import * as mMapCore from "./src/map/map.js";
 import * as mMapUi from "./src/ui/map.js";
 import * as mPalette from "./src/core/palette.js";
 import * as mJournal from "./src/core/journal.js";
+import * as mBus from "./src/core/bus.js";
 import fs from "node:fs";
 import nodePath from "node:path";
 import { fileURLToPath } from "node:url";
@@ -51,7 +52,7 @@ const MODS = [mConfig, mRng, mLib, mStone, mBronze, mIron, mCompile, mIcons, mSt
   mContinents,
   mDerived, mCombat, mEvents, mExped, mStep, mActions, mEra, mLog, mDom,
   mPLedger, mPPeople, mPHold, mPBuy, mExpedUi, mModal, mChrome, mPersist,
-  mMapModel, mMapGen, mMapCore, mMapUi, mPalette, mJournal];
+  mMapModel, mMapGen, mMapCore, mMapUi, mPalette, mJournal, mBus];
 
 function fakeEl() {
   const el = {
@@ -4889,6 +4890,60 @@ console.log("\n--- The map package: split along its own seams, and acyclic ---")
     typeof api.isOwned === "function" && typeof api.hexYield === "function" &&
     typeof api.adminDistance === "function" && typeof api.growPopulation === "function" &&
     typeof api.isCharted === "function" && typeof api.ensureMap === "function");
+}
+
+console.log("\n--- The simulation does not know the interface exists ---");
+{
+  // Review Part II.3, the last inverted edge. `core/`, `sim/`, `map/` and even
+  // `content/` used to import `ui/` directly: step.js did DOM surgery to end a
+  // run, era.js opened a modal and reset the player's clock, and every corner
+  // of the sim wrote straight into the Chronicle.
+  const srcDir = fileURLToPath(new URL("./src", import.meta.url));
+  const simDirs = ["core", "sim", "map", "content"];
+  const offenders = [];
+  for (const d of simDirs) {
+    for (const f of fs.readdirSync(nodePath.join(srcDir, d))) {
+      if (!f.endsWith(".js")) continue;
+      const text = fs.readFileSync(nodePath.join(srcDir, d, f), "utf8");
+      for (const m of text.matchAll(/from "(?:\.\.\/)+ui\/([a-z0-9-]+)\.js"/g)) {
+        offenders.push(d + "/" + f + " -> ui/" + m[1]);
+      }
+    }
+  }
+  check("no simulation module imports the interface" +
+    (offenders.length ? " -- " + offenders.slice(0, 4).join(", ") : ""),
+    offenders.length === 0);
+
+  // ONE MODULE KNOWS BOTH SIDES, and it is the one whose job that is.
+  const wire = fs.readFileSync(nodePath.join(srcDir, "ui", "wire.js"), "utf8");
+  check("ui/wire.js is where the two halves meet",
+    wire.includes('from "../core/bus.js"') && wire.includes('from "./chrome.js"'));
+
+  // THE BUS ITSELF: emits with no listeners are silence, not an error, which
+  // is what makes a headless run work without a single stub.
+  api.clearBus();
+  check("an emit with nobody listening is simply silence", (() => {
+    api.chronicle("into the void");
+    api.requestRender();
+    api.runEnded("starvation");
+    return api.listenerCount("chronicle") === 0;
+  })());
+
+  // THE CHRONICLE IS THE WATCHING SEAT'S MEMORY -- the question the player
+  // split made unavoidable, and one a direct log() import could never ask.
+  const heard = [];
+  const stop = api.on("chronicle", (e) => heard.push(e));
+  reset();
+  api.chronicle("your own news");
+  api.chronicle("a rival's business", null, 1);
+  check("a line carries whose it is", heard.length === 2 &&
+    heard[0].pid === 0 && heard[1].pid === 1);
+  check("...so the interface can drop what is not yours",
+    heard.filter((e) => e.pid === S().me).length === 1);
+  stop();
+  check("unsubscribing actually unsubscribes",
+    (api.chronicle("after"), heard.length === 2));
+  api.clearBus();
 }
 
 console.log(`\n${fails === 0 ? "ALL CHECKS PASSED" : fails + " CHECK(S) FAILED"}`);

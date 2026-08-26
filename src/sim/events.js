@@ -5,7 +5,7 @@ import { caps } from "../core/derived.js";
 import { S, me } from "../core/state.js";
 import { builtCount } from "../map/map.js";
 import { pick } from "./combat.js";
-import { log } from "../ui/log.js";
+import { chronicle } from "../core/bus.js";
 
 
 export function resolveEvents(dt) {
@@ -22,7 +22,7 @@ export function resolveEvents(dt) {
         // An effect may return its own line, for events whose message needs a
         // number only the effect knows (e.g. what a settler actually cost).
         const custom = ev.effect(S);
-        log(custom || pick(ev.flavor.hit), ev.sev);
+        chronicle(custom || pick(ev.flavor.hit), ev.sev);
       }
       continue;
     }
@@ -39,7 +39,7 @@ export function resolveEvents(dt) {
         // sickness, and it owns its own resolve() so it can ask whether
         // healers cover the hex it actually struck.
         const custom = ev.effect(S);
-        log(custom || pick(ev.flavor.hit), ev.sev);
+        chronicle(custom || pick(ev.flavor.hit), ev.sev);
       }
     }
   }

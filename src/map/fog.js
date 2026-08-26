@@ -1,6 +1,6 @@
 import { S, me } from "../core/state.js";
 import { SIGHT_RANGE } from "./continents.js";
-import { log } from "../ui/log.js";
+import { chronicle } from "../core/bus.js";
 import { world } from "./world.js";
 import { holdings } from "./ownership.js";
 
@@ -23,7 +23,7 @@ export function syncCharted() {
   me().revealed = Array.from(seen);
   const sightedLand = syncSighted();
   if (sightedLand > 0 && S.seen.mapCharted) {
-    log(sightedLand === 1
+    chronicle(sightedLand === 1
       ? "From the shore, your people make out land across the water."
       : "From the shore, your people make out land across the water — more of it than they expected.",
       "good");

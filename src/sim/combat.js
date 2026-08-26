@@ -5,7 +5,7 @@ import { dropQueueItem } from "../core/actions.js";
 import { CONFIG } from "../core/config.js";
 import { availableUnits, civilians, defById, reserved } from "../core/derived.js";
 import { S, me } from "../core/state.js";
-import { log } from "../ui/log.js";
+import { chronicle } from "../core/bus.js";
 
 // ---------- Events / combat helpers -------------------------
 // Event content lives in EVENT_LIB up top; which events are live is the
@@ -194,7 +194,7 @@ export function reconcileReservations() {
     for (const k in q.cost) me().res[k] += q.cost[k];
     me().buildQueue.splice(i, 1);
     over -= def.popCost;
-    log(`The order for a ${def.name} is abandoned — there is no one left to train.`);
+    chronicle(`The order for a ${def.name} is abandoned — there is no one left to train.`);
   }
 }
 

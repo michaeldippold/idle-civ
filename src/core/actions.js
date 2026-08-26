@@ -1,4 +1,4 @@
-import { buildCost, canAfford, caps, civilians, defById, isCapped, levyCap, levyUsed, pendingCount, playtime, reserved } from "./derived.js";
+import { buildCost, canAfford, caps, civilians, defById, fmtTime, isCapped, levyCap, levyUsed, pendingCount, playtime, reserved } from "./derived.js";
 import { active } from "../content/compile.js";
 import { CONFIG } from "./config.js";
 import { atDominionCap, captureTile, hexUse, holdCount, holdings, isOwned, marchFactor, routeCost, setHexBuild, structureCount, structureDef, syncPopMirror, world } from "../map/map.js";
@@ -6,8 +6,7 @@ import { S, me } from "./state.js";
 import { record } from "./journal.js";
 import { save } from "./persist.js";
 import { advanceEra } from "../sim/era.js";
-import { fmtTime, renderAll } from "../ui/chrome.js";
-import { log } from "../ui/log.js";
+import { chronicle, requestRender } from "../core/bus.js";
 
 // ---------- Actions -----------------------------------------
 // assign() -- the stepper verb -- died here in E2. Allocation lives on the
@@ -46,14 +45,14 @@ export function build(def) {
   // starts, so playtest timing doesn't require watching the clock.
   if (CAPSTONES[def.id]) console.log(`[pacing] ${def.name} research started at ${fmtTime(playtime())} (t${S.tick})`);
   if (def.kind === "upgrade") {
-    log(wasEmpty ? `Work begins on ${def.name}.` : `${def.name} joins the queue (#${me().buildQueue.length}).`);
+    chronicle(wasEmpty ? `Work begins on ${def.name}.` : `${def.name} joins the queue (#${me().buildQueue.length}).`);
   } else if (def.kind === "unit") {
-    log(wasEmpty ? `${def.name} training begins.` : `${def.name} training joins the queue (#${me().buildQueue.length}).`);
+    chronicle(wasEmpty ? `${def.name} training begins.` : `${def.name} training joins the queue (#${me().buildQueue.length}).`);
   } else {
-    log(wasEmpty ? `Ground is broken for a ${def.name}.` : `A ${def.name} joins the queue (#${me().buildQueue.length}).`);
+    chronicle(wasEmpty ? `Ground is broken for a ${def.name}.` : `A ${def.name} joins the queue (#${me().buildQueue.length}).`);
   }
   save();
-  renderAll();
+  requestRender();
 }
 
 // Cancel anything in the queue -- including the item currently building --
@@ -92,9 +91,9 @@ export function cancelBuild(uid) {
     return d ? d.name : item.id;
   };
   if (CAPSTONES[item.id]) console.log(`[pacing] ${named()} research cancelled at ${fmtTime(playtime())} (t${S.tick})`);
-  log(`Construction of the ${named()} is called off; materials recovered.`);
+  chronicle(`Construction of the ${named()} is called off; materials recovered.`);
   save();
-  renderAll();
+  requestRender();
 }
 
 // The settle verb (6d, user ruling): claiming wilderness is QUEUED WORK --
@@ -145,9 +144,9 @@ export function launchSettle(tileId) {
   me().buildQueue.push({ id: "settle", kind: "settle", uid: ++me().buildSeq,
     total: plan.time, remaining: plan.time, cost: plan.cost,
     tile: tileId, label: `Settling the ${terrain}` });
-  log(`A party sets out to raise a holdfast on the ${terrain}. (#${me().buildQueue.length} in the queue.)`);
+  chronicle(`A party sets out to raise a holdfast on the ${terrain}. (#${me().buildQueue.length} in the queue.)`);
   save();
-  renderAll();
+  requestRender();
 }
 
 // ---------- Building on a hex ----------
@@ -214,9 +213,9 @@ export function launchStructure(tileId, sid) {
   me().buildQueue.push({ id: sid, kind: "structure", uid: ++me().buildSeq,
     total: plan.time, remaining: plan.time, cost: plan.cost,
     tile: tileId, label: `Raising a ${plan.def.name}` });
-  log(`Work begins on a ${plan.def.name}. (#${me().buildQueue.length} in the queue.)`);
+  chronicle(`Work begins on a ${plan.def.name}. (#${me().buildQueue.length} in the queue.)`);
   save();
-  renderAll();
+  requestRender();
 }
 
 // ---------- Trade -------------------------------------------
@@ -275,9 +274,9 @@ export function trade(giveRes, getRes, batches) {
   me().res[giveRes] -= cost;
   me().res[getRes] = (me().res[getRes] || 0) + n;
   record("trade", { give: giveRes, get: getRes, batches: n, rate }, S.tick);
-  log(`The market moves ${Math.round(cost)} ${giveRes} for ${n} ${getRes}. The traders take their cut.`);
+  chronicle(`The market moves ${Math.round(cost)} ${giveRes} for ${n} ${getRes}. The traders take their cut.`);
   save();
-  renderAll();
+  requestRender();
   return true;
 }
 
@@ -290,9 +289,9 @@ export function demolishStructure(tileId) {
   const def = structureDef(u.id);
   record("demolish", { tile: tileId, id: u.id }, S.tick);
   setHexBuild(tileId, null);             // back to plain, unbuilt ground
-  log(`The ${def ? def.name : "works"} is pulled down. The ground is plain again, and nothing comes back.`);
+  chronicle(`The ${def ? def.name : "works"} is pulled down. The ground is plain again, and nothing comes back.`);
   save();
-  renderAll();
+  requestRender();
 }
 
 export function completeConstruction(site) {
@@ -301,12 +300,12 @@ export function completeConstruction(site) {
     // empty a hex and take it out of the dominion. The labour is simply wasted,
     // the same way a settling party finds its land already spoken for.
     if (!isOwned(site.tile)) {
-      log("The work crew arrives to find the ground no longer yours. Nothing is raised.", "bad");
+      chronicle("The work crew arrives to find the ground no longer yours. Nothing is raised.", "bad");
       return;
     }
     const def = structureDef(site.id);
     setHexBuild(site.tile, site.id);
-    log(`${def ? def.name : "The works"} stands finished. The hex answers to it now.`, "good");
+    chronicle(`${def ? def.name : "The works"} stands finished. The hex answers to it now.`, "good");
     return;
   }
   if (site.kind === "settle") {
@@ -314,8 +313,8 @@ export function completeConstruction(site) {
     // captureTile refuses gracefully and the work is simply wasted -- the
     // frontier is like that.
     const ok = captureTile(site.tile, true);
-    if (ok) log(`A hall is raised and a lord installed — the ${world && world.places[site.tile] ? world.places[site.tile].terrain : "land"} is yours. One more holdfast under your banner.`, "big");
-    else log("The settling party finds the ground already spoken for, and turns back.", "bad");
+    if (ok) chronicle(`A hall is raised and a lord installed — the ${world && world.places[site.tile] ? world.places[site.tile].terrain : "land"} is yours. One more holdfast under your banner.`, "big");
+    else chronicle("The settling party finds the ground already spoken for, and turns back.", "bad");
     return;
   }
   const def = defById(site.id);
@@ -337,7 +336,7 @@ export function completeConstruction(site) {
       // player can't see. Refuse instead: the order is spent, the recruit
       // never appears. (Guarded 2026-08-25.)
       if (!from) {
-        log(`There is no one left to answer the muster. The order lapses.`, "bad");
+        chronicle(`There is no one left to answer the muster. The order lapses.`, "bad");
         return;
       }
       S.map.pop[from] = Math.max(0, S.map.pop[from] - def.popCost);
@@ -361,9 +360,9 @@ export function onComplete(def) {
   // waiting for the first manifest to name a building "hut". Removed
   // 2026-08-25.)
   if (def.kind === "unit") {
-    log(`A settler trains as a ${def.name}. You now field ${me().units[def.id]}.`, "good");
+    chronicle(`A settler trains as a ${def.name}. You now field ${me().units[def.id]}.`, "good");
   } else {
-    log(`${def.name} complete. ${def.desc}`, "good");
+    chronicle(`${def.name} complete. ${def.desc}`, "good");
   }
 }
 

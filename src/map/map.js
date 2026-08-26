@@ -1,6 +1,6 @@
 import { active } from "../content/compile.js";
 import { S, me } from "../core/state.js";
-import { log } from "../ui/log.js";
+import { chronicle } from "../core/bus.js";
 import { CONTINENTS } from "./continents.js";
 import { generateMap, GEN_VERSION, pickContinent } from "./generate.js";
 import { hashStr } from "./model.js";
@@ -97,7 +97,7 @@ export function ensureMap() {
     }
     if (firstChart && !S.seen.mapCharted) {
       S.seen.mapCharted = true;
-      log("Your people mark the ground they stand on. The world is wider than this.", "good");
+      chronicle("Your people mark the ground they stand on. The world is wider than this.", "good");
     }
   }
   setWorld(generateMap(S.map.seed, spec, S.map.continent));

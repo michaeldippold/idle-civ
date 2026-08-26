@@ -2,12 +2,23 @@ import { DEF_INDEX, active } from "../content/compile.js";
 import { builtCount, growthSpendRate, hexPopSum, hexYield, holdCount, holdings, upkeepMouths, world } from "../map/map.js";
 import { CONFIG, TICK_SECONDS } from "./config.js";
 import { S, me } from "./state.js";
-import { log } from "../ui/log.js";
+import { chronicle } from "../core/bus.js";
 
 // ---------- Derived values ----------------------------------
 // The play clock, derived: the tick count is the master record, seconds are
 // a display. Old saves that carried seconds are converted once at load().
 export function playtime() { return S.tick * TICK_SECONDS; }
+
+// Seconds as a clock reading. Lives here rather than in the interface because
+// the simulation's own pacing telemetry prints it, and a formatter is not a
+// view.
+export function fmtTime(totalSec) {
+  const t = Math.max(0, Math.floor(totalSec));
+  const s = t % 60, m = Math.floor(t / 60) % 60, h = Math.floor(t / 3600);
+  return h > 0
+    ? `${h}h ${String(m).padStart(2, "0")}m`
+    : `${m}m ${String(s).padStart(2, "0")}s`;
+}
 // housing() died in E3, and housingPerHut() followed it in the same grave one
 // sweep later: the land's carrying capacity is the only ceiling there is. The
 // accessor outlived its era-fact by so long that no manifest declared the

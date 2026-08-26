@@ -46,7 +46,7 @@ export {
   hexPop, hexPopSum, killAt, loseHexIfEmpty, starveTick, strikeHex, syncPopMirror,
   upkeepMouths,
 } from "./population.js";
-export { adminDistance, marchFactor, routeCost } from "./routes.js";
+export { adminDistance, marchFactor, pathBetween, routeCost } from "./routes.js";
 
 // Idempotent, like initAdversaries(), and called from the same places: boot,
 // load, era entry. **The map is generated once and NEVER regenerates**

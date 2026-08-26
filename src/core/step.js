@@ -6,6 +6,7 @@ import { S, loopId, me, saveId } from "./state.js";
 import { endFamine, growPopulation, starveTick } from "../map/map.js";
 import { resolveEvents, runConverters } from "../sim/events.js";
 import { resolveExpeditions } from "../sim/expeditions.js";
+import { tickArmies } from "../sim/armies.js";
 import { tickEraClock } from "../sim/eraclock.js";
 import { chronicle, requestRender, runEnded } from "../core/bus.js";
 
@@ -70,6 +71,11 @@ export function step() {
 
   // Outbound columns tick and resolve on the world's schedule.
   resolveExpeditions(dt);
+  // ARMIES MARCH. Every civilization's, on the same clock and through the same
+  // function -- symmetry is the point, so there is no separate code path for a
+  // neighbour's column and anything the board shows about yours is true of
+  // theirs.
+  tickArmies(dt);
   // THE ERA CLOCK. Every other player runs a hidden countdown to its next age;
   // this is where it ticks. Ticks rather than wall-clock, so pause stops every
   // countdown and fast-forward speeds them all (design ruling 2).

@@ -144,6 +144,11 @@ export const CONFIG = {
   // Buildings differ: a fortification is thick walls and many positions, a
   // watchtower is thin walls and few (and sees further).
   fortSlots: 6,
+  // HOW LONG A COST-1 STEP TAKES AN ARMY, in seconds. Your own country is half
+  // a step, unowned land a full one, water three (routes.js) -- so marching
+  // through your own realm is fast, and an invasion is slow enough to be seen
+  // coming, which is what makes a relief force a real idea.
+  marchSeconds: 12,
   armyPerHex: 2,          // the army cap (E5): each held hex supports this many standing
                           // units, in every era -- the levy re-homed to the land, per the
                           // owner's ruling ("make it serve the hex"). Territory is what

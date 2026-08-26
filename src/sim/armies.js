@@ -1,7 +1,8 @@
 import { active } from "../content/compile.js";
 import { DEFAULT_STANCE, stanceById } from "./battle.js";
-import { isOwned } from "../map/map.js";
-import { me, playerById } from "../core/state.js";
+import { CONFIG } from "../core/config.js";
+import { isOwned, pathBetween, world } from "../map/map.js";
+import { S, me, playerById } from "../core/state.js";
 
 // ---------- ARMIES ------------------------------------------
 // The board's answer to "where are my soldiers". Until now a unit was a number
@@ -174,4 +175,112 @@ export function armiesOnHex(hexId, players) {
     if (a) out.push({ p, army: a });
   }
   return out;
+}
+
+// ---- Marching --------------------------------------------------------------
+// The same step rule the map already uses for logistics (routes.js): your own
+// country costs half a step, unowned land a full one, water three. Slow
+// crossings, never impossible, so an island seat cannot deadlock a run.
+//
+// Marching through your own realm being FAST and an invasion being SLOW is the
+// whole reason a relief force is a real idea: you move inside your borders at
+// twice the speed of the army coming at you.
+export function stepCost(hexId, p) {
+  const who = p || me();
+  if (!world || !world.places[hexId]) return Infinity;
+  if (isOwned(hexId, who.id)) return 0.5;
+  return world.places[hexId].terrain === "water" ? 3 : 1;
+}
+
+export function marchRefusal(uid, toId, p) {
+  const who = p || me();
+  const army = armyById(uid, who);
+  if (!army) return "There is no such army.";
+  if (army.inBattle) return "They are in the middle of a fight.";
+  if (army.at === toId) return "They are already there.";
+  if (!world || !world.places[toId]) return "There is no such ground.";
+  if (!pathBetween(army.at, toId, who)) return "There is no way there from here.";
+  return null;
+}
+
+// DISPATCH IS AN ORDER AIMED AT A BOARD YOU LOOKED AT. The path is computed
+// once, here, and kept -- an army walks the road it was sent down rather than
+// re-deciding every tick, which is what lets it be met on the way.
+export function orderMarch(uid, toId, p) {
+  const who = p || me();
+  if (marchRefusal(uid, toId, who)) return false;
+  const army = armyById(uid, who);
+  army.order = { to: toId };
+  army.path = pathBetween(army.at, toId, who);
+  army.step = 0;
+  army.progress = 0;
+  return true;
+}
+
+export function haltArmy(uid, p) {
+  const army = armyById(uid, p || me());
+  if (!army || army.inBattle) return false;
+  army.order = null; army.path = null; army.step = 0; army.progress = 0;
+  return true;
+}
+
+// Where they are between two hexes, 0..1, for drawing them on the road.
+export function marchProgress(army, p) {
+  if (!army || !army.order || !army.path) return 0;
+  const next = army.path[army.step];
+  if (!next) return 0;
+  const cost = stepCost(next, p);
+  return cost > 0 && Number.isFinite(cost) ? Math.min(1, (army.progress || 0) / cost) : 0;
+}
+export function marchingTo(army) {
+  return army && army.order && army.path ? army.path[army.step] || army.order.to : null;
+}
+
+// ARRIVING ON ONE OF YOUR OWN ARMIES MERGES INTO IT. One army to a hex is the
+// rule everywhere else, and this is how it stays true without a special case:
+// reinforcements join the garrison, the standing army keeps its stance because
+// it is the one that was already holding this ground, and the arriving object
+// simply stops existing. This is not battle reinforcement -- there is no battle
+// -- it is two of your own columns becoming one outside a fight.
+function mergeInto(host, comer, who) {
+  for (const id in comer.roster) host.roster[id] = (host.roster[id] || 0) + comer.roster[id];
+  const list = armiesOf(who);
+  const i = list.indexOf(comer);
+  if (i >= 0) list.splice(i, 1);
+}
+
+function arrive(army, who) {
+  army.order = null; army.path = null; army.step = 0; army.progress = 0;
+  const host = armiesOf(who).find((a) => a !== army && a.at === army.at);
+  if (host) mergeInto(host, army, who);
+}
+
+// One player's armies, one tick. Deliberately not a pathfinding pass: the road
+// was decided at dispatch.
+export function marchArmies(dt, p) {
+  const who = p || me();
+  for (const army of armiesOf(who).slice()) {
+    if (army.inBattle || !army.order || !army.path) continue;
+    army.progress = (army.progress || 0) + dt / CONFIG.marchSeconds;
+    // A while loop, not an if: at high speed a tick can cross more than one hex
+    // of your own country, and an army that could only ever advance one step per
+    // tick would silently slow down as the clock sped up.
+    for (;;) {
+      const next = army.path[army.step];
+      if (next === undefined) { arrive(army, who); break; }
+      const cost = stepCost(next, who);
+      if (!Number.isFinite(cost) || army.progress < cost) break;
+      army.progress -= cost;
+      army.at = next;
+      army.step++;
+      if (army.step >= army.path.length) { arrive(army, who); break; }
+    }
+  }
+}
+
+// Every civilization's armies move on the same clock. Symmetry is the point:
+// there is no separate code path for a neighbour's column, so anything the
+// board shows about yours is true of theirs.
+export function tickArmies(dt) {
+  for (const p of S.players || []) marchArmies(dt, p);
 }

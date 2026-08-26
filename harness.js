@@ -5537,4 +5537,128 @@ console.log("\n--- Armies take the field: the object, and who is spoken for ---"
   })());
 }
 
+console.log("\n--- Armies march: the road is decided at dispatch ---");
+{
+  reset(); S().seed = 5150; S().rngState = 5150; S().map = null; S().seen = {};
+  api.ensureMap();
+  const P = api.me();
+  P.units.soldier = 30;
+  const from = api.holdings(P.id)[0];
+  const adj = api.world.places[from].adj;
+  const open = adj.find((id) => !api.isOwned(id, P.id) && api.world.places[id].terrain !== "water");
+  const mine = api.holdings(P.id).find((id) => id !== from && adj.includes(id));
+
+  check("your own country is half a step, open land a full one, water three",
+    api.stepCost(from, P) === 0.5 &&
+    (!open || api.stepCost(open, P) === 1) &&
+    Object.values(api.world.places).filter((x) => x.terrain === "water")
+      .every((x) => api.stepCost(x.id, P) === 3));
+
+  check("a path names the hexes to walk THROUGH, never the one you stand on", (() => {
+    const path = api.pathBetween(from, open, P);
+    return path && path.length >= 1 && path[path.length - 1] === open && !path.includes(from);
+  })());
+
+  const a = api.formArmy(from, { soldier: 6 });
+  check("an army marches when it is told to, and knows where it is headed",
+    api.orderMarch(a.uid, open, P) && api.marchingTo(a) === open);
+
+  check("it arrives after about the cost of the ground it crossed", (() => {
+    let t = 0;
+    while (a.order && t < 200) { api.marchArmies(1, P); t++; }
+    // one unowned step = cost 1 = CONFIG.marchSeconds
+    return a.at === open && !a.order && Math.abs(t - api.CONFIG.marchSeconds) <= 1;
+  })());
+
+  check("marching home again is twice as quick, because it is your own ground", (() => {
+    api.orderMarch(a.uid, from, P);
+    let t = 0;
+    while (a.order && t < 200) { api.marchArmies(1, P); t++; }
+    return a.at === from && Math.abs(t - api.CONFIG.marchSeconds / 2) <= 1;
+  })());
+
+  check("progress on the road reads as a fraction between two hexes", (() => {
+    api.orderMarch(a.uid, open, P);
+    api.marchArmies(api.CONFIG.marchSeconds / 2, P);
+    const pr = api.marchProgress(a, P);
+    return a.at === from && pr > 0.4 && pr < 0.6;
+  })());
+
+  check("halting leaves them standing where they got to", (() => {
+    const where = a.at;
+    return api.haltArmy(a.uid, P) && !a.order && a.at === where && api.marchProgress(a, P) === 0;
+  })());
+
+  // The while-loop in marchArmies: one big tick must cross as much ground as
+  // many small ones, or armies would silently slow down as the clock sped up.
+  check("a fast clock crosses as much ground as a slow one", (() => {
+    const runFor = (chunk) => {
+      const b = api.formArmy(mine, { soldier: 2 });
+      if (!b) return null;
+      api.orderMarch(b.uid, open, P);
+      let t = 0;
+      while (b.order && t < 400) { api.marchArmies(chunk, P); t += chunk; }
+      const where = b.at; api.haltArmy(b.uid, P);
+      const list = api.armiesOf(P); list.splice(list.indexOf(b), 1);
+      return where === open ? t : null;
+    };
+    const slow = runFor(0.2), fast = runFor(6);
+    return slow !== null && fast !== null && Math.abs(slow - fast) <= 6;
+  })());
+
+  check("arriving on one of your own armies merges into it", (() => {
+    const host = api.armyAt(from, P);          // `a`, standing where it started
+    api.setStance(host.uid, "half", P);
+    const before = host.roster.soldier;
+    const comer = api.formArmy(mine, { soldier: 3 }, "quarter");
+    if (!host || !comer) return false;
+    api.orderMarch(comer.uid, from, P);
+    let t = 0;
+    while (comer.order && t < 200) { api.marchArmies(1, P); t++; }
+    return api.armyAt(from, P) === host && host.roster.soldier === before + 3 &&
+      host.stance === "half" &&                     // the ground-holder's order stands
+      !api.armyById(comer.uid, P);
+  })());
+
+  check("an army in a fight takes no new orders", (() => {
+    const b = api.armyAt(from, P);
+    b.inBattle = true;
+    const ok = !api.orderMarch(b.uid, open, P) && /fight/.test(api.marchRefusal(b.uid, open, P));
+    b.inBattle = false;
+    return ok;
+  })());
+  check("nor is there a march to where you already stand",
+    !api.orderMarch(api.armyAt(from, P).uid, from, P));
+
+  check("every civilization's columns move on the same clock", (() => {
+    api.initAdversaries();
+    const rival = api.rivals()[0];
+    if (!rival) return false;
+    // A civ with no ground cannot raise an army on it, which is the rule
+    // working -- so give this one somewhere to stand.
+    const land = Object.values(api.world.places).find((x) =>
+      x.terrain !== "water" && !api.ownerOf(x.id));
+    if (!land) return false;
+    api.claimTile(land.id, rival.id);
+    rival.units.soldier = 4;
+    const r = api.formArmy(land.id, { soldier: 2 }, null, rival);
+    const dest = api.world.places[land.id].adj.find((id) => api.world.places[id].terrain !== "water");
+    if (!r || !dest) return false;
+    api.orderMarch(r.uid, dest, rival);
+    let t = 0;
+    while (r.order && t < 300) { api.tickArmies(1); t++; }   // the SHARED tick, not marchArmies
+    return r.at === dest;
+  })());
+
+  check("a march survives a save and load mid-road", (() => {
+    const b = api.armyAt(from, api.me());
+    api.orderMarch(b.uid, open, api.me());
+    api.marchArmies(api.CONFIG.marchSeconds / 3, api.me());
+    api.save(); api.load();
+    const after = api.armyById(b.uid, api.me());
+    return after && after.order && after.order.to === open &&
+      Array.isArray(after.path) && after.progress > 0;
+  })());
+}
+
 console.log(`\n${fails === 0 ? "ALL CHECKS PASSED" : fails + " CHECK(S) FAILED"}`);

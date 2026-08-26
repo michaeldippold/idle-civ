@@ -77,6 +77,49 @@ export function routeCost(targetId) {
 // How route cost bends a campaign: multiplies base march time and the food
 // provision. Near targets (or well-roaded ones) march cheap; far ones cost.
 // First-guess curve, tuned toward too-hard as always.
+// THE PATH ITSELF, not merely its length. adminDistance() and routeCost() both
+// answer "how far", which is all an abstraction ever needed. An army has to know
+// WHICH hexes it walks through, in order: it stands on each of them in turn, it
+// can be met on any of them, and a contested hex bars the road.
+//
+// Same step rule as routeCost -- your own country costs half a step, unowned
+// land a full one, water three. Slow crossings, never impossible, so an island
+// seat cannot deadlock a run.
+//
+// Returns the hexes to walk THROUGH, excluding the one you start on, or null if
+// there is no way there at all.
+export function pathBetween(fromId, toId, civ) {
+  if (!world || !S.map || !world.places[fromId] || !world.places[toId]) return null;
+  if (fromId === toId) return [];
+  const p = civ || me();
+  const stepInto = (id) => {
+    if (isOwned(id, p.id)) return 0.5;
+    return world.places[id].terrain === "water" ? 3 : 1;
+  };
+  const dist = { [fromId]: 0 }, prev = {};
+  const queue = [fromId];
+  while (queue.length) {
+    let bi = 0;
+    for (let i = 1; i < queue.length; i++) if (dist[queue[i]] < dist[queue[bi]]) bi = i;
+    const id = queue.splice(bi, 1)[0];
+    if (id === toId) break;
+    for (const n of world.places[id].adj) {
+      const d = dist[id] + stepInto(n);
+      if (dist[n] === undefined || d < dist[n]) {
+        if (dist[n] === undefined) queue.push(n);
+        dist[n] = d; prev[n] = id;
+      }
+    }
+  }
+  if (dist[toId] === undefined) return null;
+  const path = [];
+  for (let id = toId; id !== fromId; id = prev[id]) {
+    path.unshift(id);
+    if (path.length > 4096) return null;   // guard: a broken prev chain
+  }
+  return path;
+}
+
 export function marchFactor(targetId) {
   const r = routeCost(targetId);
   if (!Number.isFinite(r)) return 1;   // no map (harness fixtures): par

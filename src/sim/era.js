@@ -8,22 +8,34 @@ import { fmtTime, setSpeed } from "../ui/chrome.js";
 import { log } from "../ui/log.js";
 import { openEraModal } from "../ui/modal.js";
 
-export function advanceEra(era) {
-  const fromEra = me().era;
-  const fromM = active();
+// ONE CIVILIZATION CROSSES A BORDER (2026-08-26). Eras are per-player, so this
+// is something a civ DOES rather than something the world undergoes -- and the
+// difference is not academic: every side effect below had to be sorted into
+// "this civ's books" and "the human's screen". A bot advancing must not reset
+// your game speed or open your ceremony modal, which is exactly what would
+// have happened the first time a bot reached Bronze.
+export function advanceEra(era, civ) {
+  const p = civ || me();
+  const looking = p === me();          // is this the seat the player is watching?
+  const fromEra = p.era;
+  const fromM = active(p);
   // THE SNAPSHOT IS OF THE CIVILIZATION, not the world (2026-08-26, with the
   // player split). It was a copy of S back when a civ's state WAS S; a border
   // is something one civ crosses, so what has to be frozen is that civ's
   // books -- its stores, its army, what it had learned -- and nothing about
   // the board, which does not change at a border anyway.
-  const shallow = Object.assign({}, me());
+  const shallow = Object.assign({}, p);
   delete shallow.eraHistory;               // snapshots don't nest snapshots
-  me().eraHistory[fromEra] = JSON.parse(JSON.stringify(shallow));
+  p.eraHistory[fromEra] = JSON.parse(JSON.stringify(shallow));
 
-  me().era = era;
-  const toM = active();
+  p.era = era;
+  const toM = active(p);
   // Pacing telemetry (console only), the bookend to the started line in build().
-  console.log(`[pacing] ${toM.name} began at ${fmtTime(playtime())} (t${S.tick})`);
+  console.log(`[pacing] ${toM.name} began for player ${p.id} at ${fmtTime(playtime())} (t${S.tick})`);
+  // (initAdversaries still restocks against the HUMAN's era -- adversaries are
+  // not players yet, so "their age" is not a thing they have. That is stage
+  // five of this refactor, and the note is here because this is the line that
+  // will move: a neighbour's strength should come from THEIR clock.)
   initAdversaries();
   // A border re-denominates what a tile MEANS; it never changes how many you
   // hold (owner ruling). Consolidation -- which used to run here and take
@@ -31,10 +43,15 @@ export function advanceEra(era) {
   // bread default: nothing arrives at a border any more, since every hex was
   // claimed or captured and captures default to food on their own.
   ensureMap();
-  runEraMigrations(fromM, toM, me().eraHistory[fromEra]);
+  runEraMigrations(fromM, toM, p.eraHistory[fromEra], p);
   syncDominion();
-  purgeDom(fromM, toM);
 
+  // EVERYTHING BELOW IS THE PLAYER'S SCREEN, not the simulation. A civ the
+  // human is not looking through crosses its border silently -- the Chronicle
+  // will carry the news when the notification system lands, which is a
+  // different thing from seizing the world and holding a modal open.
+  if (!looking) return;
+  purgeDom(fromM, toM);
   // A new age begins at 1x (user ruling, after a 12x border starved a run
   // before its modal was even closed): the ceremony modal already holds the
   // world; this makes sure it resumes at a watchable pace. The player can
@@ -55,12 +72,12 @@ export function advanceEra(era) {
 //   { bucket, id, fn: (snapshot) => value, narrate }   -- computed fresh
 // Formulas read the frozen snapshot, never live state. Narrate lines always
 // log: an era transition is rare, and its story belongs in the Chronicle.
-export function runEraMigrations(fromM, toM, snapshot) {
+export function runEraMigrations(fromM, toM, snapshot, civ) {
   // (The workers-walk-home job migration died in E2 with the jobs system.)
   for (const ins of toM.migrations) {
     // Buckets are the CIV's (res, builds, units, upgrades) -- a migration
     // re-denominates what one people owns, never anything about the world.
-    const bucket = me()[ins.bucket];
+    const bucket = (civ || me())[ins.bucket];
     if (!bucket) continue;
     const snapBucket = snapshot[ins.bucket] || {};
     if (ins.vanish) {
@@ -73,7 +90,11 @@ export function runEraMigrations(fromM, toM, snapshot) {
     } else if (ins.fn) {
       bucket[ins.id] = ins.fn(snapshot);
     }
-    if (ins.narrate) log(ins.narrate);
+    // The Chronicle is the WATCHING seat's memory, so a civ nobody is looking
+    // through re-denominates in silence. (Rival news arrives through the
+    // notifications system when that lands -- "the Hill Clans have entered the
+    // Bronze Age" is a different sentence from your own books changing.)
+    if (ins.narrate && (civ || me()) === me()) log(ins.narrate);
   }
 }
 

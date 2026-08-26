@@ -4748,4 +4748,47 @@ console.log("\n--- Ownership is a property of the tile, and fog belongs to the k
   S().players.pop();
 }
 
+console.log("\n--- Every civilization keeps its own time ---");
+{
+  // Review Part I.5, and pillar 4 of the design brief: the shared world clock
+  // is the thing Empire Earth taught us to kill. active() takes a civ now, so
+  // "what does the world look like?" cannot be asked without saying whose.
+  reset(); api.ensureMap();
+  const you = api.me();
+  const rival = api.freshPlayer(1, { color: "teal" });
+  S().players.push(rival);
+
+  check("active() defaults to the seat we are looking through",
+    api.active() === api.active(you) && api.active().name === "Stone Age");
+  rival.era = "iron";
+  check("...and answers a DIFFERENT world for a civ in a different age",
+    api.active(rival).name === "Iron Age" && api.active(you).name === "Stone Age");
+  check("activeFor() answers by id, for systems that know whose turn it is",
+    api.activeFor(1) === api.active(rival) && api.activeFor(0) === api.active(you));
+  check("a civ in a later age sees content the earlier one does not",
+    api.active(rival).resources.some((r) => r.id === "iron") &&
+    !api.active(you).resources.some((r) => r.id === "iron"));
+
+  // ADVANCING IS SOMETHING ONE CIV DOES. The failure this prevents is
+  // concrete: before the split, a bot reaching Bronze would have reset the
+  // HUMAN's game speed and opened the human's ceremony modal.
+  rival.era = "stone";
+  api.setSpeed(5);
+  const before = api.speed;
+  api.advanceEra("bronze", rival);
+  check("a rival crossing its border does not touch your clock",
+    api.speed === before);
+  check("...and does not drag you into its age",
+    rival.era === "bronze" && api.me().era === "stone");
+  check("...but its own books re-denominate: it kept a snapshot of what it was",
+    !!rival.eraHistory.stone && rival.eraHistory.stone.era === "stone");
+  check("your own advance still runs the ceremony", (() => {
+    api.setSpeed(5);
+    api.advanceEra("bronze");
+    return api.me().era === "bronze" && api.speed === 1;
+  })());
+  S().players.pop();
+  api.setSpeed(1);
+}
+
 console.log(`\n${fails === 0 ? "ALL CHECKS PASSED" : fails + " CHECK(S) FAILED"}`);

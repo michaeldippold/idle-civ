@@ -2,7 +2,7 @@ import { BRONZE_DELTA } from "./bronze.js";
 import { IRON_DELTA } from "./iron.js";
 import { EVENT_LIB, HINT_LIB } from "./lib.js";
 import { STONE } from "./stone.js";
-import { S, me } from "../core/state.js";
+import { S, me, playerById } from "../core/state.js";
 import { CONFIG } from "../core/config.js";
 
 // ---------- Eras: the manifest model ------------------------
@@ -254,8 +254,24 @@ for (const era of ERA_ORDER) {
 }
 
 // THE indirection: every engine and render read of content goes through here.
+//
+// TAKES A CIVILIZATION (2026-08-26, review Part I.5). Eras are per-player by
+// design -- each civ advances on its own clock and being first is a real
+// advantage (Empire Earth) -- so "what does the world look like right now?"
+// has no answer without asking WHOSE. The default is the seat the interface is
+// looking through, which is what makes this a widening rather than a rewrite:
+// every existing `active()` keeps meaning what it meant, and a bot passes
+// itself.
+//
 // The stone fallback is defensive only (a hand-edited save with a bogus era).
-export function active() { return MANIFESTS[me().era] || MANIFESTS.stone; }
+export function active(civ) {
+  const p = civ || me();
+  return MANIFESTS[p && p.era] || MANIFESTS.stone;
+}
+
+// The manifest a civ lives under, by id -- for the systems that know whose
+// turn it is but not the record.
+export function activeFor(pid) { return active(playerById(pid)); }
 
 // (BOOST_BUILDING died here 2026-08-25 with the hex economy. It mapped a
 // resource to the panel building that lifted its rate kingdom-wide -- food to

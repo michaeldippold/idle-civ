@@ -370,7 +370,32 @@ so anything that cannot be drawn as a row of dice cannot be in the combat system
 several tempting ideas later, and it should.
 
 7. **Armies, combat, per-player era content** — built on the new shape, so bots and the human
-   share the systems from birth. **The scouting prerequisite is DROPPED, and the dependency is
+   share the systems from birth. **IN PROGRESS on branch `combat-dice`.** Shipped: the resolver
+   (`f0998c4`), firing slots (`0447b69`), **A1** armies exist and are accounted for (`cbf2667`),
+   **A2** they march (`c771973`), **A3** they are visible and inspectable (`86f949e`). Left:
+   **A4** contact — two armies on one hex seal a battle, the resolver runs for real, a contested hex
+   bars the road, and `repelChance` is finally deleted — and **A5** the bots, at which point a raid
+   stops being weather and becomes somebody's decision.
+
+   **BLOCKING QUESTION FOR A4: HOW AN ARMY IS DEPICTED IS STILL OPEN** (owner, 2026-08-26, pondering).
+   The ruling that exists is the **sockets** one in `2026-08-25-architecture-review.md`: each hex
+   reserves anchor points the prop scatter never fills — *one centre socket for the structure, a ring
+   of 3–4 sockets for pieces*, enough for one piece per player at max seats — with opposing armies at
+   ring sockets angled to face each other, and a garrisoned army merging visually into the structure
+   so a siege reads as a flagged fort with a hostile banner at the rim.
+
+   Today's banner is a **placeholder that does not implement this**: a DOM label at the hex centre,
+   in the overlay layer, not a piece in the 3D scene at all. It reads fine for one army and falls
+   apart the moment two players share a hex — **which is precisely what A4 creates**. So the
+   depiction wants settling before contact lands, not after.
+
+   Two things to resolve when it is picked up: the review says 3–4 ring sockets "enough for one piece
+   per player at max seats" while `palette.js` carries **seven** player colours, so the ring must be
+   sized to real max seats or an art decision quietly becomes the occupancy cap; and a session on
+   2026-08-26 briefly argued the *opposite* arrangement (centre for pieces, scenery pushed out) by
+   reasoning from the code instead of reading this ruling — the ring is right, because one centre
+   spot cannot hold two opposing banners.
+ **The scouting prerequisite is DROPPED, and the dependency is
    inverted** (owner, 2026-08-26): we do not yet know how scouting works, and scouts can be caught
    by armies — so combat wants to exist *first*, and scouting is built against it. The older note
    ("without reach-beyond-the-border an inbound army is invisible until adjacent") described a

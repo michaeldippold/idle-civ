@@ -320,14 +320,22 @@ export const IRON_DELTA = {
       id: "marchHold", name: "March-hold",
       requires: "fortification",
       fortifies: true,
-      // Thick walls and six positions on them. RANGE DIED 2026-08-26: this used
-      // to fortify "the ground beside it" through fortRange, which is exactly
-      // what the panel law forbids -- everything that fires in a battle is
-      // standing on the hex, because the panel can only show what it can line
-      // up on screen.
+      // TWO NUMBERS FOR A SYSTEM THAT IS NOT WIRED YET. `wallPool` and `slots`
+      // are what the resolver in sim/battle.js will read: a pool of hits an
+      // attacker has to grind through, and how many archers can stand on the
+      // wall. Both are INERT today -- the live raid path still goes through
+      // fortStrength() and repelChance, and this hex still fortifies its
+      // neighbours through CONFIG.fortRange.
+      //
+      // Range dies when contact does (todo.md, slice A4), because the panel law
+      // forbids it: everything that fires in a battle is standing on the hex,
+      // since the panel can only show what it can line up on screen. Until then
+      // the description below has to describe the game that is actually
+      // running -- a desc was briefly written for the destination instead, on
+      // 2026-08-26, and for a few commits this building lied about what it did.
       wallPool: 24, slots: 6,
       base: { wood: 120, stone: 200, iron: 40 }, scale: 1.35, buildTime: 75,
-      desc: "Walls, a gate, and six positions to shoot from. Produces nothing at all — an assault on this ground has to bring the wall down before it can reach anyone behind it.",
+      desc: "Walls, a gate, and people who watch the road. Produces nothing at all — it holds this ground and the ground beside it, and raids that come here break on it instead of on your people.",
     },
   ],
 

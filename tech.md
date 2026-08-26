@@ -786,6 +786,11 @@ Composition mismatch feeds a second, softer dial rather than `repelChance`: `cou
 
 ### Conflict
 
+> **THIS IS THE OLD RESOLUTION, AND IT IS ON DEATH ROW (2026-08-26).** Every step below is still
+> what runs, so this section is accurate — but `repelChance` is deleted the moment contact is wired
+> to the new resolver, and nothing new should be built on it. See **The battle resolver** and
+> **Armies** below.
+
 Conflict uses the `resolve()` escape hatch. Its algorithm:
 
 1. **Trigger** — `chance = CONFIG.conflictBaseChance * (1 + S.pop * CONFIG.conflictPopScale)`, further multiplied by `hostilityMultiplier()` (×1.5 per Hostile warlike neighbour), converted to a per-`dt` roll. Frequency scales continuously with population — a bigger settlement is a bigger target — rather than using a threshold gate. Also gated behind `S.pop >= 4`, matching Sickness's early grace.
@@ -802,6 +807,103 @@ Conflict uses the `resolve()` escape hatch. Its algorithm:
 **Flavor lines are templates, and `sentenceCase()` is not cosmetic.** Every people-name in the roster begins with a lowercase article ("the Hill Clans"), which is correct mid-sentence and wrong at the start of one — and a line may begin *more than one* sentence with a substitution. Capitalising only `line[0]` catches the first and misses the rest, which is how *"...before anyone can hold them back. the Hill Clans, and they knew the way."* got written. The harness pins both cases, plus a template-leak check that renders every line in every pool and fails on a surviving `{` — the class of bug that reaches a player because no type system sees it.
 
 Conflict is the one hazard allowed to end a run (`design.md`, *Failure*), which is why it passes `allowZero: true`. **It does not end the game itself** — the generic `S.pop <= 0` check in `step()` does.
+
+## The battle resolver — `src/sim/battle.js`
+
+**Status: built and harnessed 2026-08-26; not yet wired to contact.** It replaces the one line that
+used to be the whole of combat, `repelChance = defense / (defense + raidSize)` — one number for an
+army, one coin flip for a war.
+
+**The shape.** Units contribute dice. A die hits on its unit's number or better, **high is good**, on
+a **d10** — a d6 gives five usable tiers and there are twelve ages to cross. Both sides roll off the
+**pre-round** rosters and casualties land after, so a dying unit still shoots. Rounds repeat until a
+side is gone or withdraws.
+
+**Power scales through DICE COUNT**, never through an ever-better to-hit number: a stronger unit
+rolls two dice at 7+, not one die at an impossible number. That keeps every figure on screen legible
+across the whole era span, and makes extra dice a tech-tree lever.
+
+**It is a leaf module by design.** No state, no DOM, no global RNG — the caller passes the dice in.
+That is what lets the harness pin them, and it means the battle panel will be a **replay of the
+script the resolver returns** rather than a second implementation of the rules. There is exactly one
+place a fight is decided.
+
+Unit fields it reads, all defaulted so a def missing one still fights: `dice`, `hit`, `role`
+(`melee` / `ranged` / `siege`), `wallDamage`.
+
+**The rules, each of which is an owner ruling — see `todo.md` for the reasoning:**
+
+- **A battle is sealed when it joins.** No reinforcement mid-fight, ever: that is drip-feeding, and
+  drip-feeding is micro. A battle runs to annihilation or a pre-set withdrawal. **Relief does not
+  join a siege — it fights the winner.**
+- **While walls stand, the attacker's hits go to the WALLS**, not the garrison. `wallPool` is the
+  pool; it is a **pacing** knob as much as a strength one, since rounds play over ticks. A siege
+  needs no special machinery — it is simply a long battle.
+- **Only archers fire from inside a fortification**, and only as many as there are **firing slots**.
+  Melee stand there and do nothing at all until the breach, then all of them wake at once. Without
+  the slot cap the rule has a degenerate optimum (measured: ten archers held 60% where five archers
+  and five horsemen held 17%); with it, the best melee is worth garrisoning again (61% vs 37%).
+- **No spill.** Hits that bring a wall down do not carry through to the defenders that round. The
+  breach is the next round's drama.
+- **Worst goes first, and worst means cheapest** — cost, not combat value. Ordering by value would
+  kill an attacker's siege engines while the walls still stand, which is exactly the units doing the
+  work, because their value against *units* is deliberately awful.
+- **Population does not fight.** An undefended hex with no walls returns outcome `undefended`: no
+  dice, no rounds, no panel. Walls with no garrison are a **timer**, not a defence.
+- **The stance is a risk budget, not a tactical brain.** Named steps only, never a typed number, and
+  it reads *only your own losses* — it deliberately does not know whether you are winning. Default
+  is fight-to-the-last, the least surprising order.
+
+**The panel constrains the rules.** Everything that fires is standing on the hex — no adjacency
+bonuses, no off-board modifiers. The panel must show the player exactly why they lost, and it can
+only show what it can line up on screen.
+
+## Armies — `src/sim/armies.js`
+
+**Status: A1–A3 shipped 2026-08-26.** An army is an expedition that knows where it is standing.
+Before this, a unit was a number and nothing more: six soldiers existed *somewhere* and defended
+whatever the sim chose to attack.
+
+**`p.units` still counts every unit a civ owns, home or away** — the convention expeditions already
+set, kept because the population mirror and `popCost` both read it. An army *lists* the subset that
+is committed. `freeUnits()` is the single answer to "how many can I give an order to"; `derived.js`
+delegates to it rather than keeping a second one, because two answers to that question is how a
+roster starts lying.
+
+- **A garrison is just an army standing on your own ground.** One object, one rule set.
+- **One army to a hex, per player.** Arriving on one of your own **merges** into it, and the
+  standing army keeps its stance because it was the one already holding the ground. Not battle
+  reinforcement — there is no battle — just two of your columns becoming one. This is also why
+  splitting armies does not exist: disband-and-reform *is* the split, priced in travel time.
+- **Disband only on your own territory**, or disband beats marching home and teleports units for
+  free. The troops return to the **unit** pool, never to the population: `popCost` is already spent,
+  and disbanding a formation does not discharge its soldiers.
+- **Marching** uses `pathBetween()` (`map/routes.js`), which answers what `adminDistance` and
+  `routeCost` never had to — not how far, but *which hexes, in order*. Same step rule: your own
+  country half a step, open land a full one, water three. Marching inside your borders is twice as
+  fast as invading, which is what makes a relief force a real idea rather than a stated one.
+- The road is decided **once, at dispatch**, and kept. An army walks the road it was sent down
+  rather than re-deciding every tick — that is what lets it be met on the way.
+- `tickArmies()` moves **every** civilization's columns through one function on one clock. Symmetry
+  is the point: anything the board shows about yours is true of theirs.
+
+### The board has to notice things that move on their own
+
+`ui/map.js`'s stage signature gained `armyStamp()`. Found by looking at the board rather than by
+reasoning about it: without it the stage never rebuilt when an army moved, so a banner sat on the
+destination hex while the army stood twelve seconds away on its start hex, becoming correct only by
+accident when the army arrived. Everything else in that signature is a **standing fact about the
+ground**; an army is the first thing on this board that **moves on its own**, and the signature is
+what has to notice. Cheap on purpose — it runs five times a second, and there are a handful of
+armies in a run.
+
+### The legibility contract
+
+The game will **never print your odds**. No board game does, and a printed percentage collapses the
+decision into a threshold check — the player stops reading the board and starts reading the number.
+What it owes instead is the **inputs**, wherever a unit is drawn: the army card, the muster screen,
+the roster panel all print the to-hit number. *"6 Soldier"* supports no estimate; *"6 Soldier, hits
+on 7+"* **is** the estimate.
 
 ## Adversaries & Expeditions
 

@@ -882,7 +882,10 @@ game's own documents keep circling: a stretched dominion should starve and burn 
 3. **Walls supplement an army; they never replace one.** `fortStrength` at 9, stacking in range, let a
    player with **no soldiers at all** turn back 64–90% of raids. That is a march-hold doing the
    army's job. Roughly halve it: a naked settlement should still lose, while a defended one that
-   *has* fighters should notice the difference.
+   *has* fighters should notice the difference. *(**DONE 2026-08-25** — `CONFIG.fortStrength` is 4.
+   The principle outlived the number: under the roll-off that replaces all of this, walls with no
+   garrison are a **timer** rather than a defence — they absorb hits and buy time for a relief force,
+   and they never kill anyone. Same law, expressed in a system that can state it directly.)*
 
 4. **Sickness scales with population, and infirmaries soften rather than prevent.** The infirmary
    reduces the *trigger chance*, so enough of them drive frequency toward zero and the threat is
@@ -1084,6 +1087,20 @@ with no error. This was the seed of the whole manifest architecture.
 
 ### Military & Defense
 
+> **SUPERSEDED IN DESIGN, STILL LIVE IN CODE (2026-08-26).** Everything below about how a fight
+> RESOLVES — `repelChance = defense / (defense + raidSize)`, `militaryStrength()` summing one number
+> for a whole army, the counter matrix, `fortStrength` reaching a hex away — describes the code that
+> is still running and is therefore still true today. It is **not** the design any more. Combat is
+> settled as an Axis & Allies / TI4 roll-off: units contribute dice, a die hits on its unit's number
+> or better on a d10, both sides roll off the pre-round roster so a dying unit still shoots, and
+> rounds repeat until a side is gone or withdraws. The resolver is built (`src/sim/battle.js`) and
+> harnessed; what remains is wiring contact to it, at which point `repelChance` is deleted. **The
+> full ruling set is in `todo.md` under the combat note — read that before treating anything in this
+> section as canon.** In particular: the counter matrix is dead, replaced by roles whose counters
+> come from *where the fight is happening* (only archers fire from inside a fortification, siege
+> engines break walls and little else, melee wait for the breach), and `fortStrength`'s range is dead
+> with it, because everything that fires in a battle is standing on the hex.
+
 A soldier is a **commitment**, never a reassignable stat — a freely-toggled defense number is a
 costless switch you'd flip up before trouble and down after, which defeats the point.
 
@@ -1117,11 +1134,29 @@ specialists their safety.
 Starport/Fleet/photon-weapons/shields are the same underlying system. If that stops being true for
 some future age, that's a sign the age needs its own mechanic, not a forced fit.
 
-### Armies Take the Field *(direction ruled 2026-08-25; scoped, not scheduled — wants its own session)*
+### Armies Take the Field *(direction ruled 2026-08-25; **BUILDING since 2026-08-26**, slices A1–A3 shipped)*
 
-The largest structural change ever proposed for this codebase, agreed in principle and parked
-deliberately. Today an army is four global integers with no position — which is *why* "zero
-military, thriving" is a viable build: a number that is nowhere can have no job. The direction:
+The largest structural change ever proposed for this codebase. It is no longer parked.
+
+**What is built.** An army is an object standing on a hex (`src/sim/armies.js`). It is raised on
+ground you hold, out of soldiers that stop being available the moment they are committed; it marches
+a path decided once at dispatch and walks it hex by hex; it merges into one of your own armies if it
+arrives on top of it; and it disperses back into the pool only on your own territory, so an army
+caught deep is genuinely caught. Every civilization's columns move through the same function on the
+same clock — there is no separate code path for a neighbour's army, which is the whole reason this
+was worth doing. A **garrison is not a second concept**: it is an army standing on your own ground.
+
+**What is left.** Contact — two armies on one hex sealing a battle and handing it to the resolver,
+the losing side's ground changing hands, and a contested hex barring the road. Then the bots, at
+which point a raid stops being weather and becomes somebody's decision.
+
+**Still open, and it gates contact:** *how an army is DEPICTED.* See the sockets ruling in
+`2026-08-25-architecture-review.md` — a centre socket for the structure, a ring of 3–4 for pieces,
+so opposing banners can square up across one hex. Today's banner is a placeholder: a DOM label at
+the hex centre, which reads fine for one army and falls apart the moment two players share a hex.
+**That is exactly what contact requires**, so the depiction wants deciding before the fighting lands.
+
+The original direction, recorded 2026-08-25, and still the shape of it:
 
 - **Armies become groups with positions.** The player partitions the army into segments and sends
   them to hexes, travel included, over terrain via `routeCost()` — terrain carrying a movement

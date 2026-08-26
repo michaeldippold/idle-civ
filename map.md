@@ -823,7 +823,10 @@ Column size has **no cap**. It had one for a day — a flat four at Bronze — a
 (owner, from play): *"I had 4 of each type, but I can only send 4 total."* A headcount ceiling makes
 units you have already paid population for unusable, and it flattens the mixed-column decision the
 counter system exists to create: with four slots you send four of whatever counters them and leave
-the rest at home forever.
+the rest at home forever. *(2026-08-26: the **counter matrix is dead** — counters now come from
+where the fight is happening, not a unit-vs-unit table. The decision this argues for survives and is
+sharper for it: what you bring decides whether you can answer a wall at all. See `design.md` →
+Military & Defense.)*
 
 Provisions are the honest limit instead. A campaign costs `campaignFoodBase` for the column plus
 `campaignFoodPerUnit` for every fighter, and the route multiplies **both** halves. Bringing everyone

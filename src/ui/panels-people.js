@@ -4,6 +4,7 @@ import { dominionCap, holdsUsed } from "../map/map.js";
 import { S, me } from "../core/state.js";
 import { renderTile } from "./dom.js";
 import { PERSON_ICONS } from "./icons.js";
+import { unitHit, unitRole } from "../sim/battle.js";
 
 // The steppers died in E2 (engine rework): people live on hexes and work
 // where they live, so this panel is the ROSTER -- who your people are, not
@@ -15,7 +16,13 @@ export function renderPeople() {
     `An ordinary ${noun.singular}. Your people live on the land and work where they live.`);
   for (const def of active().units) {
     if (!isRevealed(def)) continue;
-    renderTile(tiles, "ptile-", def.id, PERSON_ICONS[def.id] || "", def.name, me().units[def.id] || 0, "people", def.desc);
+    // Same contract as the army card and the muster: a unit is never drawn
+    // without the number it fights on.
+    const how = unitRole(def) === "ranged" ? "The only ones who can shoot from inside a fortification."
+      : unitRole(def) === "siege" ? "Little use against people; the answer to a wall."
+      : "Behind a wall they wait for the breach.";
+    renderTile(tiles, "ptile-", def.id, PERSON_ICONS[def.id] || "", def.name, me().units[def.id] || 0, "people",
+      `${def.desc} Hits on ${unitHit(def)}+. ${how}`);
   }
 
   // (The settler-timer countdown died in E3: growth is visible on the hexes

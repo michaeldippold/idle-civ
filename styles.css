@@ -1070,6 +1070,58 @@ body.dead #mainArea .block { filter: saturate(.25); }
    inside -- the label layer places exactly one node per tile, so the pair has
    to be a single box. The gap is what stops it reading as one smudged mark. */
 .map3d-glyph.pair { display: inline-flex; align-items: center; gap: 4px; }
+
+/* AN ARMY OUTRANKS THE GROUND IT STANDS ON, so it takes the mark and the hex's
+   own work steps down to the second glyph. Your banner wears the colour you
+   picked on the start screen; everyone else's is white, the same grammar the
+   houses already use -- "who else is on this board" answerable at a glance
+   without reading a label. The count beside it is the whole reason a banner is
+   worth drawing: an army you can see is an army you can count. */
+.map3d-glyph.army      { font-size: 20px; }
+.map3d-glyph.army.mine, .map3d-glyph .part.army.mine { color: var(--player-glyph, #c3a3ff); }
+.map3d-glyph.army.foe,  .map3d-glyph .part.army.foe  { color: #ffffff; }
+.map3d-glyph .part.armyn { font-size: 14px; font-weight: 700; color: #fdf8ec; }
+.map3d-glyph.army.mine, .map3d-glyph .part.army.mine {
+  text-shadow: var(--player-halo, 0 0 3px rgba(8, 10, 14, .95), 0 1px 2px rgba(8, 10, 14, .9));
+}
+
+/* The army card in the Selected Tile panel. Every unit prints its to-hit
+   number, because the game will never print your odds -- what it owes you
+   instead is the inputs, wherever a unit is drawn. */
+.army-card {
+  margin: 6px 0 10px; padding: 8px 10px;
+  border-left: 3px solid var(--player-glyph, #c3a3ff);
+  background: rgba(255, 255, 255, .035); border-radius: 4px;
+}
+.army-card.foe { border-left-color: #ffffff; }
+.army-head { margin-bottom: 5px; }
+/* The stat sits UNDER the name, not beside it. Side by side it clipped in the
+   Selected Tile panel -- "waits for the bre" -- and a to-hit number that runs
+   off the edge is worse than useless, since printing the inputs is the entire
+   deal the game makes in exchange for never printing the odds. */
+.army-row { padding: 2px 0 3px; }
+.army-stat {
+  display: block; font-family: var(--mono); font-size: 11px;
+  opacity: .72; padding-left: 1.1em;
+}
+.army-orders { margin-top: 6px; font-size: 12px; opacity: .85; }
+
+/* THE STANCE IS CHOSEN, NOT DEFAULTED INTO. With no reinforcement and no
+   between-rounds, a pre-set withdrawal is the only exit from a battle you are
+   losing -- so the control is a row of real options rather than a dropdown
+   nobody opens. */
+.stance-pick { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 2px; }
+.stance-opt {
+  font: inherit; font-size: 12px; cursor: pointer;
+  padding: 4px 9px; border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, .18);
+  background: rgba(255, 255, 255, .04); color: inherit;
+}
+.stance-opt:hover { background: rgba(255, 255, 255, .09); }
+.stance-opt.on {
+  border-color: var(--player-glyph, #c3a3ff);
+  background: rgba(255, 255, 255, .12);
+}
 /* Your house takes the run's halo rather than the shared dark one. Six of the
    seven player colours are lighter than the board and want the dark outline
    every other mark uses; BLACK is darker than the terrain under it, so a dark

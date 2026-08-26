@@ -1,14 +1,16 @@
 import { active } from "../content/compile.js";
 import { S, me, playerByKey } from "../core/state.js";
-import { canAfford, caps, capWord, seatIsNamed, seatName } from "../core/derived.js";
+import { availableUnits, canAfford, caps, capWord, seatIsNamed, seatName } from "../core/derived.js";
 import { save } from "../core/persist.js";
 import { canBuildOn, demolishStructure, hasMarket, launchSettle, launchStructure, pendingBuild, pendingSettle, settlePlan, structureFits, structurePlan, structureUnlocked, trade, tradeRate } from "../core/actions.js";
-import { atDominionCap, capOf, dominionCap, hexPop, hexResource, hexUse, hexYield, holdings, holdsUsed, isCharted, isOwned, isVisible, structureDef, terrainYield, workStamp, world } from "../map/map.js";
+import { atDominionCap, capOf, dominionCap, hexPop, hexResource, hexUse, hexYield, holdings, holdsUsed, isCharted, isOwned, isSighted, isVisible, structureDef, terrainYield, workStamp, world } from "../map/map.js";
+import { armyAt, armyById, armyRoster, armySize, disbandArmy, disbandRefusal, haltArmy, marchRefusal, marchingTo, orderMarch } from "../sim/armies.js";
+import { stanceById, unitHit, unitRole } from "../sim/battle.js";
 import { FOREIGN, FOREIGN_MINOR, playerColor } from "../core/palette.js";
 import { hexDistance, hexPoints, toPixel } from "../map/model.js";
 import { campaignPlan, expeditionOut, musterBuilt, standingWord } from "../sim/expeditions.js";
 import { attachTip, esc, tipHide, tipMove, tipShow } from "./dom.js";
-import { openCampaignModal, openCaravanModal, stockLine } from "./expeditions.js";
+import { openCampaignModal, openCaravanModal, openRaiseModal, stockLine } from "./expeditions.js";
 
 // ---------- The map stage (the flip, 2026-08-22) ------------
 // The map is the game's main surface now -- not a modal, the CANVAS, with
@@ -62,6 +64,10 @@ const TERRAIN_FLAVOR = {
 let selectedId = null;
 let lastSignature = "";
 let lastDetail = "";
+
+// Which army is waiting for you to point at a hex. UI state, not game state:
+// it is what the NEXT click means, and it survives nothing.
+let sending = null;
 
 function advName(adv) { return adv.name.charAt(0).toUpperCase() + adv.name.slice(1); }
 
@@ -266,8 +272,76 @@ function noReachLine() {
   return `<span class="map-noworks">You know they are there, and that is the whole of it. No one here could raise a column to go and see — that is not what a ${spec().tileNoun.singular} is, and not yet what you are.</span>`;
 }
 
+// WHO IS STANDING HERE, AND WHAT THEY CAN DO. This panel is the whole of the
+// legibility contract, and the contract is deliberately one-sided: the game
+// will NEVER tell you your odds. No board game does, and a printed percentage
+// collapses the decision into a threshold check -- the player stops reading the
+// board and starts reading the number, and the skill the game is about
+// evaporates.
+//
+// What it owes you instead is the INPUTS, in full, wherever a unit is drawn.
+// "6 Spearmen" supports no estimate at all. "6 Spearmen — hits on 7+" IS the
+// estimate. Click the army, count the dice, decide for yourself.
+function civLabel(pl) {
+  if (pl.id === S.me) return "Your army";
+  const adv = active().adversaries.find((a) => a.id === pl.key);
+  return (adv ? advName(adv) : "A rival") + "’s army";
+}
+
+function unitLine(def, n) {
+  const role = unitRole(def);
+  const says = role === "ranged" ? "shoots from behind walls"
+    : role === "siege" ? "breaks walls, little else"
+    : "waits for the breach";
+  return `<div class="army-row"><b>${n}</b> ${def.name}` +
+    `<span class="army-stat">hits on ${unitHit(def)}+ · ${says}</span></div>`;
+}
+
+function armyHTML(p) {
+  const out = [];
+  for (const pl of S.players || []) {
+    const a = armyAt(p.id, pl);
+    if (!a) continue;
+    const mine = pl.id === S.me;
+    if (!mine && !isSighted(p.id)) continue;
+    const rows = armyRoster(a, pl).map((s) => unitLine(s.def, s.n)).join("");
+    const dest = marchingTo(a);
+    const where = dest && world.places[dest]
+      ? `Marching on ${titleFor(world.places[dest])}.`
+      : "Holding this ground.";
+    out.push(
+      `<div class="army-card${mine ? " mine" : " foe"}">` +
+        `<div class="army-head">⚑ <b>${civLabel(pl)}</b> — ${armySize(a)} under arms</div>` +
+        rows +
+        (mine
+          ? `<div class="army-orders">${where} Standing order: <b>${stanceById(a.stance).name}</b>.</div>` +
+            `<div class="map-actions">` +
+              `<button class="map-act" data-act="send" data-army="${a.uid}">${
+                sending === a.uid ? "Pick a hex…" : "March"}</button>` +
+              (dest ? `<button class="map-act" data-act="halt" data-army="${a.uid}">Halt</button>` : "") +
+              `<button class="map-act warn" data-act="disband" data-army="${a.uid}"${
+                disbandRefusal(a.uid) ? " disabled" : ""}>Disperse</button>` +
+            `</div>` +
+            (sending === a.uid
+              ? `<span class="map-noworks">Choose the ground they march on.</span>` : "")
+          : `<div class="army-orders">${where}</div>`) +
+      `</div>`);
+  }
+  // RAISING happens on ground you hold and nowhere else, and one army to a hex:
+  // reinforcing a garrison is done by marching into it, which merges.
+  if (isOwned(p.id) && !armyAt(p.id, me()) && anyUnitsFree()) {
+    out.push(`<div class="map-actions"><button class="map-act" data-act="raise" data-tile="${p.id}">Raise an army</button></div>`);
+  }
+  return out.join("");
+}
+
+function anyUnitsFree() {
+  return active().units.some((def) => availableUnits(def.id) > 0);
+}
+
 export function detailHTML(p) {
   const parts = [];
+  parts.push(armyHTML(p));
   if (p.adversary) {
     const adv = active().adversaries.find((a) => a.id === p.adversary);
     const st = playerByKey(p.adversary);
@@ -424,7 +498,25 @@ function signature() {
   return [me().era, (holdings()).join("|"),
     ((S.map && me().revealed) || []).length,
     ((S.map && me().sighted) || []).length,
-    workStamp(), selectedId].join("~");
+    workStamp(), armyStamp(), selectedId].join("~");
+}
+
+// WHERE EVERY BANNER IS AND HOW BIG IT IS. Found by looking at the board rather
+// than by reasoning about it (2026-08-26): without this the stage never
+// rebuilt when an army moved, was raised, or lost anyone, so the board kept
+// drawing a column that had marched away. Everything else in the signature is
+// a standing fact about the ground; an army is the first thing on this board
+// that moves on its own, and the signature is what has to notice.
+//
+// Cheap on purpose -- this runs five times a second. There are a handful of
+// armies in a run, so walking them costs less than the JSON.stringify this
+// function was written to avoid.
+function armyStamp() {
+  let out = "";
+  for (const pl of S.players || []) {
+    for (const a of pl.armies || []) out += pl.id + ":" + a.at + ":" + armySize(a) + ",";
+  }
+  return out;
 }
 
 // What owned country REPORTS: what it is producing. Lifted out because two
@@ -457,7 +549,7 @@ function workMark(id) {
 // the work letter on owned country, then a minor's dot. This is the SAME
 // ladder the SVG renderer draws, lifted out so both renderers read from one
 // definition rather than drifting apart.
-export function markFor(p) {
+function baseMarkFor(p) {
   // Unpainted board says nothing about itself. Fog hides the BOARD; what is
   // on it is a separate layer that simply is not known yet.
   if (!isCharted(p.id)) return null;
@@ -481,6 +573,39 @@ export function markFor(p) {
   // hover. The map stays a map rather than becoming a directory.
   if (p.minor) return { glyph: "\u2302", cls: "minor" };
   return null;
+}
+
+// AN ARMY OUTRANKS THE GROUND IT STANDS ON. Everything else the ladder reports
+// is a standing fact about a hex -- who holds it, what it grows. An army is a
+// thing that ARRIVED, and while it is there it is the most important thing on
+// the board, so it takes the mark and the hex's own work steps down to the
+// second glyph. The tile panel still carries both.
+//
+// Pieces move HEX TO HEX rather than sliding along the road between them. That
+// is the board game answer as much as the cheap one: a piece is on a space, or
+// it is on a different space.
+//
+// FOG DECIDES WHOSE YOU SEE. Your own columns always draw -- you know where your
+// own soldiers are. A foreign one appears only while you are actually sighting
+// that ground, which is most of what scouting is going to be for: an army you
+// cannot see is an army you cannot count.
+function armyMarkFor(p) {
+  for (const pl of S.players || []) {
+    const a = armyAt(p.id, pl);
+    if (!a) continue;
+    const mine = pl.id === S.me;
+    if (!mine && !isSighted(p.id)) continue;
+    return {
+      glyph: "\u2691", cls: "army" + (mine ? " mine" : " foe"), pid: pl.id,
+      sub: { glyph: String(armySize(a)), cls: "armyn" + (mine ? " mine" : " foe") },
+    };
+  }
+  return null;
+}
+
+export function markFor(p) {
+  if (!isCharted(p.id)) return null;
+  return armyMarkFor(p) || baseMarkFor(p);
 }
 
 // Ask the 3D stage to play the sink-and-rise on specific hexes. A no-op under
@@ -525,7 +650,9 @@ export function devRedress() {
 // saying "someone lives here" is a piece.
 export function rimFor(p) {
   if (isOwned(p.id)) return playerColor().ring;
-  const m = markFor(p);
+  // The GROUND's mark, deliberately: an army standing on a foreign seat must
+  // not stop that seat's rim from reading as foreign.
+  const m = baseMarkFor(p);
   if (!m) return null;                       // uncharted, or empty country
   if (m.cls === "seat") return FOREIGN;
   if (m.cls === "minor") return FOREIGN_MINOR;
@@ -624,6 +751,19 @@ export function renderTileDetail() {
 }
 
 export function selectTile(id) {
+  // A column waiting on a destination eats the next click on the board. The
+  // order is given, the panel goes back to reading the hex, and the mode ends
+  // -- one click, one order, no lingering mode to get stuck in.
+  if (sending != null && id) {
+    const uid = sending;
+    sending = null;
+    if (!marchRefusal(uid, id)) {
+      orderMarch(uid, id);
+      lastDetail = "";
+      renderTileDetail();
+      return;
+    }
+  }
   selectedId = id;
   // The 3D stage moves a ring rather than rebuilding, so selection costs it
   // nothing; the SVG stage bakes the ring into its markup and must redraw.
@@ -742,6 +882,27 @@ export function initMapStage() {
       if (!btn || btn.disabled) return;
       const act = btn.dataset.act;
       if (act === "march") { openCampaignModal(btn.dataset.adv); return; }
+      if (act === "raise") { openRaiseModal(btn.dataset.tile); return; }
+      if (act === "disband") {
+        disbandArmy(Number(btn.dataset.army));
+        lastSignature = ""; renderMapStage();
+        lastDetail = ""; renderTileDetail();
+        return;
+      }
+      if (act === "halt") {
+        haltArmy(Number(btn.dataset.army));
+        lastDetail = ""; renderTileDetail();
+        return;
+      }
+      // MARCH IS TWO CLICKS, and the second one is on the board. An order is
+      // aimed at ground you looked at, so the board is where you aim it --
+      // there is no list of hex names anywhere in this game and there should
+      // not be one.
+      if (act === "send") {
+        sending = sending === Number(btn.dataset.army) ? null : Number(btn.dataset.army);
+        lastDetail = ""; renderTileDetail();
+        return;
+      }
       if (act === "settle") { launchSettle(btn.dataset.tile); lastDetail = ""; renderTileDetail(); return; }
       if (act === "caravan") { openCaravanModal(btn.dataset.adv); return; }
       if (act === "build") {

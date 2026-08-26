@@ -4,6 +4,9 @@ import { availableUnits, isRevealed, pluralize } from "../core/derived.js";
 import { S, me, playerByKey } from "../core/state.js";
 import { campaignPlan, campaignRefusal, campaignStrength, columnSize, expeditionOut, findAdversary, hostileRouteRisk, launchCampaign, launchCaravan, provisionsFor, riskAdversary, standingWord, wallPower } from "../sim/expeditions.js";
 import { closeModal, openModal } from "./modal.js";
+import { formArmy, formRefusal } from "../sim/armies.js";
+import { DEFAULT_STANCE, STANCES, unitHit } from "../sim/battle.js";
+import { requestRender } from "../core/bus.js";
 
 // The Expeditions panel is gone (the flip, 2026-08-22): the map's Selected
 // Tile panel carries the adversary card and its actions now. The muster and
@@ -43,7 +46,11 @@ export function musterRowsHTML(prefix) {
     // player already learned this control in the first minute, and mustering a
     // column is the same verb as assigning labour pointed somewhere else.
     `<div class="job">` +
-      `<span class="job-name">${pluralize(def.name)}</span>` +
+      // THE TO-HIT NUMBER TRAVELS WITH THE UNIT, everywhere one is drawn. The
+      // game will never print your odds, so what it owes you is the inputs --
+      // and a muster screen is exactly where you are deciding what to bring.
+      `<span class="job-name">${pluralize(def.name)}` +
+        `<span class="army-stat">hits on ${unitHit(def)}+</span></span>` +
       `<span class="job-out" id="${prefix}avail-${def.id}"></span>` +
       `<span class="stepper-group">` +
         `<button class="stepper dec" data-mid="${def.id}" data-d="-1">−</button>` +
@@ -192,4 +199,67 @@ export function openCaravanModal(advId) {
   });
 }
 
+// ---- Raising an army -------------------------------------------------------
+// The same muster grammar a campaign uses -- the player learned this control in
+// the first minute and there is no reason a second one exists -- plus the one
+// thing a campaign never had to ask: THE STANCE.
+//
+// It is set here, loudly, because it has to be a choice actively made rather
+// than a default nobody read. With no reinforcement and no between-rounds, a
+// pre-set withdrawal is the ONLY exit from a battle you are losing, including a
+// siege that is clearly not going to crack. If a player loses an army because
+// they never noticed this control existed, that is on us and not on them.
+let raiseStance = DEFAULT_STANCE;
 
+function stancePickHTML() {
+  return `<div class="stance-pick">` + STANCES.map((s) =>
+    `<button class="stance-opt${s.id === raiseStance ? " on" : ""}" data-stance="${s.id}">${s.name}</button>`
+  ).join("") + `</div>`;
+}
+
+export function openRaiseModal(hexId) {
+  muster = {};
+  raiseStance = DEFAULT_STANCE;
+  const body =
+    `<p class="modal-lead">Soldiers raised here stand on this ground until you send them somewhere. ` +
+    `A garrison is not a different thing from an army — it is an army that has not been told to leave.</p>` +
+    `<h3 class="info-h">Who marches under this banner</h3>` +
+    `<div class="muster">${musterRowsHTML("ra")}</div>` +
+    `<h3 class="info-h">Standing order</h3>` +
+    `<div id="raStance">${stancePickHTML()}</div>` +
+    `<div class="exp-status" id="raNote"></div>` +
+    `<div class="exp-status hidden" id="raRefusal"></div>`;
+  openModal("Raise an army", body, [
+    { label: "Not yet", onClick: closeModal },
+    { label: "Raise", danger: false, onClick: () => {
+        if (formArmy(hexId, muster, raiseStance)) { closeModal(); requestRender(); }
+      } },
+  ], (bodyEl) => {
+    const refresh = () => {
+      const total = refreshMusterRows("ra");
+      const note = document.getElementById("raNote");
+      if (note) {
+        note.textContent = total
+          ? `${total} under arms. They hold this ground until ordered elsewhere.`
+          : "An army needs somebody in it.";
+      }
+      const why = formRefusal(hexId, muster);
+      const ref = document.getElementById("raRefusal");
+      if (ref) { ref.textContent = why || ""; ref.classList.toggle("hidden", !why); }
+      const go = confirmButton();
+      if (go) go.disabled = !!why;
+      const pick = document.getElementById("raStance");
+      if (pick) pick.innerHTML = stancePickHTML();
+      wireStance(bodyEl, refresh);
+    };
+    const wireStance = (root, again) => {
+      root.querySelectorAll(".stance-opt").forEach((b) => b.addEventListener("click", () => {
+        raiseStance = b.dataset.stance;
+        again();
+      }));
+    };
+    wireMusterRows(bodyEl, refresh);
+    wireStance(bodyEl, refresh);
+    refresh();
+  });
+}

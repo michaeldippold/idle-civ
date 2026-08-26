@@ -186,9 +186,20 @@ fire (an AA gun in A&A, PDS in TI4) rather than a flat addend. **What the era cl
 also survives** — raid size and shape decide *what force arrives*, which is the input to a roll-off
 rather than part of its resolution.
 
-*Two forks left open:* whether the counter matrix (archer beats massed) survives as a to-hit
-modifier or dies in favour of differentiated per-unit stats; and whether a battle resolves at once
-on arrival or plays out over ticks, which decides whether reinforcements can join mid-fight.
+*Owner rulings, 2026-08-26:*
+- **It is an AUTOBATTLER.** No input once the fight joins — that is what keeps it a strategy game
+  rather than a military-micro one. *"Your strategy put you into that battle; the dice gods decide
+  if you win it."*
+- **Casualties: your worst go first**, both sides, automatically. No per-battle choosing.
+- **It plays out over ticks**, not instantly — it is fully scripted, so the pacing is free.
+- **High rolls are better.** Dice size is open; d10 recommended (see below).
+- **A BATTLE PANEL shows it happening** — both sides lined up, the viewer's own units always on
+  the bottom, dice visible. Leaning into the board game. Two things this buys: the player gets an
+  exact reason they lost, and an improbable win becomes a story worth telling. *"My one infantry
+  killed six German tanks"* is a thing that actually happens in Axis & Allies.
+
+*Still open:* whether the counter matrix (archer beats massed) survives as a to-hit modifier or
+dies in favour of differentiated per-unit stats.
 
 7. **Armies, combat, per-player era content** — built on the new shape, so bots and the human
    share the systems from birth. Slice 6 scouting is still the prerequisite.

@@ -228,7 +228,7 @@ export const IRON_DELTA = {
   // deliberately cross-cuts disposition so the slate doesn't template.
   adversaries: [
     {
-      id: "hillClans", name: "the Hill Clans", disposition: "warlike",
+      id: "hillClans", name: "the Hill Clans", disposition: "warlike", color: "brown",
       // Each adversary names its own ground, because each one's DESCRIPTION
       // already did: "the high passes", "downriver ... on the bluffs", "they
       // circle their wagons". Placement was terrain-blind until 2026-08-24,
@@ -241,7 +241,7 @@ export const IRON_DELTA = {
       desc: "Raiders in the high passes — weak alone, bold when your walls look thin. Their seat crouches behind a rough timber palisade.",
     },
     {
-      id: "riverKingdom", name: "the River Kingdom", disposition: "peaceful",
+      id: "riverKingdom", name: "the River Kingdom", disposition: "peaceful", color: "blue",
       homeTerrain: "river",
       strength: 32, walls: 26, fightsAs: "riders", campaignTime: 120, caravanTime: 75,
       stock: { food: 250, steel: 25, gold: 240 },
@@ -249,7 +249,7 @@ export const IRON_DELTA = {
       desc: "A state downriver, rich beyond counting and always hungry — they pay gold for food. Its heart is a stone-walled castle on the bluffs.",
     },
     {
-      id: "saltNomads", name: "the Salt Nomads", disposition: "peaceful",
+      id: "saltNomads", name: "the Salt Nomads", disposition: "peaceful", color: "teal",
       homeTerrain: "plains",
       strength: 13, walls: 2, fightsAs: "riders", campaignTime: 75, caravanTime: 60,
       stock: { food: 90, iron: 30, gold: 80 },

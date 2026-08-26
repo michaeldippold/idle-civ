@@ -317,21 +317,21 @@ export const STONE = {
   // selves. Nobody here has walls; nobody here has gold to trade.
   adversaries: [
     {
-      id: "hillClans", name: "the hill camps", disposition: "warlike",
+      id: "hillClans", name: "the hill camps", disposition: "warlike", color: "brown",
       homeTerrain: "hills",
       strength: 5, walls: 0, fightsAs: "massed", campaignTime: 90,
       stock: { food: 30, wood: 20 },
       desc: "Smoke on the high ridges, most mornings. They have spears, they know the passes, and they have watched you longer than you have watched them.",
     },
     {
-      id: "riverKingdom", name: "the river camps", disposition: "peaceful",
+      id: "riverKingdom", name: "the river camps", disposition: "peaceful", color: "blue",
       homeTerrain: "river",
       strength: 6, walls: 0, fightsAs: "riders", campaignTime: 120,
       stock: { food: 45, wood: 25 },
       desc: "Fishing camps strung along the water downstream, thick with drying racks. There are more of them than there are of you, and the river feeds them without asking.",
     },
     {
-      id: "saltNomads", name: "the salt wanderers", disposition: "peaceful",
+      id: "saltNomads", name: "the salt wanderers", disposition: "peaceful", color: "teal",
       homeTerrain: "plains",
       strength: 4, walls: 0, fightsAs: "riders", campaignTime: 75,
       stock: { food: 25, wood: 10 },

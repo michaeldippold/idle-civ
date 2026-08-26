@@ -24,6 +24,7 @@ import * as mCombat from "./src/sim/combat.js";
 import * as mBattle from "./src/sim/battle.js";
 import * as mArmies from "./src/sim/armies.js";
 import * as mContact from "./src/sim/contact.js";
+import * as mHex3d from "./src/render3d/hex3d.js";
 import * as mEvents from "./src/sim/events.js";
 import * as mExped from "./src/sim/expeditions.js";
 import * as mStep from "./src/core/step.js";
@@ -54,7 +55,7 @@ import { fileURLToPath } from "node:url";
 
 const MODS = [mConfig, mRng, mLib, mStone, mBronze, mIron, mCompile, mIcons, mState,
   mContinents,
-  mDerived, mCombat, mBattle, mArmies, mContact, mEvents, mExped, mStep, mActions, mEra, mLog, mDom,
+  mDerived, mCombat, mBattle, mArmies, mContact, mHex3d, mEvents, mExped, mStep, mActions, mEra, mLog, mDom,
   mPLedger, mPPeople, mPHold, mPBuy, mExpedUi, mModal, mChrome, mPersist,
   mMapModel, mMapGen, mMapCore, mMapUi, mPalette, mJournal, mBus, mEraClock];
 
@@ -5838,6 +5839,110 @@ console.log("\n--- Contact: two armies on one hex, and the dice decide it ---");
     march(P, mine, open.id);
     if (!runUntilQuiet()) return false;
     return !api.ownerOf(open.id) && api.armiesOf(R).length === 0;
+  })());
+}
+
+console.log("\n--- The pieces: discs, tiers, sockets, and who gets drawn ---");
+{
+  reset(); S().seed = 77007; S().rngState = 77007; S().map = null; S().seen = {};
+  api.ensureMap(); api.initAdversaries();
+  const P = api.me();
+  const R = api.rivals()[0];
+
+  check("the band reuses the campaign vocabulary, cut at 5 and the host floor",
+    api.armyBand(1).id === "warParty" && api.armyBand(5).id === "warParty" &&
+    api.armyBand(6).id === "column" && api.armyBand(api.CONFIG.armyHostSize - 1).id === "column" &&
+    api.armyBand(api.CONFIG.armyHostSize).id === "host" &&
+    api.armyBand(3).tier === 0 && api.armyBand(10).tier === 1 && api.armyBand(40).tier === 2);
+
+  check("every neighbour wears an authored colour, and nobody shares one", (() => {
+    const cols = api.S.players.map((p) => p.color);
+    return cols.every(Boolean) && new Set(cols).size === cols.length;
+  })());
+
+  check("a neighbour whose authored colour the human took falls to a free one", (() => {
+    // A fresh world where the human picked brown -- the hill people's colour.
+    reset(); S().seed = 77008; S().rngState = 77008; S().map = null; S().seen = {};
+    api.me().color = "brown";
+    api.ensureMap(); api.initAdversaries();
+    const cols = api.S.players.map((p) => p.color);
+    return api.me().color === "brown" && new Set(cols).size === cols.length;
+  })());
+
+  // Rebuild the main fixture after the sub-check above reset the world.
+  reset(); S().seed = 77007; S().rngState = 77007; S().map = null; S().seen = {};
+  api.ensureMap(); api.initAdversaries();
+  const P2 = api.me(), R2 = api.rivals()[0];
+  P2.units.soldier = 40; R2.units.soldier = 40;
+  const land = Object.values(api.world.places).find((x) =>
+    x.terrain !== "water" && !x.adversary && !x.minor && !api.ownerOf(x.id));
+  api.claimTile(land.id, R2.id);
+
+  check("the feed carries your own army wherever it stands", (() => {
+    const a = api.formArmy(api.holdings(P2.id)[0], { soldier: 7 }, "never", P2);
+    const row = api.piecesForBoard().find((x) => x.key === P2.id + ":" + a.uid);
+    return row && row.hex === a.at && row.count === 7 && row.tier === 1 &&
+      row.mine === true && row.marching === false && typeof row.color === "string";
+  })());
+
+  check("a foreign army is drawn only while its ground is sighted", (() => {
+    const theirs = api.formArmy(land.id, { soldier: 9 }, "never", R2);
+    const key = R2.id + ":" + theirs.uid;
+    const before = api.piecesForBoard().some((x) => x.key === key);
+    const sighted = api.isSighted(land.id);
+    // Whichever way the fog lies on this seed, the feed must agree with it.
+    return before === sighted;
+  })());
+
+  check("two players' discs on one hex stand at different sockets", (() => {
+    // A contested hex has both armies AT it mid-battle; the sockets keep the
+    // pieces apart without either knowing the other exists.
+    const rows = api.piecesForBoard();
+    const mineRow = rows.find((x) => x.mine);
+    return mineRow && (P2.id % 4) !== (R2.id % 4) && mineRow.socket === P2.id % 4;
+  })());
+
+  check("an order flips the feed to marching, and the stamp notices", (() => {
+    const a = api.armiesOf(P2)[0];
+    const dest = api.world.places[a.at].adj.find((n) => api.world.places[n].terrain !== "water");
+    const sigBefore = api.piecesForBoard().find((x) => x.mine).marching;
+    api.orderMarch(a.uid, dest, P2);
+    const sigAfter = api.piecesForBoard().find((x) => x.mine).marching;
+    api.haltArmy(a.uid, P2);
+    return sigBefore === false && sigAfter === true;
+  })());
+
+  check("scenery scatter never lands inside a piece socket's clearance", (() => {
+    // The slot function is deterministic, so sweep it with the REAL hash and
+    // the REAL socket table (hex3d.js is pure math and imports no GPU). This
+    // is the owner's fixed-diameter argument made into a check: the reserved
+    // zone is a circle, one number, from every angle.
+    const CL = api.SOCKET_CLEARANCE - 1e-9;
+    for (let t = 0; t < 200; t++) {
+      const id = "hx" + t;
+      for (const [i, spread] of [[0, 0.55], [3, 0.45], [7, 0.5], [11, 0.42], [17, 0.3]]) {
+        const ang = api.hash01(id + ":a" + i) * Math.PI * 2;
+        const d = (0.2 + 0.75 * api.hash01(id + ":d" + i)) * spread;
+        let dx = Math.cos(ang) * d, dz = Math.sin(ang) * d;
+        for (let pass = 0; pass < 4; pass++) {
+          let moved = false;
+          for (const sk of api.PIECE_SOCKETS) {
+            const ox = dx - sk.dx, oz = dz - sk.dz;
+            const dist = Math.hypot(ox, oz);
+            if (dist < api.SOCKET_CLEARANCE) {
+              const push = dist < 0.001 ? api.SOCKET_CLEARANCE : api.SOCKET_CLEARANCE / dist;
+              dx = sk.dx + ox * push; dz = sk.dz + oz * push;
+              moved = true;
+            }
+          }
+          if (!moved) break;
+        }
+        for (const sk of api.PIECE_SOCKETS) {
+          if (Math.hypot(dx - sk.dx, dz - sk.dz) < CL) return false;
+        }
+      }
+    }
+    return true;
   })());
 }
 

@@ -23,6 +23,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { axialToWorld, hash01, worldToAxialRounded } from "./hex3d.js";
+import { disposePieces, initPieces, pickPiece, setPieces as setPieceMeshes, tickPieces } from "./pieces3d.js";
 import { buildProps, setPropPhase } from "./props3d.js";
 import { buildRing, buildTerrain, RIM_Y } from "./terrain3d.js";
 
@@ -203,6 +204,9 @@ export async function initStage(el, h) {
 
   hoverRing = buildRing("hover", hooks.palette);
   selectRing = buildRing("select", hooks.palette);
+  // The piece layer lives OUTSIDE worldGroup on purpose: a setWorld rebuild
+  // (era re-dress, fog advancing) must not destroy the army discs mid-hop.
+  initPieces(scene);
   scene.add(hoverRing, selectRing);
 
   wirePointer(canvas);
@@ -341,6 +345,13 @@ function applyWorld(list, opts) {
   placeRing(selectRing, selectedId);
   placeRing(hoverRing, hoveredId);
   buildLabels();
+}
+
+// The army discs. The UI hands the full list each time its signature moves;
+// the layer diffs by key, so this is cheap at a dozen pieces. Elevation comes
+// from the terrain build, which is why this lives here and not in the caller.
+export function setPieces(list) {
+  setPieceMeshes(list || [], elev);
 }
 
 export function setSelected(id) {
@@ -523,6 +534,15 @@ function wirePointer(canvas) {
     const moved = Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]);
     downAt = null;
     if (moved > 5) return;
+    // PIECES PICK FIRST, then the ground falls through. An army is an object
+    // AT a hex, not a property OF one -- so clicking the disc selects the
+    // army, and clicking the ground beside it selects the hex.
+    const r2 = stageEl.getBoundingClientRect();
+    ndc.x = ((e.clientX - r2.left) / r2.width) * 2 - 1;
+    ndc.y = -((e.clientY - r2.top) / r2.height) * 2 + 1;
+    raycaster.setFromCamera(ndc, camera);
+    const pieceKey = pickPiece(raycaster);
+    if (pieceKey && hooks.onPickPiece) { hooks.onPickPiece(pieceKey); return; }
     const p = pickAt(e.clientX, e.clientY);
     if (hooks.onPick) hooks.onPick(p ? p.id : null);
   });
@@ -592,6 +612,7 @@ function loop() {
   if (composer) composer.render();
   else renderer.render(scene, camera);
   positionLabels();
+  tickPieces(performance.now());
   stepFx(performance.now());
   if (perfOn) publishPerf(performance.now());
 }
@@ -610,6 +631,7 @@ function disposeTree(root) {
 // rather than layering a second canvas over a live one. Everything acquired
 // up there is released here, in reverse order.
 export function dispose() {
+  disposePieces();
   if (rafId) cancelAnimationFrame(rafId);
   rafId = 0;
   if (resizeObs) { resizeObs.disconnect(); resizeObs = null; }

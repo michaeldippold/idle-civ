@@ -4,10 +4,10 @@ import { availableUnits, canAfford, caps, capWord, seatIsNamed, seatName } from 
 import { save } from "../core/persist.js";
 import { canBuildOn, demolishStructure, hasMarket, launchSettle, launchStructure, pendingBuild, pendingSettle, settlePlan, structureFits, structurePlan, structureUnlocked, trade, tradeRate } from "../core/actions.js";
 import { atDominionCap, capOf, dominionCap, hexPop, hexResource, hexUse, hexYield, holdings, holdsUsed, isCharted, isOwned, isSighted, isVisible, structureDef, terrainYield, workStamp, world } from "../map/map.js";
-import { armyAt, armyById, armyRoster, armySize, disbandArmy, disbandRefusal, haltArmy, marchRefusal, marchingTo, orderMarch } from "../sim/armies.js";
-import { stanceById, unitHit, unitRole } from "../sim/battle.js";
+import { armyAt, armyBand, armyById, armyRoster, armySize, disbandArmy, disbandRefusal, haltArmy, marchRefusal, marchingTo, orderMarch, setStance } from "../sim/armies.js";
+import { STANCES, stanceById, unitHit, unitRole } from "../sim/battle.js";
 import { battleAt } from "../sim/contact.js";
-import { FOREIGN, FOREIGN_MINOR, playerColor } from "../core/palette.js";
+import { colorById, FOREIGN, FOREIGN_MINOR, playerColor } from "../core/palette.js";
 import { hexDistance, hexPoints, toPixel } from "../map/model.js";
 import { campaignPlan, expeditionOut, musterBuilt, standingWord } from "../sim/expeditions.js";
 import { attachTip, esc, tipHide, tipMove, tipShow } from "./dom.js";
@@ -69,6 +69,22 @@ let lastDetail = "";
 // Which army is waiting for you to point at a hex. UI state, not game state:
 // it is what the NEXT click means, and it survives nothing.
 let sending = null;
+
+// THE SELECTED PIECE, as "pid:uid", or null. Selection is TYPED now (canon:
+// an army is an object AT a hex, not a property OF one): nothing, a hex, or
+// an army. Clicking a disc selects the army and the panel becomes the army's
+// own; clicking ground selects the hex, which only POINTS at whoever stands
+// there. selectedId still carries the ring's hex either way.
+let selectedArmy = null;
+
+function selectedArmyObj() {
+  if (!selectedArmy) return null;
+  const parts = selectedArmy.split(":");
+  const pl = S.players[Number(parts[0])];
+  const a = pl && (pl.armies || []).find((x) => x.uid === Number(parts[1]));
+  if (!a) { selectedArmy = null; return null; }   // died or dispersed under us
+  return { pl, a };
+}
 
 function advName(adv) { return adv.name.charAt(0).toUpperCase() + adv.name.slice(1); }
 
@@ -273,6 +289,55 @@ function noReachLine() {
   return `<span class="map-noworks">You know they are there, and that is the whole of it. No one here could raise a column to go and see — that is not what a ${spec().tileNoun.singular} is, and not yet what you are.</span>`;
 }
 
+// THE PIECES FEED. Everything the disc layer draws, one row per army: your
+// own always (you know where your own soldiers are), a foreign one only while
+// you are actually SIGHTING its ground -- the fog rule pieces inherited from
+// the banner. Socket by pid, so two players' discs on one contested hex stand
+// apart deterministically.
+export function piecesForBoard() {
+  const out = [];
+  if (!world) return out;
+  for (const pl of S.players || []) {
+    const mine = pl.id === S.me;
+    for (const a of (pl.armies || [])) {
+      if (!mine && !isSighted(a.at)) continue;
+      const place = world.places[a.at];
+      if (!place) continue;
+      const n = armySize(a);
+      out.push({
+        key: pl.id + ":" + a.uid, hex: a.at, q: place.q, r: place.r,
+        color: (colorById(pl.color) || {}).ring || FOREIGN,
+        count: n, tier: armyBand(n).tier, socket: pl.id % 4,
+        marching: !!a.order, mine,
+        selected: selectedArmy === pl.id + ":" + a.uid,
+      });
+    }
+  }
+  return out;
+}
+
+// THE ROAD, PREVIEWED. Dispatch feedback: travel is pick-up-and-plop by
+// ruling (no sliding), so between hops the BOARD carries the promise -- while
+// one of your marching armies is selected, the hexes it has still to walk
+// wear dots and the destination wears a ring. Dies with the selection; it is
+// a preview, not a rules object.
+function pathMarkFor(id) {
+  const sel = selectedArmyObj();
+  if (!sel || sel.pl.id !== S.me || !sel.a.order || !sel.a.path) return null;
+  if (id === sel.a.order.to) return { glyph: "\u25CE", cls: "pathdest" };
+  if (sel.a.path.slice(sel.a.step).includes(id)) return { glyph: "\u2022", cls: "path" };
+  return null;
+}
+
+// What the 3D label layer reads: the base ladder, never the army override --
+// the discs carry the armies now, and a flag glyph under a disc would say the
+// same thing twice. The SVG debug board keeps markFor whole, flags included,
+// because it has no piece layer.
+function stageMarkFor(p) {
+  if (!isCharted(p.id)) return null;
+  return pathMarkFor(p.id) || baseMarkFor(p);
+}
+
 // WHO IS STANDING HERE, AND WHAT THEY CAN DO. This panel is the whole of the
 // legibility contract, and the contract is deliberately one-sided: the game
 // will NEVER tell you your odds. No board game does, and a printed percentage
@@ -300,44 +365,29 @@ function unitLine(def, n) {
 
 function armyHTML(p) {
   const out = [];
-  // A CONTESTED HEX SAYS SO FIRST. The battle is the most important thing
-  // happening anywhere on the board; the cards below it show both sides, and
-  // their buttons are gone because a sealed army takes no orders.
+  // A CONTESTED HEX SAYS SO FIRST -- the battle is the most important thing
+  // happening anywhere on the board.
   const b = battleAt(p.id);
   if (b) {
-    out.push(`<div class="army-card battle"><div class="army-head">⚔ <b>A battle rages here</b> — round ${
+    out.push(`<div class="army-card battle"><div class="army-head">\u2694 <b>A battle rages here</b> — round ${
       (b.round || 0) + 1}. No one enters, and no one is called away, until it is decided.</div></div>`);
   }
+  // POINTERS, NEVER EMBEDDED CARDS (canon: the hex panel reports what is
+  // around it rather than owning it, the way a folder lists filenames without
+  // inlining their contents). The full card -- roster, dice, orders -- is the
+  // army's OWN panel, reached by clicking its disc or one of these rows. This
+  // is the seam that makes an army an object rather than a hex property.
+  const standing = [];
   for (const pl of S.players || []) {
     const a = armyAt(p.id, pl);
     if (!a) continue;
     const mine = pl.id === S.me;
     if (!mine && !isSighted(p.id)) continue;
-    const rows = armyRoster(a, pl).map((s) => unitLine(s.def, s.n)).join("");
-    const dest = marchingTo(a);
-    const where = a.inBattle ? "Locked in the fighting."
-      : dest && world.places[dest]
-      ? `Marching on ${titleFor(world.places[dest])}.`
-      : "Holding this ground.";
-    out.push(
-      `<div class="army-card${mine ? " mine" : " foe"}">` +
-        `<div class="army-head">⚑ <b>${civLabel(pl)}</b> — ${armySize(a)} under arms</div>` +
-        rows +
-        (mine && a.inBattle
-          ? `<div class="army-orders">${where} Standing order: <b>${stanceById(a.stance).name}</b> — frozen until the dice are done.</div>`
-          : mine
-          ? `<div class="army-orders">${where} Standing order: <b>${stanceById(a.stance).name}</b>.</div>` +
-            `<div class="map-actions">` +
-              `<button class="map-act" data-act="send" data-army="${a.uid}">${
-                sending === a.uid ? "Pick a hex…" : "March"}</button>` +
-              (dest ? `<button class="map-act" data-act="halt" data-army="${a.uid}">Halt</button>` : "") +
-              `<button class="map-act warn" data-act="disband" data-army="${a.uid}"${
-                disbandRefusal(a.uid) ? " disabled" : ""}>Disperse</button>` +
-            `</div>` +
-            (sending === a.uid
-              ? `<span class="map-noworks">Choose the ground they march on.</span>` : "")
-          : `<div class="army-orders">${where}</div>`) +
-      `</div>`);
+    standing.push(`<button class="map-act army-link${mine ? " mine" : ""}" data-act="viewarmy" data-key="${
+      pl.id}:${a.uid}">\u2691 ${mine ? "Your army" : civLabel(pl)} — ${armySize(a)} \u2192</button>`);
+  }
+  if (standing.length) {
+    out.push(`<div class="army-orders">Standing here:</div><div class="map-actions">${standing.join("")}</div>`);
   }
   // RAISING happens on ground you hold and nowhere else, and one army to a hex:
   // reinforcing a garrison is done by marching into it, which merges.
@@ -345,6 +395,45 @@ function armyHTML(p) {
     out.push(`<div class="map-actions"><button class="map-act" data-act="raise" data-tile="${p.id}">Raise an army</button></div>`);
   }
   return out.join("");
+}
+
+// THE ARMY'S OWN PANEL. Identical layout whoever owns it (skimming is really
+// comparing; the roster block must sit in the same place at the same size),
+// actions strictly BELOW the roster, and the stance editable in place -- a
+// standing order, right up until a battle seals and freezes it.
+function armyDetailHTML(pl, a) {
+  const mine = pl.id === S.me;
+  const parts = [];
+  const b = battleAt(a.at);
+  if (b) {
+    parts.push(`<div class="army-card battle"><div class="army-head">\u2694 <b>Locked in battle</b> — round ${
+      (b.round || 0) + 1}. The dice are rolling.</div></div>`);
+  }
+  parts.push(`<div class="army-head">\u2691 <b>${armySize(a)} under arms</b> — a ${armyBand(armySize(a)).name}</div>`);
+  parts.push(armyRoster(a, pl).map((x) => unitLine(x.def, x.n)).join(""));
+  const dest = marchingTo(a);
+  const where = a.inBattle ? "Locked in the fighting."
+    : dest && world.places[dest] ? `Marching on ${titleFor(world.places[dest])}.`
+    : "Holding this ground.";
+  parts.push(`<div class="army-orders">${where}</div>`);
+  if (mine && !a.inBattle) {
+    parts.push(`<div class="army-orders">Standing order:</div><div class="stance-pick">` +
+      STANCES.map((st) => `<button class="stance-opt${st.id === a.stance ? " on" : ""}" data-act="stance" data-army="${
+        a.uid}" data-stance="${st.id}">${st.name}</button>`).join("") + `</div>`);
+    parts.push(`<div class="map-actions">` +
+      `<button class="map-act" data-act="send" data-army="${a.uid}">${sending === a.uid ? "Pick a hex…" : "March"}</button>` +
+      (dest ? `<button class="map-act" data-act="halt" data-army="${a.uid}">Halt</button>` : "") +
+      `<button class="map-act warn" data-act="disband" data-army="${a.uid}"${
+        disbandRefusal(a.uid) ? " disabled" : ""}>Disperse</button>` +
+      `</div>`);
+    if (sending === a.uid) parts.push(`<span class="map-noworks">Choose the ground they march on.</span>`);
+  } else if (mine) {
+    parts.push(`<div class="army-orders">Standing order: <b>${stanceById(a.stance).name}</b> — frozen until the dice are done.</div>`);
+  }
+  // The two objects point at each other rather than one containing the other.
+  parts.push(`<div class="army-orders">Standing on: <button class="map-act" data-act="viewhex" data-tile="${
+    a.at}">${titleFor(world.places[a.at])} \u2192</button></div>`);
+  return parts.join("");
 }
 
 function anyUnitsFree() {
@@ -510,7 +599,7 @@ function signature() {
   return [me().era, (holdings()).join("|"),
     ((S.map && me().revealed) || []).length,
     ((S.map && me().sighted) || []).length,
-    workStamp(), armyStamp(), selectedId].join("~");
+    workStamp(), armyStamp(), selectedId, selectedArmy].join("~");
 }
 
 // WHERE EVERY BANNER IS AND HOW BIG IT IS. Found by looking at the board rather
@@ -526,7 +615,11 @@ function signature() {
 function armyStamp() {
   let out = "";
   for (const pl of S.players || []) {
-    for (const a of pl.armies || []) out += pl.id + ":" + a.at + ":" + armySize(a) + ",";
+    // Order and step ride along so the path preview redraws as the road is
+    // walked, and the marching bob starts the moment an order lands.
+    for (const a of pl.armies || []) {
+      out += pl.id + ":" + a.at + ":" + armySize(a) + ":" + (a.order ? a.order.to : "") + ":" + (a.step || 0) + ",";
+    }
   }
   return out;
 }
@@ -731,6 +824,7 @@ export function renderMapStage() {
     stage3d.setWorld(visiblePlaces(),
       { isOwned, isVisible, isCharted, homeId: world.home, era: me().era });
     stage3d.setSelected(selectedId);
+    if (stage3d.setPieces) stage3d.setPieces(piecesForBoard());
     return;
   }
 
@@ -750,6 +844,22 @@ export function invalidateMapStage() { lastSignature = ""; }
 export function renderTileDetail() {
   const panel = document.getElementById("panel-tile");
   if (!panel) return;
+  // Typed selection: an army outranks the ground. If a piece is selected the
+  // panel is the ARMY's, and clicking a second disc swaps it in place -- if
+  // comparing two armies cost a close-click each time, nobody would compare,
+  // and then nobody would scout.
+  const sel = selectedArmyObj();
+  if (sel) {
+    panel.classList.toggle("hidden", false);
+    const html = armyDetailHTML(sel.pl, sel.a);
+    if (html === lastDetail) return;
+    lastDetail = html;
+    const t = document.getElementById("tileTitle");
+    if (t) t.textContent = sel.pl.id === S.me ? "Your Army" : capWord(civLabel(sel.pl));
+    const bEl = document.getElementById("tileBody");
+    if (bEl) bEl.innerHTML = html;
+    return;
+  }
   const p = selectedId && world ? world.places[selectedId] : null;
   panel.classList.toggle("hidden", !p);
   if (!p) { lastDetail = ""; return; }
@@ -762,20 +872,45 @@ export function renderTileDetail() {
   if (b) b.innerHTML = html;
 }
 
+// A disc was clicked: the army becomes the selection. In sending mode a
+// click on an ENEMY disc aims the march at the ground it stands on instead --
+// pointing at the army and pointing at its hex are the same gesture.
+export function selectPiece(key) {
+  const parts = String(key).split(":");
+  const pl = S.players[Number(parts[0])];
+  const a = pl && (pl.armies || []).find((x) => x.uid === Number(parts[1]));
+  if (!a) return;
+  if (sending != null && !(pl.id === S.me && a.uid === sending)) {
+    selectTile(a.at);
+    return;
+  }
+  selectedArmy = key;
+  selectedId = a.at;                       // the ring stays on the ground they hold
+  if (mode === "3d") stage3d.setSelected(a.at);
+  else lastSignature = "";
+  renderMapStage();
+  lastDetail = "";
+  renderTileDetail();
+}
+
 export function selectTile(id) {
   // A column waiting on a destination eats the next click on the board. The
   // order is given, the panel goes back to reading the hex, and the mode ends
-  // -- one click, one order, no lingering mode to get stuck in.
+  // -- one click, one order, no lingering mode to get stuck in. The army stays
+  // selected, so the player watches their own order take effect: the panel
+  // flips to "Marching on...", the road wears its dots.
   if (sending != null && id) {
     const uid = sending;
     sending = null;
     if (!marchRefusal(uid, id)) {
       orderMarch(uid, id);
       lastDetail = "";
+      renderMapStage();
       renderTileDetail();
       return;
     }
   }
+  selectedArmy = null;                     // ground click: back to the hex's own panel
   selectedId = id;
   // The 3D stage moves a ring rather than rebuilding, so selection costs it
   // nothing; the SVG stage bakes the ring into its markup and must redraw.
@@ -824,7 +959,10 @@ async function init3d(stage) {
   try {
     stage3d = await import("../render3d/stage.js");
     const ok = await stage3d.initStage(stage, {
-      markFor,
+      // The 3D board gets the ladder WITHOUT the army override (the discs
+      // carry the armies) plus the march-path preview; the SVG debug board
+      // keeps markFor whole, flags included, because it has no piece layer.
+      markFor: stageMarkFor,
       // The renderer draws; it does not know whose board it is. Same rule the
       // mark ladder follows -- state arrives through hooks.
       palette: playerColor(),
@@ -837,6 +975,7 @@ async function init3d(stage) {
         return u.kind === "structure" && isCharted(id) ? u.id : null;
       },
       onPick: (id) => selectTile(id),
+      onPickPiece: (key) => selectPiece(key),
       onHoverChange: (p, ev) => {
         if (!p || !ev) { tipHide(); return; }
         tipHolder.__tip = () => tipFor(p);
@@ -895,6 +1034,13 @@ export function initMapStage() {
       const act = btn.dataset.act;
       if (act === "march") { openCampaignModal(btn.dataset.adv); return; }
       if (act === "raise") { openRaiseModal(btn.dataset.tile); return; }
+      if (act === "viewarmy") { selectPiece(btn.dataset.key); return; }
+      if (act === "viewhex") { sending = null; selectTile(btn.dataset.tile); return; }
+      if (act === "stance") {
+        setStance(Number(btn.dataset.army), btn.dataset.stance);
+        lastDetail = ""; renderTileDetail();
+        return;
+      }
       if (act === "disband") {
         disbandArmy(Number(btn.dataset.army));
         lastSignature = ""; renderMapStage();

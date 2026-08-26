@@ -390,9 +390,20 @@ several tempting ideas later, and it should.
      only excluded *your* hexes (`isOwned` defaults to the human), latent since the per-player split
      because rivals could not own ordinary hexes before armies. Harness-pinned.
 
-   **HOW AN ARMY IS DEPICTED — SETTLED 2026-08-26.** Full canon and reasoning in `design.md` →
-   *How an Army Is Depicted* / *The Army Detail Panel* / *The ERA Dot*. It is no longer blocking A4.
-   The short version, as a build list:
+   **HOW AN ARMY IS DEPICTED — SETTLED AND BUILT 2026-08-26.** Full canon and reasoning in
+   `design.md` → *How an Army Is Depicted* / *The Army Detail Panel* / *The ERA Dot*. The build list
+   below SHIPPED the same day (`render3d/pieces3d.js`, piece sockets in `hex3d.js`, the scenery
+   shrink in `props3d.js`, typed selection and the army panel in `ui/map.js`): discs with tier
+   heights and the count textured on the top face, socket clearance enforced by a harness sweep
+   (which caught overlapping clearance circles in the first socket layout before they ever hit a
+   screen), piece-first picking, the hex panel demoted to pointer rows, and dispatch feedback —
+   path dots on the road ahead while your marching army is selected, a gentle bob while an order
+   stands, and a hop when the piece crosses a hex, since travel is pick-up-and-plop by ruling. The
+   neighbours got authored colours (hill people brown, river folk blue, salt wanderers teal) with a
+   boot-time heal for older saves and a collision guard against the human's pick. The ⚑ label
+   survives only on the 2D debug board, which has no piece layer. Still open from the canon: the
+   ERA dot and dice-boxes panel (wants the wide-panel work), and the era-scoped unit ids it
+   depends on.
 
    - A **player-coloured disc**, a real 3D object with its own picking — not the banner-on-a-pole
      that was drawn and discarded, and not today's DOM label. **Three thickness tiers** by headcount

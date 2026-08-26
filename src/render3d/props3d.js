@@ -13,7 +13,7 @@
 // several-hundred-tile board free.
 
 import * as THREE from "three";
-import { axialToWorld, corner, hash01, HEX_SIZE } from "./hex3d.js";
+import { axialToWorld, corner, hash01, HEX_SIZE, PIECE_SOCKETS, SOCKET_CLEARANCE } from "./hex3d.js";
 
 const _m = new THREE.Matrix4();
 const _p = new THREE.Vector3();
@@ -138,7 +138,30 @@ export function setPropPhase(group, tiles, phaseOf) {
 function slot(id, i, spread = 0.5) {
   const a = hash01(id + ":a" + i) * Math.PI * 2;
   const d = (0.2 + 0.75 * hash01(id + ":d" + i)) * spread;
-  return { dx: Math.cos(a) * d, dz: Math.sin(a) * d };
+  let dx = Math.cos(a) * d, dz = Math.sin(a) * d;
+  // SOCKET CLEARANCE (owner, 2026-08-26): the army discs stand at fixed ring
+  // sockets, and a fixed disc diameter makes this trivial -- the reserved zone
+  // is a circle, one number, from every angle. Scatter that lands inside one
+  // is pushed straight out of it, deterministically, so scenery and pieces can
+  // never clip. The scatter stays random-looking; the sockets stay clear.
+  // A bounded settle rather than a single pass: the circles are spaced not to
+  // overlap, so one shove per offending socket converges in practice, and the
+  // pass cap is a guard rather than a rule.
+  for (let pass = 0; pass < 4; pass++) {
+    let moved = false;
+    for (const sk of PIECE_SOCKETS) {
+      const ox = dx - sk.dx, oz = dz - sk.dz;
+      const dist = Math.hypot(ox, oz);
+      if (dist < SOCKET_CLEARANCE) {
+        const push = dist < 0.001 ? SOCKET_CLEARANCE : SOCKET_CLEARANCE / dist;
+        dx = sk.dx + ox * push;
+        dz = sk.dz + oz * push;
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+  return { dx, dz };
 }
 
 function jitterScale(id, tag) {
@@ -156,9 +179,13 @@ export function buildProps(places, elev, homeId, isRevealedFn, builtOn) {
   const stoneMat = new THREE.MeshStandardMaterial({ color: 0x7d7568, roughness: 0.88 });
   const hayMat = new THREE.MeshStandardMaterial({ color: 0xe0c766, roughness: 0.95, flatShading: true });
 
-  const trunk = new Part(new THREE.CylinderGeometry(0.035, 0.055, 0.22, 5), trunkMat);
-  const canopy = new Part(new THREE.ConeGeometry(0.2, 0.52, 6), canopyMat);
-  const rock = new Part(new THREE.IcosahedronGeometry(0.13, 0), rockMat);
+  // SHRUNK 2026-08-26 (owner ruling, design.md -> How an Army Is Depicted):
+  // scenery gets a height cap so the army discs always stand above it. The
+  // trees dropped from ~0.6 tall to ~0.37 and became more numerous instead --
+  // miniaturised scenery is TEXTURE, and texture is what makes pieces pop.
+  const trunk = new Part(new THREE.CylinderGeometry(0.028, 0.042, 0.13, 5), trunkMat);
+  const canopy = new Part(new THREE.ConeGeometry(0.13, 0.26, 6), canopyMat);
+  const rock = new Part(new THREE.IcosahedronGeometry(0.095, 0), rockMat);
   // DEV ART: a hay bale is a tipped-over cylinder. Low segment count so it
   // faces up like everything else on this board, and it is a Part like any
   // other, so a whole country of farms is still two draw calls.
@@ -232,15 +259,15 @@ export function buildProps(places, elev, homeId, isRevealedFn, builtOn) {
     }
 
     if (p.terrain === "forest") {
-      const n = 2 + Math.floor(hash01(id + ":tc") * 3); // 2..4 trees
+      const n = 4 + Math.floor(hash01(id + ":tc") * 4); // 4..7 small trees
       for (let i = 0; i < n; i++) {
         const { dx, dz } = slot(id, i, 0.55);
         const s = jitterScale(id, "t" + i);
         const rot = hash01(id + ":tr" + i) * Math.PI * 2;
         canopyCol.setHex(0x3d8a40).offsetHSL(
           (hash01(id + ":th" + i) - 0.5) * 0.04, 0, (hash01(id + ":tl" + i) - 0.5) * 0.12);
-        trunk.add(cx + dx, y + 0.11 * s, cz + dz, rot, s, null, id);
-        canopy.add(cx + dx, y + (0.2 + 0.26) * s, cz + dz, rot, s, canopyCol.clone(), id);
+        trunk.add(cx + dx, y + 0.065 * s, cz + dz, rot, s, null, id);
+        canopy.add(cx + dx, y + (0.12 + 0.13) * s, cz + dz, rot, s, canopyCol.clone(), id);
       }
     }
 
@@ -249,7 +276,7 @@ export function buildProps(places, elev, homeId, isRevealedFn, builtOn) {
       for (let i = 0; i < n; i++) {
         const { dx, dz } = slot(id, i + 7, 0.5);
         const s = jitterScale(id, "r" + i);
-        rock.add(cx + dx, y + 0.07 * s, cz + dz,
+        rock.add(cx + dx, y + 0.05 * s, cz + dz,
           hash01(id + ":rr" + i) * Math.PI * 2,
           { x: s, y: s * (0.6 + 0.5 * hash01(id + ":ry" + i)), z: s }, null, id);
       }

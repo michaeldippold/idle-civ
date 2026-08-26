@@ -308,21 +308,21 @@ export const BRONZE_DELTA = {
   // masonry does. Still strictly above the Bronze minor band ([2,5]).
   adversaries: [
     {
-      id: "hillClans", name: "the Hill People", disposition: "warlike",
+      id: "hillClans", name: "the Hill People", disposition: "warlike", color: "brown",
       homeTerrain: "hills",
       strength: 7, walls: 2, fightsAs: "massed", campaignTime: 90,
       stock: { food: 70, wood: 50, bronze: 20 },
       desc: "The ridge camps have grown into one people, and they have learned to alloy. Their spears are tipped now, and they come down more often than they used to.",
     },
     {
-      id: "riverKingdom", name: "the River Folk", disposition: "peaceful",
+      id: "riverKingdom", name: "the River Folk", disposition: "peaceful", color: "blue",
       homeTerrain: "river",
       strength: 18, walls: 9, fightsAs: "riders", campaignTime: 120,
       stock: { food: 150, wood: 80, bronze: 40 },
       desc: "Earthworks, granaries, and a stretch of the river dredged straight. There is no coin yet to trade with them for any of it, and there are already far too many of them to take it.",
     },
     {
-      id: "saltNomads", name: "the Salt Wanderers", disposition: "peaceful",
+      id: "saltNomads", name: "the Salt Wanderers", disposition: "peaceful", color: "teal",
       homeTerrain: "plains",
       strength: 9, walls: 0, fightsAs: "riders", campaignTime: 75,
       stock: { food: 60, wood: 30, bronze: 15 },

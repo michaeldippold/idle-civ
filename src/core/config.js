@@ -154,6 +154,10 @@ export const CONFIG = {
   // stops a war mid-round and fast-forward speeds it -- the same law the era
   // clock obeys. The wall pool times this is roughly how long a siege takes.
   battleRoundSeconds: 2,
+  // Where "column" ends and "host" begins. <=5 is a war party (the cutoff
+  // launchCampaign has always used); this is the upper band's floor. Absolute
+  // across all eras by ruling.
+  armyHostSize: 25,
   armyPerHex: 2,          // the army cap (E5): each held hex supports this many standing
                           // units, in every era -- the levy re-homed to the land, per the
                           // owner's ruling ("make it serve the hex"). Territory is what

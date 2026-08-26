@@ -1,5 +1,6 @@
 import { active } from "../content/compile.js";
 import { CONFIG, TICK_SECONDS } from "./config.js";
+import { PLAYER_COLORS } from "./palette.js";
 import { S, freshPlayer, freshState, me, playerByKey, setS } from "./state.js";
 import { chronicle } from "../core/bus.js";
 
@@ -147,15 +148,36 @@ export function initAdversaries() {
   for (const adv of active().adversaries) {
     let p = playerByKey(adv.id);
     if (!p) {
+      // The colour is AUTHORED (each people wears its own in every age), but
+      // the human picked theirs first on the start screen: a collision falls
+      // to the first palette colour nobody on the board is wearing, so two
+      // civilizations never fly the same discs.
+      let col = adv.color || null;
+      if (col && S.players.some((x) => x.color === col)) {
+        const taken = S.players.map((x) => x.color);
+        const free = PLAYER_COLORS.find((c) => !taken.includes(c.id));
+        col = free ? free.id : col;
+      }
       p = freshPlayer(S.players.length, {
         key: adv.id,
-        color: adv.color || null,
+        color: col,
         era: me().era,          // seated into the age the world is currently in
       });
       p.res = Object.assign({}, adv.stock);
       p.walls = adv.walls || 0;
       S.players.push(p);
-    } else if (p.era !== p.seenEra) {
+    } else if (p.color == null || p.color === me().color ||
+               S.players.some((x) => x !== p && x.color === p.color)) {
+      // HEAL OLDER SAVES: rival records made before colours were authored
+      // (2026-08-26) carry the default purple -- the human's default too, so
+      // every disc on the board would fly one flag. Boot is the one moment the
+      // fixed-for-the-run rule lets a colour be written, and this rewrites
+      // only records that are wrong: null, duplicated, or the human's own.
+      const taken = S.players.filter((x) => x !== p).map((x) => x.color);
+      p.color = (adv.color && !taken.includes(adv.color)) ? adv.color
+        : (PLAYER_COLORS.find((c) => !taken.includes(c.id)) || { id: p.color }).id;
+    }
+    if (p.era !== p.seenEra) {
       p.res = Object.assign({}, adv.stock);   // a new age, a full larder
       p.walls = adv.walls || 0;               // and the walls rebuilt taller
     }

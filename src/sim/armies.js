@@ -167,6 +167,19 @@ export function setStance(uid, stance, p) {
   return true;
 }
 
+// The band an army's size falls in: war party / column / host. The same
+// vocabulary launchCampaign has used since the idle game, whose comment
+// settled the hard half already -- "the word follows the SIZE of the thing
+// that actually left, not an era fact". Cutoffs are ABSOLUTE, never per era:
+// era-normalised bands would erase the era gap, and an Iron host is supposed
+// to be terrifying next to a Stone war party. The tier drives the disc's
+// thickness on the board; crossing a threshold is meant to be an event.
+export function armyBand(n) {
+  if (n <= 5) return { id: "warParty", name: "war party", tier: 0 };
+  if (n < CONFIG.armyHostSize) return { id: "column", name: "column", tier: 1 };
+  return { id: "host", name: "host", tier: 2 };
+}
+
 // Every army on a hex, across every player -- the question contact will ask.
 export function armiesOnHex(hexId, players) {
   const out = [];

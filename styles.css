@@ -1081,6 +1081,18 @@ body.dead #mainArea .block { filter: saturate(.25); }
 .map3d-glyph.army.mine, .map3d-glyph .part.army.mine { color: var(--player-glyph, #c3a3ff); }
 .map3d-glyph.army.foe,  .map3d-glyph .part.army.foe  { color: #ffffff; }
 .map3d-glyph .part.armyn { font-size: 14px; font-weight: 700; color: #fdf8ec; }
+
+/* THE ROAD, PREVIEWED. While one of your marching armies is selected, the
+   hexes it has still to walk wear dots in your colour and the destination
+   wears a ring -- dispatch feedback for a piece that (by ruling) moves
+   hex-to-hex rather than sliding. Dies with the selection. */
+.map3d-glyph.path     { font-size: 20px; color: var(--player-glyph, #c3a3ff); opacity: .85; }
+.map3d-glyph.pathdest { font-size: 22px; color: var(--player-glyph, #c3a3ff); }
+
+/* The hex panel's pointer rows: the hex REPORTS who stands on it and links
+   to the army's own panel, never embedding the card. */
+.map-act.army-link { display: block; width: 100%; text-align: left; }
+.map-act.army-link.mine { border-left: 3px solid var(--player-glyph, #c3a3ff); }
 .map3d-glyph.army.mine, .map3d-glyph .part.army.mine {
   text-shadow: var(--player-halo, 0 0 3px rgba(8, 10, 14, .95), 0 1px 2px rgba(8, 10, 14, .9));
 }

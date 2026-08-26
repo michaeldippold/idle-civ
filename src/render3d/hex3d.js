@@ -8,6 +8,26 @@
 // which is the one architectural rule the whole 3D adoption rests on.
 
 export const HEX_SIZE = 1.0;
+
+// PIECE SOCKETS (review ruling, amended 2026-08-26): fixed anchor points on
+// every hex that the prop scatter never fills and the army discs stand on.
+// The CENTRE stays the structure's; pieces take the ring. Four is enough --
+// hex locking caps real occupancy at the structure plus two pieces (a
+// contested hex bars new entrants and a battle is two-sided), so the ring was
+// never sized to the seven player colours. A player's socket is pid % 4,
+// which keeps any two players' discs apart on a shared hex deterministically.
+// Spaced so the clearance circles NEVER overlap (adjacent sockets sit
+// 0.5*sqrt(2) = 0.707 apart against a 2x0.34 = 0.68 requirement): a scatter
+// point pushed out of one circle cannot be pushed into another, which is what
+// lets the avoidance stay a simple radial shove instead of a solver. A first
+// draft used an uneven ring and the harness sweep caught the overlap.
+export const PIECE_SOCKETS = [
+  { dx: 0,    dz: -0.5 },
+  { dx: 0,    dz:  0.5 },
+  { dx:  0.5, dz:  0 },
+  { dx: -0.5, dz:  0 },
+];
+export const SOCKET_CLEARANCE = 0.34;   // scenery keeps this far off a socket
 const SQRT3 = Math.sqrt(3);
 
 export function axialToWorld(q, r) {

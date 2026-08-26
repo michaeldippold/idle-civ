@@ -1,4 +1,4 @@
-import { S } from "../core/state.js";
+import { S, me } from "../core/state.js";
 import { MINOR_PLACES, SEAT_IDS } from "./lib.js";
 
 // ---------- The Bronze Age (delta) --------------------------
@@ -72,7 +72,7 @@ export const BRONZE_DELTA = {
   add: {
     resources: [
       // Present-in-era resources reveal immediately (`() => true`): the
-      // manifest is the gate now, where an S.era check used to be.
+      // manifest is the gate now, where an me().era check used to be.
       // The ores buffer a converter rather than fund a budget -- small caps,
       // no storage (the Ore Yard died with the rest of the line in 4c).
       { id: "copper", name: "Copper", baseCap: 50,  reveal: () => true },
@@ -94,19 +94,19 @@ export const BRONZE_DELTA = {
         id: "warCamp", name: "War Camp", kind: "upgrade",
         desc: "A ring of hide tents and a fire kept lit. Enough to send a few spears over the hill and expect most of them back.",
         base: { wood: 35, stone: 15, bronze: 8 }, buildTime: 24,
-        reveal: () => !!S.upgrades.barracks,
+        reveal: () => !!me().upgrades.barracks,
       },
       {
         id: "archeryRange", name: "Archery Range", kind: "upgrade",
         desc: "Butts, bowyers, and the patience to use them. Lets your people train as Archers.",
         base: { wood: 50, stone: 20 }, buildTime: 28,
-        reveal: () => !!S.upgrades.barracks,
+        reveal: () => !!me().upgrades.barracks,
       },
       {
         id: "stables", name: "Stables", kind: "upgrade",
         desc: "Horses broken to the saddle. Lets your people train as Horsemen, and makes scouting possible.",
         base: { wood: 60, stone: 25, bronze: 10 }, buildTime: 34,
-        reveal: () => !!S.upgrades.barracks,
+        reveal: () => !!me().upgrades.barracks,
       },
       {
         id: "bronzeTools", name: "Bronze Tools", kind: "upgrade",
@@ -118,7 +118,7 @@ export const BRONZE_DELTA = {
         id: "bronzeWeapons", name: "Bronze Weapons", kind: "upgrade",
         desc: "Cast blades outclass flint. A further improvement to your Soldiers' odds in a fight.",
         base: { wood: 30, bronze: 40 }, buildTime: 30,
-        reveal: () => !!S.upgrades.barracks,
+        reveal: () => !!me().upgrades.barracks,
       },
       {
         id: "farming", name: "Farming", kind: "upgrade",
@@ -128,13 +128,13 @@ export const BRONZE_DELTA = {
         // retires at Iron -- which the validator caught the first time this was
         // written with bronze in it. Farming is not about metal anyway.
         base: { wood: 120, stone: 80 }, buildTime: 45,
-        reveal: () => S.pop >= 12,
+        reveal: () => me().pop >= 12,
       },
       {
         id: "scouting", name: "Scouting", kind: "upgrade",
         desc: "Riders range beyond the valley and bring back word of what's out there.",
         base: { food: 40, bronze: 15 }, buildTime: 25,
-        reveal: () => !!S.upgrades.stables,
+        reveal: () => !!me().upgrades.stables,
       },
       // The age capstone (see the stone manifest's bronzeAge for the pattern
       // notes). The pop gate scales up from Bronze's 10; the unit gate wants
@@ -146,7 +146,7 @@ export const BRONZE_DELTA = {
         id: "ironAge", name: "Iron Age", kind: "upgrade",
         desc: "The far mines grow distant and dear. Turn to the stubborn metal in your own hills.",
         base: { food: 400, wood: 400, stone: 400, bronze: 50 }, buildTime: 180,
-        reveal: () => S.pop >= 50 && ((S.units.archer || 0) >= 1 || (S.units.horseman || 0) >= 1),
+        reveal: () => me().pop >= 50 && ((me().units.archer || 0) >= 1 || (me().units.horseman || 0) >= 1),
       },
     ],
     units: [
@@ -155,14 +155,14 @@ export const BRONZE_DELTA = {
         strength: 1.0, counters: "massed", casualtyWeight: 0.35,
         desc: "Deadly against a massed charge, and safer than most — they fight from behind the line.",
         base: { wood: 14, bronze: 6 }, buildTime: 18,
-        reveal: () => !!S.upgrades.archeryRange,
+        reveal: () => !!me().upgrades.archeryRange,
       },
       {
         id: "horseman", name: "Horseman", kind: "unit", popCost: 1,
         strength: 1.5, counters: "riders", casualtyWeight: 0.6,
         desc: "Strong in any fight, quick enough to run down mounted raiders, and quick enough to withdraw.",
         base: { wood: 20, bronze: 14 }, buildTime: 24,
-        reveal: () => !!S.upgrades.stables,
+        reveal: () => !!me().upgrades.stables,
       },
     ],
   },

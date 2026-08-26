@@ -1,4 +1,4 @@
-import { S } from "./state.js";
+import { S, me } from "./state.js";
 
 // ---------- The board's colour law (owner ruling, 2026-08-25) ------------
 // This is a DIGITAL TABLETOP, so colour works the way it works on a board:
@@ -93,7 +93,7 @@ export function colorById(id) {
 // hand-edited or future-dated `playerColor` falls back to the default instead
 // of painting the board with `undefined`.
 export function playerColor() {
-  return colorById(S && S.playerColor);
+  return colorById(S && me().color);
 }
 
 // Push the run's colour into CSS custom properties, so every glyph rule can

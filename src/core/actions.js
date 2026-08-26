@@ -2,7 +2,7 @@ import { buildCost, canAfford, caps, civilians, defById, isCapped, levyCap, levy
 import { active } from "../content/compile.js";
 import { CONFIG } from "./config.js";
 import { atDominionCap, hexUse, isOwned, marchFactor, routeCost, world, captureTile, setHexBuild, structureCount, structureDef, syncPopMirror } from "../map/map.js";
-import { S } from "./state.js";
+import { S, me } from "./state.js";
 import { record } from "./journal.js";
 import { save } from "./persist.js";
 import { advanceEra } from "../sim/era.js";
@@ -28,7 +28,7 @@ import { log } from "../ui/log.js";
 
 export function build(def) {
   if (S.dead) return;
-  if (def.kind === "upgrade" && (S.upgrades[def.id] || pendingCount(def.id) > 0)) return;
+  if (def.kind === "upgrade" && (me().upgrades[def.id] || pendingCount(def.id) > 0)) return;
   if (isCapped(def)) return;
   const cost = buildCost(def);
   if (!canAfford(cost)) return;
@@ -38,19 +38,19 @@ export function build(def) {
     if (levyUsed() + 1 > levyCap()) return;
     if (def.popCost && civilians() - reserved() < def.popCost) return;
   } else if (def.popCost && civilians() - reserved() < def.popCost) return;
-  for (const k in cost) S.res[k] -= cost[k];
-  const wasEmpty = S.buildQueue.length === 0;
-  S.buildQueue.push({ id: def.id, kind: def.kind, uid: ++S.buildSeq, total: def.buildTime, remaining: def.buildTime, cost });
+  for (const k in cost) me().res[k] -= cost[k];
+  const wasEmpty = me().buildQueue.length === 0;
+  me().buildQueue.push({ id: def.id, kind: def.kind, uid: ++me().buildSeq, total: def.buildTime, remaining: def.buildTime, cost });
   record("build", { id: def.id, kind: def.kind }, S.tick);
   // Pacing telemetry (console only): stamp the game clock when age research
   // starts, so playtest timing doesn't require watching the clock.
   if (CAPSTONES[def.id]) console.log(`[pacing] ${def.name} research started at ${fmtTime(playtime())} (t${S.tick})`);
   if (def.kind === "upgrade") {
-    log(wasEmpty ? `Work begins on ${def.name}.` : `${def.name} joins the queue (#${S.buildQueue.length}).`);
+    log(wasEmpty ? `Work begins on ${def.name}.` : `${def.name} joins the queue (#${me().buildQueue.length}).`);
   } else if (def.kind === "unit") {
-    log(wasEmpty ? `${def.name} training begins.` : `${def.name} training joins the queue (#${S.buildQueue.length}).`);
+    log(wasEmpty ? `${def.name} training begins.` : `${def.name} training joins the queue (#${me().buildQueue.length}).`);
   } else {
-    log(wasEmpty ? `Ground is broken for a ${def.name}.` : `A ${def.name} joins the queue (#${S.buildQueue.length}).`);
+    log(wasEmpty ? `Ground is broken for a ${def.name}.` : `A ${def.name} joins the queue (#${me().buildQueue.length}).`);
   }
   save();
   renderAll();
@@ -59,21 +59,21 @@ export function build(def) {
 // Cancel anything in the queue -- including the item currently building --
 // for a full refund of what was actually paid for it. Population reserved by
 // a cancelled unit order is automatically freed, since idle()/reserved() are
-// derived live from S.buildQueue rather than tracked separately.
+// derived live from me().buildQueue rather than tracked separately.
 // Removes a queue entry and hands its materials back. Shared by the player's
 // cancel button and by the workforce reconciler, which has to abandon orders
 // whose worker died.
 export function dropQueueItem(idx) {
-  const item = S.buildQueue[idx];
+  const item = me().buildQueue[idx];
   if (!item) return null;
-  for (const k in item.cost) S.res[k] = (S.res[k] || 0) + item.cost[k];
-  S.buildQueue.splice(idx, 1);
+  for (const k in item.cost) me().res[k] = (me().res[k] || 0) + item.cost[k];
+  me().buildQueue.splice(idx, 1);
   return item;
 }
 
 export function cancelBuild(uid) {
   if (S.dead) return;
-  const idx = S.buildQueue.findIndex((q) => q.uid === uid);
+  const idx = me().buildQueue.findIndex((q) => q.uid === uid);
   if (idx === -1) return;
   record("cancelBuild", { uid }, S.tick);
   const item = dropQueueItem(idx);
@@ -117,7 +117,7 @@ export function settlePlan(tileId) {
   // the same per-copy idiom buildings use. Distance still multiplies on top.
   // QUEUED claims count too (owner bug report: queue two and both priced at
   // the same step) -- exactly as building costs already count their queue.
-  const pendingClaims = S.buildQueue.filter((q) => q.kind === "settle").length;
+  const pendingClaims = me().buildQueue.filter((q) => q.kind === "settle").length;
   const esc = Math.pow(CONFIG.claimScale, Math.max(0, S.map.owned.length + pendingClaims - 3));
   const cost = {};
   for (const k in spec.cost) cost[k] = Math.round(spec.cost[k] * factor * esc);
@@ -130,7 +130,7 @@ export function settlePlan(tileId) {
 }
 
 export function pendingSettle(tileId) {
-  return S.buildQueue.some((q) => q.kind === "settle" && q.tile === tileId);
+  return me().buildQueue.some((q) => q.kind === "settle" && q.tile === tileId);
 }
 
 export function launchSettle(tileId) {
@@ -139,13 +139,13 @@ export function launchSettle(tileId) {
   const plan = settlePlan(tileId);
   if (!plan || pendingSettle(tileId)) return;
   if (!canAfford(plan.cost)) return;
-  for (const k in plan.cost) S.res[k] -= plan.cost[k];
+  for (const k in plan.cost) me().res[k] -= plan.cost[k];
   record("settle", { tile: tileId }, S.tick);
   const terrain = world.places[tileId].terrain;
-  S.buildQueue.push({ id: "settle", kind: "settle", uid: ++S.buildSeq,
+  me().buildQueue.push({ id: "settle", kind: "settle", uid: ++me().buildSeq,
     total: plan.time, remaining: plan.time, cost: plan.cost,
     tile: tileId, label: `Settling the ${terrain}` });
-  log(`A party sets out to raise a holdfast on the ${terrain}. (#${S.buildQueue.length} in the queue.)`);
+  log(`A party sets out to raise a holdfast on the ${terrain}. (#${me().buildQueue.length} in the queue.)`);
   save();
   renderAll();
 }
@@ -157,7 +157,7 @@ export function launchSettle(tileId) {
 export function structurePlan(sid) {
   const def = structureDef(sid);
   if (!def) return null;
-  const n = structureCount(sid) + S.buildQueue.filter((q) => q.kind === "structure" && q.id === sid).length;
+  const n = structureCount(sid) + me().buildQueue.filter((q) => q.kind === "structure" && q.id === sid).length;
   const cost = {};
   for (const k in def.base) cost[k] = Math.ceil(def.base[k] * Math.pow(def.scale || 1, n));
   return { def, cost, time: def.buildTime };
@@ -167,14 +167,14 @@ export function structurePlan(sid) {
 // unlocking upgrade is owned?
 export function structureUnlocked(sid) {
   const def = structureDef(sid);
-  return !!def && (!def.requires || !!S.upgrades[def.requires]);
+  return !!def && (!def.requires || !!me().upgrades[def.requires]);
 }
 
 // One queued build per hex, and never on a hex already carrying one: the hex
 // has ONE use, and that law has to hold for pending work too or two parties
 // would arrive to build different things on the same ground.
 export function pendingBuild(tileId) {
-  return S.buildQueue.some((q) => q.kind === "structure" && q.tile === tileId);
+  return me().buildQueue.some((q) => q.kind === "structure" && q.tile === tileId);
 }
 
 // THE SEAT IS NOT BUILDABLE (owner ruling, 2026-08-25). Two build systems
@@ -209,12 +209,12 @@ export function launchStructure(tileId, sid) {
   if (hexUse(tileId).kind === "structure") return;   // one use, and it is taken
   const plan = structurePlan(sid);
   if (!plan || !canAfford(plan.cost)) return;
-  for (const k in plan.cost) S.res[k] -= plan.cost[k];
+  for (const k in plan.cost) me().res[k] -= plan.cost[k];
   record("structure", { tile: tileId, id: sid }, S.tick);
-  S.buildQueue.push({ id: sid, kind: "structure", uid: ++S.buildSeq,
+  me().buildQueue.push({ id: sid, kind: "structure", uid: ++me().buildSeq,
     total: plan.time, remaining: plan.time, cost: plan.cost,
     tile: tileId, label: `Raising a ${plan.def.name}` });
-  log(`Work begins on a ${plan.def.name}. (#${S.buildQueue.length} in the queue.)`);
+  log(`Work begins on a ${plan.def.name}. (#${me().buildQueue.length} in the queue.)`);
   save();
   renderAll();
 }
@@ -267,13 +267,13 @@ export function trade(giveRes, getRes, batches) {
   if (!live.some((r) => r.id === giveRes) || !live.some((r) => r.id === getRes)) return false;
   const n = Math.max(1, Math.floor(batches || 1));
   const cost = rate * n;
-  if ((S.res[giveRes] || 0) < cost) return false;
+  if ((me().res[giveRes] || 0) < cost) return false;
   // Never trade INTO a full store: the goods would evaporate on arrival and
   // the player would have paid for nothing.
   const c = caps();
-  if ((S.res[getRes] || 0) + n > (c[getRes] != null ? c[getRes] : Infinity)) return false;
-  S.res[giveRes] -= cost;
-  S.res[getRes] = (S.res[getRes] || 0) + n;
+  if ((me().res[getRes] || 0) + n > (c[getRes] != null ? c[getRes] : Infinity)) return false;
+  me().res[giveRes] -= cost;
+  me().res[getRes] = (me().res[getRes] || 0) + n;
   record("trade", { give: giveRes, get: getRes, batches: n, rate }, S.tick);
   log(`The market moves ${Math.round(cost)} ${giveRes} for ${n} ${getRes}. The traders take their cut.`);
   save();
@@ -319,7 +319,7 @@ export function completeConstruction(site) {
     return;
   }
   const def = defById(site.id);
-  if (def.kind === "upgrade") S.upgrades[def.id] = true;
+  if (def.kind === "upgrade") me().upgrades[def.id] = true;
   else if (def.kind === "unit") {
     // The recruit is drawn from the SEAT (owner ruling: no source
     // micromanagement -- the capital musters). If the seat is empty, the
@@ -343,9 +343,9 @@ export function completeConstruction(site) {
       S.map.pop[from] = Math.max(0, S.map.pop[from] - def.popCost);
       syncPopMirror();
     }
-    S.units[def.id] = (S.units[def.id] || 0) + 1;
+    me().units[def.id] = (me().units[def.id] || 0) + 1;
   }
-  else S.builds[def.id] = (S.builds[def.id] || 0) + 1;
+  else me().builds[def.id] = (me().builds[def.id] || 0) + 1;
   onComplete(def);
 }
 
@@ -361,23 +361,23 @@ export function onComplete(def) {
   // waiting for the first manifest to name a building "hut". Removed
   // 2026-08-25.)
   if (def.kind === "unit") {
-    log(`A settler trains as a ${def.name}. You now field ${S.units[def.id]}.`, "good");
+    log(`A settler trains as a ${def.name}. You now field ${me().units[def.id]}.`, "good");
   } else {
     log(`${def.name} complete. ${def.desc}`, "good");
   }
 }
 
-// The one and only place S.era is ever assigned. S.era is nothing more than
+// The one and only place me().era is ever assigned. me().era is nothing more than
 // the key into MANIFESTS -- every read of content goes through active() -- so
 // flipping it swaps the entire world in one assignment. Everything else here
 // is the transition machinery around that assignment, in a deliberate order:
 //
 //   1. Capture `before` values and the frozen SNAPSHOT while the old manifest
-//      is still active. The snapshot is archived in S.eraHistory[fromEra]
+//      is still active. The snapshot is archived in me().eraHistory[fromEra]
 //      (kept for every era, forever -- it's a few hundred bytes and it's the
 //      raw material for diagnosing or recovering a bad migration, the
 //      project's first genuinely destructive state change).
-//   2. Flip S.era.
+//   2. Flip me().era.
 //   3. Run migrations. Formulas read ONLY the snapshot and write ONLY live
 //      state, so instruction order cannot matter by construction.
 //   4. Purge DOM nodes for ids that didn't survive -- the one place content

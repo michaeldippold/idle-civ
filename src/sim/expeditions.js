@@ -4,7 +4,7 @@ import { CONFIG } from "../core/config.js";
 import { availableUnits } from "../core/derived.js";
 import { save } from "../core/persist.js";
 import { atDominionCap, captureTile, marchFactor, routeCost, seatOf, syncPopMirror, world } from "../map/map.js";
-import { S } from "../core/state.js";
+import { S, me } from "../core/state.js";
 import { record } from "../core/journal.js";
 import { armorFactor, weaponMultiplier } from "./combat.js";
 import { renderAll } from "../ui/chrome.js";
@@ -32,7 +32,7 @@ export function musterSpec() { return active().muster || null; }
 // is a tech). The name is kept -- what changed is the shelf it sits on.
 export function musterBuilt() {
   const m = musterSpec();
-  return !!m && !!S.upgrades[m.upgrade];
+  return !!m && !!me().upgrades[m.upgrade];
 }
 // A flat cap on column size lived here from 2026-08-24 to 2026-08-25 and was
 // the wrong lever (owner, from play): "I had 4 of each type, but I can only
@@ -50,7 +50,7 @@ export function musterBuilt() {
 export function columnSize(unitCounts) {
   return Object.values(unitCounts || {}).reduce((a, b) => a + b, 0);
 }
-export function expeditionOut(type) { return S.expeditions.some((e) => e.type === type); }
+export function expeditionOut(type) { return me().expeditions.some((e) => e.type === type); }
 
 export function standingWord(n) {
   return n <= -2 ? "Hostile" : n === -1 ? "Wary" : n >= 2 ? "Friendly" : "Neutral";
@@ -239,8 +239,8 @@ export function campaignRefusal(ref, unitCounts) {
   if (total < 1) return "Muster at least one fighter.";
   if (!validUnitCounts(unitCounts)) return "You cannot send fighters you do not have.";
   const provisions = provisionsFor(plan, total);
-  if (S.res.food < provisions) {
-    return `Short ${Math.ceil(provisions - S.res.food)} food — a column eats on the road, and this one cannot be fed that far.`;
+  if (me().res.food < provisions) {
+    return `Short ${Math.ceil(provisions - me().res.food)} food — a column eats on the road, and this one cannot be fed that far.`;
   }
   return null;
 }
@@ -258,9 +258,9 @@ export function launchCampaign(advId, unitCounts) {
   // You march on what you can feed. This is the only limit on column size
   // there is now, and it is the honest one.
   const provisions = provisionsFor(plan, total);
-  if (S.res.food < provisions) return;
-  S.res.food -= provisions;
-  S.expeditions.push({ uid: ++S.buildSeq, type: "campaign", adversary: plan.target.ref,
+  if (me().res.food < provisions) return;
+  me().res.food -= provisions;
+  me().expeditions.push({ uid: ++me().buildSeq, type: "campaign", adversary: plan.target.ref,
     units: Object.assign({}, unitCounts), total: plan.time, remaining: plan.time });
   record("campaign", { target: plan.target.ref, units: Object.assign({}, unitCounts) }, S.tick);
   // The word follows the SIZE of the thing that actually left, not an era
@@ -281,14 +281,14 @@ export function launchCaravan(advId, escort) {
   if (!adv || !adv.buys || !st) return;
   if (st.standing <= -2) return;                       // they remember your raids
   if ((st.stock.gold || 0) <= 0) return;               // traded dry
-  if ((S.res[adv.buys.res] || 0) < adv.buys.amount) return;
+  if ((me().res[adv.buys.res] || 0) < adv.buys.amount) return;
   if (escort && !validUnitCounts(escort)) return;
   const guards = escort ? Object.values(escort).reduce((a, b) => a + b, 0) : 0;
-  S.res[adv.buys.res] -= adv.buys.amount;
-  const ex = { uid: ++S.buildSeq, type: "caravan", adversary: advId,
+  me().res[adv.buys.res] -= adv.buys.amount;
+  const ex = { uid: ++me().buildSeq, type: "caravan", adversary: advId,
     cargo: { res: adv.buys.res, amount: adv.buys.amount }, total: adv.caravanTime, remaining: adv.caravanTime };
   if (guards > 0) ex.units = Object.assign({}, escort);
-  S.expeditions.push(ex);
+  me().expeditions.push(ex);
   record("caravan", { target: advId, escort: guards > 0 ? Object.assign({}, escort) : null }, S.tick);
   log(`A caravan sets out for ${adv.name}, laden with ${adv.buys.amount} ${adv.buys.res}${guards ? `, under guard of ${guards}` : ""}.`);
   save();
@@ -310,7 +310,7 @@ export function removeDeployedUnit(ex) {
     const w = weightOf(uid);
     if (roll < w) {
       ex.units[uid] -= 1;
-      S.units[uid] -= 1;
+      me().units[uid] -= 1;
       // Same levy rule as removeRandomUnit: the holdfast survives its band.
       syncPopMirror();   // the mirror counts the army (E5)
       const def = active().units.find((u) => u.id === uid);
@@ -359,7 +359,7 @@ export function resolveCampaign(ex, target) {
       // Chronicle records the name for the last time (design.md).
       const takes = [];
       for (const k in st.stock) {
-        if (st.stock[k] > 0) { S.res[k] = (S.res[k] || 0) + st.stock[k]; takes.push(`${st.stock[k]} ${k}`); }
+        if (st.stock[k] > 0) { me().res[k] = (me().res[k] || 0) + st.stock[k]; takes.push(`${st.stock[k]} ${k}`); }
       }
       captureTile(target.tile, false);
       log(`${capMinor(target.name)} swears fealty to your banner — one more holdfast, and ${takes.length ? takes.join(", ") : "little else"} besides. The Chronicle records the name for the last time.`, "big");
@@ -372,7 +372,7 @@ export function resolveCampaign(ex, target) {
     const takes = [];
     for (const k in st.stock) {
       const take = Math.floor(st.stock[k] * CONFIG.plunderFraction);
-      if (take > 0) { st.stock[k] -= take; S.res[k] = (S.res[k] || 0) + take; takes.push(`${take} ${k}`); }
+      if (take > 0) { st.stock[k] -= take; me().res[k] = (me().res[k] || 0) + take; takes.push(`${take} ${k}`); }
     }
     log(`Victory over ${adv.name}. The column returns with ${takes.length ? takes.join(", ") : "little worth taking"}.`, "big");
     // Winning can still cost someone -- softened by armor, same dial as home.
@@ -420,7 +420,7 @@ export function resolveCaravan(ex, adv, st) {
   // Sold goods JOIN their stock -- stocks are real, and what you sell them a
   // later campaign could take back. The game never mentions this.
   st.stock[ex.cargo.res] = (st.stock[ex.cargo.res] || 0) + ex.cargo.amount;
-  S.res.gold = (S.res.gold || 0) + pays;
+  me().res.gold = (me().res.gold || 0) + pays;
   bumpStanding(st, 1);
   if (pays <= 0) {
     log(`The caravan returns from ${adv.name} unpaid — they have no gold left to give.`, "bad");
@@ -434,13 +434,13 @@ export function resolveCaravan(ex, adv, st) {
 
 // Ticks in step(). An expedition whose adversary no longer exists (the era
 // flipped mid-flight) simply comes home: units were never removed from
-// S.units, so removing the expedition entry IS their return.
+// me().units, so removing the expedition entry IS their return.
 export function resolveExpeditions(dt) {
-  for (let i = S.expeditions.length - 1; i >= 0; i--) {
-    const ex = S.expeditions[i];
+  for (let i = me().expeditions.length - 1; i >= 0; i--) {
+    const ex = me().expeditions[i];
     ex.remaining -= dt;
     if (ex.remaining > 0) continue;
-    S.expeditions.splice(i, 1);
+    me().expeditions.splice(i, 1);
     if (ex.type === "campaign") {
       const target = campaignTarget(ex.adversary);   // ref: major id or "tile:q,r"
       if (target) resolveCampaign(ex, target);

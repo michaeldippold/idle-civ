@@ -2,7 +2,7 @@ import { active } from "../content/compile.js";
 import { cancelBuild } from "../core/actions.js";
 import { CONFIG } from "../core/config.js";
 import { defById, queueTiming } from "../core/derived.js";
-import { S } from "../core/state.js";
+import { S, me } from "../core/state.js";
 import { campaignTarget, findAdversary } from "../sim/expeditions.js";
 import { QUEUE_ICONS } from "./icons.js";
 
@@ -16,12 +16,12 @@ export function renderQueue() {
   // first use, tracked by a sticky S.seen.queueUsed; the board is now whole
   // from frame one, so that flag was write-only state in every save and went
   // with it -- see design.md, "Unravel the contents, not the board".)
-  const anything = S.buildQueue.length > 0 || S.expeditions.length > 0;
+  const anything = me().buildQueue.length > 0 || me().expeditions.length > 0;
   emptyMsg.classList.toggle("hidden", anything);
   wrap.classList.toggle("hidden", !anything);
 
-  const liveUids = new Set(S.buildQueue.map((q) => String(q.uid))
-    .concat(S.expeditions.map((e) => "x" + e.uid)));
+  const liveUids = new Set(me().buildQueue.map((q) => String(q.uid))
+    .concat(me().expeditions.map((e) => "x" + e.uid)));
   Array.from(wrap.children).forEach((child) => {
     if (!liveUids.has(child.dataset.uid)) wrap.removeChild(child);
   });
@@ -29,7 +29,7 @@ export function renderQueue() {
   // Expedition cards: same visual language as builds, but dashed -- and no
   // cancel button, because there are no catch windows once a column marches.
   const expCards = [];
-  for (const ex of S.expeditions) {
+  for (const ex of me().expeditions) {
     const target = ex.type === "campaign" ? campaignTarget(ex.adversary) : null;
     const adv = target ? { name: target.name } : findAdversary(ex.adversary);
     let card = wrap.querySelector(`[data-uid="x${ex.uid}"]`);
@@ -57,9 +57,9 @@ export function renderQueue() {
     expCards.push(card);
   }
 
-  const timings = queueTiming(S.buildQueue, CONFIG.buildSpeed);
+  const timings = queueTiming(me().buildQueue, CONFIG.buildSpeed);
   const buildCards = [];
-  S.buildQueue.forEach((item, i) => {
+  me().buildQueue.forEach((item, i) => {
     const t = timings[i];
     const def = defById(item.id);
     const label = item.label || (def && def.name) || item.id;

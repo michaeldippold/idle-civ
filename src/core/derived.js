@@ -1,7 +1,7 @@
 import { DEF_INDEX, active } from "../content/compile.js";
 import { builtCount, growthSpendRate, hexPopSum, hexYield, upkeepMouths, world } from "../map/map.js";
 import { CONFIG, TICK_SECONDS } from "./config.js";
-import { S } from "./state.js";
+import { S, me } from "./state.js";
 import { log } from "../ui/log.js";
 
 // ---------- Derived values ----------------------------------
@@ -27,14 +27,14 @@ export function playtime() { return S.tick * TICK_SECONDS; }
 // is a lever and belongs.
 //
 // Rule 1 is intact and is what keeps this flavour rather than a second economy:
-// NOTHING reads this. Every gate, cost, cap and stepper still reads S.pop and
+// NOTHING reads this. Every gate, cost, cap and stepper still reads me().pop and
 // the hex sums. Deleting this function would change no outcome in the game --
 // which is the test of whether an odometer is still an odometer.
 //
 // Derived, never stored (rule 2): it cannot drift from the truth, it
 // re-denominates automatically at a border, and it needs no save field.
 export function soulsPerPerson() { return active().soulsPerPerson || 1; }
-export function souls() { return S.pop * soulsPerPerson(); }
+export function souls() { return me().pop * soulsPerPerson(); }
 
 // The ONE place the small-numbers pillar is deliberately suspended (design.md:
 // "one formatter for one display, not the pillar being abandoned"). Grouped
@@ -59,17 +59,17 @@ export function fmtSouls(n) {
 }
 
 export function seatName() {
-  const n = (S.seatName || "").trim();
+  const n = (me().seatName || "").trim();
   return n || "Your Seat";
 }
-export function seatIsNamed() { return !!(S.seatName || "").trim(); }
+export function seatIsNamed() { return !!(me().seatName || "").trim(); }
 
-export function totalUnits() { return Object.values(S.units).reduce((a, b) => a + b, 0); }
+export function totalUnits() { return Object.values(me().units).reduce((a, b) => a + b, 0); }
 // Under a levy (Iron onward) population SUPPORTS the army instead of
 // containing it: every holdfast stays in the assignable pool, and the war
 // bands stand apart. Stone/Bronze keep the old fiction -- a person who
 // becomes a soldier leaves the fields for good.
-export function civilians() { return S.pop - totalUnits(); }   // the levy died in E5
+export function civilians() { return me().pop - totalUnits(); }   // the levy died in E5
 
 // Army capacity under a levy: holdfasts x rate. Queued training counts
 // against it the moment it's queued, same instant-reservation rule popCost
@@ -81,7 +81,7 @@ export function levyCap() {
   return S.map ? S.map.owned.length * CONFIG.armyPerHex : Infinity;
 }
 export function levyUsed() {
-  return totalUnits() + S.buildQueue.filter((q) => q.kind === "unit").length;
+  return totalUnits() + me().buildQueue.filter((q) => q.kind === "unit").length;
 }
 // jobsUsed() and releaseOrder() died here in E2 with the jobs system they
 // served: people are not assigned, they LIVE somewhere (design.md,
@@ -92,28 +92,28 @@ export function reserved() {
   // (The `levy` era-fact escape hatch was removed 2026-08-25: the levy died
   // in E5 and no manifest has declared one since -- the compiler asserts the
   // field is gone. Every era's recruits consume a real person.)
-  return S.buildQueue.reduce((sum, q) => {
+  return me().buildQueue.reduce((sum, q) => {
     const def = defById(q.id);
     return sum + (def && def.popCost ? def.popCost : 0);
   }, 0);
 }
 // idle() died in E2: nobody is "unassigned" when people live on the land.
 
-// Units marching with an expedition are alive (still in S.units, still eat,
+// Units marching with an expedition are alive (still in me().units, still eat,
 // still count toward pop) but they are NOT HOME: they don't defend, and home
-// casualties can't take them. Deployment is derived from S.expeditions rather
+// casualties can't take them. Deployment is derived from me().expeditions rather
 // than tracked separately, so it can never desync.
 export function deployedCount(unitId) {
-  return S.expeditions.reduce((sum, ex) => sum + ((ex.units && ex.units[unitId]) || 0), 0);
+  return me().expeditions.reduce((sum, ex) => sum + ((ex.units && ex.units[unitId]) || 0), 0);
 }
-export function availableUnits(unitId) { return (S.units[unitId] || 0) - deployedCount(unitId); }
+export function availableUnits(unitId) { return (me().units[unitId] || 0) - deployedCount(unitId); }
 
 // Tool upgrades lift every gather rate (including the ores -- better tools cut
 // ore too); boost buildings lift one resource each.
 export function mults() {
-  const tools = (S.upgrades.stoneTools  ? CONFIG.stoneToolsBonus  : 0)
-              + (S.upgrades.bronzeTools ? CONFIG.bronzeToolsBonus : 0)
-              + (S.upgrades.ironTools   ? CONFIG.ironToolsBonus   : 0);
+  const tools = (me().upgrades.stoneTools  ? CONFIG.stoneToolsBonus  : 0)
+              + (me().upgrades.bronzeTools ? CONFIG.bronzeToolsBonus : 0)
+              + (me().upgrades.ironTools   ? CONFIG.ironToolsBonus   : 0);
   const out = {};
   // TECH ONLY (2026-08-25). Tool upgrades lift every gather rate, including
   // the ores -- better tools cut ore too. The per-resource BUILDING boost that
@@ -136,7 +136,7 @@ export function caps() {
 }
 
 // Gross production per second, per resource, plus the food upkeep line. Upkeep
-// is charged on total population (S.pop), which already includes Soldiers --
+// is charged on total population (me().pop), which already includes Soldiers --
 // no separate formula needed for "units eat too." This reports what workers
 // dig up, EXCLUDING converters -- step() applies those separately via
 // runConverters. The ledger displays ledgerRates() (below), which folds the
@@ -179,7 +179,7 @@ export function rates() {
   // back to the plain headcount so nothing off-board changes behaviour.
   const held = S.map && world ? upkeepMouths() : hexPopSum();
   const mouths = held + totalUnits();
-  const upkeep = mouths * CONFIG.upkeep * (S.upgrades.fireMastery ? 0.85 : 1);
+  const upkeep = mouths * CONFIG.upkeep * (me().upgrades.fireMastery ? 0.85 : 1);
   return Object.assign(prod, { upkeep, foodNet: prod.food - upkeep });
 }
 
@@ -198,8 +198,8 @@ export function converterFlows(prod) {
     if (owned <= 0) continue;
     const spec = def.converts;
     let batches = owned * spec.rate;
-    for (const k in spec.in)  batches = Math.min(batches, ((S.res[k] || 0) + (prod[k] || 0)) / spec.in[k]);
-    for (const k in spec.out) batches = Math.min(batches, ((c[k] || 0) - (S.res[k] || 0)) / spec.out[k]);
+    for (const k in spec.in)  batches = Math.min(batches, ((me().res[k] || 0) + (prod[k] || 0)) / spec.in[k]);
+    for (const k in spec.out) batches = Math.min(batches, ((c[k] || 0) - (me().res[k] || 0)) / spec.out[k]);
     if (!(batches > 0)) continue;
     for (const k in spec.in)  flows[k] = (flows[k] || 0) - spec.in[k] * batches;
     for (const k in spec.out) flows[k] = (flows[k] || 0) + spec.out[k] * batches;
@@ -271,22 +271,22 @@ export function pluralize(name) { return name.endsWith("man") ? name.slice(0, -3
 // How many of this building/upgrade/unit are already owned or waiting in the
 // queue -- keeps escalating prices (and one-time/capped limits) honest even
 // when you queue several at once.
-export function pendingCount(id) { return S.buildQueue.filter((q) => q.id === id).length; }
+export function pendingCount(id) { return me().buildQueue.filter((q) => q.id === id).length; }
 
 export function buildCost(def) {
   if (def.kind !== "building") return { ...def.base };  // upgrades & units: flat, never scale
-  const n = (S.builds[def.id] || 0) + pendingCount(def.id);
+  const n = (me().builds[def.id] || 0) + pendingCount(def.id);
   const out = {};
   for (const k in def.base) out[k] = Math.ceil(def.base[k] * Math.pow(def.scale, n));
   return out;
 }
 export function canAfford(cost) {
-  for (const k in cost) if (S.res[k] < cost[k]) return false;
+  for (const k in cost) if (me().res[k] < cost[k]) return false;
   return true;
 }
 export function isCapped(def) {
   return def.kind === "building" && def.cap != null &&
-    (S.builds[def.id] || 0) + pendingCount(def.id) >= def.cap;
+    (me().builds[def.id] || 0) + pendingCount(def.id) >= def.cap;
 }
 // Resolve a buildable id to its def. The active manifest wins -- that's what
 // gives a log line or a queue card its era-correct name -- with DEF_INDEX as

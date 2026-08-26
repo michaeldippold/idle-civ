@@ -1,7 +1,7 @@
 import { CONFIG } from "../core/config.js";
 import { rng } from "../core/rng.js";
 import { caps, totalUnits } from "../core/derived.js";
-import { S } from "../core/state.js";
+import { S, me } from "../core/state.js";
 import { CONFLICT_FLAVOR, armorFactor, counterCoverage, militaryStrength, pick, raidGround, removeRandomUnit, reconcileReservations, rollRaidSize, rollRaidType, sentenceCase, stealResources } from "../sim/combat.js";
 import { builtCount, fortStrength, healersNear, hexPop, killAt, strikeHex, world } from "../map/map.js";
 import { hostilityMultiplier, raidAttribution } from "../sim/expeditions.js";
@@ -52,7 +52,7 @@ export const EVENT_LIB = {
   greatHunt: {
     sev: "good",
     chancePerSecond: 0.002,                         // ~8.3 real minutes average -- small, frequent
-    effect: (S) => { S.res.food += Math.round(8 + S.pop * 1.2); },
+    effect: (S) => { me().res.food += Math.round(8 + me().pop * 1.2); },
     flavor: {
       hit: [
         "A hunting party returns with more than they hoped for -- there is meat enough to share.",
@@ -64,8 +64,8 @@ export const EVENT_LIB = {
     sev: "good",
     chancePerSecond: 0.0009,                        // ~18.5 real minutes average -- rarer, bigger
     effect: (S) => {
-      const bonus = Math.round(12 + S.pop * 1.5);
-      S.res.wood += bonus; S.res.stone += bonus;
+      const bonus = Math.round(12 + me().pop * 1.5);
+      me().res.wood += bonus; me().res.stone += bonus;
     },
     flavor: {
       hit: [
@@ -76,7 +76,7 @@ export const EVENT_LIB = {
   },
   sickness: {
     sev: "bad",
-    condition: (S) => S.pop >= 4,
+    condition: (S) => me().pop >= 4,
     // OWNS ITS OWN TRIGGER, like conflict, and for the same reason: the
     // mitigation is POSITIONAL now, so the hex has to be chosen BEFORE anyone
     // asks whether healers cover it. The generic chancePerSecond path rolls
@@ -90,7 +90,7 @@ export const EVENT_LIB = {
       // SCALES WITH POPULATION, the same way conflict always has: a hazard
       // with a flat rate is one you outgrow, and three infirmaries used to
       // retire it permanently.
-      const chance = 0.0015 * (1 + S.pop * CONFIG.sicknessPopScale);
+      const chance = 0.0015 * (1 + me().pop * CONFIG.sicknessPopScale);
       const p = 1 - Math.pow(1 - chance, dt);
       if (rng() >= p) return;
 
@@ -100,7 +100,7 @@ export const EVENT_LIB = {
 
       // ---- RESOLUTION: and this is where healers act ----
       const healers = healersNear(at);
-      const per = S.upgrades.herbalMedicine ? 0.35 : 0.2;
+      const per = me().upgrades.herbalMedicine ? 0.35 : 0.2;
       const negate = Math.min(1 - CONFIG.counterFloor, healers * per);
       if (rng() < negate) {
         log(healers > 0
@@ -128,10 +128,10 @@ export const EVENT_LIB = {
   },
   conflict: {
     sev: "bad",
-    condition: (S) => S.pop >= 4,
+    condition: (S) => me().pop >= 4,
     resolve: (S, dt) => {
       // hostilityMultiplier: every Hostile warlike neighbor raids you more.
-      const chance = CONFIG.conflictBaseChance * (1 + S.pop * CONFIG.conflictPopScale) * hostilityMultiplier();
+      const chance = CONFIG.conflictBaseChance * (1 + me().pop * CONFIG.conflictPopScale) * hostilityMultiplier();
       const p = 1 - Math.pow(1 - chance, dt);
       if (rng() >= p) return;
 
@@ -215,12 +215,12 @@ export const EVENT_LIB = {
     // upgrade rather than the Stables, so building the Stables alone doesn't
     // hand it to you -- you have to actually invest in ranging out.
     sev: "good",
-    condition: (S) => !!S.upgrades.scouting,
+    condition: (S) => !!me().upgrades.scouting,
     chancePerSecond: 0.0016,
     effect: (S) => {
-      const haul = Math.round(15 + S.pop * 2);
-      S.res.wood += haul; S.res.stone += haul;
-      S.res.copper += Math.round(haul * 0.4);
+      const haul = Math.round(15 + me().pop * 2);
+      me().res.wood += haul; me().res.stone += haul;
+      me().res.copper += Math.round(haul * 0.4);
     },
     flavor: {
       hit: [
@@ -232,7 +232,7 @@ export const EVENT_LIB = {
   },
   scoutWarning: {
     sev: "good",
-    condition: (S) => !!S.upgrades.scouting && S.pop >= 4,
+    condition: (S) => !!me().upgrades.scouting && me().pop >= 4,
     chancePerSecond: 0.0012,
     effect: () => {},   // pure flavor: the value is knowing, not a stat change
     flavor: {
@@ -247,12 +247,12 @@ export const EVENT_LIB = {
     // (The bronze one pays copper, which would be an inert write in iron --
     // events are content, so the new era declares its own.)
     sev: "good",
-    condition: (S) => !!S.upgrades.scouting,
+    condition: (S) => !!me().upgrades.scouting,
     chancePerSecond: 0.0016,
     effect: (S) => {
-      const haul = Math.round(15 + S.pop * 2);
-      S.res.wood += haul; S.res.stone += haul;
-      S.res.iron += Math.round(haul * 0.4);
+      const haul = Math.round(15 + me().pop * 2);
+      me().res.wood += haul; me().res.stone += haul;
+      me().res.iron += Math.round(haul * 0.4);
     },
     flavor: {
       hit: [
@@ -267,50 +267,50 @@ export const EVENT_LIB = {
 // ---------- Hint library ------------------------------------
 // One-time Chronicle hints: fire once when `when()` first holds, then never
 // again (tracked in S.seen). Which hints are live in an era is the manifest's
-// `hints` slate -- slate membership replaced the S.era checks that used to
+// `hints` slate -- slate membership replaced the me().era checks that used to
 // hide inside individual `when()` conditions.
 export const HINT_LIB = {
-  wood:  { when: () => S.res.wood  > 0, msg: "You have wood enough to notice its worth." },
-  stone: { when: () => S.res.stone > 0, msg: "Stone piles up beside the wood." },
-  build: { when: () => S.res.wood >= 8, msg: "There is timber enough to build. Put it to work on the land you hold." },
+  wood:  { when: () => me().res.wood  > 0, msg: "You have wood enough to notice its worth." },
+  stone: { when: () => me().res.stone > 0, msg: "Stone piles up beside the wood." },
+  build: { when: () => me().res.wood >= 8, msg: "There is timber enough to build. Put it to work on the land you hold." },
   tools: { when: () => S.map && S.map.owned.length >= 4, msg: "With new ground claimed, your people turn to better tools." },
   // Legacy saves hold storage-building counts from before 4c. The counts are
   // INERT (state is never implicitly destroyed) -- this line narrates the
   // change exactly once for anyone who built them.
   oldStores: {
-    when: () => ((S.builds.granary || 0) + (S.builds.woodshed || 0) +
-                 (S.builds.stoneYard || 0) + (S.builds.oreYard || 0)) > 0,
+    when: () => ((me().builds.granary || 0) + (me().builds.woodshed || 0) +
+                 (me().builds.stoneYard || 0) + (me().builds.oreYard || 0)) > 0,
     msg: "The old storehouses fall quiet -- a realm keeps what its age can hold now, no more and no less.",
   },
-  rotFood: { when: () => S.res.food >= caps().food - 0.01,
+  rotFood: { when: () => me().res.food >= caps().food - 0.01,
     msg: "Your food stores are full — the surplus spoils in the open. This age can hold no more: spend it, or outgrow the age." },
-  rotWood: { when: () => S.res.wood >= caps().wood - 0.01,
+  rotWood: { when: () => me().res.wood >= caps().wood - 0.01,
     msg: "Your woodpile is full — extra timber rots in the rain. This age can hold no more: spend it, or outgrow the age." },
-  rotStone: { when: () => S.res.stone >= caps().stone - 0.01,
+  rotStone: { when: () => me().res.stone >= caps().stone - 0.01,
     msg: "Loose stone is piling up faster than anyone can stack it — the excess is lost. This age can hold no more: spend it, or outgrow the age." },
-  sicknessWarn: { when: () => S.pop >= 4,
+  sicknessWarn: { when: () => me().pop >= 4,
     msg: "More mouths, more risk — crowded camps invite sickness. An infirmary would ease their fears." },
-  conflictWarn: { when: () => S.pop >= 4,
+  conflictWarn: { when: () => me().pop >= 4,
     msg: "Word of raiders reaches the settlement. A Barracks would let your people take up arms." },
-  rotOre: { when: () => S.res.copper >= caps().copper - 0.01 || S.res.tin >= caps().tin - 0.01,
+  rotOre: { when: () => me().res.copper >= caps().copper - 0.01 || me().res.tin >= caps().tin - 0.01,
     msg: "Ore is heaped up beyond what anyone can sort — the excess is lost. This age can hold no more: spend it, or outgrow the age." },
-  firstBronze: { when: () => S.res.bronze > 0,
+  firstBronze: { when: () => me().res.bronze > 0,
     msg: "The first ingots cool in the mould. Bronze is yours to work with." },
-  bronzeAvailable: { when: () => S.pop >= 10 && (S.units.soldier || 0) >= 1,
+  bronzeAvailable: { when: () => me().pop >= 10 && (me().units.soldier || 0) >= 1,
     msg: "Travellers speak of a harder metal, poured rather than chipped. Your people could reach it — with enough stores behind them." },
-  ironAvailable: { when: () => S.pop >= 16 && ((S.units.archer || 0) >= 1 || (S.units.horseman || 0) >= 1),
+  ironAvailable: { when: () => me().pop >= 16 && ((me().units.archer || 0) >= 1 || (me().units.horseman || 0) >= 1),
     msg: "The smiths grumble that tin grows dearer every season. There is a duller, stubborner metal in your own hills — if your people learn to work it." },
-  rotIron: { when: () => S.res.iron >= caps().iron - 0.01,
+  rotIron: { when: () => me().res.iron >= caps().iron - 0.01,
     msg: "Raw iron blooms are heaped up rusting in the open — the excess is lost. This age can hold no more: spend it, or outgrow the age." },
   // (directHoldfasts died 2026-08-25 with the allocation verb: ground works
   // itself now, so no holding has ever "awaited direction".)
   develop: { when: () => S.map && S.map.owned.length >= 4,
     msg: "Your holdings work their own ground. What you BUILD on them is how they do better — open the Map and look at what each hex could become." },
-  firstSteel: { when: () => S.res.steel > 0,
+  firstSteel: { when: () => me().res.steel > 0,
     msg: "The Forge runs hotter than it ever did for bronze. The first steel is yours." },
-  firstGold: { when: () => S.res.gold > 0,
+  firstGold: { when: () => me().res.gold > 0,
     msg: "Gold. No one in your town has ever dug up an ounce of it — it only ever arrives from somewhere else." },
-  neighbors: { when: () => builtCount("forge") >= 1 || S.res.iron >= 20,
+  neighbors: { when: () => builtCount("forge") >= 1 || me().res.iron >= 20,
     msg: "Travellers name your neighbors now: the Hill Clans in the high passes, the River Kingdom downstream, the Salt Nomads on the flats. A Muster Ground would let your people range out to meet them — one way or another." },
 };
 

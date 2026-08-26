@@ -2,7 +2,7 @@ import { active } from "../content/compile.js";
 import { completeConstruction } from "./actions.js";
 import { CONFIG, TICK_SECONDS } from "./config.js";
 import { caps, rates } from "./derived.js";
-import { S, loopId, saveId } from "./state.js";
+import { S, loopId, me, saveId } from "./state.js";
 import { endFamine, growPopulation, starveTick } from "../map/map.js";
 import { resolveEvents, runConverters } from "../sim/events.js";
 import { resolveExpeditions } from "../sim/expeditions.js";
@@ -27,7 +27,7 @@ export function step() {
 
   // Gather + eat. Food is a net line so upkeep can drive it negative -> death.
   for (const res of active().resources) {
-    S.res[res.id] += (res.id === "food" ? r.foodNet : r[res.id]) * dt;
+    me().res[res.id] += (res.id === "food" ? r.foodNet : r[res.id]) * dt;
   }
 
   runConverters(dt);
@@ -35,28 +35,28 @@ export function step() {
   // Storage caps: surplus spoils/rots/is lost (silent; a one-time hint fires via reveals).
   const c = caps();
   for (const res of active().resources) {
-    if (S.res[res.id] > c[res.id]) S.res[res.id] = c[res.id];
+    if (me().res[res.id] > c[res.id]) me().res[res.id] = c[res.id];
   }
 
   // Starvation (E4): an empty larder no longer ends the run outright -- the
   // empire starves from its frontier inward, hex by hex, and the run ends
   // only when the SEAT empties. Each death shrinks the deficit, so a famine
   // converges on what the land can actually feed rather than annihilating.
-  if (S.res.food <= 0 && r.foodNet < 0) {
-    S.res.food = 0;
+  if (me().res.food <= 0 && r.foodNet < 0) {
+    me().res.food = 0;
     if (starveTick(-r.foodNet, dt)) { die("starvation"); return; }
-  } else if (S.res.food > 0) {
+  } else if (me().res.food > 0) {
     endFamine();
   }
-  if (S.res.food < 0) S.res.food = 0;
+  if (me().res.food < 0) me().res.food = 0;
 
   // Only the item at the front of the queue is actively under construction --
   // no worker assignment needed; the queue itself is the scarcity.
-  if (S.buildQueue.length) {
-    const front = S.buildQueue[0];
+  if (me().buildQueue.length) {
+    const front = me().buildQueue[0];
     front.remaining -= CONFIG.buildSpeed * dt;
     if (front.remaining <= 0) {
-      S.buildQueue.shift();
+      me().buildQueue.shift();
       completeConstruction(front);
     }
   }
@@ -74,7 +74,7 @@ export function step() {
 
   // Conflict (and in principle anything else) can zero out population --
   // checked generically here rather than attributed to a specific event.
-  if (S.pop <= 0) {
+  if (me().pop <= 0) {
     die("conflict");
   }
 
@@ -84,7 +84,7 @@ export function step() {
   // above runs BEFORE growth and events; this sweep is the one that guards
   // what actually gets displayed and saved.
   for (const res of active().resources) {
-    if (S.res[res.id] < 0) S.res[res.id] = 0;
+    if (me().res[res.id] < 0) me().res[res.id] = 0;
   }
 }
 

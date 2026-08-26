@@ -1,7 +1,7 @@
 import { active } from "../content/compile.js";
 import { CONFIG } from "../core/config.js";
 import { playtime } from "../core/derived.js";
-import { S } from "../core/state.js";
+import { S, me } from "../core/state.js";
 import { log } from "./log.js";
 import { renderTraining, renderUpgrades } from "./panels-buy.js";
 import { renderQueue } from "./panels-holdings.js";
@@ -108,7 +108,7 @@ export function renderEraChrome() {
   if (badgeText) badgeText.textContent = active().name;
   // The desk under the board changes per era, and the header chrome inverts
   // with it. Driving both off one attribute keeps the whole swap in CSS.
-  if (document.body) document.body.dataset.era = S.era;
+  if (document.body) document.body.dataset.era = me().era;
   const titles = active().panelTitles;
   for (const panelId in titles) {
     const h2 = document.querySelector(`#${panelId} h2`);

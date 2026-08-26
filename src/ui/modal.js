@@ -3,7 +3,7 @@ import { CONFIG } from "../core/config.js";
 import { playtime } from "../core/derived.js";
 import { setModalHold } from "./chrome.js";
 import { suppressSaves } from "../core/persist.js";
-import { S } from "../core/state.js";
+import { S, me } from "../core/state.js";
 import { fmtTime } from "./chrome.js";
 
 // ---------- Modal ---------------------------------------------
@@ -63,7 +63,7 @@ export function modalIsOpen() {
 // shows Bronze names and descs even while you're still in the Stone Age.
 export function infoPanelHTML() {
   const tabs = ERA_ORDER.map((e) =>
-    `<button class="info-tab${e === S.era ? " active" : ""}" data-era="${e}">${MANIFESTS[e].name}</button>`
+    `<button class="info-tab${e === me().era ? " active" : ""}" data-era="${e}">${MANIFESTS[e].name}</button>`
   ).join("");
 
   const sections = ERA_ORDER.map((e) => {
@@ -100,7 +100,7 @@ export function infoPanelHTML() {
     const inner = group("On the Land", priced(m.structures || [])) +
       group("People", priced(m.units)) +
       group("Upgrades", priced(m.upgrades)) + group("Neighbors", neighbors);
-    return `<div class="info-era${e === S.era ? "" : " hidden"}" data-era="${e}">${inner}</div>`;
+    return `<div class="info-era${e === me().era ? "" : " hidden"}" data-era="${e}">${inner}</div>`;
   }).join("");
 
   return `<div class="info-tabs">${tabs}</div>${sections}`;
@@ -241,7 +241,7 @@ export function openGameOverModal(cause) {
       stat("Time survived", fmtTime(playtime())) +
       stat("Age reached", active().name) +
       stat("Works raised", built) +
-      stat("Arrivals welcomed", S.bought) +
+      stat("Arrivals welcomed", me().bought) +
       // The run's number: with it (and, after phase 4, the action log) the
       // whole game is reproducible. This is how a bug report becomes a repro.
       stat("World seed", S.seed) +

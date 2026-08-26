@@ -1,7 +1,7 @@
 import { active } from "../content/compile.js";
 import { CONFIG } from "../core/config.js";
 import { availableUnits, isRevealed, pluralize } from "../core/derived.js";
-import { S } from "../core/state.js";
+import { S, me } from "../core/state.js";
 import { campaignPlan, campaignRefusal, campaignStrength, columnSize, expeditionOut, findAdversary, hostileRouteRisk, launchCampaign, launchCaravan, provisionsFor, riskAdversary, standingWord, wallPower } from "../sim/expeditions.js";
 import { closeModal, openModal } from "./modal.js";
 
@@ -137,16 +137,16 @@ export function openCampaignModal(ref) {
       const provisions = provisionsFor(plan, total);
       const prov = document.getElementById("cmProvisions");
       if (prov) {
-        const short = S.res.food < provisions;
+        const short = me().res.food < provisions;
         prov.innerHTML =
           `Provisions: <b${short ? ' class="bad"' : ""}>${provisions} food</b> for ${total || "no"} ` +
           `${total === 1 ? "fighter" : "fighters"} · ${plan.time}s there and back` +
           `${plan.tilesOff != null ? ` · a route of ${plan.tilesOff}` : ""}.` +
-          (short ? ` You have ${Math.floor(S.res.food)}.` : "");
+          (short ? ` You have ${Math.floor(me().res.food)}.` : "");
       }
       const march = confirmButton();
       if (march) march.disabled = S.dead || total < 1 ||
-        S.res.food < provisions || expeditionOut("campaign");
+        me().res.food < provisions || expeditionOut("campaign");
     };
     wireMusterRows(bodyEl, refresh);
     refresh();

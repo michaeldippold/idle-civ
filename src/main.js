@@ -2,7 +2,7 @@ import { ERA_ORDER } from "./content/compile.js";  // side-effect first: build +
 import { CONFIG } from "./core/config.js";
 import { applyPlayerColor } from "./core/palette.js";
 import { initAdversaries, load, save } from "./core/persist.js";
-import { S, setLoops } from "./core/state.js";
+import { S, me, setLoops } from "./core/state.js";
 import { step } from "./core/step.js";
 import { cycleSpeed, modalHold, paused, preGame, renderAll, renderSpeed, setPaused, setPreGame, setSpeed, speed } from "./ui/chrome.js";
 import { ensureMap, revealAll, setRevealAll, setPickedContinent } from "./map/map.js";
@@ -32,7 +32,7 @@ export function boot() {
   const had = load();
   const era = forcedEra();
   if (era) {
-    S.era = era;
+    me().era = era;
     console.log(`[qa] era forced to ${era} -- generation preview, not a real advance`);
   }
   // The start screen's three choices, carried across its reload (slice 5).
@@ -42,8 +42,8 @@ export function boot() {
   // run underway already carries all three in its save.
   const chose = pendingChoices();
   if (chose) {
-    if (typeof chose.color === "string") S.playerColor = chose.color;
-    if (typeof chose.name === "string") S.seatName = chose.name.trim().slice(0, 24);
+    if (typeof chose.color === "string") me().color = chose.color;
+    if (typeof chose.name === "string") me().seatName = chose.name.trim().slice(0, 24);
     setPickedContinent(chose.continent);
   }
 

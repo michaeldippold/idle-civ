@@ -2,7 +2,7 @@ import { active } from "../content/compile.js";
 import { rng } from "../core/rng.js";
 import { CONFIG } from "../core/config.js";
 import { caps } from "../core/derived.js";
-import { S } from "../core/state.js";
+import { S, me } from "../core/state.js";
 import { builtCount } from "../map/map.js";
 import { pick } from "./combat.js";
 import { log } from "../ui/log.js";
@@ -32,7 +32,7 @@ export function resolveEvents(dt) {
       // always scaled with population; `popScaled` gives any event the same
       // treatment, and sickness is the first to need it -- at a flat rate it
       // became a rounding error against a large settlement.
-      const scale = ev.popScaled ? (1 + S.pop * CONFIG.sicknessPopScale) : 1;
+      const scale = ev.popScaled ? (1 + me().pop * CONFIG.sicknessPopScale) : 1;
       const p = 1 - Math.pow(1 - ev.chancePerSecond * scale, dt);
       if (rng() < p) {
         // No negation branch here any more: the only counterable event was
@@ -67,12 +67,12 @@ export function runConverters(dt) {
 
     const spec = def.converts;
     let batches = owned * spec.rate * dt;
-    for (const k in spec.in)  batches = Math.min(batches, (S.res[k] || 0) / spec.in[k]);
-    for (const k in spec.out) batches = Math.min(batches, ((c[k] || 0) - (S.res[k] || 0)) / spec.out[k]);
+    for (const k in spec.in)  batches = Math.min(batches, (me().res[k] || 0) / spec.in[k]);
+    for (const k in spec.out) batches = Math.min(batches, ((c[k] || 0) - (me().res[k] || 0)) / spec.out[k]);
     if (!(batches > 0)) continue;
 
-    for (const k in spec.in)  S.res[k] -= spec.in[k] * batches;
-    for (const k in spec.out) S.res[k] += spec.out[k] * batches;
+    for (const k in spec.in)  me().res[k] -= spec.in[k] * batches;
+    for (const k in spec.out) me().res[k] += spec.out[k] * batches;
   }
 }
 

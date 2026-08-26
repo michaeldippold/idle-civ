@@ -115,10 +115,10 @@ const findT = (id) => api.defById(id);
 // so it can serve as the "any era" event lookup.
 const findEv = (id) => api.MANIFESTS.bronze.events.find(e => e.id === id);
 function snap(label) {
-  const s = S();
-  console.log(`${label.padEnd(34)} pop=${s.pop} civ=${api.civilians()} ` +
-    `soldiers=${s.units.soldier} food=${s.res.food.toFixed(1)} wood=${s.res.wood.toFixed(1)} ` +
-    `stone=${s.res.stone.toFixed(1)} owned=${s.map ? s.map.owned.length : 0} barracks=${!!s.upgrades.barracks} dead=${s.dead}`);
+  const s = S(), p = api.me();
+  console.log(`${label.padEnd(34)} pop=${p.pop} civ=${api.civilians()} ` +
+    `soldiers=${p.units.soldier} food=${p.res.food.toFixed(1)} wood=${p.res.wood.toFixed(1)} ` +
+    `stone=${p.res.stone.toFixed(1)} owned=${s.map ? s.map.owned.length : 0} barracks=${!!p.upgrades.barracks} dead=${s.dead}`);
 }
 // idle()'s successor (E2): who could still be trained. People are never
 // "unassigned" any more -- they live somewhere -- but a queued unit order
@@ -184,10 +184,10 @@ api.ensureMap();
   // Pack them: every mouth is real, and none of this ground grows anything.
   for (const x of barren) S().map.pop[x.id] = api.capOf(x.id);
   api.syncPopMirror();
-  S().res.food = 0;
+  api.me().res.food = 0;
 }
 snap("start");
-const beforePop = S().pop, beforeHeld = S().map.owned.length;
+const beforePop = api.me().pop, beforeHeld = S().map.owned.length;
 run(240);
 // WHAT FAMINE DOES NOW, and this is a behaviour change worth stating: it
 // CONVERGES rather than kills. Each death shrinks the deficit, and emptied
@@ -197,19 +197,19 @@ run(240);
 // generation -- so starvation is a punishing correction, not a loss condition.
 // (Whether the game should still have a starvation LOSS is an open design
 // question, flagged 2026-08-25; the mechanism below is what the code does.)
-check("famine takes people when the ground cannot feed them", S().pop < beforePop);
+check("famine takes people when the ground cannot feed them", api.me().pop < beforePop);
 check("famine takes GROUND too -- emptied frontier hexes leave the dominion",
   S().map.owned.length < beforeHeld);
 check("the seat is never the hex that empties", S().map.owned.includes(api.world.home));
 run(600);
-const settled = S().pop;
+const settled = api.me().pop;
 run(300);
 check("and it converges: the realm stabilises at what its land can feed",
-  S().pop >= settled && !S().dead);
+  api.me().pop >= settled && !S().dead);
 api.setRngSource(null);
 
 reset(); api.ensureMap();
-S().res.wood = 80; S().res.stone = 40;    // materials up front; gathering has its own checks
+api.me().res.wood = 80; api.me().res.stone = 40;    // materials up front; gathering has its own checks
 run(5);
 // Everything you construct stands on GROUND now (2026-08-25), so a fixture
 // picks a hex and raises something on it. The Medicine Tent is the cheapest.
@@ -238,20 +238,20 @@ api.captureTile(fourth.id);
 api.setRngSource(() => 0.99);
 run(5);
 api.setRngSource(null);
-S().res.wood = 200; S().res.stone = 200;  // skip the grind, just testing cap behavior
+api.me().res.wood = 200; api.me().res.stone = 200;  // skip the grind, just testing cap behavior
 snap("fourth hex claimed; barracks should be revealed");
 // THE BARRACKS IS AN UPGRADE (2026-08-25). It was a cap-1 building whose only
 // effect was "you may now train Soldiers", which is a tech -- and upgrade
 // semantics give the once-only rule for free, without a `cap` field.
 check("barracks revealed once the dominion grows past the trio", api.isRevealed(findU("barracks")));
 api.build(findU("barracks"));
-check("first barracks queued", S().buildQueue.some(q => q.id === "barracks"));
+check("first barracks queued", api.me().buildQueue.some(q => q.id === "barracks"));
 api.build(findU("barracks"));
-check("second barracks refused -- an upgrade is bought once", S().buildQueue.filter(q => q.id === "barracks").length === 1);
+check("second barracks refused -- an upgrade is bought once", api.me().buildQueue.filter(q => q.id === "barracks").length === 1);
 run(31);
-check("barracks completed", S().upgrades.barracks === true);
+check("barracks completed", api.me().upgrades.barracks === true);
 api.build(findU("barracks"));
-check("can't queue a 2nd barracks once owned either", S().buildQueue.length === 0);
+check("can't queue a 2nd barracks once owned either", api.me().buildQueue.length === 0);
 
 // ---- Soldier: popCost reserves a civilian immediately, not on completion ----
 console.log("\n--- Soldier: popCost reserves a civilian the instant it's queued ---");
@@ -259,9 +259,9 @@ console.log("\n--- Soldier: popCost reserves a civilian the instant it's queued 
 // civilian and shift every count this section asserts on.
 api.setRngSource(() => 0.999999);
 reset();
-S().pop = 6;
-S().builds.hut = 1; S().upgrades.barracks = true;
-S().res.wood = 50;
+api.me().pop = 6;
+api.me().builds.hut = 1; api.me().upgrades.barracks = true;
+api.me().res.wood = 50;
 snap("6 pop, barracks built");
 check("6 spare civilians before training", spare() === 6);
 const soldierDef = findT("soldier");
@@ -270,10 +270,10 @@ api.build(soldierDef);
 snap("soldier order queued (not yet complete)");
 check("spare drops by 1 the instant it's queued, before completion", spare() === 5);
 check("civilians() unchanged yet -- reservation, not conversion", api.civilians() === 6);
-check("S.units.soldier still 0 -- not combat-effective until trained", S().units.soldier === 0);
+check("S.units.soldier still 0 -- not combat-effective until trained", api.me().units.soldier === 0);
 run(soldierDef.buildTime + 1);
 snap("after training completes");
-check("S.units.soldier now 1", S().units.soldier === 1);
+check("S.units.soldier now 1", api.me().units.soldier === 1);
 check("civilians() dropped by 1 -- permanently converted", api.civilians() === 5);
 check("spare settles at 5 (reservation -> conversion is a wash)", spare() === 5);
 
@@ -282,48 +282,48 @@ api.setRngSource(null);
 
 console.log("\n--- Cancel a queued Soldier order -- reservation freed ---");
 reset();
-S().pop = 6;
-S().builds.hut = 1; S().upgrades.barracks = true;
-S().res.wood = 50;
+api.me().pop = 6;
+api.me().builds.hut = 1; api.me().upgrades.barracks = true;
+api.me().res.wood = 50;
 const spareBefore = spare();
 api.build(findT("soldier"));
 check("spare dropped after queuing", spare() === spareBefore - 1);
-const uid = S().buildQueue[0].uid;
+const uid = api.me().buildQueue[0].uid;
 api.cancelBuild(uid);
 check("spare restored after cancelling", spare() === spareBefore);
-check("no soldier was created", S().units.soldier === 0);
+check("no soldier was created", api.me().units.soldier === 0);
 
 // ---- A dying unit drops both its own count and S.pop ----
 console.log("\n--- removeRandomUnit: the roster lightens, the land is untouched ---");
 reset(); api.ensureMap();
-S().units.soldier = 2; api.syncPopMirror();
+api.me().units.soldier = 2; api.syncPopMirror();
 const landBefore0 = api.hexPopSum();
-const popBefore = S().pop;
+const popBefore = api.me().pop;
 api.removeRandomUnit();
-check("units.soldier dropped by 1", S().units.soldier === 1);
+check("units.soldier dropped by 1", api.me().units.soldier === 1);
 check("the mirror counts one fewer; the hexes keep their people",
-  S().pop === popBefore - 1 && api.hexPopSum() === landBefore0);
+  api.me().pop === popBefore - 1 && api.hexPopSum() === landBefore0);
 
 // ---- Weapon/armor upgrades affect military math ----
 console.log("\n--- Weapon/armor upgrades ---");
 reset();
-S().units.soldier = 3;
+api.me().units.soldier = 3;
 check("base weapon multiplier is 1.0", api.weaponMultiplier() === 1.0);
 check("militaryStrength = soldier count with no upgrade", api.militaryStrength() === 3);
-S().upgrades.flintSpears = true;
+api.me().upgrades.flintSpears = true;
 check("flintSpears raises the multiplier", api.weaponMultiplier() === 1.6);
 check("militaryStrength scales with it", Math.abs(api.militaryStrength() - 4.8) < 0.001);
 check("base armor factor is 1.0 (no reduction)", api.armorFactor() === 1.0);
-S().upgrades.hideArmor = true;
+api.me().upgrades.hideArmor = true;
 check("hideArmor halves the casualty-chance factor", api.armorFactor() === 0.5);
 
 // ---- Conflict: gated below pop 4 ----
 console.log("\n--- Conflict: gated below pop 4, same as sickness ---");
 reset();
 api.setRngSource(() => 0);   // force every roll to "hit" if attempted at all
-const popBefore2 = S().pop;
+const popBefore2 = api.me().pop;
 api.resolveEvents(1);
-check("no conflict effect below the pop gate", S().pop === popBefore2 && S().dead === false);
+check("no conflict effect below the pop gate", api.me().pop === popBefore2 && S().dead === false);
 api.setRngSource(null);
 
 // Call conflict's resolve() directly (not resolveEvents()) for these -- Sickness
@@ -334,8 +334,8 @@ const conflictEv = findEv("conflict");
 // ---- Conflict: zero defense always loses the repel check ----
 console.log("\n--- Conflict: zero soldiers -> raid always succeeds, resources stolen ---");
 reset(); api.ensureMap();
-S().units.soldier = 0; api.syncPopMirror();
-S().res.food = 40; S().res.wood = 40;
+api.me().units.soldier = 0; api.syncPopMirror();
+api.me().res.food = 40; api.me().res.wood = 40;
 check("repelChance is exactly 0 with no soldiers", 0 / (0 + 2) === 0);
 {
   const landBefore = api.hexPopSum();
@@ -346,8 +346,8 @@ check("repelChance is exactly 0 with no soldiers", 0 / (0 + 2) === 0);
   api.setRngSource(() => { calls++; return calls <= 2 ? 0 : 0.99; });
   conflictEv.resolve(S(), 1);
   api.setRngSource(null);
-  console.log(`  after forced raid: land=${api.hexPopSum()} food=${S().res.food} wood=${S().res.wood}`);
-  check("resources were stolen", S().res.food < 40 && S().res.wood < 40);
+  console.log(`  after forced raid: land=${api.hexPopSum()} food=${api.me().res.food} wood=${api.me().res.wood}`);
+  check("resources were stolen", api.me().res.food < 40 && api.me().res.wood < 40);
   check("the civilian died ON a hex -- the land count dropped (E5)",
     api.hexPopSum() < landBefore);
 }
@@ -355,33 +355,33 @@ check("repelChance is exactly 0 with no soldiers", 0 / (0 + 2) === 0);
 // ---- Conflict: strong defense can repel cleanly ----
 console.log("\n--- Conflict: strong defense (many soldiers) can repel cleanly ---");
 reset();
-S().pop = 30; S().units.soldier = 20;   // defense=20 vs a small raid(2) -> repelChance ~0.909
+api.me().pop = 30; api.me().units.soldier = 20;   // defense=20 vs a small raid(2) -> repelChance ~0.909
 {
   let calls = 0;
   // call1: trigger fires. call2: raid size -> 0 = smallest tier (2).
   // call3: raid TYPE -> 0 = warband (no counter, so composition is irrelevant).
   // call4: repel check -> 0.01 < 0.909, repelled. call5: costly check -> 0.99, NOT costly.
   api.setRngSource(() => { calls++; return [0, 0, 0, 0.01, 0.99][calls - 1] ?? 0.99; });
-  const soldiersBefore = S().units.soldier;
+  const soldiersBefore = api.me().units.soldier;
   conflictEv.resolve(S(), 1);
   api.setRngSource(null);
-  check("clean repel: no soldiers lost", S().units.soldier === soldiersBefore);
-  check("population untouched", S().pop === 30);
+  check("clean repel: no soldiers lost", api.me().units.soldier === soldiersBefore);
+  check("population untouched", api.me().pop === 30);
 }
 
 // ---- Conflict: repelled but costly still costs a soldier ----
 console.log("\n--- Conflict: repelled-but-costly still costs a Soldier ---");
 reset();
-S().pop = 30; S().units.soldier = 20;
+api.me().pop = 30; api.me().units.soldier = 20;
 {
   let calls = 0;
   // Same as above but force the costly-repel roll LOW instead of high.
   // Sequence: trigger, raid size, raid TYPE, repel check, costly-repel check.
   api.setRngSource(() => { calls++; return [0, 0, 0, 0.01, 0][calls - 1] ?? 0.99; });
-  const soldiersBefore = S().units.soldier;
+  const soldiersBefore = api.me().units.soldier;
   conflictEv.resolve(S(), 1);
   api.setRngSource(null);
-  check("costly repel: exactly one soldier lost", S().units.soldier === soldiersBefore - 1);
+  check("costly repel: exactly one soldier lost", api.me().units.soldier === soldiersBefore - 1);
   check("still just attrition, not a wipe", S().dead === false);
 }
 
@@ -429,19 +429,19 @@ reset();
 check("stone cap is the era-authored 350 (4c; was 50 + storage)", api.caps().stone === 350);
 // Post-E2 this tests the CLAMP alone -- gathering has its own hex-based
 // checks now, and a 600s mining window would need a fed settlement besides.
-S().res.stone = 200;
+api.me().res.stone = 200;
 run(1);
-check("stone clamps at the era cap now", S().res.stone <= api.caps().stone + 0.001);
-S().builds.stoneYard = 9;    // a legacy count from an old save: INERT since 4c
+check("stone clamps at the era cap now", api.me().res.stone <= api.caps().stone + 0.001);
+api.me().builds.stoneYard = 9;    // a legacy count from an old save: INERT since 4c
 check("no building moves a cap any more (4c)", api.caps().stone === 350);
-S().builds.stoneYard = 0;
+api.me().builds.stoneYard = 0;
 
 // ---- v7: Stone Tools bumps all three gather multipliers ----
 console.log("\n--- v7: Stone Tools ---");
 reset();
 const before7 = api.mults();
 check("no bonus without Stone Tools", before7.food === 1 && before7.wood === 1 && before7.stone === 1);
-S().upgrades.stoneTools = true;
+api.me().upgrades.stoneTools = true;
 const after7 = api.mults();
 check("Stone Tools adds +8% to all three", Math.abs(after7.food - 1.08) < 0.0001 &&
   Math.abs(after7.wood - 1.08) < 0.0001 && Math.abs(after7.stone - 1.08) < 0.0001);
@@ -453,7 +453,7 @@ check("Stone Tools adds +8% to all three", Math.abs(after7.food - 1.08) < 0.0001
 check("multipliers are tech only -- no building lifts a global rate", (() => {
   const before = api.mults().food;
   putStructures("infirmary", 3);
-  S().upgrades.barracks = true;
+  api.me().upgrades.barracks = true;
   return api.mults().food === before;
 })());
 check("a structure lifts the HEX it stands on instead", (() => {
@@ -462,40 +462,40 @@ check("a structure lifts the HEX it stands on instead", (() => {
   if (!forest) return true;
   if (!S().map.owned.includes(forest.id)) S().map.owned.push(forest.id);
   const bare = api.hexYield(forest.id).rate;
-  S().era = "bronze";
+  api.me().era = "bronze";
   S().map.built[forest.id] = "lumberCamp";
   const built = api.hexYield(forest.id);
-  S().era = "stone"; delete S().map.built[forest.id];
+  api.me().era = "stone"; delete S().map.built[forest.id];
   return built.res === "wood" && built.rate > bare;
 })());
 
 // ---- v7: Great Hunt (food windfall) and Trader (wood+stone windfall) ----
 console.log("\n--- v7: positive events -- Great Hunt & Trader ---");
 reset();
-S().pop = 5;
+api.me().pop = 5;
 const huntEv = findEv("greatHunt");
 const traderEv = findEv("trader");
 {
   api.setRngSource(() => 0); // force the trigger to fire
-  const foodBefore = S().res.food;
+  const foodBefore = api.me().res.food;
   api.resolveEvents(1); // forced roll: greatHunt fires first in the list
   api.setRngSource(null);
-  console.log(`  after forced greatHunt/trader tick: food=${S().res.food} wood=${S().res.wood} stone=${S().res.stone}`);
-  check("food increased (Great Hunt landed)", S().res.food > foodBefore);
+  console.log(`  after forced greatHunt/trader tick: food=${api.me().res.food} wood=${api.me().res.wood} stone=${api.me().res.stone}`);
+  check("food increased (Great Hunt landed)", api.me().res.food > foodBefore);
 }
 reset();
-S().pop = 5;
+api.me().pop = 5;
 {
-  const woodBefore = S().res.wood, stoneBefore = S().res.stone;
+  const woodBefore = api.me().res.wood, stoneBefore = api.me().res.stone;
   traderEv.effect(S());
-  check("trader gives both wood and stone", S().res.wood > woodBefore && S().res.stone > stoneBefore);
+  check("trader gives both wood and stone", api.me().res.wood > woodBefore && api.me().res.stone > stoneBefore);
 }
 reset();
-S().pop = 5;
+api.me().pop = 5;
 {
-  const foodBefore2 = S().res.food;
+  const foodBefore2 = api.me().res.food;
   huntEv.effect(S());
-  check("great hunt gives only food, not wood/stone", S().res.food > foodBefore2 && S().res.wood === 0 && S().res.stone === 0);
+  check("great hunt gives only food, not wood/stone", api.me().res.food > foodBefore2 && api.me().res.wood === 0 && api.me().res.stone === 0);
 }
 
 // ---- The board is whole from frame one ----
@@ -572,16 +572,16 @@ const woodHex = S().map.owned.find((id) => {
 });
 S().map.pop[woodHex] = 8;
 api.syncPopMirror();
-S().res.stone = 40;                      // the quarry has its own checks
+api.me().res.stone = 40;                      // the quarry has its own checks
 run(90);
 {
   const plan = api.structurePlan("infirmary");
-  check("enough timber gathered to afford the Medicine Tent", S().res.wood >= plan.cost.wood);
+  check("enough timber gathered to afford the Medicine Tent", api.me().res.wood >= plan.cost.wood);
   const spot = S().map.owned.find((id) => id !== api.world.home);
   api.launchStructure(spot, "infirmary");
-  check("it actually entered the queue", S().buildQueue.length === 1);
+  check("it actually entered the queue", api.me().buildQueue.length === 1);
   run(25); // let it finish, queue drains back to empty
-  check("it finished, queue now empty again", S().buildQueue.length === 0);
+  check("it finished, queue now empty again", api.me().buildQueue.length === 0);
 }
 
 // ================= BRONZE AGE PHASE 1 =================
@@ -597,14 +597,14 @@ reset();
 // STRUCTURE now -- the re-dress rule is the same wherever the def lives.
 const sInf = (era) => api.MANIFESTS[era].structures.find((d) => d.id === "infirmary");
 check("stone: infirmary named 'Medicine Tent'", api.structureDef("infirmary").name === "Medicine Tent");
-S().era = "bronze";
+api.me().era = "bronze";
 check("bronze: infirmary named 'Infirmary'", api.structureDef("infirmary").name === "Infirmary");
 check("ids never change regardless of era", !!sInf("stone") && !!sInf("bronze"));
 check("a later era's name can't reach back and rename the earlier copy",
   sInf("stone").name === "Medicine Tent");
 check("re-dressing the name does not disturb the price",
   sInf("bronze").base.wood === sInf("stone").base.wood);
-S().era = "stone";
+api.me().era = "stone";
 check("un-overridden defs read the same in both eras", api.defById("barracks").name === "Barracks" &&
   api.MANIFESTS.bronze.upgrades.find(u => u.id === "barracks").name === "Barracks");
 
@@ -614,12 +614,12 @@ const seatTerrain = api.world.places[api.world.home].terrain;
 const capStone = api.capOf(api.world.home);
 check("stone: the seat's ground holds what its terrain says",
   capStone === api.MANIFESTS.stone.map.popCaps[seatTerrain]);
-S().era = "bronze";
+api.me().era = "bronze";
 check("bronze: the SAME ground now holds more -- caps are the era curve",
   api.capOf(api.world.home) === api.MANIFESTS.bronze.map.popCaps[seatTerrain]);
 check("advancing raised the ceiling without building anything",
   api.capOf(api.world.home) > capStone);
-S().era = "stone";
+api.me().era = "stone";
 
 console.log("\n--- Bronze P1: capstone reveal gating ---");
 // S.pop is a MIRROR since E3: fixtures populate the HEXES and let the mirror
@@ -639,13 +639,13 @@ reset(); api.ensureMap();
 // pass or fail on the seed. Worth knowing as balance, not only as a flake:
 // the Bronze capstone's pop gate is now within sight of a fresh start.
 for (const id of S().map.owned) S().map.pop[id] = 1;
-S().units.soldier = 1; api.syncPopMirror();
+api.me().units.soldier = 1; api.syncPopMirror();
 check("a Soldier alone is not enough -- needs pop too", !api.isRevealed(bronzeAgeDef));
 reset(); api.ensureMap();
 for (const id of S().map.owned) S().map.pop[id] = 10;
-S().units.soldier = 1; api.syncPopMirror();
+api.me().units.soldier = 1; api.syncPopMirror();
 check("both conditions met -> capstone reveals", api.isRevealed(bronzeAgeDef));
-S().units.soldier = 0;
+api.me().units.soldier = 0;
 check("stays revealed after the soldier dies (sticky)", api.isRevealed(bronzeAgeDef));
 console.log(`  capstone cost: ${JSON.stringify(api.buildCost(bronzeAgeDef))}, buildTime ${bronzeAgeDef.buildTime}s`);
 
@@ -655,26 +655,26 @@ console.log("\n--- Bronze P1: completing the capstone flips the era ---");
 api.setRngSource(() => 0.999999);
 reset(); api.ensureMap();
 for (const id of S().map.owned) S().map.pop[id] = 10;
-S().units.soldier = 1; api.syncPopMirror();
+api.me().units.soldier = 1; api.syncPopMirror();
 // (allocation line removed 2026-08-25: ground works its own terrain now)
-S().res.food = 400; S().res.wood = 400; S().res.stone = 400;
-check("era starts as stone", S().era === "stone");
+api.me().res.food = 400; api.me().res.wood = 400; api.me().res.stone = 400;
+check("era starts as stone", api.me().era === "stone");
 const peopleBeforeFlip = api.hexPopSum();
 api.build(bronzeAgeDef);
-check("capstone entered the queue", S().buildQueue.length === 1 && S().buildQueue[0].id === "bronzeAge");
-check("era has NOT flipped merely by queuing it", S().era === "stone");
+check("capstone entered the queue", api.me().buildQueue.length === 1 && api.me().buildQueue[0].id === "bronzeAge");
+check("era has NOT flipped merely by queuing it", api.me().era === "stone");
 run(bronzeAgeDef.buildTime - 5);
-check("era still stone while mid-build", S().era === "stone");
+check("era still stone while mid-build", api.me().era === "stone");
 run(10);
-check("era flipped to bronze on completion", S().era === "bronze");
-check("capstone recorded as an owned upgrade", S().upgrades.bronzeAge === true);
+check("era flipped to bronze on completion", api.me().era === "bronze");
+check("capstone recorded as an owned upgrade", api.me().upgrades.bronzeAge === true);
 check("Bronze is a 1:1 relabel -- the real population is untouched",
   api.hexPopSum() >= peopleBeforeFlip);
 check("...but the noun changed: families now", api.active().popNoun.singular === "family");
-check("pre-transition snapshot archived under the era just left", !!S().eraHistory.stone);
+check("pre-transition snapshot archived under the era just left", !!api.me().eraHistory.stone);
 check("snapshot captured pre-flip facts (era still stone inside it)",
-  S().eraHistory.stone.era === "stone" && S().eraHistory.stone.pop >= 10);
-check("snapshots don't nest snapshots", S().eraHistory.stone.eraHistory === undefined);
+  api.me().eraHistory.stone.era === "stone" && api.me().eraHistory.stone.pop >= 10);
+check("snapshots don't nest snapshots", api.me().eraHistory.stone.eraHistory === undefined);
 
 api.setRngSource(null);
 
@@ -688,9 +688,9 @@ check("Bronze Tools absent from the stone manifest -- can't render, can't build"
 console.log("\n--- Bronze P1: Bronze Tools stacks with Stone Tools ---");
 reset();
 check("no tools: multiplier is 1", api.mults().food === 1);
-S().upgrades.stoneTools = true;
+api.me().upgrades.stoneTools = true;
 check("stone tools only: 1.08", Math.abs(api.mults().food - 1.08) < 0.0001);
-S().upgrades.bronzeTools = true;
+api.me().upgrades.bronzeTools = true;
 check("both stack additively: 1.23", Math.abs(api.mults().food - 1.23) < 0.0001);
 check("applies to all three resources", Math.abs(api.mults().stone - 1.23) < 0.0001);
 
@@ -746,12 +746,21 @@ console.log("\n--- Bronze P1: old stone-age saves still load ---");
   // re-run the module's own load() by invoking it through a fresh eval is
   // overkill; instead assert the merge shape the loader relies on.
   const merged = Object.assign(api.freshState(), JSON.parse(legacy));
-  merged.builds = Object.assign(api.freshState().builds, JSON.parse(legacy).builds);
   api.S = merged;
-  check("legacy save keeps its era", S().era === "stone");
+  // A legacy save has its civ fields at the TOP level (the player split moved
+  // them into S.players on 2026-08-26), so the fixture has to seat them the way
+  // load() does rather than assigning onto a world object that no longer holds
+  // them. This IS the migration path under test.
+  api.S.players = [Object.assign(api.freshPlayer(0), {
+    era: JSON.parse(legacy).era,
+    builds: Object.assign(api.freshPlayer(0).builds, JSON.parse(legacy).builds),
+    upgrades: JSON.parse(legacy).upgrades || {},
+  })];
+  api.S.me = 0;
+  check("legacy save keeps its era", api.me().era === "stone");
   check("nothing legacy grants an upgrade or puts a work on the board",
-    !S().upgrades.barracks && api.builtCount("forge") === 0);
-  check("legacy save's inert build counts ride along untouched", S().builds.hut === 2);
+    !api.me().upgrades.barracks && api.builtCount("forge") === 0);
+  check("legacy save's inert build counts ride along untouched", api.me().builds.hut === 2);
   // (the housing check died in E3 with housing itself)
   delete store[api.CONFIG.saveKey];
 }
@@ -829,7 +838,7 @@ console.log("\n--- Era availability (presence in the compiled manifests) ---");
   check("era order is chronological", api.ERA_ORDER.indexOf("stone") < api.ERA_ORDER.indexOf("bronze"));
 }
 {
-  S().era = "bronze";
+  api.me().era = "bronze";
   const html = api.infoPanelHTML();
   check("active tab follows the current era", html.includes('class="info-tab active" data-era="bronze"'));
 }
@@ -864,7 +873,7 @@ console.log("\n--- E3: the timer, the hut and the lockstep are gone, and stay go
   check("people still grew on the ground they hold",
     api.hexPopSum() > 7);
   check("S.pop mirrors the real population (people + army)",
-    S().pop === api.hexPopSum() + Object.values(S().units).reduce((a, b) => a + b, 0));
+    api.me().pop === api.hexPopSum() + Object.values(api.me().units).reduce((a, b) => a + b, 0));
 
   // Claims are priced by the ERA: stone pays food and time only.
   const target = Object.values(api.world.places)
@@ -878,19 +887,19 @@ console.log("\n--- E3: the timer, the hut and the lockstep are gone, and stay go
     plan && plan.cost.food > 0 && plan.cost.wood > 0 && plan.time > 0);
   check("...and never in stone at Stone, which only hills give", !("stone" in plan.cost));
   check("...but never in a resource the era does not have", !("bronze" in plan.cost));
-  S().era = "bronze";
+  api.me().era = "bronze";
   const plan2 = api.settlePlan(target.id);
   check("a bronze claim carries the age's signature metal (the capstone rule, applied to the frontier)",
     plan2 && plan2.cost.bronze > 0 && plan2.cost.wood > plan.cost.wood);
-  S().era = "iron";
+  api.me().era = "iron";
   const plan3 = api.settlePlan(target.id);
   check("an iron claim carries iron", plan3 && plan3.cost.iron > 0);
-  S().era = "stone";
+  api.me().era = "stone";
 
   // And the claim actually grows the dominion, through the queue.
-  S().res.food = 400; S().res.wood = 200; S().res.stone = 200;
+  api.me().res.food = 400; api.me().res.wood = 200; api.me().res.stone = 200;
   api.launchSettle(target.id);
-  check("the claim entered the queue", S().buildQueue.some((q) => q.kind === "settle"));
+  check("the claim entered the queue", api.me().buildQueue.some((q) => q.kind === "settle"));
   run(plan.time + 60);
   check("the claim completed: the dominion grew by exactly one, paid for",
     S().map.owned.length === 4 && api.isOwned(target.id));
@@ -921,7 +930,7 @@ reset();
     !api.MANIFESTS.stone.buildings.some(b => b.id === "forge"));
   check("stone-era rates have no copper line at all",
     !("copper" in api.rates()));
-  S().era = "bronze";
+  api.me().era = "bronze";
   check("copper/tin/bronze all present in bronze",
     inRes("bronze", "copper") && inRes("bronze", "tin") && inRes("bronze", "bronze"));
   check("bronze mines the hills for copper and tin", (() => {
@@ -939,7 +948,7 @@ reset();
 
 console.log("\n--- P2: tin yields half of copper (same hill, same people) ---");
 reset();
-S().era = "bronze";
+api.me().era = "bronze";
 {
   // Fixture hexes the rebuilt world doesn't know would work at par, which
   // defeats a terrain-rate test -- so build a minimal map by hand instead:
@@ -985,9 +994,9 @@ reset();
     }
   }
   // Legacy storage counts from an old save move nothing.
-  S().era = "bronze";
+  api.me().era = "bronze";
   const before = JSON.stringify(api.caps());
-  S().builds.oreYard = 3; S().builds.granary = 3;
+  api.me().builds.oreYard = 3; api.me().builds.granary = 3;
   check("legacy storage counts are inert: caps identical", JSON.stringify(api.caps()) === before);
 }
 
@@ -1002,82 +1011,82 @@ reset(); api.ensureMap();
   api.setRngSource(() => 0.99);            // no events: measure only the flows
   for (const id of S().map.owned) S().map.pop[id] = 3;
   api.syncPopMirror();
-  S().res.food = 100;
+  api.me().res.food = 100;
   api.step();                              // prime growthSpendRate from a real tick
   check("growth visibly spends the larder", api.growthSpendRate > 0);
   const predicted = api.ledgerRates().foodNet;
-  const before = S().res.food;
+  const before = api.me().res.food;
   api.step();
-  const actual = (S().res.food - before) / api.TICK_SECONDS;
+  const actual = (api.me().res.food - before) / api.TICK_SECONDS;
   check("the ledger's food line matches what the pile actually does",
     Math.abs(predicted - actual) < 0.02);
   // The residual guard: a tick may compute a hair below zero, but nothing --
   // display, save, or the next tick -- may ever see it.
-  S().res.wood = -1e-12; S().res.food = -1e-12;
+  api.me().res.wood = -1e-12; api.me().res.food = -1e-12;
   api.step();
   check("no resource ends a tick below zero (the -1 display bug)",
-    S().res.wood >= 0 && S().res.food >= 0);
+    api.me().res.wood >= 0 && api.me().res.food >= 0);
   api.setRngSource(null);
 }
 
 console.log("\n--- P2: the Forge converts, throttles, and idles ---");
 reset();
-S().era = "bronze";
+api.me().era = "bronze";
 putStructures("forge", 1);
-S().res.copper = 100; S().res.tin = 100;
+api.me().res.copper = 100; api.me().res.tin = 100;
 {
   const spec = forgeDef.converts;
   console.log(`  recipe: ${JSON.stringify(spec.in)} -> ${JSON.stringify(spec.out)} @ ${spec.rate}/s per forge`);
-  const before = { copper: S().res.copper, tin: S().res.tin, bronze: S().res.bronze };
+  const before = { copper: api.me().res.copper, tin: api.me().res.tin, bronze: api.me().res.bronze };
   api.runConverters(10);            // 10 seconds at 0.05/s = 0.5 bronze
-  const made = S().res.bronze - before.bronze;
+  const made = api.me().res.bronze - before.bronze;
   check("bronze was produced", made > 0);
   check("copper consumed at the recipe ratio",
-    Math.abs((before.copper - S().res.copper) - made * spec.in.copper) < 1e-9);
+    Math.abs((before.copper - api.me().res.copper) - made * spec.in.copper) < 1e-9);
   check("tin consumed at the recipe ratio",
-    Math.abs((before.tin - S().res.tin) - made * spec.in.tin) < 1e-9);
+    Math.abs((before.tin - api.me().res.tin) - made * spec.in.tin) < 1e-9);
 }
 {
   // Two forges must smelt exactly twice as fast as one.
-  reset(); S().era = "bronze"; S().res.copper = 500; S().res.tin = 500;
+  reset(); api.me().era = "bronze"; api.me().res.copper = 500; api.me().res.tin = 500;
   putStructures("forge", 1); api.runConverters(10);
-  const one = S().res.bronze;
-  reset(); S().era = "bronze"; S().res.copper = 500; S().res.tin = 500;
+  const one = api.me().res.bronze;
+  reset(); api.me().era = "bronze"; api.me().res.copper = 500; api.me().res.tin = 500;
   putStructures("forge", 2); api.runConverters(10);
-  check("throughput scales with forge count", Math.abs(S().res.bronze - one * 2) < 1e-9);
+  check("throughput scales with forge count", Math.abs(api.me().res.bronze - one * 2) < 1e-9);
 }
 {
   // Starved of tin, it should run at partial rate then stop -- never go negative.
-  reset(); S().era = "bronze"; putStructures("forge", 5);
-  S().res.copper = 1000; S().res.tin = 2;
+  reset(); api.me().era = "bronze"; putStructures("forge", 5);
+  api.me().res.copper = 1000; api.me().res.tin = 2;
   api.runConverters(60);
-  check("tin drained to exactly zero, not below", Math.abs(S().res.tin) < 1e-9);
-  check("bronze made was limited by the scarce input", Math.abs(S().res.bronze - 2) < 1e-9);
-  check("leftover copper stays in store", S().res.copper > 0);
-  const bronzeAfterStall = S().res.bronze;
+  check("tin drained to exactly zero, not below", Math.abs(api.me().res.tin) < 1e-9);
+  check("bronze made was limited by the scarce input", Math.abs(api.me().res.bronze - 2) < 1e-9);
+  check("leftover copper stays in store", api.me().res.copper > 0);
+  const bronzeAfterStall = api.me().res.bronze;
   api.runConverters(60);
-  check("idles cleanly once an input is exhausted", S().res.bronze === bronzeAfterStall);
-  check("copper is not consumed while stalled", S().res.copper > 0);
+  check("idles cleanly once an input is exhausted", api.me().res.bronze === bronzeAfterStall);
+  check("copper is not consumed while stalled", api.me().res.copper > 0);
 }
 {
   // A full bronze store must stop the forge rather than eating ore for nothing.
-  reset(); S().era = "bronze"; putStructures("forge", 3);
-  S().res.copper = 1000; S().res.tin = 1000;
-  S().res.bronze = api.caps().bronze;
-  const oreBefore = { copper: S().res.copper, tin: S().res.tin };
+  reset(); api.me().era = "bronze"; putStructures("forge", 3);
+  api.me().res.copper = 1000; api.me().res.tin = 1000;
+  api.me().res.bronze = api.caps().bronze;
+  const oreBefore = { copper: api.me().res.copper, tin: api.me().res.tin };
   api.runConverters(60);
   check("no ore consumed when the output is capped",
-    S().res.copper === oreBefore.copper && S().res.tin === oreBefore.tin);
-  check("bronze never exceeds its cap", S().res.bronze <= api.caps().bronze + 1e-9);
+    api.me().res.copper === oreBefore.copper && api.me().res.tin === oreBefore.tin);
+  check("bronze never exceeds its cap", api.me().res.bronze <= api.caps().bronze + 1e-9);
 }
 
 console.log("\n--- P2: weapon tiers replace rather than stack ---");
 reset();
-S().units.soldier = 10;
+api.me().units.soldier = 10;
 check("unarmed baseline", api.weaponMultiplier() === 1.0);
-S().upgrades.flintSpears = true;
+api.me().upgrades.flintSpears = true;
 check("flint tier", api.weaponMultiplier() === 1.6);
-S().upgrades.bronzeWeapons = true;
+api.me().upgrades.bronzeWeapons = true;
 check("bronze tier supersedes flint (not 1.6 x 2.2)", api.weaponMultiplier() === 2.2);
 check("military strength follows the highest tier", Math.abs(api.militaryStrength() - 22) < 1e-9);
 
@@ -1086,13 +1095,13 @@ console.log("\n--- P2: bronze-costed upgrades ---");
   const bt = findU("bronzeTools"), bw = findU("bronzeWeapons");
   check("Bronze Tools now costs bronze", "bronze" in api.buildCost(bt));
   check("Bronze Weapons costs bronze", "bronze" in api.buildCost(bw));
-  reset(); S().era = "bronze";
-  S().res.wood = 999; S().res.bronze = 0;
+  reset(); api.me().era = "bronze";
+  api.me().res.wood = 999; api.me().res.bronze = 0;
   api.build(bt);
-  check("can't buy a bronze-costed upgrade with no bronze", S().buildQueue.length === 0);
-  S().res.bronze = 999;
+  check("can't buy a bronze-costed upgrade with no bronze", api.me().buildQueue.length === 0);
+  api.me().res.bronze = 999;
   api.build(bt);
-  check("can once you've smelted some", S().buildQueue.length === 1);
+  check("can once you've smelted some", api.me().buildQueue.length === 1);
 }
 
 console.log("\n--- E2: the jobs system is gone, and stays gone ---");
@@ -1121,11 +1130,11 @@ check("bronze inherits stone's raid types unchanged", api.MANIFESTS.stone.raidTy
 
 console.log("\n--- P3: units are NEVER penalised for being the wrong type ---");
 reset();
-S().era = "bronze";
+api.me().era = "bronze";
 {
   // This is the load-bearing guarantee of the whole system: "oops all archers"
   // must never be worse than having those bodies at all.
-  S().units = { soldier: 0, archer: 5, horseman: 0 };
+  api.me().units = { soldier: 0, archer: 5, horseman: 0 };
   const vsCountered = api.militaryStrength(massed);   // archers excel here
   const vsNeutral   = api.militaryStrength(warband);  // no counter exists
   const vsWrong     = api.militaryStrength(riders);   // horsemen would excel, archers don't
@@ -1134,17 +1143,17 @@ S().era = "bronze";
   check("wrong matchup is NOT penalised, just un-bonused", vsWrong === vsNeutral);
   check("wrong matchup still beats having no army", vsWrong > 0);
 
-  S().units = { soldier: 0, archer: 0, horseman: 0 };
+  api.me().units = { soldier: 0, archer: 0, horseman: 0 };
   check("no army really is zero", api.militaryStrength(riders) === 0);
 }
 
 console.log("\n--- P3: the counter bonus lands on the right unit ---");
 reset();
-S().era = "bronze";
+api.me().era = "bronze";
 {
-  S().units = { soldier: 0, archer: 3, horseman: 0 };
+  api.me().units = { soldier: 0, archer: 3, horseman: 0 };
   const archersVsMassed = api.militaryStrength(massed);
-  S().units = { soldier: 0, archer: 0, horseman: 3 };
+  api.me().units = { soldier: 0, archer: 0, horseman: 3 };
   const horsemenVsRiders = api.militaryStrength(riders);
   const horsemenVsMassed = api.militaryStrength(massed);
   check("archers get their bonus vs a massed charge",
@@ -1159,12 +1168,12 @@ S().era = "bronze";
 
 console.log("\n--- P3: mixed armies have no holes, specialists have spikes ---");
 reset();
-S().era = "bronze";
+api.me().era = "bronze";
 {
-  S().units = { soldier: 2, archer: 2, horseman: 2 };
+  api.me().units = { soldier: 2, archer: 2, horseman: 2 };
   const mixed = RAID_TYPES.map(t => api.militaryStrength(t));
   const spread = Math.max(...mixed) / Math.min(...mixed);
-  S().units = { soldier: 0, archer: 6, horseman: 0 };
+  api.me().units = { soldier: 0, archer: 6, horseman: 0 };
   const pure = RAID_TYPES.map(t => api.militaryStrength(t));
   const pureSpread = Math.max(...pure) / Math.min(...pure);
   console.log(`  mixed spread ${spread.toFixed(2)}x vs all-archer spread ${pureSpread.toFixed(2)}x`);
@@ -1174,26 +1183,26 @@ S().era = "bronze";
 
 console.log("\n--- P3: weapon upgrades lift every unit type ---");
 reset();
-S().era = "bronze";
-S().units = { soldier: 1, archer: 1, horseman: 1 };
+api.me().era = "bronze";
+api.me().units = { soldier: 1, archer: 1, horseman: 1 };
 {
   const before = api.militaryStrength(warband);
-  S().upgrades.bronzeWeapons = true;
+  api.me().upgrades.bronzeWeapons = true;
   check("bronze weapons scale the whole army, not just soldiers",
     Math.abs(api.militaryStrength(warband) - before * 2.2) < 1e-9);
 }
 
 console.log("\n--- P3: counterCoverage drives the casualty-relief dial ---");
 reset();
-S().era = "bronze";
+api.me().era = "bronze";
 {
-  S().units = { soldier: 0, archer: 0, horseman: 0 };
+  api.me().units = { soldier: 0, archer: 0, horseman: 0 };
   check("no army -> no coverage", api.counterCoverage(massed) === 0);
-  S().units = { soldier: 0, archer: 4, horseman: 0 };
+  api.me().units = { soldier: 0, archer: 4, horseman: 0 };
   check("all-counter army -> full coverage", Math.abs(api.counterCoverage(massed) - 1) < 1e-9);
-  S().units = { soldier: 4, archer: 0, horseman: 0 };
+  api.me().units = { soldier: 4, archer: 0, horseman: 0 };
   check("no counters present -> zero coverage", api.counterCoverage(massed) === 0);
-  S().units = { soldier: 4, archer: 4, horseman: 0 };
+  api.me().units = { soldier: 4, archer: 4, horseman: 0 };
   const partial = api.counterCoverage(massed);
   check("partial coverage lands strictly between", partial > 0 && partial < 1);
   check("a warband can never be countered", api.counterCoverage(warband) === 0);
@@ -1201,21 +1210,21 @@ S().era = "bronze";
 
 console.log("\n--- P3: casualties can take any unit type ---");
 reset(); api.ensureMap();
-S().era = "bronze";
+api.me().era = "bronze";
 {
-  S().units = { soldier: 3, archer: 3, horseman: 3 };
+  api.me().units = { soldier: 3, archer: 3, horseman: 3 };
   api.syncPopMirror();
-  const popBefore9 = S().pop;
+  const popBefore9 = api.me().pop;
   const lost = api.removeRandomUnit();
   check("a unit was removed and named", typeof lost === "string" && lost.length > 0);
   check("total units dropped by one", api.totalUnits() === 8);
-  check("the mirror dropped with it (the land untouched)", S().pop === popBefore9 - 1);
+  check("the mirror dropped with it (the land untouched)", api.me().pop === popBefore9 - 1);
 
   // Drain the whole army: must never go negative or desync from pop.
   let guard = 0;
   while (api.totalUnits() > 0 && guard++ < 50) api.removeRandomUnit();
   check("army drains to exactly zero", api.totalUnits() === 0);
-  check("no unit count went negative", api.MANIFESTS.bronze.units.every(u => (S().units[u.id] || 0) >= 0));
+  check("no unit count went negative", api.MANIFESTS.bronze.units.every(u => (api.me().units[u.id] || 0) >= 0));
   check("removing from an empty army is a no-op", api.removeRandomUnit() === null);
 }
 
@@ -1226,9 +1235,9 @@ console.log("\n--- P3: casualty exposure -- front line dies first, but nobody is
   const tally = { soldier: 0, archer: 0, horseman: 0 };
   for (let i = 0; i < N; i++) {
     reset();
-    S().era = "bronze";
-    S().pop = 30;
-    S().units = { soldier: 10, archer: 10, horseman: 10 };
+    api.me().era = "bronze";
+    api.me().pop = 30;
+    api.me().units = { soldier: 10, archer: 10, horseman: 10 };
     const lost = api.removeRandomUnit();
     if (lost === "Soldier") tally.soldier++;
     else if (lost === "Archer") tally.archer++;
@@ -1246,8 +1255,8 @@ console.log("\n--- P3: casualty exposure -- front line dies first, but nobody is
   let archersLost = 0;
   for (let i = 0; i < 500; i++) {
     reset();
-    S().era = "bronze";
-    S().pop = 10; S().units = { soldier: 0, archer: 5, horseman: 0 };
+    api.me().era = "bronze";
+    api.me().pop = 10; api.me().units = { soldier: 0, archer: 5, horseman: 0 };
     if (api.removeRandomUnit() === "Archer") archersLost++;
   }
   check("an all-archer army gets no protection at all", archersLost === 500);
@@ -1256,11 +1265,11 @@ console.log("\n--- P3: casualty exposure -- front line dies first, but nobody is
   // Heavily outnumbered front line: archers should still usually be spared,
   // but the guarantee is only statistical, never absolute.
   reset();
-  S().era = "bronze";
-  S().pop = 20; S().units = { soldier: 1, archer: 15, horseman: 0 };
+  api.me().era = "bronze";
+  api.me().pop = 20; api.me().units = { soldier: 1, archer: 15, horseman: 0 };
   let soldierPicked = false, archerPicked = false;
   for (let i = 0; i < 400; i++) {
-    S().units = { soldier: 1, archer: 15, horseman: 0 };
+    api.me().units = { soldier: 1, archer: 15, horseman: 0 };
     const lost = api.removeRandomUnit();
     if (lost === "Soldier") soldierPicked = true;
     if (lost === "Archer") archerPicked = true;
@@ -1279,35 +1288,35 @@ console.log("\n--- P3: casualty exposure -- front line dies first, but nobody is
 
 console.log("\n--- P3: training buildings gate their units, capped at one ---");
 reset();
-S().era = "bronze";
+api.me().era = "bronze";
 {
   check("archer hidden without an archery range", !api.isRevealed(archerDef));
   check("horseman hidden without stables", !api.isRevealed(horseDef));
-  S().upgrades.barracks = true;
+  api.me().upgrades.barracks = true;
   check("archery range revealed by a barracks", api.isRevealed(findU("archeryRange")));
-  S().upgrades.archeryRange = true; S().upgrades.stables = true;
+  api.me().upgrades.archeryRange = true; api.me().upgrades.stables = true;
   check("archer revealed by the range", api.isRevealed(archerDef));
   check("horseman revealed by the stables", api.isRevealed(horseDef));
   // Bought-once is upgrade semantics now, not a `cap: 1` field.
   check("an owned range cannot be bought again",
-    (S().upgrades.archeryRange = true, api.isRevealed(findU("archeryRange")) &&
-      (api.build(findU("archeryRange")), S().buildQueue.length === 0)));
+    (api.me().upgrades.archeryRange = true, api.isRevealed(findU("archeryRange")) &&
+      (api.build(findU("archeryRange")), api.me().buildQueue.length === 0)));
 }
 
 console.log("\n--- P3: Scouting is gated on the upgrade, not just the building ---");
 reset();
-S().era = "bronze";
+api.me().era = "bronze";
 {
   const scoutEv = findEv("scoutFind");
-  S().upgrades.stables = true;
+  api.me().upgrades.stables = true;
   check("stables alone does not enable scouting events", !scoutEv.condition(S()));
   check("Scouting upgrade revealed by the stables", api.isRevealed(findU("scouting")));
-  S().upgrades.scouting = true;
+  api.me().upgrades.scouting = true;
   check("the upgrade enables them", scoutEv.condition(S()));
-  const before = { wood: S().res.wood, stone: S().res.stone, copper: S().res.copper };
+  const before = { wood: api.me().res.wood, stone: api.me().res.stone, copper: api.me().res.copper };
   scoutEv.effect(S());
-  check("a scouting find pays out", S().res.wood > before.wood && S().res.stone > before.stone &&
-    S().res.copper > before.copper);
+  check("a scouting find pays out", api.me().res.wood > before.wood && api.me().res.stone > before.stone &&
+    api.me().res.copper > before.copper);
   check("scouting events are bronze-only (slate membership)",
     api.MANIFESTS.bronze.events.some(e => e.id === "scoutFind") &&
     !api.MANIFESTS.stone.events.some(e => e.id === "scoutFind"));
@@ -1324,8 +1333,8 @@ console.log("\n--- P3: end-to-end raid with composition ---");
 {
   // Same forced sequence as the earlier conflict tests, now with a real army.
   reset();
-  S().era = "bronze"; S().pop = 30;
-  S().units = { soldier: 0, archer: 20, horseman: 0 };
+  api.me().era = "bronze"; api.me().pop = 30;
+  api.me().units = { soldier: 0, archer: 20, horseman: 0 };
   const conflictEv2 = findEv("conflict");
   let calls = 0;
   // trigger fires; smallest raid size; raid type = warband; repel succeeds; not costly.
@@ -1334,7 +1343,7 @@ console.log("\n--- P3: end-to-end raid with composition ---");
   conflictEv2.resolve(S(), 1);
   api.setRngSource(null);
   check("a well-defended settlement repels cleanly", api.totalUnits() === unitsBefore);
-  check("nobody died", S().pop === 30);
+  check("nobody died", api.me().pop === 30);
 }
 
 // ============ REGRESSION: reservations must never outrun the living ============
@@ -1345,8 +1354,8 @@ console.log("\n--- P3: end-to-end raid with composition ---");
 console.log("\n--- BUG: reservations must never outrun the living ---");
 {
   reset(); api.ensureMap();
-  S().era = "bronze";
-  S().upgrades.barracks = true; S().res.wood = 500;
+  api.me().era = "bronze";
+  api.me().upgrades.barracks = true; api.me().res.wood = 500;
   api.syncPopMirror();
   api.build(findT("soldier"));            // reserves one civilian
   check("one order queued", api.reserved() === 1);
@@ -1359,8 +1368,8 @@ console.log("\n--- BUG: reservations must never outrun the living ---");
   // Harsher: a raid guts the settlement with more orders queued than
   // survivors. Deaths are hex deaths now; the invariant is eternal.
   reset(); api.ensureMap();
-  S().era = "bronze";
-  S().upgrades.barracks = true; S().res.wood = 500;
+  api.me().era = "bronze";
+  api.me().upgrades.barracks = true; api.me().res.wood = 500;
   for (const id of S().map.owned) S().map.pop[id] = 2;
   api.syncPopMirror();                     // 6 civilians
   api.build(findT("soldier"));
@@ -1368,33 +1377,33 @@ console.log("\n--- BUG: reservations must never outrun the living ---");
   api.build(findT("soldier"));
   api.build(findT("soldier"));
   check("four orders queued", api.reserved() === 4);
-  const woodAfterOrders = S().res.wood;
+  const woodAfterOrders = api.me().res.wood;
   for (const id of S().map.owned) api.killAt(id, 2);
   api.reconcileReservations();
-  console.log(`  after the massacre: civ=${api.civilians()} reserved=${api.reserved()} queue=${S().buildQueue.length}`);
+  console.log(`  after the massacre: civ=${api.civilians()} reserved=${api.reserved()} queue=${api.me().buildQueue.length}`);
   check("orders with nobody left to train were abandoned", api.reserved() <= Math.max(0, api.civilians()));
-  check("abandoned orders were refunded", S().res.wood > woodAfterOrders);
+  check("abandoned orders were refunded", api.me().res.wood > woodAfterOrders);
 }
 {
   // A dominion of nothing but trained units has no one for the world to
   // strike: every hex is empty, so strikes find no target.
   reset(); api.ensureMap();
   for (const id of S().map.owned) S().map.pop[id] = 0;
-  S().units = { soldier: 3, archer: 0, horseman: 0 };
+  api.me().units = { soldier: 3, archer: 0, horseman: 0 };
   api.syncPopMirror();
   check("no civilians to begin with", api.civilians() === 0);
   check("the world cannot strike an empty dominion", api.strikeHex("sickness") === null);
-  check("population never drops below the units it contains", S().pop >= api.totalUnits());
+  check("population never drops below the units it contains", api.me().pop >= api.totalUnits());
 }
 {
   // Fuzz it: random armies, random queues, random deaths.
   let worstIdle = 0, worstCiv = 0;
   for (let t = 0; t < 400; t++) {
     reset();
-    S().era = "bronze";
-    S().builds = Object.assign(S().builds, { barracks: 1, archeryRange: 1, stables: 1 });
-    S().res = { food: 900, wood: 900, stone: 900, copper: 900, tin: 900, bronze: 900 };
-    S().pop = 6 + Math.floor(Math.random() * 10);
+    api.me().era = "bronze";
+    api.me().builds = Object.assign(api.me().builds, { barracks: 1, archeryRange: 1, stables: 1 });
+    api.me().res = { food: 900, wood: 900, stone: 900, copper: 900, tin: 900, bronze: 900 };
+    api.me().pop = 6 + Math.floor(Math.random() * 10);
     for (let q = 0; q < Math.floor(Math.random() * 4); q++) {
       api.build(pickOne([findT("soldier"), findT("archer"), findT("horseman")]));
     }
@@ -1439,16 +1448,16 @@ console.log("\n--- Free growth: the purchase model is fully excised ---");
     // larder pays to replace them.
     const hex = S().map.owned.find((id) => api.capOf(id) > 2);
     S().map.pop[hex] = api.capOf(hex) - 1;
-    S().res.food = api.caps().food;
-    const foodBefore = S().res.food;
+    api.me().res.food = api.caps().food;
+    const foodBefore = api.me().res.food;
     api.growPopulation(1);
-    return S().res.food < foodBefore;
+    return api.me().res.food < foodBefore;
   })());
   check("a settlement with an empty larder cannot grow at all", (() => {
     reset(); api.ensureMap();
     const hex = S().map.owned.find((id) => id !== api.world.home);
     S().map.pop[hex] = 2;
-    S().res.food = 0;
+    api.me().res.food = 0;
     const before = S().map.pop[hex];
     api.growPopulation(5);
     return S().map.pop[hex] === before;
@@ -1463,7 +1472,7 @@ console.log("\n--- Free growth: the purchase model is fully excised ---");
       const hex = S().map.owned.slice().sort((a, b) => api.capOf(b) - api.capOf(a))[0];
       S().map.pop[hex] = 2;
       api.syncPopMirror();
-      S().res.food = food;
+      api.me().res.food = food;
       const before = S().map.pop[hex];
       api.growPopulation(30);
       return S().map.pop[hex] - before;
@@ -1636,14 +1645,16 @@ console.log("\n--- Phase B: the migration runner ---");
     ],
   });
   reset();
-  S().res.bronze = 21; S().res.tin = 40; S().res.wood = 7; S().res.iron = 0;
-  S().pop = 10;
-  const snapshot = JSON.parse(JSON.stringify(S()));
+  api.me().res.bronze = 21; api.me().res.tin = 40; api.me().res.wood = 7; api.me().res.iron = 0;
+  api.me().pop = 10;
+  // The snapshot is of the CIVILIZATION since the player split: a border is
+  // something one civ crosses, so its books are what gets frozen.
+  const snapshot = JSON.parse(JSON.stringify(api.me()));
   api.runEraMigrations(OLD, NEW, snapshot);
-  check("convertTo: bronze became iron at the ratio, floored", S().res.iron === 10);
-  check("convertTo zeroes the source", S().res.bronze === 0);
-  check("vanish zeroes tin", S().res.tin === 0);
-  check("untouched state carries", S().res.wood === 7);
+  check("convertTo: bronze became iron at the ratio, floored", api.me().res.iron === 10);
+  check("convertTo zeroes the source", api.me().res.bronze === 0);
+  check("vanish zeroes tin", api.me().res.tin === 0);
+  check("untouched state carries", api.me().res.wood === 7);
 
   // Formulas read the SNAPSHOT, not live state: an fn that reads a value an
   // earlier instruction already zeroed must still see the pre-transition number.
@@ -1657,10 +1668,10 @@ console.log("\n--- Phase B: the migration runner ---");
     ],
   });
   reset();
-  S().res.bronze = 15; S().res.iron = 0;
-  api.runEraMigrations(OLD, NEW2, JSON.parse(JSON.stringify(S())));
-  check("fn reads the frozen snapshot, immune to instruction order", S().res.iron === 30);
-  check("...while the live vanish still applied", S().res.bronze === 0);
+  api.me().res.bronze = 15; api.me().res.iron = 0;
+  api.runEraMigrations(OLD, NEW2, JSON.parse(JSON.stringify(api.me())));
+  check("fn reads the frozen snapshot, immune to instruction order", api.me().res.iron === 30);
+  check("...while the live vanish still applied", api.me().res.bronze === 0);
 }
 
 // ================= C1: THE IRON AGE ECONOMY FLIP =================
@@ -1719,7 +1730,7 @@ console.log("\n--- C1: capstone gating and the real transition ---");
 {
   api.setRngSource(() => 0.999999);   // no hazards during the long build
   reset();
-  S().era = "bronze";
+  api.me().era = "bronze";
   api.initAdversaries(); api.ensureMap();
   const capstone = api.MANIFESTS.bronze.upgrades.find(u => u.id === "ironAge");
   // The gate is 50 real people now: give the trio deep pops (held above cap,
@@ -1727,50 +1738,50 @@ console.log("\n--- C1: capstone gating and the real transition ---");
   for (const id of S().map.owned) S().map.pop[id] = 20;
   api.syncPopMirror();
   check("pop alone does not reveal the iron capstone", !api.isRevealed(capstone));
-  S().units.archer = 1; api.syncPopMirror();
+  api.me().units.archer = 1; api.syncPopMirror();
   check("pop + a composition unit reveals it", api.isRevealed(capstone));
 
   // A real bronze settlement takes the leap: stocked ores, workers on the
   // dead jobs, bronze in store -- everything the migration must handle.
   reset();
-  S().era = "bronze";
-  S().pop = 20; S().units = { soldier: 2, archer: 1, horseman: 1 };
+  api.me().era = "bronze";
+  api.me().pop = 20; api.me().units = { soldier: 2, archer: 1, horseman: 1 };
   // No forge in this fixture: a running forge would keep smelting during the
   // 180s build and the bronze-at-flip number would drift off 70.
-  S().builds = Object.assign(S().builds, { hut: 4, barracks: 1 });
+  api.me().builds = Object.assign(api.me().builds, { hut: 4, barracks: 1 });
   // (storage died in 4c -- the era caps themselves carry the deep larder now)
-  S().res = Object.assign(S().res, { food: 450, wood: 450, stone: 450, bronze: 120, copper: 33, tin: 12 });
+  api.me().res = Object.assign(api.me().res, { food: 450, wood: 450, stone: 450, bronze: 120, copper: 33, tin: 12 });
   api.ensureMap();
   // (allocation line removed 2026-08-25: ground works its own terrain now)
   api.build(capstone);
-  check("capstone queued and paid", S().buildQueue.length === 1 && S().res.bronze === 70);
-  S().res.food = 2000;   // the capstone ate 400 of the larder; the hex
+  check("capstone queued and paid", api.me().buildQueue.length === 1 && api.me().res.bronze === 70);
+  api.me().res.food = 2000;   // the capstone ate 400 of the larder; the hex
                          // populations eat harder than the old fixture did
   run(185);
-  check("era flipped to iron", S().era === "iron");
-  check("copper and tin vanished, narrated", S().res.copper === 0 && S().res.tin === 0);
-  check("bronze became gold at 1:4, floored", S().res.gold === Math.floor(70 * 0.25));
-  check("bronze stock zeroed by the conversion", S().res.bronze === 0);
+  check("era flipped to iron", api.me().era === "iron");
+  check("copper and tin vanished, narrated", api.me().res.copper === 0 && api.me().res.tin === 0);
+  check("bronze became gold at 1:4, floored", api.me().res.gold === Math.floor(70 * 0.25));
+  check("bronze stock zeroed by the conversion", api.me().res.bronze === 0);
   // (the ore-job walk-home check died in E2 -- there are no jobs to walk home from)
   // The border is a pure re-denomination since E2: no consolidation, no land
   // taken, nothing shrinks. (The old keep-0.25 cut died when the harness
   // caught it colliding with dominion-never-shrinks.)
-  const snapPop = S().eraHistory.bronze.pop;
+  const snapPop = api.me().eraHistory.bronze.pop;
   check("families kept arriving during the long build", snapPop >= 20);
   check("the border takes nothing: population survives the crossing whole",
-    S().pop >= snapPop - 4);
+    api.me().pop >= snapPop - 4);
   check("the border takes nothing: every hex crossed with you",
-    S().map.owned.length >= 1 && S().pop >= S().map.owned.length);
+    S().map.owned.length >= 1 && api.me().pop >= S().map.owned.length);
   check("the fighting bands carry whole across a levy border",
-    S().units.soldier === 2 && S().units.archer === 1 && S().units.horseman === 1);
+    api.me().units.soldier === 2 && api.me().units.archer === 1 && api.me().units.horseman === 1);
   // (The walked-home check died with the S.jobs bucket on 2026-08-25: the jobs
   // system left in E2, and the bucket it swept stopped being seeded.)
   // (levyMigrated and the border bread-default died in E5 with the levy --
   // allocation exists from frame one and captures default to food themselves.)
   check("the noun re-denominates at the border", api.active().popNoun.singular === "subject");
   check("the books balance after all of it", spare() >= 0 && api.reserved() <= Math.max(0, api.civilians()));
-  check("bronze-era snapshot archived at the border", !!S().eraHistory.bronze &&
-    S().eraHistory.bronze.res.bronze === 70);
+  check("bronze-era snapshot archived at the border", !!api.me().eraHistory.bronze &&
+    api.me().eraHistory.bronze.res.bronze === 70);
   // (housing died in E3 -- its absence is asserted in the E3 tombstone block)
   api.setRngSource(null);
 }
@@ -1779,7 +1790,7 @@ console.log("\n--- C1: iron-era economy runs ---");
 {
   api.setRngSource(() => 0.999999);
   reset();
-  S().era = "iron";
+  api.me().era = "iron";
   // Iron comes out of a MINE on hills you hold (2026-08-25). These used to be
   // fixture ids no world contained, working "at par"; ground has real terrain
   // now, so the fixture is real hills with real mines on them.
@@ -1795,12 +1806,12 @@ console.log("\n--- C1: iron-era economy runs ---");
   S().map.built = {};
   for (const h of oreHills) S().map.built[h.id] = "ironMine";
   api.syncPopMirror();
-  S().res.food = 200;
+  api.me().res.food = 200;
   run(30);
   // 2 mined hills x 4 people x 0.2/s x rate 1.0 x 30s = 48.
-  check("iron flows from mined hills (2 mines of 4 people, 30s, ~48)", S().res.iron > 40);
-  putStructures("forge", 2); S().res.iron = 60; S().res.wood = 40;
-  const w0 = S().res.wood;
+  check("iron flows from mined hills (2 mines of 4 people, 30s, ~48)", api.me().res.iron > 40);
+  putStructures("forge", 2); api.me().res.iron = 60; api.me().res.wood = 40;
+  const w0 = api.me().res.wood;
   // Read the rate rather than restating it: it was hard-coded into five
   // separate checks, so retuning the Forge in 2026-08 meant editing all five
   // and getting every one right. A check that repeats a balance number is a
@@ -1809,10 +1820,10 @@ console.log("\n--- C1: iron-era economy runs ---");
   const batches = 2 * iRate * 10;                    // 2 forges x rate x 10s
   api.runConverters(10);
   check("the Forge makes steel from iron AND wood",
-    Math.abs(S().res.steel - batches) < 1e-9 &&
-    Math.abs((w0 - S().res.wood) - 2 * batches) < 1e-9);
+    Math.abs(api.me().res.steel - batches) < 1e-9 &&
+    Math.abs((w0 - api.me().res.wood) - 2 * batches) < 1e-9);
   check("iron consumed at the recipe ratio",
-    Math.abs(S().res.iron - (60 - 3 * batches)) < 1e-9);
+    Math.abs(api.me().res.iron - (60 - 3 * batches)) < 1e-9);
   const c = api.caps();
   check("caps RETURN at Iron (4c) -- and gold alone stays boundless",
     Number.isFinite(c.food) && Number.isFinite(c.wood) && Number.isFinite(c.stone) &&
@@ -1823,19 +1834,19 @@ console.log("\n--- C1: iron-era economy runs ---");
 console.log("\n--- C1: tiers supersede across eras ---");
 {
   reset();
-  S().units.soldier = 10;
-  S().upgrades.flintSpears = true; S().upgrades.bronzeWeapons = true;
+  api.me().units.soldier = 10;
+  api.me().upgrades.flintSpears = true; api.me().upgrades.bronzeWeapons = true;
   check("bronze tier active", api.weaponMultiplier() === 2.2);
-  S().upgrades.ironWeapons = true;
+  api.me().upgrades.ironWeapons = true;
   check("iron weapons supersede (3.0, not stacked)", api.weaponMultiplier() === 3.0);
-  S().upgrades.hideArmor = true;
+  api.me().upgrades.hideArmor = true;
   check("hide armor halves", api.armorFactor() === 0.5);
-  S().upgrades.steelArmor = true;
+  api.me().upgrades.steelArmor = true;
   check("steel armor supersedes (0.3)", api.armorFactor() === 0.3);
-  S().upgrades.stoneTools = true; S().upgrades.bronzeTools = true; S().upgrades.ironTools = true;
+  api.me().upgrades.stoneTools = true; api.me().upgrades.bronzeTools = true; api.me().upgrades.ironTools = true;
   check("tool tiers stack additively to 1.45", Math.abs(api.mults().food - 1.45) < 1e-9);
   check("owned bronze-era upgrades keep working after leaving the shop",
-    (S().era = "iron", api.weaponMultiplier() === 3.0 && api.armorFactor() === 0.3));
+    (api.me().era = "iron", api.weaponMultiplier() === 3.0 && api.armorFactor() === 0.3));
 }
 
 // ================= C2: ADVERSARIES & EXPEDITIONS =================
@@ -1950,13 +1961,13 @@ console.log("\n--- C2: what an age can muster ---");
   check("the war camp retires at iron -- hide tents do not stage a legion",
     !api.MANIFESTS.iron.upgrades.some((u) => u.id === "warCamp"));
 
-  api.S.era = "bronze";
+  api.me().era = "bronze";
   check("nothing musters until the camp stands", !api.musterBuilt());
-  api.S.upgrades.warCamp = true;
+  api.me().upgrades.warCamp = true;
   check("...but it does once it does", api.musterBuilt());
 
-  api.S.era = "iron";
-  api.S.upgrades.warCamp = true; delete api.S.upgrades.musterGround;
+  api.me().era = "iron";
+  api.me().upgrades.warCamp = true; delete api.me().upgrades.musterGround;
   check("a war camp does not muster an iron column", !api.musterBuilt());
 
   // Territory sizes the army, in every era. Bronze holds 12 hexes at most and
@@ -1974,55 +1985,55 @@ console.log("\n--- A refusal always says why ---");
   // launchCampaign() has, so the modal can never claim a march is possible that
   // the sim will then quietly refuse.
   reset();
-  api.S.era = "iron";
+  api.me().era = "iron";
   api.initAdversaries(); api.ensureMap();
   const minor = Object.values(api.world.places).find((p) => p.minor);
   const ref = "tile:" + minor.id;
-  api.S.upgrades.musterGround = true;
-  api.S.units = { soldier: 3, archer: 0, horseman: 0, siegeEngine: 0 };
-  api.S.res.food = 9999;
+  api.me().upgrades.musterGround = true;
+  api.me().units = { soldier: 3, archer: 0, horseman: 0, siegeEngine: 0 };
+  api.me().res.food = 9999;
 
   check("a full muster is allowed to march", api.campaignRefusal(ref, { soldier: 1 }) === null);
   check("an empty muster says so", /at least one fighter/i.test(api.campaignRefusal(ref, {}) || ""));
   check("fighters you do not have are refused in words",
     !!api.campaignRefusal(ref, { soldier: 99 }));
 
-  api.S.res.food = 1;
+  api.me().res.food = 1;
   const hungry = api.campaignRefusal(ref, { soldier: 3 });
   check("a column you cannot feed says how short you are", /short \d+ food/i.test(hungry || ""));
-  api.S.res.food = 9999;
+  api.me().res.food = 9999;
 
-  delete api.S.upgrades.musterGround;
+  delete api.me().upgrades.musterGround;
   check("no muster ground is named as the reason",
     /muster ground/i.test(api.campaignRefusal(ref, { soldier: 1 }) || ""));
-  api.S.upgrades.musterGround = true;
+  api.me().upgrades.musterGround = true;
 
   // THE GUARDS AND THE WORDS MUST AGREE. If the refusal says yes, the launch
   // must actually happen -- otherwise the modal enables a button that does
   // nothing, which is the original bug wearing a different coat.
-  const before = api.S.expeditions.length;
+  const before = api.me().expeditions.length;
   api.launchCampaign(ref, { soldier: 1 });
   check("when the refusal is null, the column really marches",
-    api.S.expeditions.length === before + 1);
+    api.me().expeditions.length === before + 1);
 
   // ...and where it says no, nothing happens.
-  reset(); api.S.era = "iron"; api.initAdversaries(); api.ensureMap();
-  api.S.upgrades.musterGround = true;
-  api.S.units = { soldier: 0, archer: 0, horseman: 0, siegeEngine: 0 };
+  reset(); api.me().era = "iron"; api.initAdversaries(); api.ensureMap();
+  api.me().upgrades.musterGround = true;
+  api.me().units = { soldier: 0, archer: 0, horseman: 0, siegeEngine: 0 };
   const ref2 = "tile:" + Object.values(api.world.places).find((p) => p.minor).id;
   check("and where it says no, the launch is refused too",
     !!api.campaignRefusal(ref2, {}) &&
-    (api.launchCampaign(ref2, {}), api.S.expeditions.length === 0));
+    (api.launchCampaign(ref2, {}), api.me().expeditions.length === 0));
 }
 
 console.log("\n--- C2: you march on what you can feed ---");
 {
   reset();
-  api.S.era = "bronze";
+  api.me().era = "bronze";
   api.initAdversaries(); api.ensureMap();
-  api.S.upgrades.warCamp = true;
-  api.S.units.soldier = 10;          // ten at home...
-  api.S.res.food = 5000;
+  api.me().upgrades.warCamp = true;
+  api.me().units.soldier = 10;          // ten at home...
+  api.me().res.food = 5000;
   api.syncPopMirror();
 
   const target = Object.values(api.world.places).find((p) => p.minor);
@@ -2068,20 +2079,20 @@ console.log("\n--- C2: you march on what you can feed ---");
 
   // Starve the larder to exactly one fighter's worth and the big column is
   // refused -- not by a cap, by arithmetic.
-  api.S.res.food = ten - 1;
+  api.me().res.food = ten - 1;
   api.launchCampaign(ref, { soldier: 10 });
   check("you cannot march an army you cannot provision",
     !api.expeditionOut("campaign"));
 
-  api.S.res.food = 5000;
+  api.me().res.food = 5000;
   api.launchCampaign(ref, { soldier: 10 });
   check("but ten CAN march when the food is there -- no headcount ceiling",
     api.expeditionOut("campaign"));
-  const ex = api.S.expeditions.find((e) => e.type === "campaign");
+  const ex = api.me().expeditions.find((e) => e.type === "campaign");
   check("and the column that left is exactly who was mustered",
     ex && api.columnSize(ex.units) === 10);
   check("the provisions actually left the larder",
-    api.S.res.food <= 5000 - ten);
+    api.me().res.food <= 5000 - ten);
 }
 
 console.log("\n--- C2: larders refill per age, grudges do not ---");
@@ -2106,7 +2117,7 @@ console.log("\n--- C2: larders refill per age, grudges do not ---");
   check("...and a breached wall stays breached",
     river().walls === 0 && steading().walls === 0);
 
-  api.S.era = "bronze";
+  api.me().era = "bronze";
   api.initAdversaries(); api.ensureMap();
   check("an age turns and the larder refills, larger than it was",
     river().stock.food > stoneFood && steading().stock.food > 0);
@@ -2115,7 +2126,7 @@ console.log("\n--- C2: larders refill per age, grudges do not ---");
   check("but the grudge outlives the granary -- standing is never re-seeded",
     river().standing === -4);
 
-  api.S.era = "iron";
+  api.me().era = "iron";
   api.initAdversaries(); api.ensureMap();
   check("a people that survives to Iron is richer again, and remembers still",
     Object.values(river().stock).reduce((a, b) => a + b, 0) > 400 &&
@@ -2129,7 +2140,7 @@ console.log("\n--- C2: larders refill per age, grudges do not ---");
 console.log("\n--- C2: living adversary state ---");
 {
   reset();
-  S().era = "iron";
+  api.me().era = "iron";
   api.initAdversaries();
   check("state seeded from the manifest", S().adversaries.hillClans &&
     S().adversaries.hillClans.stock.food === 120 && S().adversaries.hillClans.standing === 0);
@@ -2148,134 +2159,134 @@ console.log("\n--- C2: living adversary state ---");
 console.log("\n--- C2: deployment thins home defense ---");
 {
   reset();
-  S().era = "iron";
+  api.me().era = "iron";
   api.initAdversaries();
-  S().pop = 12; S().units = { soldier: 4, archer: 2, horseman: 0 };
+  api.me().pop = 12; api.me().units = { soldier: 4, archer: 2, horseman: 0 };
   const homeBefore = api.militaryStrength();
-  S().expeditions.push({ uid: 1, type: "campaign", adversary: "hillClans",
+  api.me().expeditions.push({ uid: 1, type: "campaign", adversary: "hillClans",
     units: { soldier: 3, archer: 1 }, total: 90, remaining: 90 });
   check("deployed units are counted", api.deployedCount("soldier") === 3 && api.availableUnits("soldier") === 1);
   check("home strength drops while the column is out", api.militaryStrength() < homeBefore);
   check("pop unchanged -- they're alive, just not home (civilians = pop minus ALL units, E5)",
-    api.civilians() === 6 && S().pop === 12);
+    api.civilians() === 6 && api.me().pop === 12);
   // Home casualties can only take who's home: deploy EVERYONE, then ask.
-  S().expeditions[0].units = { soldier: 4, archer: 2 };
+  api.me().expeditions[0].units = { soldier: 4, archer: 2 };
   check("with everyone deployed, home casualties find no one", api.removeRandomUnit() === null);
-  S().expeditions.length = 0;
+  api.me().expeditions.length = 0;
 }
 
 console.log("\n--- C2: launching expeditions ---");
 {
   reset();
-  S().era = "iron";
+  api.me().era = "iron";
   api.initAdversaries();
-  S().pop = 12; S().units = { soldier: 4, archer: 0, horseman: 0 };
-  S().res.food = 100;
+  api.me().pop = 12; api.me().units = { soldier: 4, archer: 0, horseman: 0 };
+  api.me().res.food = 100;
   api.launchCampaign("hillClans", { soldier: 2 });
-  check("no muster ground, no campaign", S().expeditions.length === 0);
-  S().upgrades.musterGround = true;
+  check("no muster ground, no campaign", api.me().expeditions.length === 0);
+  api.me().upgrades.musterGround = true;
   api.launchCampaign("hillClans", { soldier: 99 });
-  check("can't send more than are home", S().expeditions.length === 0);
+  check("can't send more than are home", api.me().expeditions.length === 0);
   api.launchCampaign("hillClans", {});
-  check("can't send nobody", S().expeditions.length === 0);
+  check("can't send nobody", api.me().expeditions.length === 0);
   // Provisions scale with the column now, so the expected figure is computed
   // rather than restated -- and computed BEFORE the launch spends it.
   const camPlan = api.campaignPlan("hillClans");
   const camFood = api.provisionsFor(camPlan, 2);
   api.launchCampaign("hillClans", { soldier: 2 });
   check("a legal campaign launches and pays provisions for exactly who went",
-    S().expeditions.length === 1 && S().res.food === 100 - camFood);
+    api.me().expeditions.length === 1 && api.me().res.food === 100 - camFood);
   api.launchCampaign("hillClans", { soldier: 1 });
-  check("one CAMPAIGN at a time", S().expeditions.filter(e => e.type === "campaign").length === 1);
+  check("one CAMPAIGN at a time", api.me().expeditions.filter(e => e.type === "campaign").length === 1);
   api.launchCaravan("riverKingdom");
   check("a caravan CAN roll while the campaign is out (parallel tracks)",
-    S().expeditions.length === 2 && S().expeditions.some(e => e.type === "caravan"));
-  check("the caravan paid its cargo up front", S().res.food === 100 - camFood - 60);
+    api.me().expeditions.length === 2 && api.me().expeditions.some(e => e.type === "caravan"));
+  check("the caravan paid its cargo up front", api.me().res.food === 100 - camFood - 60);
   check("deployment sums across everything that's out", api.deployedCount("soldier") === 2);
-  S().res.iron = 50;
+  api.me().res.iron = 50;
   api.launchCaravan("saltNomads");
-  check("...but only one CARAVAN at a time", S().expeditions.length === 2);
-  S().expeditions.length = 0;
+  check("...but only one CARAVAN at a time", api.me().expeditions.length === 2);
+  api.me().expeditions.length = 0;
   S().adversaries.riverKingdom.standing = -2;
-  S().res.food = 100;
+  api.me().res.food = 100;
   api.launchCaravan("riverKingdom");
-  check("a Hostile partner refuses your caravans", S().expeditions.length === 0);
+  check("a Hostile partner refuses your caravans", api.me().expeditions.length === 0);
 }
 
 console.log("\n--- C2.1: escorts decide how an ambush ends ---");
 {
   reset();
-  S().era = "iron";
+  api.me().era = "iron";
   api.initAdversaries();
-  S().upgrades.musterGround = true;
-  S().pop = 15; S().units = { soldier: 6, archer: 0, horseman: 0 };
+  api.me().upgrades.musterGround = true;
+  api.me().pop = 15; api.me().units = { soldier: 6, archer: 0, horseman: 0 };
   S().adversaries.hillClans.standing = -3;    // the roads are dangerous
-  S().res.food = 300; S().builds.treasury = 1;
+  api.me().res.food = 300; api.me().builds.treasury = 1;
 
   // Unescorted + forced ambush: cargo gone, their books never move.
   api.launchCaravan("riverKingdom");
-  S().expeditions[0].remaining = 0.1;
+  api.me().expeditions[0].remaining = 0.1;
   api.setRngSource(() => 0);         // ambush fires
   api.resolveExpeditions(0.2);
   api.setRngSource(null);
   check("unescorted ambush: cargo lost, nothing paid",
-    S().expeditions.length === 0 && S().res.gold === 0);
+    api.me().expeditions.length === 0 && api.me().res.gold === 0);
   check("the kingdom's books never moved", S().adversaries.riverKingdom.stock.gold === 240);
 
   // Escorted + forced ambush + forced fight-through: the trade completes.
-  S().res.food = 200;
+  api.me().res.food = 200;
   api.launchCaravan("riverKingdom", { soldier: 4 });
   check("escort rides out and is deployed", api.deployedCount("soldier") === 4);
   api.launchCampaign("hillClans", { soldier: 1 });
   check("deployment sums across both tracks",
     api.deployedCount("soldier") === 5 && api.availableUnits("soldier") === 1);
-  S().expeditions = S().expeditions.filter(e => e.type === "caravan");   // put the column back
-  S().expeditions[0].remaining = 0.1;
+  api.me().expeditions = api.me().expeditions.filter(e => e.type === "caravan");   // put the column back
+  api.me().expeditions[0].remaining = 0.1;
   let seq = [0, 0, 0.999];       // ambush fires; escort wins; no casualty
   api.setRngSource((() => { let n = 0; return () => seq[n++] ?? 0.999; })());
   api.resolveExpeditions(0.2);
   api.setRngSource(null);
-  check("the escort fought through and the trade completed", S().res.gold === 15);
+  check("the escort fought through and the trade completed", api.me().res.gold === 15);
   check("their gold moved this time", S().adversaries.riverKingdom.stock.gold === 225);
-  check("the escort came home whole", api.deployedCount("soldier") === 0 && S().units.soldier === 6);
+  check("the escort came home whole", api.deployedCount("soldier") === 0 && api.me().units.soldier === 6);
 
   // Escorted + forced loss: cargo gone and a guard falls.
-  S().res.food = 200;
+  api.me().res.food = 200;
   api.launchCaravan("riverKingdom", { soldier: 2 });
-  S().expeditions[0].remaining = 0.1;
+  api.me().expeditions[0].remaining = 0.1;
   seq = [0, 0.999];              // ambush fires; escort overwhelmed
   api.setRngSource((() => { let n = 0; return () => seq[n++] ?? 0.5; })());
   api.resolveExpeditions(0.2);
   api.setRngSource(null);
   check("a lost ambush costs the cargo and a guard -- but not the holdfast that raised them (levy)",
-    S().res.gold === 15 && S().units.soldier === 5 && S().pop === 15);
+    api.me().res.gold === 15 && api.me().units.soldier === 5 && api.me().pop === 15);
   check("no payment on a lost ambush", S().adversaries.riverKingdom.stock.gold === 225);
 }
 
 console.log("\n--- C2: campaign resolution -- victory (one-shot breach) ---");
 {
   reset();
-  S().era = "iron";
+  api.me().era = "iron";
   api.initAdversaries();
-  S().pop = 12; S().units = { soldier: 6, archer: 0, horseman: 0 };
-  S().upgrades.musterGround = true; S().res.food = 100;
-  S().builds.treasury = 1;
+  api.me().pop = 12; api.me().units = { soldier: 6, archer: 0, horseman: 0 };
+  api.me().upgrades.musterGround = true; api.me().res.food = 100;
+  api.me().builds.treasury = 1;
   api.launchCampaign("hillClans", { soldier: 6 });   // wall-power 6 vs palisade 5: one assault
   const st = S().adversaries.hillClans;
   const stockBefore = Object.assign({}, st.stock);
-  S().expeditions[0].remaining = 0.1;
+  api.me().expeditions[0].remaining = 0.1;
   api.setRngSource((() => { let n = 0; return () => [0, 0.999][n++] ?? 0.999; })());  // win, no casualty
   api.resolveExpeditions(0.2);
   api.setRngSource(null);
-  check("expedition resolved and cleared", S().expeditions.length === 0);
+  check("expedition resolved and cleared", api.me().expeditions.length === 0);
   check("the palisade came down in the same assault (power 6 >= walls 5)", st.walls === 0);
   check("plunder took 40% of each stock, floored",
     st.stock.food === stockBefore.food - Math.floor(stockBefore.food * 0.4) &&
     st.stock.gold === stockBefore.gold - Math.floor(stockBefore.gold * 0.4));
-  check("the plunder came home", S().res.gold >= Math.floor(stockBefore.gold * 0.4) &&
-    S().res.iron >= Math.floor(stockBefore.iron * 0.4));
+  check("the plunder came home", api.me().res.gold >= Math.floor(stockBefore.gold * 0.4) &&
+    api.me().res.iron >= Math.floor(stockBefore.iron * 0.4));
   check("standing fell -- plunder is not diplomacy", st.standing === -1);
-  check("nobody died on a clean win", S().units.soldier === 6 && S().pop === 12);
+  check("nobody died on a clean win", api.me().units.soldier === 6 && api.me().pop === 12);
   check("their stock is permanently poorer (stock, not economy)",
     st.stock.food < stockBefore.food);
 }
@@ -2283,44 +2294,44 @@ console.log("\n--- C2: campaign resolution -- victory (one-shot breach) ---");
 console.log("\n--- Siege: repelled at the walls, and the walls remember ---");
 {
   reset();
-  S().era = "iron";
+  api.me().era = "iron";
   api.initAdversaries();
-  S().pop = 10; S().units = { soldier: 2, archer: 0, horseman: 0 };
-  S().upgrades.musterGround = true; S().res.food = 200;
+  api.me().pop = 10; api.me().units = { soldier: 2, archer: 0, horseman: 0 };
+  api.me().upgrades.musterGround = true; api.me().res.food = 200;
   const st = S().adversaries.riverKingdom;
   check("the castle's walls are seeded from the manifest", st.walls === 26);
   api.launchCampaign("riverKingdom", { soldier: 2 });   // wall-power 2 vs walls 26: repelled
-  S().expeditions[0].remaining = 0.1;
-  const goldBefore = S().res.gold;
+  api.me().expeditions[0].remaining = 0.1;
+  const goldBefore = api.me().res.gold;
   api.setRngSource(() => 0.999);   // light-loss roll misses
   api.resolveExpeditions(0.2);
   api.setRngSource(null);
-  check("a failed breach is a retreat: everyone came home", S().units.soldier === 2 && S().pop === 10);
+  check("a failed breach is a retreat: everyone came home", api.me().units.soldier === 2 && api.me().pop === 10);
   check("no defender ever fell -- walls precede the field battle", true);
-  check("no loot from a repelled assault", S().res.gold === goldBefore);
+  check("no loot from a repelled assault", api.me().res.gold === goldBefore);
   check("but the scars persist: walls 26 -> 24", st.walls === 24);
   check("and they remember the attempt", st.standing === -1);
 
   // Grind it down with engines, then finally breach into a field defeat.
-  S().units.siegeEngine = 3;
-  S().res.food = 200;
+  api.me().units.siegeEngine = 3;
+  api.me().res.food = 200;
   api.launchCampaign("riverKingdom", { soldier: 2, siegeEngine: 3 });  // wall-power 2 + 3x6 = 20 < 24
-  S().expeditions[0].remaining = 0.1;
+  api.me().expeditions[0].remaining = 0.1;
   api.setRngSource(() => 0.999);
   api.resolveExpeditions(0.2);
   api.setRngSource(null);
   check("engines carve deep: walls 24 -> 4", st.walls === 4);
 
-  S().res.food = 200;
+  api.me().res.food = 200;
   api.launchCampaign("riverKingdom", { soldier: 2, siegeEngine: 3 });  // 20 >= 4: breached at last
-  S().expeditions[0].remaining = 0.1;
+  api.me().expeditions[0].remaining = 0.1;
   api.setRngSource(() => 0.999);   // field: lose the win roll; casualty draws follow
   api.resolveExpeditions(0.2);
   api.setRngSource(null);
   check("the battered walls finally give way -- and stay down", st.walls === 0);
   check("the field battle happened this time: casualties taken",
-    S().units.soldier + S().units.siegeEngine < 5);
-  check("still no loot from a lost field battle", S().res.gold === goldBefore);
+    api.me().units.soldier + api.me().units.siegeEngine < 5);
+  check("still no loot from a lost field battle", api.me().res.gold === goldBefore);
 }
 
 console.log("\n--- Re-denomination: nouns, inheritance, consolidation ---");
@@ -2368,17 +2379,17 @@ console.log("\n--- Re-denomination: nouns, inheritance, consolidation ---");
 console.log("\n--- Siege: the machinery of the engine itself ---");
 {
   reset();
-  S().era = "iron";
+  api.me().era = "iron";
   api.initAdversaries();
   check("nomads circle wagons, not walls (2)", S().adversaries.saltNomads.walls === 2);
   check("legacy adversary state gets walls raised once",
     (delete S().adversaries.hillClans.walls, api.initAdversaries(), S().adversaries.hillClans.walls === 5));
-  S().units = { soldier: 2, archer: 0, horseman: 0, siegeEngine: 2 };
+  api.me().units = { soldier: 2, archer: 0, horseman: 0, siegeEngine: 2 };
   check("wall-power: engines at x6, soldiers at x1 (2 + 12)",
     Math.abs(api.wallPower({ soldier: 2, siegeEngine: 2 }) - 14) < 1e-9);
-  S().upgrades.ironWeapons = true;
+  api.me().upgrades.ironWeapons = true;
   check("weapon tiers scale wall-power too", Math.abs(api.wallPower({ siegeEngine: 1 }) - 18) < 1e-9);
-  delete S().upgrades.ironWeapons;
+  delete api.me().upgrades.ironWeapons;
   check("in the field the engine is an ordinary unit",
     Math.abs(api.campaignStrength({ siegeEngine: 2 }, api.findAdversary("hillClans")) - 2) < 1e-9);
   check("and at home it defends at normal strength", Math.abs(api.militaryStrength() - 4) < 1e-9);
@@ -2398,17 +2409,17 @@ console.log("\n--- Siege: the machinery of the engine itself ---");
 console.log("\n--- C2: caravan resolution and the gold well running dry ---");
 {
   reset();
-  S().era = "iron";
+  api.me().era = "iron";
   api.initAdversaries();
-  S().upgrades.musterGround = true;
-  S().pop = 8; S().res.food = 200; S().builds.treasury = 1;
+  api.me().upgrades.musterGround = true;
+  api.me().pop = 8; api.me().res.food = 200; api.me().builds.treasury = 1;
   const st = S().adversaries.riverKingdom;
   api.launchCaravan("riverKingdom");
-  S().expeditions[0].remaining = 0.1;
+  api.me().expeditions[0].remaining = 0.1;
   api.setRngSource(() => 0.999);   // no route risk roll matters (no hostile warlike anyway)
   api.resolveExpeditions(0.2);
   api.setRngSource(null);
-  check("the caravan paid out", S().res.gold === 15);
+  check("the caravan paid out", api.me().res.gold === 15);
   check("their gold came out of their stock", st.stock.gold === 225);
   check("the sold food JOINED their stock", st.stock.food === 250 + 60);
   check("trade builds standing", st.standing === 1);
@@ -2416,66 +2427,66 @@ console.log("\n--- C2: caravan resolution and the gold well running dry ---");
   // Trade them dry: their gold is finite, so the well really empties.
   st.stock.gold = 4;
   api.launchCaravan("riverKingdom");
-  S().expeditions[0].remaining = 0.1;
+  api.me().expeditions[0].remaining = 0.1;
   api.setRngSource(() => 0.999);
   api.resolveExpeditions(0.2);
   api.setRngSource(null);
-  check("a nearly-dry partner pays what they have left", S().res.gold === 19 && st.stock.gold === 0);
+  check("a nearly-dry partner pays what they have left", api.me().res.gold === 19 && st.stock.gold === 0);
   api.launchCaravan("riverKingdom");
-  check("a traded-dry partner is refused at launch", S().expeditions.length === 0);
+  check("a traded-dry partner is refused at launch", api.me().expeditions.length === 0);
 
   // Friendly premium: standing >= 2 pays 25% more.
   st.stock.gold = 100; st.standing = 2;
-  S().res.food = 200;
+  api.me().res.food = 200;
   api.launchCaravan("riverKingdom");
-  S().expeditions[0].remaining = 0.1;
+  api.me().expeditions[0].remaining = 0.1;
   api.setRngSource(() => 0.999);
   api.resolveExpeditions(0.2);
   api.setRngSource(null);
-  check("a Friendly partner pays a premium", S().res.gold === 19 + Math.floor(15 * 1.25));
+  check("a Friendly partner pays a premium", api.me().res.gold === 19 + Math.floor(15 * 1.25));
 }
 
 console.log("\n--- C2: expeditions resolve through step() ---");
 {
   api.setRngSource(() => 0.999999);
   reset();
-  S().era = "iron";
+  api.me().era = "iron";
   api.initAdversaries();
-  S().pop = 10; S().units.soldier = 2;
-  S().upgrades.musterGround = true;
-  S().res.food = 300;
+  api.me().pop = 10; api.me().units.soldier = 2;
+  api.me().upgrades.musterGround = true;
+  api.me().res.food = 300;
   api.launchCaravan("saltNomads");   // needs 40 iron -- wait, nomads buy iron
-  check("caravan needs its cargo in store", S().expeditions.length === 0);
-  S().res.iron = 50;
+  check("caravan needs its cargo in store", api.me().expeditions.length === 0);
+  api.me().res.iron = 50;
   api.launchCaravan("saltNomads");
-  check("cargo paid", Math.abs(S().res.iron - 10) < 1e-9);
+  check("cargo paid", Math.abs(api.me().res.iron - 10) < 1e-9);
   run(api.MANIFESTS.iron.adversaries.find(a => a.id === "saltNomads").caravanTime + 2);
   check("the caravan resolved mid-simulation, no interaction needed",
-    S().expeditions.length === 0 && S().res.gold > 0);
+    api.me().expeditions.length === 0 && api.me().res.gold > 0);
   api.setRngSource(null);
 }
 
 console.log("\n--- C2: an era flip mid-flight strands nobody ---");
 {
   reset();
-  S().era = "iron";
+  api.me().era = "iron";
   api.initAdversaries();
-  S().pop = 10; S().units.soldier = 3;
-  S().expeditions.push({ uid: 9, type: "campaign", adversary: "ghostsOfAnOldEra",
+  api.me().pop = 10; api.me().units.soldier = 3;
+  api.me().expeditions.push({ uid: 9, type: "campaign", adversary: "ghostsOfAnOldEra",
     units: { soldier: 3 }, total: 10, remaining: 0.1 });
   check("units are away", api.availableUnits("soldier") === 0);
   api.resolveExpeditions(0.2);
-  check("the column simply comes home", S().expeditions.length === 0 &&
-    api.availableUnits("soldier") === 3 && S().units.soldier === 3 && S().pop === 10);
+  check("the column simply comes home", api.me().expeditions.length === 0 &&
+    api.availableUnits("soldier") === 3 && api.me().units.soldier === 3 && api.me().pop === 10);
 }
 
 console.log("\n--- Ledger rates: converter flows shown honestly ---");
 {
   // Full-speed forge: ample stocks, room in the bronze store.
   reset();
-  S().era = "bronze";
+  api.me().era = "bronze";
   putStructures("forge", 2);
-  S().res.copper = 100; S().res.tin = 100;
+  api.me().res.copper = 100; api.me().res.tin = 100;
   let r = api.ledgerRates();
   // Rate retuned 0.05 -> 0.20 (owner playtest, 2026-08-25). These pin the
   // ARITHMETIC, not the balance number, so they read it from the manifest
@@ -2494,7 +2505,7 @@ console.log("\n--- Ledger rates: converter flows shown honestly ---");
   // Stocks at zero, inflow exactly matches consumption -- the ledger should
   // read it as steady, not flickering.
   reset();
-  S().era = "bronze";
+  api.me().era = "bronze";
   putStructures("forge", 2);
   // Post-E2 the ore inflow comes from worked hills. The forge's designed
   // equilibrium (2 forges = 0.4 copper + 0.1 tin per second) is matched by
@@ -2508,7 +2519,7 @@ console.log("\n--- Ledger rates: converter flows shown honestly ---");
   S().map.pop = {}; api.ensurePop();
   S().map.pop[hill.id] = 5;
   S().map.built = {}; S().map.built[hill.id] = "copperMine";
-  S().res.copper = 0; S().res.tin = 0;
+  api.me().res.copper = 0; api.me().res.tin = 0;
   r = api.ledgerRates();
   check("zero-stock converter consumes no more copper than arrives", r.copper >= -1e-9);
   check("no tin arriving, none consumed: tin nets to zero", Math.abs(r.tin) < 1e-9);
@@ -2516,7 +2527,7 @@ console.log("\n--- Ledger rates: converter flows shown honestly ---");
 
   // Starved forge: no stock, no miners -- it isn't running, say so.
   reset();
-  S().era = "bronze";
+  api.me().era = "bronze";
   putStructures("forge", 3);
   r = api.ledgerRates();
   check("a starved forge shows no bronze flow", r.bronze === 0);
@@ -2524,17 +2535,17 @@ console.log("\n--- Ledger rates: converter flows shown honestly ---");
 
   // Output capped: full bronze store stops the forge, ledger agrees.
   reset();
-  S().era = "bronze";
+  api.me().era = "bronze";
   putStructures("forge", 2);
-  S().res.copper = 100; S().res.tin = 100;
-  S().res.bronze = api.caps().bronze;
+  api.me().res.copper = 100; api.me().res.tin = 100;
+  api.me().res.bronze = api.caps().bronze;
   r = api.ledgerRates();
   check("a capped output shows no flow either way", r.bronze === 0 && Math.abs(r.copper || 0) < 1e-9);
 
   // Iron era: the forge burns wood, and the ledger shows it.
   reset();
-  S().era = "iron";
-  S().pop = 8;
+  api.me().era = "iron";
+  api.me().pop = 8;
   // Two worked forests, then two forges on OTHER ground. Order matters: the
   // forges stand on hexes, so the map has to be laid out before they are
   // placed or the layout wipes them.
@@ -2552,7 +2563,7 @@ console.log("\n--- Ledger rates: converter flows shown honestly ---");
   for (const w of woods) S().map.pop[w.id] = 4;
   for (const id of S().map.owned) if (S().map.built[id]) S().map.pop[id] = 0;
   api.syncPopMirror();
-  S().res.iron = 100; S().res.wood = 100;
+  api.me().res.iron = 100; api.me().res.wood = 100;
   r = api.ledgerRates();
   const iRate2 = api.MANIFESTS.iron.structures.find((d) => d.id === "forge").converts.rate;
   const draw = 2 * iRate2;                           // 2 forges' worth of batches/s
@@ -2574,9 +2585,10 @@ console.log("\n--- Ledger rates: converter flows shown honestly ---");
 
 console.log("\n--- Phase B: legacy saves default eraHistory ---");
 {
-  const legacy = JSON.parse(JSON.stringify(api.freshState()));
+  // eraHistory belongs to the CIVILIZATION since the player split.
+  const legacy = JSON.parse(JSON.stringify(api.freshPlayer(0)));
   delete legacy.eraHistory;
-  const merged = Object.assign(api.freshState(), legacy);
+  const merged = Object.assign(api.freshPlayer(0), legacy);
   check("a save from before eraHistory existed defaults to {}",
     merged.eraHistory && typeof merged.eraHistory === "object");
 }
@@ -2591,33 +2603,33 @@ console.log("\n--- Phase 3: offline is gone; the save is load-bearing ---");
   // Mid-construction round-trip through the REAL save/load path: the queue
   // survives serialization verbatim and the revived save finishes the build.
   reset(); api.ensureMap();
-  S().res.wood = 100; S().res.stone = 60;
+  api.me().res.wood = 100; api.me().res.stone = 60;
   api.launchStructure(S().map.owned.find((id) => id !== api.world.home), "infirmary");
   run(3);
-  const midRemaining = S().buildQueue[0].remaining;
+  const midRemaining = api.me().buildQueue[0].remaining;
   api.save();
-  S().res.wood = 9999;               // scribble on live state...
+  api.me().res.wood = 9999;               // scribble on live state...
   api.load();                        // ...and prove load restores the saved copy
   check("save/load round-trips a build mid-construction",
-    S().buildQueue.length === 1 && Math.abs(S().buildQueue[0].remaining - midRemaining) < 1e-9);
-  check("load restores the saved copy, not live state", S().res.wood < 9999);
+    api.me().buildQueue.length === 1 && Math.abs(api.me().buildQueue[0].remaining - midRemaining) < 1e-9);
+  check("load restores the saved copy, not live state", api.me().res.wood < 9999);
   run(25);
-  check("the revived save finishes the build", api.builtCount("infirmary") === 1 && S().buildQueue.length === 0);
+  check("the revived save finishes the build", api.builtCount("infirmary") === 1 && api.me().buildQueue.length === 0);
 
   // Mid-flight expedition round-trip: a column in the field survives the
   // save, and the revived save resolves it on the world's schedule.
   reset();
-  S().era = "iron"; api.initAdversaries();
-  S().pop = 12; S().units.soldier = 5; S().upgrades.musterGround = true;
-  S().res.food = 200;
+  api.me().era = "iron"; api.initAdversaries();
+  api.me().pop = 12; api.me().units.soldier = 5; api.me().upgrades.musterGround = true;
+  api.me().res.food = 200;
   api.launchCampaign("hillClans", { soldier: 4 });
   run(2);
   api.save(); api.load();
   check("a campaign in the field survives the round-trip",
-    S().expeditions.length === 1 && S().expeditions[0].type === "campaign");
-  S().expeditions[0].remaining = 0.4;
+    api.me().expeditions.length === 1 && api.me().expeditions[0].type === "campaign");
+  api.me().expeditions[0].remaining = 0.4;
   run(2);
-  check("the revived campaign resolves on schedule", S().expeditions.length === 0);
+  check("the revived campaign resolves on schedule", api.me().expeditions.length === 0);
   check("resolution had consequences (standing moved)", S().adversaries.hillClans.standing < 0);
 }
 
@@ -2629,7 +2641,7 @@ console.log("\n--- Phase 6d: the growth verbs -- minors, settle, routes ---");
   // layouts (caught as a 1-in-12 flake). Seeds 1-5 were verified to hold the
   // property; determinism beats fuzzing for a check this shape-dependent.
   S().seed = 3; S().rngState = 3;
-  S().era = "iron"; S().seen.levyMigrated = true; S().pop = 4;
+  api.me().era = "iron"; S().seen.levyMigrated = true; api.me().pop = 4;
   api.initAdversaries(); api.ensureMap();
 
   const minors = Object.values(api.world.places).filter((p) => p.minor);
@@ -2671,34 +2683,34 @@ console.log("\n--- Phase 6d: the growth verbs -- minors, settle, routes ---");
     .find((p) => p.terrain !== "water" && !p.minor && !p.adversary && !S().map.owned.includes(p.id));
   const plan = api.settlePlan(empty.id);
   check("settling is priced work, scaled by the route", plan && plan.cost.food >= 24 && plan.time >= 27);
-  S().res.food = 500; S().res.wood = 500; S().res.stone = 500; S().res.iron = 500;
-  const popBefore = S().pop;
+  api.me().res.food = 500; api.me().res.wood = 500; api.me().res.stone = 500; api.me().res.iron = 500;
+  const popBefore = api.me().pop;
   api.launchSettle(empty.id);
-  check("settling joins the Underway queue", S().buildQueue.some((q) => q.kind === "settle"));
-  check("no double parties to one hex", (api.launchSettle(empty.id), S().buildQueue.filter((q) => q.kind === "settle").length === 1));
+  check("settling joins the Underway queue", api.me().buildQueue.some((q) => q.kind === "settle"));
+  check("no double parties to one hex", (api.launchSettle(empty.id), api.me().buildQueue.filter((q) => q.kind === "settle").length === 1));
   api.setRngSource(() => 0.99);         // hold the world's dice: this checks settle
   run(Math.ceil(plan.time) + 60);       // completion, not event weather -- a sickness
   api.setRngSource(null);               // or raid in ~90s would shift pop (the old flake)
   check("the party raises a hall: owned, peopled, working its own ground",
-    S().map.owned.includes(empty.id) && api.hexPop(empty.id) >= 2 && S().pop > popBefore &&
+    S().map.owned.includes(empty.id) && api.hexPop(empty.id) >= 2 && api.me().pop > popBefore &&
     !S().map.built[empty.id] && !!api.hexYield(empty.id));
 
   // Capture: a campaign against a minor, forced win, takes the place whole.
-  S().upgrades.musterGround = true; S().units.soldier = 6; S().res.food = 500;
+  api.me().upgrades.musterGround = true; api.me().units.soldier = 6; api.me().res.food = 500;
   const mtile = minors[0].id;
   S().map.minors[mtile].walls = 0;      // walls down; test the field, not the siege
   const mstock = Object.assign({}, S().map.minors[mtile].stock);
-  const popBefore2 = S().pop;
+  const popBefore2 = api.me().pop;
   api.launchCampaign("tile:" + mtile, { soldier: 4 });
-  check("a column can march on a minor", S().expeditions.length === 1);
-  S().expeditions[0].remaining = 0.1;
+  check("a column can march on a minor", api.me().expeditions.length === 1);
+  api.me().expeditions[0].remaining = 0.1;
   api.setRngSource(() => 0.0);          // win, no casualty roll fires bad
   api.resolveExpeditions(0.2);
   api.setRngSource(null);
   check("capture: the tile swears fealty -- owned, peopled, working its ground",
-    S().map.owned.includes(mtile) && api.hexPop(mtile) >= 2 && S().pop > popBefore2 &&
+    S().map.owned.includes(mtile) && api.hexPop(mtile) >= 2 && api.me().pop > popBefore2 &&
     !S().map.built[mtile]);
-  check("the whole stock came home", Object.keys(mstock).every((k) => S().res[k] >= mstock[k]));
+  check("the whole stock came home", Object.keys(mstock).every((k) => api.me().res[k] >= mstock[k]));
   check("the minor's remnant is gone -- the Chronicle had the name last",
     S().map.minors[mtile] === undefined);
 
@@ -2718,9 +2730,9 @@ console.log("\n--- Phase 10: the renderer port keeps the marks ---");
   // pinning it here is what stops them drifting apart.
   reset();
   api.closeModal();
-  api.S.era = "iron";
+  api.me().era = "iron";
   api.S.seen.levyMigrated = true;
-  api.S.pop = 6;
+  api.me().pop = 6;
   api.initAdversaries();
   api.ensureMap();
   api.syncDominion();
@@ -2783,7 +2795,7 @@ console.log("\n--- Phase 10: the renderer port keeps the marks ---");
     // Drive the glyph through a structure, which is the only thing that can
     // make a hex yield something its terrain does not.
     const fake = { id: "probe:" + res, yield: { res, rate: 1 } };
-    const era = api.MANIFESTS[api.S.era];
+    const era = api.MANIFESTS[api.me().era];
     era.structures.push(fake);
     api.S.map.built[ownedId] = fake.id;
     const g = api.markFor(P(ownedId)).glyph;
@@ -2818,7 +2830,7 @@ console.log("\n--- Phase 10: the renderer port keeps the marks ---");
   // alone only ever gives three of the resources.
   const seatLetters = ["food", "wood", "stone", "iron"].map((res) => {
     const fake = { id: "probe:" + res, yield: { res, rate: 1 } };
-    const era = api.MANIFESTS[api.S.era];
+    const era = api.MANIFESTS[api.me().era];
     era.structures.push(fake);
     api.S.map.built[homeId] = fake.id;
     const g = subOf(homeId).glyph;
@@ -3061,7 +3073,7 @@ console.log("\n--- The dominion cap: what one age can hold ---");
 {
   api.setRngSource(() => 0.99);
   reset(); api.closeModal(); api.ensureMap();
-  S().res.food = 5000; S().res.wood = 5000; S().res.stone = 5000;
+  api.me().res.food = 5000; api.me().res.wood = 5000; api.me().res.stone = 5000;
 
   check("the stone age governs seven holdings", api.dominionCap() === 7);
   check("the trio leaves room for four more", !api.atDominionCap() && api.holdsUsed() === 3);
@@ -3078,25 +3090,25 @@ console.log("\n--- The dominion cap: what one age can hold ---");
     api.holdsUsed() === 7 && api.atDominionCap());
 
   const eighth = wild();
-  const qBefore = S().buildQueue.length;
+  const qBefore = api.me().buildQueue.length;
   api.launchSettle(eighth.id);
   check("the age refuses an eighth: no cost curve, a closed door",
-    S().buildQueue.length === qBefore && !api.isOwned(eighth.id));
+    api.me().buildQueue.length === qBefore && !api.isOwned(eighth.id));
   check("the price is still PRINTED at the cap (the refusal is worded, not hidden)",
     api.settlePlan(eighth.id) !== null);
 
   // A new age is what raises the scope.
-  S().era = "bronze"; api.initAdversaries(); api.ensureMap();
-  S().res.bronze = 100;   // the wider banner brings its signature metal
+  api.me().era = "bronze"; api.initAdversaries(); api.ensureMap();
+  api.me().res.bronze = 100;   // the wider banner brings its signature metal
   check("bronze governs twelve", api.dominionCap() === 12 && !api.atDominionCap());
   api.launchSettle(eighth.id);
   check("the same claim is welcome under the wider banner",
-    S().buildQueue.some((q) => q.kind === "settle" && q.tile === eighth.id));
+    api.me().buildQueue.some((q) => q.kind === "settle" && q.tile === eighth.id));
 
   // Subduing a minor is conquest, and conquest answers to the scope too.
   reset(); api.closeModal();
-  S().era = "iron"; api.initAdversaries(); api.ensureMap();
-  S().upgrades.musterGround = true; S().units.soldier = 6; S().res.food = 5000;
+  api.me().era = "iron"; api.initAdversaries(); api.ensureMap();
+  api.me().upgrades.musterGround = true; api.me().units.soldier = 6; api.me().res.food = 5000;
   while (S().map.owned.length < 20) {
     const w = Object.values(api.world.places)
       .find((x) => x.terrain !== "water" && !x.adversary && !x.minor && !api.isOwned(x.id));
@@ -3106,17 +3118,17 @@ console.log("\n--- The dominion cap: what one age can hold ---");
   const minorTile = Object.values(api.world.places).find((x) => x.minor && !api.isOwned(x.id));
   api.launchCampaign("tile:" + minorTile.id, { soldier: 4 });
   check("a subdual that would exceed the age's scope refuses to march",
-    S().expeditions.length === 0);
+    api.me().expeditions.length === 0);
   api.setRngSource(null);
 }
 
 console.log("\n--- The march-hold: walls act on resolution, never selection ---");
 {
   reset();
-  api.S.era = "iron";
+  api.me().era = "iron";
   api.initAdversaries();
   api.ensureMap();
-  api.S.res.wood = 9999; api.S.res.stone = 9999; api.S.res.iron = 9999; api.S.res.food = 9999;
+  api.me().res.wood = 9999; api.me().res.stone = 9999; api.me().res.iron = 9999; api.me().res.food = 9999;
   const home = api.world.home;
   const hex = api.S.map.owned.find((id) => id !== home);
 
@@ -3127,10 +3139,10 @@ console.log("\n--- The march-hold: walls act on resolution, never selection ---"
     !api.MANIFESTS.iron.structures.find((d) => d.id === "marchHold").yield);
 
   // THE SEAT IS NOT BUILDABLE. The Construction panel is what you raise THERE.
-  api.S.upgrades.fortification = true;
+  api.me().upgrades.fortification = true;
   check("the seat refuses every structure", api.canBuildOn(home) === false);
   api.launchStructure(home, "marchHold");
-  check("...and the build is refused, not merely hidden", api.S.buildQueue.length === 0);
+  check("...and the build is refused, not merely hidden", api.me().buildQueue.length === 0);
   check("an ordinary holding accepts one", api.canBuildOn(hex) === true);
 
   // A built march-hold produces nothing and covers its neighbourhood.
@@ -3159,13 +3171,13 @@ console.log("\n--- The march-hold: walls act on resolution, never selection ---"
 
   // FLAT, NOT A MULTIPLIER: walls have to fight for a player with no army,
   // and a multiplier on zero is zero.
-  api.S.units = { soldier: 0, archer: 0, horseman: 0, siegeEngine: 0 };
+  api.me().units = { soldier: 0, archer: 0, horseman: 0, siegeEngine: 0 };
   check("walls defend a settlement with no soldiers in it", api.fortStrength(hex) > 0);
 
   // SELECTION IS UNTOUCHED. A fort changes no odds about WHETHER a raid comes
   // or WHERE it lands -- only what happens when it arrives. This is the check
   // that fails if fortification ever creeps into strikeHex.
-  reset(); api.S.era = "iron"; api.initAdversaries(); api.ensureMap();
+  reset(); api.me().era = "iron"; api.initAdversaries(); api.ensureMap();
   // THE BOARD HAS TO BE ABLE TO SHOW THE DIFFERENCE. The starting trio is
   // mutually adjacent, so one march-hold covers all three EQUALLY -- and a
   // uniform factor cancels out of a weighted pick, which made the first version
@@ -3208,7 +3220,7 @@ console.log("\n--- Building on a hex: the farm ---");
   // The first structure, and the proof of the whole pipeline: upgrade gates it,
   // the queue paces it, the hex's one use holds, and pulling it down costs.
   reset();
-  api.S.era = "bronze";
+  api.me().era = "bronze";
   api.initAdversaries();
   api.ensureMap();
   const home = api.world.home;
@@ -3219,7 +3231,7 @@ console.log("\n--- Building on a hex: the farm ---");
       !p.adversary && !p.minor && p.id !== home);
   if (farmable && !api.isOwned(farmable.id)) api.captureTile(farmable.id);
   const hex = farmable.id;
-  api.S.res.wood = 9999; api.S.res.stone = 9999; api.S.res.food = 9999;
+  api.me().res.wood = 9999; api.me().res.stone = 9999; api.me().res.food = 9999;
 
   check("the farm is declared by Bronze and redeclared by Iron",
     !!api.MANIFESTS.bronze.structures.find((d) => d.id === "farm") &&
@@ -3234,22 +3246,22 @@ console.log("\n--- Building on a hex: the farm ---");
     })());
 
   // THE UPGRADE IS THE GATE. Without it the verb does not exist.
-  delete api.S.upgrades.farming;
+  delete api.me().upgrades.farming;
   check("no Farming, no farms", api.structureUnlocked("farm") === false);
   api.launchStructure(hex, "farm");
   check("...and the build is refused outright, not merely hidden",
-    api.S.buildQueue.length === 0);
+    api.me().buildQueue.length === 0);
 
-  api.S.upgrades.farming = true;
+  api.me().upgrades.farming = true;
   check("with Farming owned, the verb appears", api.structureUnlocked("farm") === true);
 
   // COST ESCALATES PER COPY, like every other building line.
   const first = api.structurePlan("farm").cost.wood;
   api.launchStructure(hex, "farm");
   check("queuing a farm takes the payment up front",
-    api.S.buildQueue.length === 1 && api.S.res.wood < 9999);
+    api.me().buildQueue.length === 1 && api.me().res.wood < 9999);
   check("one build per hex -- a second is refused while the first is queued",
-    api.pendingBuild(hex) === true && (api.launchStructure(hex, "farm"), api.S.buildQueue.length === 1));
+    api.pendingBuild(hex) === true && (api.launchStructure(hex, "farm"), api.me().buildQueue.length === 1));
   const second = api.structurePlan("farm").cost.wood;
   check("the next farm costs more than the last, queued ones included", second > first);
 
@@ -3257,7 +3269,7 @@ console.log("\n--- Building on a hex: the farm ---");
   run(60);
   const u = api.hexUse(hex);
   check("the finished farm owns the hex's one use", u.kind === "structure" && u.id === "farm");
-  check("...and the queue is clear", api.S.buildQueue.length === 0);
+  check("...and the queue is clear", api.me().buildQueue.length === 0);
   check("a farmed hex feeds better than any bare ground could",
     api.hexYield(hex).rate >
       Math.max(...Object.values(api.MANIFESTS.bronze.map.yields).map((y) => y.res === "food" ? y.rate : 0)));
@@ -3265,30 +3277,30 @@ console.log("\n--- Building on a hex: the farm ---");
   // THE ONE USE HOLDS.
   api.S.map.built[hex] = "farm";
   api.launchStructure(hex, "farm");
-  check("and you cannot build over a structure with another", api.S.buildQueue.length === 0);
+  check("and you cannot build over a structure with another", api.me().buildQueue.length === 0);
 
   // DEMOLISH: back to plain ground, and nothing comes back.
-  const before = { wood: api.S.res.wood, stone: api.S.res.stone };
+  const before = { wood: api.me().res.wood, stone: api.me().res.stone };
   api.demolishStructure(hex);
   check("pulling it down returns the hex to bare ground, working its terrain again",
     api.hexUse(hex).kind === "bare" && api.hexProduces(hex) === true &&
     api.hexYield(hex).res === api.terrainYield(hex).res);
   check("...with NO refund -- converting is a trade, not a toggle",
-    api.S.res.wood === before.wood && api.S.res.stone === before.stone);
+    api.me().res.wood === before.wood && api.me().res.stone === before.stone);
 
   // GROUND LOST WHILE THE WORK IS QUEUED. The crew arrives to nothing and the
   // labour is wasted, the same way a settling party finds its land taken.
   reset();
-  api.S.era = "bronze"; api.initAdversaries(); api.ensureMap();
-  api.S.upgrades.farming = true;
-  api.S.res.wood = 9999; api.S.res.stone = 9999; api.S.res.food = 9999;
+  api.me().era = "bronze"; api.initAdversaries(); api.ensureMap();
+  api.me().upgrades.farming = true;
+  api.me().res.wood = 9999; api.me().res.stone = 9999; api.me().res.food = 9999;
   const doomed = api.S.map.owned.find((id) => id !== api.world.home);
   api.launchStructure(doomed, "farm");
   api.killAt(doomed, 99);                       // a raid empties it: the hex is lost
   check("the ground went with its people", !api.isOwned(doomed));
   run(60);
   check("the queued build resolves without raising anything on ground you lost",
-    api.S.buildQueue.length === 0 && !api.isOwned(doomed));
+    api.me().buildQueue.length === 0 && !api.isOwned(doomed));
   check("...and nothing was silently rebuilt there", !(doomed in api.S.map.built));
 }
 
@@ -3299,11 +3311,11 @@ console.log("\n--- One hex, one use ---");
   // hex is BARE -- working the ground it is made of -- or it carries exactly
   // one structure. There is no third state and nothing to point anywhere.
   reset();
-  api.S.era = "iron";
+  api.me().era = "iron";
   api.initAdversaries();
   api.ensureMap();
   const home = api.world.home;
-  api.S.res.wood = 9999; api.S.res.stone = 9999; api.S.res.food = 9999; api.S.res.iron = 9999;
+  api.me().res.wood = 9999; api.me().res.stone = 9999; api.me().res.food = 9999; api.me().res.iron = 9999;
 
   check("a bare hex reports itself as bare, not as a missing answer",
     api.hexUse(home).kind === "bare");
@@ -3379,20 +3391,20 @@ console.log("\n--- The odometer: the topline number is a fiction, and stays one 
 
   // At x1 the odometer IS the population, which is the spec's own requirement:
   // "in Stone and Bronze the odometer and the lever are the same small number".
-  api.S.era = "stone";
+  api.me().era = "stone";
   check("at x1 the odometer and the true count are the same number",
-    api.souls() === api.S.pop);
+    api.souls() === api.me().pop);
 
-  api.S.era = "iron";
+  api.me().era = "iron";
   check("at Iron one unit of population stands for many",
-    api.souls() === api.S.pop * api.MANIFESTS.iron.soulsPerPerson);
+    api.souls() === api.me().pop * api.MANIFESTS.iron.soulsPerPerson);
 
   // RULE 1, AND IT IS THE WHOLE POINT. The odometer is a display: nothing in
   // the game may read it. The strongest form of that claim is that deleting it
   // changes no outcome -- so this checks the inputs it is derived FROM are
   // untouched by asking for it, and that no cost, cap or gate moves.
   reset();
-  api.S.era = "iron";
+  api.me().era = "iron";
   api.ensureMap();
   const before = JSON.stringify(api.S);
   api.souls(); api.souls(); api.fmtSouls(api.souls());
@@ -3421,7 +3433,7 @@ console.log("\n--- The odometer: the topline number is a fiction, and stays one 
   // RULE 3: the jumps are the point. One person lost on a frontier hex should
   // move the topline by a visible chunk, not by one.
   reset();
-  api.S.era = "iron";
+  api.me().era = "iron";
   api.ensureMap();
   // (allocation line removed 2026-08-25: ground works its own terrain now)
   const soulsBefore = api.souls();
@@ -3444,24 +3456,24 @@ console.log("\n--- Slice 5: the run you choose to start ---");
   // and must read as intended rather than as a blank nobody filled in.
   check("a run with no name uses the game's own words", api.seatName() === "Your Seat");
   check("...and knows it is unnamed", api.seatIsNamed() === false);
-  api.S.seatName = "Greenhollow";
+  api.me().seatName = "Greenhollow";
   check("a named seat answers with its name", api.seatName() === "Greenhollow");
   check("...and knows it is named", api.seatIsNamed() === true);
   // Whitespace is not a name. Without this, a player who types a space gets a
   // blank panel header and no way to tell what went wrong.
-  api.S.seatName = "   ";
+  api.me().seatName = "   ";
   check("a name of nothing but spaces is no name", api.seatName() === "Your Seat" && !api.seatIsNamed());
-  api.S.seatName = "";
+  api.me().seatName = "";
 
   // A proper noun does NOT re-denominate with the era. Your Greenhollow is
   // still Greenhollow when it stops being a clearing and becomes a holdfast --
   // which is the whole reason naming buys attachment.
-  api.S.seatName = "Greenhollow";
-  const namedIn = (era) => { api.S.era = era; return api.seatName(); };
+  api.me().seatName = "Greenhollow";
+  const namedIn = (era) => { api.me().era = era; return api.seatName(); };
   check("the name survives every era border",
     namedIn("stone") === "Greenhollow" && namedIn("bronze") === "Greenhollow" &&
     namedIn("iron") === "Greenhollow");
-  api.S.era = "stone"; api.S.seatName = "";
+  api.me().era = "stone"; api.me().seatName = "";
 
   // THE CONTINENT. Random is not a special case -- it is the ABSENCE of a
   // pick, so the continent falls out of the run seed. That is what makes a
@@ -3519,8 +3531,8 @@ console.log("\n--- The board's colour law: yours, theirs, and reserved ---");
   // state.js hardcodes the default rather than importing it, because palette
   // reads S and the import would be a cycle for one string. This is the guard
   // that keeps the two copies equal.
-  check("freshState agrees with the palette's default -- the two copies of one fact",
-    api.freshState().playerColor === api.DEFAULT_COLOR);
+  check("a fresh civ agrees with the palette's default -- the two copies of one fact",
+    api.freshPlayer(0).color === api.DEFAULT_COLOR);
   check("every colour is distinct", new Set(ids).size === ids.length);
   check("every colour carries all four roles",
     api.PLAYER_COLORS.every((c) => c.ring && c.hover && c.focus && c.glyph));
@@ -3604,8 +3616,7 @@ console.log("\n--- The board's colour law: yours, theirs, and reserved ---");
   // Old saves predate the field entirely and must inherit the default through
   // load()'s merge rather than arriving as undefined.
   reset();
-  const fresh = api.freshState();
-  check("a run always has a colour", ids.includes(fresh.playerColor));
+  check("every civ always has a colour", ids.includes(api.freshPlayer(0).color));
 }
 
 console.log("\n--- C3: the danger acquires a name ---");
@@ -3615,7 +3626,7 @@ console.log("\n--- C3: the danger acquires a name ---");
   // the same people all along.
   const attributionIn = (era) => {
     reset();
-    api.S.era = era;
+    api.me().era = era;
     api.initAdversaries(); api.ensureMap();
     return api.raidAttribution();
   };
@@ -3631,14 +3642,14 @@ console.log("\n--- C3: the danger acquires a name ---");
   // peoples, so "nobody is named" has to come from the era-fact rather than
   // from an empty board. This is the check that would catch someone "fixing"
   // Stone's silence by deleting its adversaries.
-  reset(); api.S.era = "stone"; api.initAdversaries(); api.ensureMap();
+  reset(); api.me().era = "stone"; api.initAdversaries(); api.ensureMap();
   check("...and Stone is silent DESPITE having neighbours seated",
     api.MANIFESTS.stone.adversaries.length > 0 && api.raidAttribution() === null);
   check("the gate is the contact era-fact",
     api.MANIFESTS.stone.contact === "none" && api.MANIFESTS.bronze.contact === "open");
 
   // Peaceful neighbours never take the blame, in any era.
-  reset(); api.S.era = "iron"; api.initAdversaries(); api.ensureMap();
+  reset(); api.me().era = "iron"; api.initAdversaries(); api.ensureMap();
   check("a named era always names somebody", api.raidAttribution() !== null);
   check("peaceful neighbours are never blamed for a raid",
     api.MANIFESTS.iron.adversaries.some((a) => a.disposition === "peaceful") &&
@@ -3691,7 +3702,7 @@ console.log("\n--- C3: the danger acquires a name ---");
 
   // Attribution must not spend a draw it cannot use -- the roster ships one
   // warlike people, so the common path is a lookup, not a roll.
-  reset(); api.S.era = "iron"; api.initAdversaries(); api.ensureMap();
+  reset(); api.me().era = "iron"; api.initAdversaries(); api.ensureMap();
   const before = api.S.rngState;
   api.raidAttribution();
   check("a single candidate costs no dice", api.S.rngState === before);
@@ -3704,10 +3715,10 @@ console.log("\n--- Engine rework E5: the world strikes hexes ---");
 
   // Armies eat in EVERY era now -- the free-lunch window quirk is closed.
   const upkeepBefore = api.rates().upkeep;
-  S().units.soldier = 2; api.syncPopMirror();
+  api.me().units.soldier = 2; api.syncPopMirror();
   check("a stone-age soldier is two more mouths at the fire",
     Math.abs(api.rates().upkeep - (upkeepBefore + 2 * api.CONFIG.upkeep)) < 1e-9);
-  S().units.soldier = 0; api.syncPopMirror();
+  api.me().units.soldier = 0; api.syncPopMirror();
 
   // The muster answers to the land from frame one: trio = cap 6.
   check("the muster is the land, in every era (3 hexes x 2)", api.levyCap() === 6);
@@ -3757,9 +3768,9 @@ console.log("\n--- Engine rework E4: the frontier starves first ---");
   // a realm that walled every hex and grew nothing on any of them. A March-hold
   // declares no yield, which is exactly the "produces nothing" case.
   S().map.built = {};
-  S().era = "iron";              // the age that has walls to build
+  api.me().era = "iron";              // the age that has walls to build
   for (const id of S().map.owned) S().map.built[id] = "marchHold";
-  S().res.food = 1;
+  api.me().res.food = 1;
   const seatBefore = api.hexPop(api.world.home);
   run(40);
   check("an empty larder no longer kills instantly", S().dead === false);
@@ -3797,7 +3808,7 @@ console.log("\n--- Engine rework E4: the frontier starves first ---");
     const hex = api.S.map.owned.find((id) => id !== api.world.home);
     const cap = api.capOf(hex);
     // (allocation line removed 2026-08-25: ground works its own terrain now)
-    api.S.res.food = 500;
+    api.me().res.food = 500;
     api.S.map.pop[hex] = cap;                // full, whatever this ground holds
     api.syncPopMirror();
     api.killAt(hex, 1);                      // struck, not emptied
@@ -3821,7 +3832,7 @@ console.log("\n--- Engine rework E4: the frontier starves first ---");
   reset(); api.closeModal(); api.ensureMap();
   const emptied = S().map.owned.find((id) => id !== api.world.home);
   // (allocation line removed 2026-08-25: ground works its own terrain now)
-  S().res.food = 100;
+  api.me().res.food = 100;
   api.killAt(emptied, 99);
   check("emptying a holding loses it immediately, however it emptied",
     !api.isOwned(emptied));
@@ -3867,7 +3878,7 @@ console.log("\n--- Engine rework E4: the frontier starves first ---");
   // And the QUEUE counts (owner bug report): a claim underway prices the next
   // one up, exactly as queued buildings already price their next copy up.
   reset(); api.closeModal(); api.ensureMap();
-  S().res.food = 500; S().res.wood = 500; S().res.stone = 500;
+  api.me().res.food = 500; api.me().res.wood = 500; api.me().res.stone = 500;
   // Price the SAME tile before and after another claim is queued: comparing
   // two different tiles let their distances mask the escalation, since the
   // route multiplier can easily outweigh 1.18x on a continent this size.
@@ -3935,9 +3946,9 @@ console.log("\n--- Engine rework E1: population lives on hexes ---");
     api.hexPopSum() === api.S.map.owned.reduce((n, id) => n + api.hexPop(id), 0));
   // The game-over screen reads S.bought. It was declared in E1 and never
   // incremented, so every run ever played ended on "Arrivals welcomed: 0".
-  check("lifetime arrivals are actually counted (S.bought)", api.S.bought > 0);
+  check("lifetime arrivals are actually counted (S.bought)", api.me().bought > 0);
   check("arrivals counted are whole people, never the fractional curve",
-    Number.isInteger(api.S.bought));
+    Number.isInteger(api.me().bought));
 
   // Determinism: the growth curve is pure math on fixed ticks -- two runs
   // from the same reset must land on bit-identical populations.
@@ -3959,7 +3970,7 @@ console.log("\n--- Engine rework E1: population lives on hexes ---");
 
   // Capture seeds the new holding with its party.
   reset(); api.closeModal();
-  api.S.era = "iron"; api.S.seen.levyMigrated = true; api.S.pop = 4;
+  api.me().era = "iron"; api.S.seen.levyMigrated = true; api.me().pop = 4;
   api.initAdversaries(); api.ensureMap();
   const empty = Object.values(api.world.places).find((x) =>
     x.terrain !== "water" && !x.adversary && !x.minor && !api.isOwned(x.id));
@@ -3982,7 +3993,7 @@ console.log("\n--- Phase 10: one board, forever ---");
   const stoneTerrain = Object.values(api.world.places).map((p) => p.id + ":" + p.terrain).sort().join("|");
   const stoneSeed = api.S.map.seed;
 
-  api.S.era = "iron";
+  api.me().era = "iron";
   api.initAdversaries();
   api.ensureMap();
   check("the tile noun re-denominates across the border",
@@ -3996,7 +4007,7 @@ console.log("\n--- Phase 10: one board, forever ---");
   // even could: consolidation is deleted, borders re-denominate only.
   api.syncDominion();
   const held = api.S.map.owned.slice().sort().join("|");
-  api.S.era = "iron"; api.initAdversaries(); api.ensureMap(); api.syncDominion();
+  api.me().era = "iron"; api.initAdversaries(); api.ensureMap(); api.syncDominion();
   check("a border takes no land -- the SAME tiles cross it",
     api.S.map.owned.slice().sort().join("|") === held);
 
@@ -4041,17 +4052,17 @@ console.log("\n--- Phase 6b: Conquest Growth G1 -- levy, output, no housing ---"
 {
   // Growth is a verb at iron: the timer does nothing.
   reset();
-  S().era = "iron"; api.initAdversaries(); S().seen.levyMigrated = true;
-  S().pop = 5; S().res.food = 500;
-  const popBefore = S().pop;
+  api.me().era = "iron"; api.initAdversaries(); S().seen.levyMigrated = true;
+  api.me().pop = 5; api.me().res.food = 500;
+  const popBefore = api.me().pop;
   api.setRngSource(() => 0.999999);   // hazards hold their breath; growth is what's on trial
   run(120);
   api.setRngSource(null);
-  check("no one arrives unbidden under conquest growth", S().pop === popBefore);
+  check("no one arrives unbidden under conquest growth", api.me().pop === popBefore);
   // (housing died in E3)
 
   // Output multiplier: a holdfast works -- and eats -- like the families it holds.
-  S().pop = 5; S().units = { soldier: 2, archer: 0, horseman: 0, siegeEngine: 0 };
+  api.me().pop = 5; api.me().units = { soldier: 2, archer: 0, horseman: 0, siegeEngine: 0 };
   // One real hex, four people. Read the declared rate off the ground rather
   // than assuming it: the terrain is the seed's business.
   api.ensureMap();
@@ -4060,7 +4071,7 @@ console.log("\n--- Phase 6b: Conquest Growth G1 -- levy, output, no housing ---"
   S().map.pop = {}; api.ensurePop();
   S().map.pop[oneHex] = 4;
   S().map.built = {};
-  S().upgrades = {};
+  api.me().upgrades = {};
   const gy = api.terrainYield(oneHex);
   const r = api.rates();
   // outputMult died in E2: four real people at the per-capita rate.
@@ -4073,33 +4084,33 @@ console.log("\n--- Phase 6b: Conquest Growth G1 -- levy, output, no housing ---"
   S().map = { seed: 1, gen: 1, tileNoun: "holdfast", owned: ["f1", "f2", "f3"],
     work: {}, pop: { "f1": 4, "f2": 3, "f3": 3 } };
   api.syncPopMirror();
-  S().units = { soldier: 5, archer: 0, horseman: 0, siegeEngine: 0 };
+  api.me().units = { soldier: 5, archer: 0, horseman: 0, siegeEngine: 0 };
   api.syncPopMirror();
-  S().upgrades.barracks = true; S().res.wood = 500; S().res.iron = 500; S().res.food = 500;
+  api.me().upgrades.barracks = true; api.me().res.wood = 500; api.me().res.iron = 500; api.me().res.food = 500;
   const soldierDef = api.defById("soldier");
   api.build(soldierDef);
   check("training refuses past the land's muster (3 hexes = cap 6; 5 + 1 queued fills it)",
-    S().buildQueue.length === 1 && api.levyUsed() === 6);
+    api.me().buildQueue.length === 1 && api.levyUsed() === 6);
   api.build(soldierDef);
-  check("the queue counts against the muster the instant it is queued", S().buildQueue.length === 1);
+  check("the queue counts against the muster the instant it is queued", api.me().buildQueue.length === 1);
   S().map.owned.push("f4"); S().map.pop.f4 = 2; api.syncPopMirror();
   api.build(soldierDef);
-  check("a grown dominion raises the muster (4 hexes = cap 8)", S().buildQueue.length === 2);
-  S().buildQueue.length = 0;
+  check("a grown dominion raises the muster (4 hexes = cap 8)", api.me().buildQueue.length === 2);
+  api.me().buildQueue.length = 0;
 
   // A unit's death lightens the roster, never the land: the hexes keep their
   // people, and the mirror drops by exactly the fallen soldier.
   api.syncPopMirror();
   const landBefore = api.hexPopSum();
-  const mirrorBefore = S().pop;
+  const mirrorBefore = api.me().pop;
   api.removeRandomUnit();
   check("a soldier's death leaves the land untouched", api.hexPopSum() === landBefore);
-  check("...and the mirror counts one fewer", S().pop === mirrorBefore - 1);
+  check("...and the mirror counts one fewer", api.me().pop === mirrorBefore - 1);
 
   // The recruit is drawn from the SEAT on completion (owner ruling).
   reset(); api.closeModal(); api.ensureMap();
-  S().era = "iron"; api.initAdversaries(); api.ensureMap();
-  S().upgrades.barracks = true; S().res.wood = 500; S().res.food = 500; S().res.iron = 500;
+  api.me().era = "iron"; api.initAdversaries(); api.ensureMap();
+  api.me().upgrades.barracks = true; api.me().res.wood = 500; api.me().res.food = 500; api.me().res.iron = 500;
   for (const id of S().map.owned) S().map.pop[id] = 30;   // above cap, so growth
   api.syncPopMirror();                                     // cannot refill the draw
   const seatBefore = api.hexPop(api.world.home);
@@ -4108,7 +4119,7 @@ console.log("\n--- Phase 6b: Conquest Growth G1 -- levy, output, no housing ---"
   run(20);
   api.setRngSource(null);
   check("the capital musters: the recruit walked out of the seat",
-    S().units.soldier >= 1 && api.hexPop(api.world.home) === seatBefore - 1);
+    api.me().units.soldier >= 1 && api.hexPop(api.world.home) === seatBefore - 1);
 }
 
 console.log("\n--- Phase 6a: the map exists ---");
@@ -4175,7 +4186,7 @@ console.log("\n--- Phase 6a: the map exists ---");
       seatBody.indexOf("raise a column") >= 0);
   }
 
-  S().era = "bronze";
+  api.me().era = "bronze";
   api.ensureMap();
   // Era changes the DRESSING, never the ground (owner ruling, 2026-08-24).
   // This compared whole-world JSON until the neighbours started redressing per
@@ -4204,7 +4215,7 @@ console.log("\n--- Phase 6a: the map exists ---");
   api.ensureMap();
   check("map generation never touches the game's dice", S().rngState === dice);
 
-  S().era = "iron"; api.initAdversaries();
+  api.me().era = "iron"; api.initAdversaries();
   api.ensureMap();
   check("the tile noun changed, and the ground did NOT", api.world.tileNoun === "holdfast");
   const seats = Object.values(api.world.places).filter((p) => p.adversary);
@@ -4228,15 +4239,15 @@ console.log("\n--- Phase 6a: the map exists ---");
   // Terrain sets both WHAT a hex yields and the rate. One hex, three people,
   // and the ledger must read exactly what the manifest declares for that
   // ground -- nothing assumed, everything read from the world.
-  S().pop = 2; api.syncDominion();
+  api.me().pop = 2; api.syncDominion();
   const tid = S().map.owned.find((id) => id !== "0,0");
   const terr = api.world.places[tid].terrain;
   const decl = api.active().map.yields[terr];
   S().map.owned = [tid];
   S().map.pop = {}; api.ensurePop();
   S().map.pop[tid] = 3;   // three people on the ground, exactly
-  S().units = { soldier: 0, archer: 0, horseman: 0, siegeEngine: 0 };
-  S().upgrades = {}; putStructures("infirmary", 0);
+  api.me().units = { soldier: 0, archer: 0, horseman: 0, siegeEngine: 0 };
+  api.me().upgrades = {}; putStructures("infirmary", 0);
   api.syncPopMirror();
   check("terrain sets what a hex yields", api.hexResource(tid) === decl.res);
   check("...and the rate the ledger reads",
@@ -4438,12 +4449,12 @@ console.log("\n--- The action layer: one seam for every player verb ---");
   // allocation choice it made; the DISCIPLINE it was built to enforce is what
   // these checks actually protect, so they moved to the verbs that survived.
   reset();
-  api.S.era = "bronze";
+  api.me().era = "bronze";
   api.initAdversaries();
   api.ensureMap();
   api.clearJournal();
-  api.S.res.wood = 9999; api.S.res.stone = 9999; api.S.res.food = 9999;
-  api.S.upgrades.farming = true;
+  api.me().res.wood = 9999; api.me().res.stone = 9999; api.me().res.food = 9999;
+  api.me().upgrades.farming = true;
 
   const farmable = Object.values(api.world.places).find((p) =>
     (p.terrain === "plains" || p.terrain === "river") && !p.adversary && !p.minor &&
@@ -4453,7 +4464,7 @@ console.log("\n--- The action layer: one seam for every player verb ---");
 
   const beforeStamp = api.workStamp();
   api.launchStructure(hex, "farm");
-  check("a build verb is callable with no UI in the room", api.S.buildQueue.length === 1);
+  check("a build verb is callable with no UI in the room", api.me().buildQueue.length === 1);
   run(60);
   check("...and it lands on the board", api.hexUse(hex).kind === "structure");
   check("building bumps the render stamp instead of serialising the map",
@@ -4464,13 +4475,13 @@ console.log("\n--- The action layer: one seam for every player verb ---");
   const hill = Object.values(api.world.places).find((p) => p.terrain === "hills" && !p.adversary && !p.minor);
   if (hill && !api.isOwned(hill.id)) api.captureTile(hill.id);
   if (hill) {
-    const q = api.S.buildQueue.length;
+    const q = api.me().buildQueue.length;
     api.launchStructure(hill.id, "farm");
-    check("a farm on hills is refused by the verb itself", api.S.buildQueue.length === q);
+    check("a farm on hills is refused by the verb itself", api.me().buildQueue.length === q);
     api.launchStructure(hill.id, "copperMine");
-    const queued = api.S.buildQueue.length === q + 1;
+    const queued = api.me().buildQueue.length === q + 1;
     check("...and a copper mine on the same hills is not", queued);
-    if (queued) api.cancelBuild(api.S.buildQueue[api.S.buildQueue.length - 1].uid);
+    if (queued) api.cancelBuild(api.me().buildQueue[api.me().buildQueue.length - 1].uid);
   }
 
   const srcDir = fileURLToPath(new URL("./src", import.meta.url));
@@ -4505,15 +4516,15 @@ console.log("\n--- The action layer: one seam for every player verb ---");
   api.S.map.built[hex] = "market";
   const rate = api.tradeRate();
   check("a market standing opens the bank at its published rate", rate > 1);
-  api.S.res.food = 1000; api.S.res.wood = 0;
+  api.me().res.food = 1000; api.me().res.wood = 0;
   check("the bank always says yes, at their price", api.trade("food", "wood", 1) === true);
   check("...taking the rate in and giving one out",
-    api.S.res.wood === 1 && Math.abs(api.S.res.food - (1000 - rate)) < 1e-9);
+    api.me().res.wood === 1 && Math.abs(api.me().res.food - (1000 - rate)) < 1e-9);
   check("trading a resource for itself is refused", api.trade("food", "food", 1) === false);
   check("trading what you do not have is refused",
-    (api.S.res.tin = 0, api.trade("tin", "wood", 1) === false));
+    (api.me().res.tin = 0, api.trade("tin", "wood", 1) === false));
   check("trading INTO a full store is refused -- the goods would evaporate",
-    (api.S.res.wood = api.caps().wood, api.trade("food", "wood", 1) === false));
+    (api.me().res.wood = api.caps().wood, api.trade("food", "wood", 1) === false));
   check("a second market improves the rate, but never to parity", (() => {
     const two = Object.values(api.world.places).find((p) =>
       (p.terrain === "plains" || p.terrain === "river") && api.isOwned(p.id) && p.id !== hex);
@@ -4602,15 +4613,15 @@ console.log("\n--- The hex economy: one resource per ground ---");
   // upgrades and units, so cancelling a queued structure or settling party
   // threw a TypeError and took the tick with it (found 2026-08-25).
   reset();
-  api.S.era = "bronze"; api.initAdversaries(); api.ensureMap();
+  api.me().era = "bronze"; api.initAdversaries(); api.ensureMap();
   // Bronze prices its claim in bronze too -- pay for everything the era asks.
-  for (const r of api.MANIFESTS.bronze.resources) api.S.res[r.id] = 9999;
-  api.S.upgrades.farming = true;
+  for (const r of api.MANIFESTS.bronze.resources) api.me().res[r.id] = 9999;
+  api.me().upgrades.farming = true;
   const target = Object.values(api.world.places).find((p) =>
     p.terrain !== "water" && !p.adversary && !p.minor && !api.isOwned(p.id));
   api.launchSettle(target.id);
   check("a settling party can be cancelled without throwing", (() => {
-    try { api.cancelBuild(api.S.buildQueue[0].uid); return api.S.buildQueue.length === 0; }
+    try { api.cancelBuild(api.me().buildQueue[0].uid); return api.me().buildQueue.length === 0; }
     catch (e) { return false; }
   })());
   const plot = Object.values(api.world.places).find((p) =>
@@ -4620,10 +4631,61 @@ console.log("\n--- The hex economy: one resource per ground ---");
   if (plot && !api.isOwned(plot.id)) api.captureTile(plot.id);
   api.launchStructure(plot.id, "farm");
   check("a queued structure can be cancelled without throwing", (() => {
-    try { api.cancelBuild(api.S.buildQueue[0].uid); return api.S.buildQueue.length === 0; }
+    try { api.cancelBuild(api.me().buildQueue[0].uid); return api.me().buildQueue.length === 0; }
     catch (e) { return false; }
   })());
 }
 
+
+console.log("\n--- The player split: a civilization is a record, not the world ---");
+{
+  // Pillar 1 of the design brief, as state: everything belonging to ONE civ
+  // lives in S.players, and the human is simply the one at S.me. Before this
+  // split a second civilization had nowhere to exist.
+  reset();
+  const WORLD_ONLY = ["seed", "rngState", "players", "me", "adversaries", "map", "tick", "seen", "dead"];
+  check("S carries world and run state only",
+    Object.keys(S()).every((k) => WORLD_ONLY.includes(k)));
+  check("...and nothing a civilization owns", (() => {
+    const CIV = ["res", "builds", "units", "upgrades", "buildQueue", "buildSeq",
+                 "pop", "bought", "seatName", "era", "eraHistory", "expeditions", "playerColor"];
+    return CIV.every((k) => !(k in S()));
+  })());
+
+  const p = api.me();
+  check("the human is players[0], and me() is how anything reaches them",
+    S().me === 0 && p === S().players[0] && p.id === 0);
+  check("a civ carries its own economy, knowledge and age",
+    typeof p.era === "string" && !!p.res && !!p.units && !!p.upgrades &&
+    Array.isArray(p.buildQueue) && Array.isArray(p.expeditions));
+
+  // A SECOND CIV HAS SOMEWHERE TO EXIST. It does nothing yet -- no decisions
+  // are made for it -- but the shape is the point, and a shape that cannot
+  // hold one is exactly what this replaced.
+  const two = api.freshPlayer(1, { color: "teal", era: "bronze", seatName: "Farhold" });
+  S().players.push(two);
+  check("a second civ can be seated with its own colour, age and name",
+    S().players.length === 2 && two.id === 1 && two.era === "bronze" &&
+    two.color === "teal" && two.seatName === "Farhold");
+  check("...with books entirely its own -- spending one does not touch the other", (() => {
+    const before = api.me().res.food;
+    two.res.food -= 5;
+    return api.me().res.food === before && two.res.food !== before;
+  })());
+  // Looking through another seat is a VALUE change, not a rewrite -- which is
+  // the whole reason `me` is a field rather than a constant.
+  S().me = 1;
+  check("changing which seat we look through changes what me() answers",
+    api.me() === two && api.me().era === "bronze");
+  S().me = 0;
+  check("...and changing it back restores the human", api.me() === S().players[0]);
+  S().players.pop();
+
+  // The era is per-civ from the first day of the split, because the shared
+  // world clock is the thing the design explicitly killed.
+  check("era lives on the civ, never on the world", !("era" in S()) && "era" in api.me());
+  check("eraHistory is the civ's too -- each one crosses its own borders",
+    !("eraHistory" in S()) && "eraHistory" in api.me());
+}
 
 console.log(`\n${fails === 0 ? "ALL CHECKS PASSED" : fails + " CHECK(S) FAILED"}`);

@@ -1,4 +1,4 @@
-import { S } from "../core/state.js";
+import { S, me } from "../core/state.js";
 import { MINOR_PLACES, SEAT_IDS } from "./lib.js";
 
 // ---------- The Iron Age (delta) ----------------------------
@@ -40,7 +40,7 @@ export const IRON_DELTA = {
   // `consolidate` died here in E2, ahead of its E5 schedule, because the
   // harness caught it colliding with two newer laws at once: dominion never
   // shrinks (so the lockstep instantly undid the pop cut), and population
-  // lives on hexes (so cutting S.pop changed nothing anyone could see).
+  // lives on hexes (so cutting me().pop changed nothing anyone could see).
   // The border is a pure re-denomination now -- exactly where the design was
   // heading anyway.
   // The tile noun changes, so the world recuts at holdfast scale (design.md,
@@ -151,7 +151,7 @@ export const IRON_DELTA = {
         id: "siegeWorkshop", name: "Siege Workshop", kind: "upgrade",
         desc: "Beams, rope and the arithmetic of leverage. Lets your people build Siege Engines.",
         base: { wood: 50, stone: 40, iron: 15 }, buildTime: 30,
-        reveal: () => !!S.upgrades.barracks,
+        reveal: () => !!me().upgrades.barracks,
       },
       {
         id: "ironTools", name: "Iron Tools", kind: "upgrade",
@@ -163,19 +163,19 @@ export const IRON_DELTA = {
         id: "ironWeapons", name: "Iron Weapons", kind: "upgrade",
         desc: "Steel edges hold where bronze bends. A further improvement to your fighters' odds in any fight.",
         base: { steel: 40, gold: 20 }, buildTime: 35,
-        reveal: () => !!S.upgrades.barracks,
+        reveal: () => !!me().upgrades.barracks,
       },
       {
         id: "fortification", name: "Fortification", kind: "upgrade",
         desc: "Cut stone, raise walls, and hold a border properly. Lets a holding be turned over entirely to defence.",
         base: { wood: 160, stone: 220, iron: 60 }, buildTime: 60,
-        reveal: () => S.pop >= 30,
+        reveal: () => me().pop >= 30,
       },
       {
         id: "steelArmor", name: "Steel Armor", kind: "upgrade",
         desc: "Plate over hide. Improves your fighters' odds of surviving a fight, again.",
         base: { steel: 30, gold: 25 }, buildTime: 30,
-        reveal: () => !!S.upgrades.barracks,
+        reveal: () => !!me().upgrades.barracks,
       },
     ],
     units: [
@@ -187,7 +187,7 @@ export const IRON_DELTA = {
         strength: 1.0, siege: true, casualtyWeight: 0.5,
         desc: "Engineers and their machine. Tears down walls like nothing else; fights and defends like anyone else.",
         base: { wood: 45, stone: 30, iron: 12 }, buildTime: 30,
-        reveal: () => !!S.upgrades.siegeWorkshop,
+        reveal: () => !!me().upgrades.siegeWorkshop,
       },
     ],
   },

@@ -1,6 +1,6 @@
 import { caps } from "../core/derived.js";
 import { builtCount } from "../map/map.js";
-import { S } from "../core/state.js";
+import { S, me } from "../core/state.js";
 import { MINOR_PLACES, SEAT_IDS } from "./lib.js";
 
 // ---------- The Stone Age (base manifest) -------------------
@@ -18,7 +18,7 @@ import { MINOR_PLACES, SEAT_IDS } from "./lib.js";
 //     live in.
 //   units: trainable person-types -- same queue and cost machinery as
 //     buildings, but `popCost` permanently consumes a civilian and ownership
-//     lives in S.units, so they render in Your People. `strength` is baseline
+//     lives in me().units, so they render in Your People. `strength` is baseline
 //     defense contribution; `counters` names the raid type they excel against;
 //     `casualtyWeight` is exposure when someone must die (see
 //     removeRandomUnit) -- every weight deliberately ABOVE ZERO, bending odds,
@@ -214,7 +214,7 @@ export const STONE = {
       id: "stoneTools", name: "Stone Tools", kind: "upgrade",
       desc: "Permanently improves all gathering by 8%.",
       base: { wood: 10 }, buildTime: 10,
-      reveal: () => S.res.wood >= 5,
+      reveal: () => me().res.wood >= 5,
     },
     {
       id: "fireMastery", name: "Fire Mastery", kind: "upgrade",
@@ -232,24 +232,24 @@ export const STONE = {
       id: "flintSpears", name: "Flint-Tipped Spears", kind: "upgrade",
       desc: "Sharper spearheads improve your Soldiers' odds in a fight.",
       base: { wood: 20, stone: 10 }, buildTime: 20,
-      reveal: () => !!S.upgrades.barracks,
+      reveal: () => !!me().upgrades.barracks,
     },
     {
       id: "hideArmor", name: "Hide Armor", kind: "upgrade",
       desc: "Simple hide armor improves your Soldiers' odds of surviving a fight.",
       base: { wood: 15, food: 15 }, buildTime: 20,
-      reveal: () => !!S.upgrades.barracks,
+      reveal: () => !!me().upgrades.barracks,
     },
     // The age capstone. An ordinary upgrade in every respect -- same queue,
     // same cancel/refund, same cost check -- so Sickness and Conflict keep
     // rolling through its long build. That's deliberately where "and some
-    // luck" lives. Its completion is the ONLY place S.era is ever assigned.
+    // luck" lives. Its completion is the ONLY place me().era is ever assigned.
     // The Bronze delta REMOVES it: a capstone exists only in the era it ends.
     {
       id: "bronzeAge", name: "Bronze Age", kind: "upgrade",
       desc: "Copper and tin, married in fire. Step out of the age of stone.",
       base: { food: 300, wood: 300, stone: 300 }, buildTime: 120,
-      reveal: () => S.pop >= 25 && (S.units.soldier || 0) >= 1,
+      reveal: () => me().pop >= 25 && (me().units.soldier || 0) >= 1,
     },
   ],
 
@@ -259,7 +259,7 @@ export const STONE = {
       casualtyWeight: 1.0,
       desc: "A settler permanently trained for defense. Holds the line, and takes the worst of it.",
       base: { wood: 12 }, buildTime: 15,
-      reveal: () => !!S.upgrades.barracks,
+      reveal: () => !!me().upgrades.barracks,
     },
   ],
 

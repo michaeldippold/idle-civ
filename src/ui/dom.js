@@ -1,4 +1,4 @@
-import { S } from "../core/state.js";
+import { S, me } from "../core/state.js";
 
 // ---------- Rendering ---------------------------------------
 export function fmt(n) { return Math.floor(n).toLocaleString(); }
@@ -80,8 +80,8 @@ export function tipHide() {
 // "Short 24 wood, 3 stone." -- the refusal reason, in the tooltip, in red.
 export function shortfallLine(cost) {
   const short = Object.keys(cost)
-    .filter((k) => (S.res[k] || 0) < cost[k])
-    .map((k) => `${Math.ceil(cost[k] - (S.res[k] || 0))} ${k}`);
+    .filter((k) => (me().res[k] || 0) < cost[k])
+    .map((k) => `${Math.ceil(cost[k] - (me().res[k] || 0))} ${k}`);
   return short.length ? `Short ${short.join(", ")}.` : null;
 }
 

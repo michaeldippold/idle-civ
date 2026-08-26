@@ -2,20 +2,25 @@ import { DEF_CATEGORIES, active } from "../content/compile.js";
 import { playtime } from "../core/derived.js";
 import { ensureMap, syncDominion } from "../map/map.js";
 import { initAdversaries } from "../core/persist.js";
-import { S } from "../core/state.js";
+import { S, me } from "../core/state.js";
 
 import { fmtTime, setSpeed } from "../ui/chrome.js";
 import { log } from "../ui/log.js";
 import { openEraModal } from "../ui/modal.js";
 
 export function advanceEra(era) {
-  const fromEra = S.era;
+  const fromEra = me().era;
   const fromM = active();
-  const shallow = Object.assign({}, S);
+  // THE SNAPSHOT IS OF THE CIVILIZATION, not the world (2026-08-26, with the
+  // player split). It was a copy of S back when a civ's state WAS S; a border
+  // is something one civ crosses, so what has to be frozen is that civ's
+  // books -- its stores, its army, what it had learned -- and nothing about
+  // the board, which does not change at a border anyway.
+  const shallow = Object.assign({}, me());
   delete shallow.eraHistory;               // snapshots don't nest snapshots
-  S.eraHistory[fromEra] = JSON.parse(JSON.stringify(shallow));
+  me().eraHistory[fromEra] = JSON.parse(JSON.stringify(shallow));
 
-  S.era = era;
+  me().era = era;
   const toM = active();
   // Pacing telemetry (console only), the bookend to the started line in build().
   console.log(`[pacing] ${toM.name} began at ${fmtTime(playtime())} (t${S.tick})`);
@@ -26,7 +31,7 @@ export function advanceEra(era) {
   // bread default: nothing arrives at a border any more, since every hex was
   // claimed or captured and captures default to food on their own.
   ensureMap();
-  runEraMigrations(fromM, toM, S.eraHistory[fromEra]);
+  runEraMigrations(fromM, toM, me().eraHistory[fromEra]);
   syncDominion();
   purgeDom(fromM, toM);
 
@@ -53,7 +58,10 @@ export function advanceEra(era) {
 export function runEraMigrations(fromM, toM, snapshot) {
   // (The workers-walk-home job migration died in E2 with the jobs system.)
   for (const ins of toM.migrations) {
-    const bucket = S[ins.bucket];
+    // Buckets are the CIV's (res, builds, units, upgrades) -- a migration
+    // re-denominates what one people owns, never anything about the world.
+    const bucket = me()[ins.bucket];
+    if (!bucket) continue;
     const snapBucket = snapshot[ins.bucket] || {};
     if (ins.vanish) {
       if (ins.bucket === "upgrades") delete bucket[ins.id];

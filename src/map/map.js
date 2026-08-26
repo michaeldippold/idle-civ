@@ -1,5 +1,5 @@
 import { DEF_INDEX, active } from "../content/compile.js";
-import { S } from "../core/state.js";
+import { S, me } from "../core/state.js";
 import { CONFIG } from "../core/config.js";
 import { rng } from "../core/rng.js";
 import { log } from "../ui/log.js";
@@ -128,11 +128,11 @@ export function ensureMap() {
     const p = world.places[id];
     if (!p.minor || S.map.owned.includes(id)) continue;
     const st = S.map.minors[id];
-    if (!st || st.era !== S.era) {
+    if (!st || st.era !== me().era) {
       S.map.minors[id] = {
         walls: p.minor.wallsMax,
         stock: Object.assign({}, p.minor.stock),
-        era: S.era,
+        era: me().era,
       };
     }
   }
@@ -167,15 +167,15 @@ export function syncDominion() {
   syncPopMirror();
 }
 
-// S.pop is a MIRROR now (E3): the floored hex sum plus the standing army.
-// Everything legacy that still reads S.pop -- reveal gates, the levy cap,
+// me().pop is a MIRROR now (E3): the floored hex sum plus the standing army.
+// Everything legacy that still reads me().pop -- reveal gates, the levy cap,
 // event scaling, civilians() -- sees the real population, until E5 re-homes
-// the army and S.pop can retire outright.
+// the army and me().pop can retire outright.
 export function syncPopMirror() {
   if (!S.map || !S.map.pop) return;
   let units = 0;
-  for (const k in S.units) units += S.units[k] || 0;
-  S.pop = hexPopSum() + units;
+  for (const k in me().units) units += me().units[k] || 0;
+  me().pop = hexPopSum() + units;
 }
 
 // What the player has SEEN. Sticky and additive, never removed -- the
@@ -546,15 +546,15 @@ export function growPopulation(dt) {
   growthSpendRate = 0;
   if (!S.map || !S.map.pop || !world) return;
   // No one is born during a famine: growth waits for the larder.
-  if (S.res.food <= 0) return;
+  if (me().res.food <= 0) return;
   const r = CONFIG.popGrowthRate;
   const before = hexPopSum();
   // What the larder can actually raise this tick. Growth is BOUGHT, not free
   // (CONFIG.growthFoodCost), so a thin surplus grows slowly and a full one
   // grows fast -- and a settlement that is only just feeding itself cannot
   // replace what a raid took.
-  const perHead = CONFIG.growthFoodCost * (1 + (S.pop || 0) / CONFIG.growthCostPopScale);
-  let budget = S.res.food / perHead;
+  const perHead = CONFIG.growthFoodCost * (1 + (me().pop || 0) / CONFIG.growthCostPopScale);
+  let budget = me().res.food / perHead;
   for (const id of S.map.owned) {
     const cap = capOf(id);
     if (cap <= 0) continue;
@@ -568,7 +568,7 @@ export function growPopulation(dt) {
     let gain = r * p * (1 - p / cap) * dt;
     if (gain > budget) gain = budget;             // grow only what you can feed
     budget -= gain;
-    S.res.food -= gain * perHead;
+    me().res.food -= gain * perHead;
     growthSpendRate += (gain * perHead) / dt;
     const next = p + gain;
     // The logistic APPROACHES its cap and never attains it; snap the last
@@ -581,10 +581,10 @@ export function growPopulation(dt) {
     syncPopMirror();
     // Lifetime arrivals, for the game-over screen. Counted in WHOLE people
     // crossing an integer, so the stat matches what the Chronicle announced
-    // rather than the fractional curve underneath it. (S.bought was declared
+    // rather than the fractional curve underneath it. (me().bought was declared
     // in E1 and never incremented until 2026-08-25 -- the end screen read
     // "Arrivals welcomed: 0" for every run ever played.)
-    if (after > before) S.bought += Math.max(0, Math.floor(after) - Math.floor(before));
+    if (after > before) me().bought += Math.max(0, Math.floor(after) - Math.floor(before));
     // The Chronicle keeps its pulse: each whole arrival is told in the era's
     // own words -- but only while the settlement is SMALL. A hundred-soul
     // dominion gaining a person a second would drown the Chronicle in birth
@@ -602,7 +602,7 @@ export function dominionCap() {
 }
 export function holdsUsed() {
   if (!S.map) return 0;
-  return S.map.owned.length + S.buildQueue.filter((q) => q.kind === "settle").length;
+  return S.map.owned.length + me().buildQueue.filter((q) => q.kind === "settle").length;
 }
 export function atDominionCap() {
   return holdsUsed() >= dominionCap();
@@ -842,7 +842,7 @@ export function captureTile(id, viaSettle) {
   // New ground arrives BARE and starts working its own terrain at once --
   // no default to choose and nothing to forget to set.
   ensurePop();               // the new holding enters the books with its party
-  syncPopMirror();           // S.pop is a MIRROR: recomputed here, never bumped
+  syncPopMirror();           // me().pop is a MIRROR: recomputed here, never bumped
                              // by hand (a stray += 1 lived on this line until
                              // 2026-08-25, dead but misleading).
   syncCharted();              // taking ground shows you what borders it

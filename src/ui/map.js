@@ -1,5 +1,5 @@
 import { active } from "../content/compile.js";
-import { S } from "../core/state.js";
+import { S, me } from "../core/state.js";
 import { canAfford, caps, capWord, seatIsNamed, seatName } from "../core/derived.js";
 import { save } from "../core/persist.js";
 import { canBuildOn, demolishStructure, hasMarket, launchSettle, launchStructure, pendingBuild, pendingSettle, settlePlan, structureFits, structurePlan, structureUnlocked, trade, tradeRate } from "../core/actions.js";
@@ -76,7 +76,7 @@ function advName(adv) { return adv.name.charAt(0).toUpperCase() + adv.name.slice
 // it is how you plan for it.
 function costLine(cost) {
   return Object.keys(cost).map((k) =>
-    `<span class="${(S.res[k] || 0) < cost[k] ? "short" : ""}">${cost[k]} ${k}</span>`).join(", ");
+    `<span class="${(me().res[k] || 0) < cost[k] ? "short" : ""}">${cost[k]} ${k}</span>`).join(", ");
 }
 
 // A PRICE YOU CANNOT EVER MEET, as opposed to one you have not met YET.
@@ -227,9 +227,9 @@ function marketHTML() {
   const c = caps();
   const rows = [];
   for (const get of live) {
-    const affordable = live.filter((g) => g.id !== get.id && (S.res[g.id] || 0) >= rate);
+    const affordable = live.filter((g) => g.id !== get.id && (me().res[g.id] || 0) >= rate);
     if (!affordable.length) continue;
-    const full = c[get.id] != null && (S.res[get.id] || 0) + 1 > c[get.id];
+    const full = c[get.id] != null && (me().res[get.id] || 0) + 1 > c[get.id];
     const btns = affordable.map((g) =>
       `<button class="map-act trade" data-act="trade" data-give="${g.id}" data-get="${get.id}"${
         full ? " disabled" : ""}>${rate} ${g.id}</button>`).join("");
@@ -421,7 +421,7 @@ function signature() {
   // used to JSON.stringify an object that grows with the dominion, in the one
   // function whose entire job is making the common case cheap. setHexWork is
   // the only writer, so a counter it bumps is exactly as sensitive and O(1).
-  return [S.era, ((S.map && S.map.owned) || []).join("|"),
+  return [me().era, ((S.map && S.map.owned) || []).join("|"),
     ((S.map && S.map.revealed) || []).length,
     ((S.map && S.map.sighted) || []).length,
     workStamp(), selectedId].join("~");
@@ -590,7 +590,7 @@ export function renderMapStage() {
     lastBuilt = now;
     if (changed.length) changedHexes(changed);
     stage3d.setWorld(visiblePlaces(),
-      { isOwned, isVisible, isCharted, homeId: world.home, era: S.era });
+      { isOwned, isVisible, isCharted, homeId: world.home, era: me().era });
     stage3d.setSelected(selectedId);
     return;
   }

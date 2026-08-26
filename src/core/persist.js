@@ -1,6 +1,6 @@
 import { active } from "../content/compile.js";
 import { CONFIG, TICK_SECONDS } from "./config.js";
-import { S, freshState, setS } from "./state.js";
+import { S, freshPlayer, freshState, me, setS } from "./state.js";
 import { log } from "../ui/log.js";
 
 // ---------- Save / load -------------------------------------
@@ -26,23 +26,41 @@ export function load() {
   try { data = JSON.parse(localStorage.getItem(CONFIG.saveKey)); } catch (e) {}
   if (!data) { setS(freshState()); return false; }
   setS(Object.assign(freshState(), data));
-  // Merged against freshState() rather than a literal, so a resource or job
-  // added later defaults to 0 in old saves without touching this line again.
-  S.res = Object.assign(freshState().res, data.res);
-  S.builds = Object.assign(freshState().builds, data.builds);
-  S.units = Object.assign(freshState().units, data.units);
-  S.upgrades = data.upgrades || {};
+
+  // THE PLAYER SPLIT (2026-08-26). Everything belonging to a civilization moved
+  // off S and into S.players; a save written before that has those fields at
+  // the top level. Rather than a version branch, the loader reads from whichever
+  // place holds them -- `src` below is the save's own player record if it has
+  // one, and the save itself if it does not. One expression, both schemas, and
+  // it keeps working when a third field moves.
+  S.players = Array.isArray(data.players) && data.players.length
+    ? data.players.map((p, i) => Object.assign(freshPlayer(i), p, { id: i }))
+    : [freshPlayer(0)];
+  S.me = typeof data.me === "number" && S.players[data.me] ? data.me : 0;
+  const src = (Array.isArray(data.players) && data.players[S.me]) || data;
+  const blank = freshPlayer(S.me);
+  const p = me();
+
+  // Merged against a fresh record rather than a literal, so a resource added
+  // later defaults to 0 in old saves without touching this line again.
+  p.res = Object.assign(blank.res, src.res);
+  p.builds = Object.assign(blank.builds, src.builds);
+  p.units = Object.assign(blank.units, src.units);
+  p.upgrades = src.upgrades || {};
+  p.eraHistory = src.eraHistory || {};
+  p.expeditions = Array.isArray(src.expeditions) ? src.expeditions : [];
+  p.buildQueue = Array.isArray(src.buildQueue) ? src.buildQueue : [];
+  if (typeof src.era === "string") p.era = src.era;
+  if (typeof src.seatName === "string") p.seatName = src.seatName;
+  // `playerColor` was the pre-split name and sat on S.
+  if (typeof src.color === "string") p.color = src.color;
+  else if (typeof data.playerColor === "string") p.color = data.playerColor;
+  if (typeof src.pop === "number") p.pop = src.pop;
+  if (typeof src.bought === "number") p.bought = src.bought;
+
   S.seen = data.seen || {};
-  S.eraHistory = data.eraHistory || {};
   S.adversaries = data.adversaries || {};
-  S.expeditions = Array.isArray(data.expeditions) ? data.expeditions : [];
-  S.buildQueue = Array.isArray(data.buildQueue) ? data.buildQueue : [];
   S.map = data.map || null;
-  // One-time back-compat (phase 6b): saves from before the levy carried
-  // their units INSIDE S.pop. Subtract them out once, narrated. The flag is
-  // also set by applyConsolidation, so fresh runs never hit this.
-  // (The levy back-compat block died in E5 with the levy itself; saves are
-  // disposable during the rework by standing ruling.)
 
   // Saves from before the tick clock counted seconds in S.playtime. One-time
   // conversion; the old field rides along inert, per the state invariant.
@@ -82,12 +100,12 @@ export function initAdversaries() {
     if (!st) {
       S.adversaries[adv.id] = {
         stock: Object.assign({}, adv.stock), standing: 0,
-        walls: adv.walls || 0, era: S.era,
+        walls: adv.walls || 0, era: me().era,
       };
-    } else if (st.era !== S.era) {
+    } else if (st.era !== me().era) {
       st.stock = Object.assign({}, adv.stock);   // a new age, a full larder
       st.walls = adv.walls || 0;                 // and the walls rebuilt taller
-      st.era = S.era;                            // standing is NOT touched
+      st.era = me().era;                            // standing is NOT touched
     } else if (st.walls === undefined) {
       // Saves from before fortifications existed get their walls raised once.
       st.walls = adv.walls || 0;

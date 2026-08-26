@@ -2,7 +2,7 @@ import { BRONZE_DELTA } from "./bronze.js";
 import { IRON_DELTA } from "./iron.js";
 import { EVENT_LIB, HINT_LIB } from "./lib.js";
 import { STONE } from "./stone.js";
-import { S } from "../core/state.js";
+import { S, me } from "../core/state.js";
 import { CONFIG } from "../core/config.js";
 
 // ---------- Eras: the manifest model ------------------------
@@ -255,7 +255,7 @@ for (const era of ERA_ORDER) {
 
 // THE indirection: every engine and render read of content goes through here.
 // The stone fallback is defensive only (a hand-edited save with a bogus era).
-export function active() { return MANIFESTS[S.era] || MANIFESTS.stone; }
+export function active() { return MANIFESTS[me().era] || MANIFESTS.stone; }
 
 // (BOOST_BUILDING died here 2026-08-25 with the hex economy. It mapped a
 // resource to the panel building that lifted its rate kingdom-wide -- food to

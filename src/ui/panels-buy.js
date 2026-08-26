@@ -1,7 +1,7 @@
 import { active } from "../content/compile.js";
 import { build } from "../core/actions.js";
 import { buildCost, canAfford, civilians, defById, isCapped, isRevealed, levyCap, levyUsed, pendingCount, reserved } from "../core/derived.js";
-import { S } from "../core/state.js";
+import { S, me } from "../core/state.js";
 import { attachTip, shortfallLine } from "./dom.js";
 
 
@@ -62,7 +62,7 @@ export function setPending(skel, count) {
 
 export function costPartsFor(def) {
   const cost = buildCost(def);
-  return Object.keys(cost).map((k) => ({ text: `${cost[k]} ${k}`, short: S.res[k] < cost[k] }));
+  return Object.keys(cost).map((k) => ({ text: `${cost[k]} ${k}`, short: me().res[k] < cost[k] }));
 }
 
 // (renderBuildings() was deleted 2026-08-25 with the Construction panel. Its
@@ -95,7 +95,7 @@ export function renderUpgrades() {
     anyRevealed = true;
 
     const cost = buildCost(def);
-    const owned = !!S.upgrades[def.id];
+    const owned = !!me().upgrades[def.id];
     const pending = pendingCount(def.id) > 0;
     const skel = cardSkeleton(card);
     setText(skel.name, def.name);
@@ -197,7 +197,7 @@ export function renderTraining() {
     }
     const skel = cardSkeleton(card);
     setText(skel.name, def.name);
-    setText(skel.n, String(S.units[def.id] || 0));
+    setText(skel.n, String(me().units[def.id] || 0));
     setPending(skel, pendingCount(def.id));
     setCostParts(skel, parts);
     setText(skel.time, `${def.buildTime}s`);

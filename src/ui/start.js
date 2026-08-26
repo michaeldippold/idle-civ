@@ -2,7 +2,7 @@ import { active } from "../content/compile.js";
 import { CONFIG } from "../core/config.js";
 import { playtime } from "../core/derived.js";
 import { suppressSaves } from "../core/persist.js";
-import { S } from "../core/state.js";
+import { S, me } from "../core/state.js";
 import { CONTINENTS } from "../map/continents.js";
 import { DEFAULT_COLOR, PLAYER_COLORS } from "../core/palette.js";
 import { fmtTime, renderAll, setPreGame } from "./chrome.js";
@@ -72,8 +72,8 @@ export function pendingAutostart() {
 
 function resumeLine() {
   const m = active();
-  const noun = S.pop === 1 ? m.popNoun.singular : m.popNoun.plural;
-  return `${m.name} · ${fmtTime(playtime())} · ${S.pop} ${noun}`;
+  const noun = me().pop === 1 ? m.popNoun.singular : m.popNoun.plural;
+  return `${m.name} · ${fmtTime(playtime())} · ${me().pop} ${noun}`;
 }
 
 function beginRun() {

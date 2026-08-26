@@ -4,7 +4,7 @@ import { rng } from "../core/rng.js";
 import { dropQueueItem } from "../core/actions.js";
 import { CONFIG } from "../core/config.js";
 import { availableUnits, civilians, defById, reserved } from "../core/derived.js";
-import { S } from "../core/state.js";
+import { S, me } from "../core/state.js";
 import { log } from "../ui/log.js";
 
 // ---------- Events / combat helpers -------------------------
@@ -83,7 +83,7 @@ export const RAID_SIZES = [
 // party, rarely a host. What scales is the whole curve, with the settlement:
 // see CONFIG.raidSizePopScale.
 export function raidSizeScale() {
-  return 1 + (S.pop || 0) / CONFIG.raidSizePopScale;
+  return 1 + (me().pop || 0) / CONFIG.raidSizePopScale;
 }
 export function rollRaidSize() {
   const total = RAID_SIZES.reduce((s, r) => s + r.weight, 0);
@@ -114,15 +114,15 @@ export function rollRaidType() {
 // These read OWNED upgrades, not the shop: a tier bought in a past era keeps
 // working after its upgrade leaves the manifest.
 export function weaponMultiplier() {
-  if (S.upgrades.ironWeapons) return 3.0;
-  if (S.upgrades.bronzeWeapons) return 2.2;
-  if (S.upgrades.flintSpears) return 1.6;
+  if (me().upgrades.ironWeapons) return 3.0;
+  if (me().upgrades.bronzeWeapons) return 2.2;
+  if (me().upgrades.flintSpears) return 1.6;
   return 1.0;
 }
 // Armor tiers replace the same way -- lowest (best) owned factor wins.
 export function armorFactor() {
-  if (S.upgrades.steelArmor) return 0.3;
-  if (S.upgrades.hideArmor) return 0.5;
+  if (me().upgrades.steelArmor) return 0.3;
+  if (me().upgrades.hideArmor) return 0.5;
   return 1.0;
 }
 
@@ -154,7 +154,7 @@ export function counterCoverage(raid) {
 export function stealResources(raidSize) {
   const fraction = Math.min(0.5, raidSize * 0.03);
   for (const r of active().resources) {
-    S.res[r.id] -= Math.floor((S.res[r.id] || 0) * fraction);
+    me().res[r.id] -= Math.floor((me().res[r.id] || 0) * fraction);
   }
 }
 
@@ -187,12 +187,12 @@ export function pick(arr) { return arr[Math.floor(rng() * arr.length)]; }
 export function reconcileReservations() {
   let over = reserved() - Math.max(0, civilians());
   if (over <= 0) return;
-  for (let i = S.buildQueue.length - 1; i >= 0 && over > 0; i--) {
-    const q = S.buildQueue[i];
+  for (let i = me().buildQueue.length - 1; i >= 0 && over > 0; i--) {
+    const q = me().buildQueue[i];
     const def = defById(q.id);
     if (!def || !def.popCost) continue;
-    for (const k in q.cost) S.res[k] += q.cost[k];
-    S.buildQueue.splice(i, 1);
+    for (const k in q.cost) me().res[k] += q.cost[k];
+    me().buildQueue.splice(i, 1);
     over -= def.popCost;
     log(`The order for a ${def.name} is abandoned — there is no one left to train.`);
   }
@@ -214,7 +214,7 @@ export function removeRandomUnit() {
   for (const def of units) {
     const w = weightOf(def);
     if (roll < w) {
-      S.units[def.id] -= 1;
+      me().units[def.id] -= 1;
       syncPopMirror();   // the mirror counts the army; the land is untouched
       return def.name;
     }
@@ -224,7 +224,7 @@ export function removeRandomUnit() {
   // whichever type still has someone AT HOME rather than returning null.
   for (let i = units.length - 1; i >= 0; i--) {
     if (availableUnits(units[i].id) > 0) {
-      S.units[units[i].id] -= 1;
+      me().units[units[i].id] -= 1;
       syncPopMirror();
       return units[i].name;
     }

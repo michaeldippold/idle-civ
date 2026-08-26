@@ -1,7 +1,7 @@
 import { active } from "../content/compile.js";
 import { CONFIG } from "../core/config.js";
 import { capWord, caps, fmtSouls, ledgerRates, souls, soulsPerPerson } from "../core/derived.js";
-import { S } from "../core/state.js";
+import { S, me } from "../core/state.js";
 import { atDominionCap, capOf, hexPopSum } from "../map/map.js";
 import { attachTip, fmt, fmtRate } from "./dom.js";
 
@@ -98,7 +98,7 @@ export function renderResources() {
   const r = ledgerRates();   // production NET of converter flows -- see ledgerRates()
   const c = caps();
   const resources = active().resources;
-  const any = resources.some((res) => S.res[res.id] > 0);
+  const any = resources.some((res) => me().res[res.id] > 0);
   const empty = document.getElementById("emptyStores");
   if (empty) empty.classList.toggle("hidden", any);
 
@@ -107,7 +107,7 @@ export function renderResources() {
   for (const res of resources) {
     // Food is always shown (it's the thing that can kill you); everything else
     // appears once you hold some, or once its era arrives. Reveals are sticky.
-    const show = S.res[res.id] > 0 || res.id === "food" || S.seen["res:" + res.id] ||
+    const show = me().res[res.id] > 0 || res.id === "food" || S.seen["res:" + res.id] ||
       (res.reveal && res.reveal());
     if (show) S.seen["res:" + res.id] = true;
 
@@ -131,9 +131,9 @@ export function renderResources() {
     // Uncapped (Iron onward): a bare value -- the row stops promising a
     // ceiling that no longer exists. Same demotion the POP row got.
     valEl.innerHTML = Number.isFinite(cap)
-      ? `${fmt(S.res[res.id])}<span class="cap"> / ${fmt(cap)}</span>`
-      : fmt(S.res[res.id]);
-    valEl.classList.toggle("full", Number.isFinite(cap) && S.res[res.id] >= cap - 0.01);
+      ? `${fmt(me().res[res.id])}<span class="cap"> / ${fmt(cap)}</span>`
+      : fmt(me().res[res.id]);
+    valEl.classList.toggle("full", Number.isFinite(cap) && me().res[res.id] >= cap - 0.01);
 
     const rateEl = document.getElementById("rate-" + res.id);
     const rate = (res.id === "food" ? r.foodNet : r[res.id]) || 0;
@@ -143,7 +143,7 @@ export function renderResources() {
     rateEl.classList.toggle("pos", rate > 0);
     rateEl.classList.toggle("neg", rate < 0);
 
-    const atCap = S.res[res.id] >= cap - 0.01;
+    const atCap = me().res[res.id] >= cap - 0.01;
     attachTip(row, () => ({
       title: res.name,
       body: atCap

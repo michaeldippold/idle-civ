@@ -1,7 +1,7 @@
 import { active } from "../content/compile.js";
 import { capWord, civilians, isRevealed } from "../core/derived.js";
 import { dominionCap, holdsUsed } from "../map/map.js";
-import { S } from "../core/state.js";
+import { S, me } from "../core/state.js";
 import { renderTile } from "./dom.js";
 import { PERSON_ICONS } from "./icons.js";
 
@@ -15,7 +15,7 @@ export function renderPeople() {
     `An ordinary ${noun.singular}. Your people live on the land and work where they live.`);
   for (const def of active().units) {
     if (!isRevealed(def)) continue;
-    renderTile(tiles, "ptile-", def.id, PERSON_ICONS[def.id] || "", def.name, S.units[def.id] || 0, "people", def.desc);
+    renderTile(tiles, "ptile-", def.id, PERSON_ICONS[def.id] || "", def.name, me().units[def.id] || 0, "people", def.desc);
   }
 
   // (The settler-timer countdown died in E3: growth is visible on the hexes

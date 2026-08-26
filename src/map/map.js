@@ -66,7 +66,11 @@ export function ensureMap() {
       // the player's pick, then the seed (which is what "Random" means).
       continent: S.map && S.map.continent ? S.map.continent
         : forcedContinent() || picked || pickContinent(S.seed),
-      owned: ["0,0"],
+      // WHO HOLDS WHAT, keyed by tile. The seat is claimed here so it is the
+      // first ground this civ ever held, which is also what makes the trio
+      // read seat-then-neighbours. (This was `owned: ["0,0"]` -- an array on
+      // the one player -- until 2026-08-26.)
+      owner: { "0,0": S.me },
     };
     if (firstChart && !S.seen.mapCharted) {
       S.seen.needsStartingTrio = true;   // granted below, once the world exists
@@ -109,7 +113,7 @@ export function ensureMap() {
       if (!chosen.includes(p)) chosen.push(p);
     }
     for (const p of chosen) {
-      if (!S.map.owned.includes(p.id)) S.map.owned.push(p.id);
+      if (!isOwned(p.id)) claimTile(p.id);
     }
     S.seen.fillStartingGround = true;   // granted below, once pop exists
   }
@@ -126,7 +130,7 @@ export function ensureMap() {
   // ranges climb by age, so the same steading is simply richer than it was.
   for (const id in world.places) {
     const p = world.places[id];
-    if (!p.minor || S.map.owned.includes(id)) continue;
+    if (!p.minor || isOwned(id)) continue;
     const st = S.map.minors[id];
     if (!st || st.era !== me().era) {
       S.map.minors[id] = {
@@ -151,6 +155,52 @@ export function ensureMap() {
   // answer if a hex is ever left unassigned.)
 }
 
+// ---------- WHO HOLDS WHAT (the ownership seam) ----------
+// OWNERSHIP IS A PROPERTY OF THE TILE (2026-08-26, review Part I.2). It used to
+// be an array on the player -- `S.map.owned` -- which is the same defect the
+// player split fixed one layer up: it encodes "there is one civ and this is
+// their list". The world model already did it right for everyone else
+// (`place.adversary` is an id); the player was the one holder whose ownership
+// was not.
+//
+// `S.map.owner[tileId] = playerId`. One field answers "whose is this?" for any
+// tile and any civ, which is what a second civ needs and what a rival's rim
+// colour reads. The per-player LIST is derived from it, never stored, so the
+// two can never disagree.
+export function ownerMap() {
+  if (!S.map.owner) S.map.owner = {};
+  return S.map.owner;
+}
+export function ownerOf(id) {
+  const o = S.map && S.map.owner ? S.map.owner[id] : undefined;
+  return o === undefined ? null : o;
+}
+export function isOwned(id, pid) {
+  return ownerOf(id) === (pid == null ? S.me : pid);
+}
+// Every tile a civ holds. Derived on demand: the board is ~120 tiles, and a
+// stored list is a second copy of a fact that can drift from the first.
+export function holdings(pid) {
+  const who = pid == null ? S.me : pid;
+  const out = [];
+  const owner = (S.map && S.map.owner) || {};
+  for (const id in owner) if (owner[id] === who) out.push(id);
+  return out;
+}
+export function holdCount(pid) {
+  const who = pid == null ? S.me : pid;
+  const owner = (S.map && S.map.owner) || {};
+  let n = 0;
+  for (const id in owner) if (owner[id] === who) n++;
+  return n;
+}
+export function claimTile(id, pid) {
+  ownerMap()[id] = pid == null ? S.me : pid;
+}
+export function releaseTile(id) {
+  if (S.map && S.map.owner) delete S.map.owner[id];
+}
+
 // The pop-tiles LOCKSTEP died in E3 (it was the E2 bridge, and its runaway
 // was live-confirmed: huts handed out provinces until the whole world was
 // free real estate). Dominion now changes ONLY by claim, capture and fealty.
@@ -160,9 +210,8 @@ export function ensureMap() {
 // is simply no machinery left that could shrink it.
 export function syncDominion() {
   if (!world || !S.map) return;
-  const owned = S.map.owned;
-  if (!owned.includes(world.home)) owned.unshift(world.home);
-  for (const tid in S.map.built) if (!owned.includes(tid)) setHexBuild(tid, null);
+  if (!isOwned(world.home)) claimTile(world.home);
+  for (const tid in S.map.built) if (!isOwned(tid)) setHexBuild(tid, null);
   ensurePop();
   syncPopMirror();
 }
@@ -187,14 +236,14 @@ export function syncPopMirror() {
 // Charting new ground can put new sea -- and new shores -- in view.
 export function syncCharted() {
   if (!world || !S.map) return;
-  if (!S.map.revealed) S.map.revealed = [];
-  const seen = new Set(S.map.revealed);
-  for (const id of S.map.owned) {
+  if (!me().revealed) me().revealed = [];
+  const seen = new Set(me().revealed);
+  for (const id of holdings()) {
     seen.add(id);
     const p = world.places[id];
     if (p) for (const n of p.adj) seen.add(n);
   }
-  S.map.revealed = Array.from(seen);
+  me().revealed = Array.from(seen);
   const sightedLand = syncSighted();
   if (sightedLand > 0 && S.seen.mapCharted) {
     log(sightedLand === 1
@@ -215,7 +264,7 @@ export function setRevealAll(v) { revealAll = v; }
 
 export function isCharted(id) {
   if (revealAll) return true;
-  return !!S.map && !!S.map.revealed && S.map.revealed.includes(id);
+  return !!S.map && !!me().revealed && me().revealed.includes(id);
 }
 
 // ---------- Sight across water (map.md 2.6, slice 4b) ----------
@@ -236,13 +285,13 @@ export function isCharted(id) {
 // into view, so the Chronicle can mark the moment.
 export function syncSighted() {
   if (!world || !S.map) return 0;
-  if (!S.map.sighted) S.map.sighted = [];
+  if (!me().sighted) me().sighted = [];
   const wet = (p) => !p || p.ocean || p.terrain === "water";
-  const seen = new Set(S.map.sighted);
+  const seen = new Set(me().sighted);
   let newLand = 0;
 
   // RAYS LEAVE FROM GROUND YOU STAND ON, not from ground you have merely
-  // glimpsed. This read `S.map.revealed` until 2026-08-24, and charted
+  // glimpsed. This read `me().revealed` until 2026-08-24, and charted
   // includes every NEIGHBOUR of every owned hex -- so a fresh game cast rays
   // from about twelve hexes instead of three, from shorelines nobody had ever
   // walked to. It compounded as you settled, since each new claim charted a
@@ -252,7 +301,7 @@ export function syncSighted() {
   // land showing FIVE steps from the nearest owned tile (a charted hex one
   // step out, plus three of open water, plus the far shore). Owner caught it
   // in play: "my starting revealed slices keep getting bigger and bigger."
-  for (const id of S.map.owned) {
+  for (const id of holdings()) {
     const from = world.places[id];
     if (!from || wet(from)) continue;          // rays leave dry, OWNED ground
     const dist = {};
@@ -282,14 +331,14 @@ export function syncSighted() {
     }
   }
 
-  S.map.sighted = Array.from(seen);
+  me().sighted = Array.from(seen);
   return newLand;
 }
 
 // Seen from afar but not charted: drawn, never touched.
 export function isSighted(id) {
   if (revealAll) return false;                  // the lens charts everything
-  return !!S.map && !!S.map.sighted && S.map.sighted.includes(id) && !isCharted(id);
+  return !!S.map && !!me().sighted && me().sighted.includes(id) && !isCharted(id);
 }
 
 // Drawn at all: charted ground, or ground the eye can reach.
@@ -430,7 +479,7 @@ export function hexResource(id) {
 export function fortStrength(hexId) {
   if (!S.map || !world || !world.places[hexId]) return 0;
   let n = 0;
-  for (const id of S.map.owned) {
+  for (const id of holdings()) {
     const u = hexUse(id);
     if (u.kind !== "structure") continue;
     const def = structureDef(u.id);
@@ -456,7 +505,7 @@ export function fortStrength(hexId) {
 export function healersNear(hexId) {
   if (!S.map || !world || !world.places[hexId]) return 0;
   let n = 0;
-  for (const id of S.map.owned) {
+  for (const id of holdings()) {
     const u = hexUse(id);
     if (u.kind !== "structure") continue;
     const def = structureDef(u.id);
@@ -473,7 +522,7 @@ export function healersNear(hexId) {
 export function builtCount(sid) {
   if (!S.map || !S.map.built) return 0;
   let n = 0;
-  for (const id of S.map.owned) if (S.map.built[id] === sid) n++;
+  for (const id of holdings()) if (S.map.built[id] === sid) n++;
   return n;
 }
 
@@ -482,7 +531,7 @@ export function builtCount(sid) {
 export function structureCount(sid) {
   if (!S.map || !S.map.built) return 0;
   let n = 0;
-  for (const id of S.map.owned) {
+  for (const id of holdings()) {
     const u = hexUse(id);
     if (u.kind === "structure" && u.id === sid) n++;
   }
@@ -492,7 +541,7 @@ export function structureCount(sid) {
 export function hexPopSum() {
   if (!S.map || !S.map.pop) return 0;
   let sum = 0;
-  for (const id of S.map.owned) sum += Math.floor(S.map.pop[id] || 0);
+  for (const id of holdings()) sum += Math.floor(S.map.pop[id] || 0);
   return sum;
 }
 
@@ -505,10 +554,10 @@ export function ensurePop() {
   if (!S.map.pop) S.map.pop = {};
   // Ground taken LATER arrives as a settling party and grows into the place:
   // that dip is what makes a claim an investment rather than a free upgrade.
-  for (const id of S.map.owned) {
+  for (const id of holdings()) {
     if (!(id in S.map.pop)) S.map.pop[id] = 2;
   }
-  for (const id in S.map.pop) if (!S.map.owned.includes(id)) delete S.map.pop[id];
+  for (const id in S.map.pop) if (!isOwned(id)) delete S.map.pop[id];
 }
 
 // THE STARTING TRIO ARRIVES FULL (owner ruling, 2026-08-25). Your opening
@@ -528,7 +577,7 @@ export function ensurePop() {
 // which is a 4X sentence rather than an idle one.
 export function fillStartingGround() {
   if (!S.map || !S.map.pop || !world) return;
-  for (const id of S.map.owned) S.map.pop[id] = Math.max(2, capOf(id));
+  for (const id of holdings()) S.map.pop[id] = Math.max(2, capOf(id));
 }
 
 // Logistic growth toward each hex's cap: dP/dt = r * P * (1 - P/cap).
@@ -555,7 +604,7 @@ export function growPopulation(dt) {
   // replace what a raid took.
   const perHead = CONFIG.growthFoodCost * (1 + (me().pop || 0) / CONFIG.growthCostPopScale);
   let budget = me().res.food / perHead;
-  for (const id of S.map.owned) {
+  for (const id of holdings()) {
     const cap = capOf(id);
     if (cap <= 0) continue;
     let p = S.map.pop[id] || 0;
@@ -602,14 +651,15 @@ export function dominionCap() {
 }
 export function holdsUsed() {
   if (!S.map) return 0;
-  return S.map.owned.length + me().buildQueue.filter((q) => q.kind === "settle").length;
+  return holdCount() + me().buildQueue.filter((q) => q.kind === "settle").length;
 }
 export function atDominionCap() {
   return holdsUsed() >= dominionCap();
 }
 
-export function ownedTiles() { return S.map ? S.map.owned : []; }
-export function isOwned(id) { return !!S.map && S.map.owned.includes(id); }
+export function ownedTiles() { return holdings(); }
+// (The second isOwned() that lived here -- an includes() over the owner's own
+// array -- was replaced by the ownership seam above on 2026-08-26.)
 
 // ---------- The world strikes hexes (E5) ----------
 // Sickness and raids stopped killing "someone, nowhere" -- they strike a HEX
@@ -621,7 +671,7 @@ export function strikeHex(kind) {
   if (!S.map || !S.map.pop || !world) return null;
   const weights = [];
   let total = 0;
-  for (const id of S.map.owned) {
+  for (const id of holdings()) {
     const p = Math.floor(S.map.pop[id] || 0);
     if (p < 1) continue;
     const w = kind === "raid" ? p * (1 + adminDistance(id)) : p;
@@ -670,7 +720,7 @@ export function killAt(id, n) {
 export function upkeepMouths() {
   if (!S.map || !S.map.pop || !world) return 0;
   let mouths = 0;
-  for (const id of S.map.owned) {
+  for (const id of holdings()) {
     const people = Math.floor(S.map.pop[id] || 0);
     if (people <= 0) continue;
     const d = adminDistance(id);
@@ -689,7 +739,7 @@ export function upkeepMouths() {
 export function adminDistance(targetId) {
   if (!world || !S.map || !world.places[targetId]) return Infinity;
   const stepInto = (id) => {
-    if (S.map.owned.includes(id)) return 0.5;
+    if (isOwned(id)) return 0.5;
     return world.places[id].terrain === "water" ? 3 : 1;
   };
   const dist = {};
@@ -733,11 +783,11 @@ export function adminDistance(targetId) {
 // the ground being empty, not of what emptied it.
 export function loseHexIfEmpty(id) {
   if (!S.map || !world || id === world.home) return false;   // the seat ends the run instead
-  if (!S.map.owned.includes(id)) return false;
+  if (!isOwned(id)) return false;
   if ((S.map.pop[id] || 0) >= 1) return false;
 
   const built = hexUse(id);
-  S.map.owned = S.map.owned.filter((t) => t !== id);
+  releaseTile(id);
   delete S.map.pop[id];
   setHexBuild(id, null);            // whatever stood here goes with the ground
   const noun = (active().map && active().map.tileNoun.singular) || "holding";
@@ -771,7 +821,7 @@ export function starveTick(deficit, dt) {
     // The victim: the peopled hex with the greatest administrative distance,
     // ties broken by id so the order is deterministic.
     let victim = null, worst = -1;
-    for (const id of S.map.owned) {
+    for (const id of holdings()) {
       if ((S.map.pop[id] || 0) < 1) continue;
       const d = adminDistance(id);
       if (d > worst || (d === worst && victim !== null && id > victim)) { worst = d; victim = id; }
@@ -800,12 +850,12 @@ export function endFamine() { famineAnnounced = false; if (S.map) S.map.starve =
 export function routeCost(targetId) {
   if (!world || !S.map || !world.places[targetId]) return Infinity;
   const stepInto = (id) => {
-    if (S.map.owned.includes(id)) return 0.5;
+    if (isOwned(id)) return 0.5;
     return world.places[id].terrain === "water" ? 3 : 1;
   };
   const dist = { };
   const queue = [];
-  for (const id of S.map.owned) { dist[id] = 0; queue.push(id); }
+  for (const id of holdings()) { dist[id] = 0; queue.push(id); }
   while (queue.length) {
     // Small worlds: a plain scan-for-min is simpler than a heap and fast
     // enough at a few hundred places.
@@ -836,8 +886,8 @@ export function marchFactor(targetId) {
 // Capture: the tile becomes a holdfast of yours. One place, one rule --
 // campaigns (subdue) and the settle verb both end here.
 export function captureTile(id, viaSettle) {
-  if (!world || !S.map || S.map.owned.includes(id)) return false;
-  S.map.owned.push(id);
+  if (!world || !S.map || isOwned(id)) return false;
+  claimTile(id);
   delete S.map.minors[id];
   // New ground arrives BARE and starts working its own terrain at once --
   // no default to choose and nothing to forget to set.

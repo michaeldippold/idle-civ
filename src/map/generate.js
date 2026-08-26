@@ -181,7 +181,7 @@ export function generateMap(seed, spec, continentId) {
     : landIds[0];
 
   // ---- Translate so the start sits at the origin -------------------------
-  // Everything downstream (S.map.owned, adminDistance, the camera) already
+  // Everything downstream (the owner map, adminDistance, the camera) already
   // assumes home is "0,0"; moving the FRAME is cheaper than teaching them all
   // that home moved.
   const origin = world.places[startId];

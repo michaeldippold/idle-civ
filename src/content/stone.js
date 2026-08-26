@@ -1,5 +1,5 @@
 import { caps } from "../core/derived.js";
-import { builtCount } from "../map/map.js";
+import { builtCount, holdCount } from "../map/map.js";
 import { S, me } from "../core/state.js";
 import { MINOR_PLACES, SEAT_IDS } from "./lib.js";
 
@@ -208,7 +208,7 @@ export const STONE = {
       id: "barracks", name: "Barracks", kind: "upgrade",
       desc: "Drill, discipline, and a place to keep spears. Lets your people train as Soldiers.",
       base: { wood: 40, stone: 15 }, buildTime: 30,
-      reveal: () => S.map && S.map.owned.length >= 4,
+      reveal: () => S.map && holdCount() >= 4,
     },
     {
       id: "stoneTools", name: "Stone Tools", kind: "upgrade",
@@ -220,7 +220,7 @@ export const STONE = {
       id: "fireMastery", name: "Fire Mastery", kind: "upgrade",
       desc: "Permanently reduces food upkeep by 15%.",
       base: { wood: 30, food: 10 }, buildTime: 25,
-      reveal: () => S.map && S.map.owned.length >= 4,
+      reveal: () => S.map && holdCount() >= 4,
     },
     {
       id: "herbalMedicine", name: "Herbal Medicine", kind: "upgrade",

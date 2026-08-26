@@ -62,6 +62,14 @@ export function freshPlayer(id, opts = {}) {
     buildSeq: 0,
     expeditions: [],  // { uid, type, adversary, units?, cargo?, total, remaining }
 
+    // WHAT THIS CIV KNOWS OF THE BOARD. Knowledge, not board truth, which is
+    // why it lives here and not on the world: a bot reading the true map is
+    // cheating, and a bot reading YOUR map is broken. `revealed` is sticky --
+    // ground once charted stays charted; `sighted` is live vision, recomputed
+    // from what this civ currently holds.
+    revealed: [],
+    sighted: [],
+
     pop: CONFIG.startPop,   // MIRROR of the hex sums plus the standing army
     bought: 0,              // lifetime arrivals -- the game-over screen's one stat
     // (No per-civ `dead` yet: S.dead is the RUN's flag and the only one anything

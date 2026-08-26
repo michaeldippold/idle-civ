@@ -3,7 +3,7 @@ import { S, me } from "../core/state.js";
 import { canAfford, caps, capWord, seatIsNamed, seatName } from "../core/derived.js";
 import { save } from "../core/persist.js";
 import { canBuildOn, demolishStructure, hasMarket, launchSettle, launchStructure, pendingBuild, pendingSettle, settlePlan, structureFits, structurePlan, structureUnlocked, trade, tradeRate } from "../core/actions.js";
-import { world, isOwned, isCharted, isVisible, capOf, hexPop, hexResource, hexUse, hexYield, terrainYield, structureDef, atDominionCap, dominionCap, holdsUsed, workStamp } from "../map/map.js";
+import { atDominionCap, capOf, dominionCap, hexPop, hexResource, hexUse, hexYield, holdings, holdsUsed, isCharted, isOwned, isVisible, structureDef, terrainYield, workStamp, world } from "../map/map.js";
 import { FOREIGN, FOREIGN_MINOR, playerColor } from "../core/palette.js";
 import { hexDistance, hexPoints, toPixel } from "../map/model.js";
 import { campaignPlan, expeditionOut, musterBuilt, standingWord } from "../sim/expeditions.js";
@@ -421,9 +421,9 @@ function signature() {
   // used to JSON.stringify an object that grows with the dominion, in the one
   // function whose entire job is making the common case cheap. setHexWork is
   // the only writer, so a counter it bumps is exactly as sensitive and O(1).
-  return [me().era, ((S.map && S.map.owned) || []).join("|"),
-    ((S.map && S.map.revealed) || []).length,
-    ((S.map && S.map.sighted) || []).length,
+  return [me().era, (holdings()).join("|"),
+    ((S.map && me().revealed) || []).length,
+    ((S.map && me().sighted) || []).length,
     workStamp(), selectedId].join("~");
 }
 
@@ -547,7 +547,7 @@ let lastBuilt = {};
 function builtSnapshot() {
   const out = {};
   if (!world || !S.map) return out;
-  for (const id of S.map.owned) {
+  for (const id of holdings()) {
     const u = hexUse(id);
     out[id] = u.kind === "structure" ? u.id : "";
   }

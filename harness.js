@@ -118,13 +118,23 @@ function snap(label) {
   const s = S(), p = api.me();
   console.log(`${label.padEnd(34)} pop=${p.pop} civ=${api.civilians()} ` +
     `soldiers=${p.units.soldier} food=${p.res.food.toFixed(1)} wood=${p.res.wood.toFixed(1)} ` +
-    `stone=${p.res.stone.toFixed(1)} owned=${s.map ? s.map.owned.length : 0} barracks=${!!p.upgrades.barracks} dead=${s.dead}`);
+    `stone=${p.res.stone.toFixed(1)} owned=${s.map ? api.holdCount() : 0} barracks=${!!p.upgrades.barracks} dead=${s.dead}`);
 }
 // idle()'s successor (E2): who could still be trained. People are never
 // "unassigned" any more -- they live somewhere -- but a queued unit order
 // still reserves a civilian the instant it's placed.
 const spare = () => api.civilians() - api.reserved();
 function reset() { api.S = api.freshState(); }
+
+// SEAT EXACTLY THIS LIST. Ownership is `S.map.owner[tileId] = playerId` since
+// 2026-08-26, so a fixture that used to assign an array has to say whose the
+// tiles are. Clears the current civ's holdings first, so the list IS the
+// dominion rather than being added to it.
+function setHoldings(ids, pid) {
+  const who = pid == null ? api.S.me : pid;
+  for (const id of api.holdings(who)) api.releaseTile(id);
+  for (const id of ids) api.claimTile(id, who);
+}
 
 // STAND N STRUCTURES ON THE BOARD. Converters and healers are counted off the
 // hexes now (2026-08-25), so a fixture cannot just write a number into
@@ -135,12 +145,12 @@ function putStructures(sid, n) {
   const S = api.S;
   if (!S.map) api.ensureMap();
   S.map.built = S.map.built || {};
-  for (const id of S.map.owned) if (S.map.built[id] === sid) delete S.map.built[id];
+  for (const id of api.holdings()) if (S.map.built[id] === sid) delete S.map.built[id];
   if (n <= 0) return;
-  const free = S.map.owned.filter((id) => !S.map.built[id]);
+  const free = api.holdings().filter((id) => !S.map.built[id]);
   while (free.length < n) {
     const next = Object.values(api.world.places).find((p) =>
-      p.terrain !== "water" && !p.adversary && !p.minor && !S.map.owned.includes(p.id));
+      p.terrain !== "water" && !p.adversary && !p.minor && !api.isOwned(p.id));
     if (!next) break;
     api.captureTile(next.id);
     free.push(next.id);
@@ -179,7 +189,7 @@ api.ensureMap();
   const barren = Object.values(api.world.places)
     .filter((x) => (x.terrain === "forest" || x.terrain === "hills") && !x.adversary && !x.minor)
     .slice(0, 12);
-  for (const x of barren) if (!S().map.owned.includes(x.id)) S().map.owned.push(x.id);
+  for (const x of barren) if (!api.isOwned(x.id)) api.claimTile(x.id);
   api.ensurePop();
   // Pack them: every mouth is real, and none of this ground grows anything.
   for (const x of barren) S().map.pop[x.id] = api.capOf(x.id);
@@ -187,7 +197,7 @@ api.ensureMap();
   api.me().res.food = 0;
 }
 snap("start");
-const beforePop = api.me().pop, beforeHeld = S().map.owned.length;
+const beforePop = api.me().pop, beforeHeld = api.holdCount();
 run(240);
 // WHAT FAMINE DOES NOW, and this is a behaviour change worth stating: it
 // CONVERGES rather than kills. Each death shrinks the deficit, and emptied
@@ -199,8 +209,8 @@ run(240);
 // question, flagged 2026-08-25; the mechanism below is what the code does.)
 check("famine takes people when the ground cannot feed them", api.me().pop < beforePop);
 check("famine takes GROUND too -- emptied frontier hexes leave the dominion",
-  S().map.owned.length < beforeHeld);
-check("the seat is never the hex that empties", S().map.owned.includes(api.world.home));
+  api.holdCount() < beforeHeld);
+check("the seat is never the hex that empties", api.isOwned(api.world.home));
 run(600);
 const settled = api.me().pop;
 run(300);
@@ -214,7 +224,7 @@ run(5);
 // Everything you construct stands on GROUND now (2026-08-25), so a fixture
 // picks a hex and raises something on it. The Medicine Tent is the cheapest.
 {
-  const spot = S().map.owned.find((id) => id !== api.world.home);
+  const spot = api.holdings().find((id) => id !== api.world.home);
   api.launchStructure(spot, "infirmary");
   run(25);
   check("a structure still completes with nobody told to do anything",
@@ -397,7 +407,7 @@ check("removeSettler() is gone -- nobody dies nowhere", api.removeSettler === un
   check("killAt kills there, and only there", api.hexPop(struck) === Math.max(0, before - died));
   check("killAt never overdraws a hex", api.killAt(struck, 999) === Math.max(0, before - died));
   check("an emptied dominion cannot be struck",
-    (S().map.owned.forEach((id) => api.killAt(id, 999)), api.strikeHex("raid") === null));
+    (api.holdings().forEach((id) => api.killAt(id, 999)), api.strikeHex("raid") === null));
 }
 
 // ---- Healing is POSITIONAL (2026-08-25) ----
@@ -410,10 +420,10 @@ console.log("\n--- Healers cover ground, and Herbal Medicine makes them better -
   const home = api.world.home;
   check("no healers, no cover", api.healersNear(home) === 0);
   putStructures("infirmary", 1);
-  const tent = S().map.owned.find((id) => S().map.built[id] === "infirmary");
+  const tent = api.holdings().find((id) => S().map.built[id] === "infirmary");
   check("a tent covers the hex it stands on", api.healersNear(tent) === 1);
   check("...and the ring around it",
-    api.world.places[tent].adj.filter((id) => S().map.owned.includes(id))
+    api.world.places[tent].adj.filter((id) => api.isOwned(id))
       .every((id) => api.healersNear(id) >= 1));
   check("the global counter machinery is gone -- mitigation is positional",
     api.negateChance === undefined);
@@ -460,7 +470,7 @@ check("a structure lifts the HEX it stands on instead", (() => {
   api.ensureMap();
   const forest = Object.values(api.world.places).find((p) => p.terrain === "forest");
   if (!forest) return true;
-  if (!S().map.owned.includes(forest.id)) S().map.owned.push(forest.id);
+  if (!api.isOwned(forest.id)) api.claimTile(forest.id);
   const bare = api.hexYield(forest.id).rate;
   api.me().era = "bronze";
   S().map.built[forest.id] = "lumberCamp";
@@ -566,7 +576,7 @@ reset(); api.ensureMap();
 const forestHex = Object.values(api.world.places)
   .find((x) => x.terrain === "forest" && !x.adversary && !x.minor);
 if (forestHex && !api.isOwned(forestHex.id)) api.captureTile(forestHex.id);
-const woodHex = S().map.owned.find((id) => {
+const woodHex = api.holdings().find((id) => {
   const y = api.hexYield(id);
   return y && y.res === "wood";
 });
@@ -577,7 +587,7 @@ run(90);
 {
   const plan = api.structurePlan("infirmary");
   check("enough timber gathered to afford the Medicine Tent", api.me().res.wood >= plan.cost.wood);
-  const spot = S().map.owned.find((id) => id !== api.world.home);
+  const spot = api.holdings().find((id) => id !== api.world.home);
   api.launchStructure(spot, "infirmary");
   check("it actually entered the queue", api.me().buildQueue.length === 1);
   run(25); // let it finish, queue drains back to empty
@@ -629,7 +639,7 @@ console.log("\n--- Bronze P1: capstone reveal gating ---");
 // the point.
 reset(); api.ensureMap();
 check("capstone hidden on a fresh game", !api.isRevealed(bronzeAgeDef));
-for (const id of S().map.owned) S().map.pop[id] = 10;
+for (const id of api.holdings()) S().map.pop[id] = 10;
 api.syncPopMirror();
 check("pop alone is not enough -- needs a Soldier too", !api.isRevealed(bronzeAgeDef));
 reset(); api.ensureMap();
@@ -638,11 +648,11 @@ reset(); api.ensureMap();
 // people and already meets the pop half of the gate, which made this check
 // pass or fail on the seed. Worth knowing as balance, not only as a flake:
 // the Bronze capstone's pop gate is now within sight of a fresh start.
-for (const id of S().map.owned) S().map.pop[id] = 1;
+for (const id of api.holdings()) S().map.pop[id] = 1;
 api.me().units.soldier = 1; api.syncPopMirror();
 check("a Soldier alone is not enough -- needs pop too", !api.isRevealed(bronzeAgeDef));
 reset(); api.ensureMap();
-for (const id of S().map.owned) S().map.pop[id] = 10;
+for (const id of api.holdings()) S().map.pop[id] = 10;
 api.me().units.soldier = 1; api.syncPopMirror();
 check("both conditions met -> capstone reveals", api.isRevealed(bronzeAgeDef));
 api.me().units.soldier = 0;
@@ -654,7 +664,7 @@ console.log("\n--- Bronze P1: completing the capstone flips the era ---");
 // remaining food and starve the settlement before the capstone completes.
 api.setRngSource(() => 0.999999);
 reset(); api.ensureMap();
-for (const id of S().map.owned) S().map.pop[id] = 10;
+for (const id of api.holdings()) S().map.pop[id] = 10;
 api.me().units.soldier = 1; api.syncPopMirror();
 // (allocation line removed 2026-08-25: ground works its own terrain now)
 api.me().res.food = 400; api.me().res.wood = 400; api.me().res.stone = 400;
@@ -862,14 +872,14 @@ console.log("\n--- E3: the timer, the hut and the lockstep are gone, and stay go
   check("CONFIG.settlerIntervalSeconds is gone -- growth is local to hexes and paid for",
     !("settlerIntervalSeconds" in api.CONFIG));
   check("the 3-hex start: seat plus two neighbours, owner-ratified",
-    S().map.owned.length === 3 && S().map.owned[0] === api.world.home);
+    api.holdCount() === 3 && api.isOwned(api.world.home));
 
   // The runaway that killed the bridge, asserted dead: time passes, people
   // grow on their hexes, and the dominion does NOT expand on its own.
-  const ownedBefore = S().map.owned.slice().sort().join("|");
+  const ownedBefore = api.holdings().slice().sort().join("|");
   run(180);
   check("free real estate is over: time alone grants no ground",
-    S().map.owned.slice().sort().join("|") === ownedBefore);
+    api.holdings().slice().sort().join("|") === ownedBefore);
   check("people still grew on the ground they hold",
     api.hexPopSum() > 7);
   check("S.pop mirrors the real population (people + army)",
@@ -902,7 +912,7 @@ console.log("\n--- E3: the timer, the hut and the lockstep are gone, and stay go
   check("the claim entered the queue", api.me().buildQueue.some((q) => q.kind === "settle"));
   run(plan.time + 60);
   check("the claim completed: the dominion grew by exactly one, paid for",
-    S().map.owned.length === 4 && api.isOwned(target.id));
+    api.holdCount() === 4 && api.isOwned(target.id));
   api.setRngSource(null);
 }
 
@@ -957,7 +967,7 @@ api.me().era = "bronze";
   const hills = Object.values(api.world.places)
     .filter((p) => p.terrain === "hills" && !p.adversary && !p.minor).slice(0, 2);
   check("the world has two workable hills to test on", hills.length === 2);
-  S().map.owned = [api.world.home, hills[0].id, hills[1].id];
+  setHoldings([api.world.home, hills[0].id, hills[1].id]);
   S().map.pop = {}; api.ensurePop();
   S().map.pop[hills[0].id] = 4; S().map.pop[hills[1].id] = 4;
   S().map.built = {}; S().map.built[hills[0].id] = "copperMine"; S().map.built[hills[1].id] = "tinMine";
@@ -1009,7 +1019,7 @@ console.log("\n--- the food line is honest; no resource ends a tick negative ---
 reset(); api.ensureMap();
 {
   api.setRngSource(() => 0.99);            // no events: measure only the flows
-  for (const id of S().map.owned) S().map.pop[id] = 3;
+  for (const id of api.holdings()) S().map.pop[id] = 3;
   api.syncPopMirror();
   api.me().res.food = 100;
   api.step();                              // prime growthSpendRate from a real tick
@@ -1370,7 +1380,7 @@ console.log("\n--- BUG: reservations must never outrun the living ---");
   reset(); api.ensureMap();
   api.me().era = "bronze";
   api.me().upgrades.barracks = true; api.me().res.wood = 500;
-  for (const id of S().map.owned) S().map.pop[id] = 2;
+  for (const id of api.holdings()) S().map.pop[id] = 2;
   api.syncPopMirror();                     // 6 civilians
   api.build(findT("soldier"));
   api.build(findT("soldier"));
@@ -1378,7 +1388,7 @@ console.log("\n--- BUG: reservations must never outrun the living ---");
   api.build(findT("soldier"));
   check("four orders queued", api.reserved() === 4);
   const woodAfterOrders = api.me().res.wood;
-  for (const id of S().map.owned) api.killAt(id, 2);
+  for (const id of api.holdings()) api.killAt(id, 2);
   api.reconcileReservations();
   console.log(`  after the massacre: civ=${api.civilians()} reserved=${api.reserved()} queue=${api.me().buildQueue.length}`);
   check("orders with nobody left to train were abandoned", api.reserved() <= Math.max(0, api.civilians()));
@@ -1388,7 +1398,7 @@ console.log("\n--- BUG: reservations must never outrun the living ---");
   // A dominion of nothing but trained units has no one for the world to
   // strike: every hex is empty, so strikes find no target.
   reset(); api.ensureMap();
-  for (const id of S().map.owned) S().map.pop[id] = 0;
+  for (const id of api.holdings()) S().map.pop[id] = 0;
   api.me().units = { soldier: 3, archer: 0, horseman: 0 };
   api.syncPopMirror();
   check("no civilians to begin with", api.civilians() === 0);
@@ -1446,7 +1456,7 @@ console.log("\n--- Free growth: the purchase model is fully excised ---");
     // The STARTING ground arrives full (2026-08-25), so there is no room to
     // grow into until something makes room. Take one person off a hex and the
     // larder pays to replace them.
-    const hex = S().map.owned.find((id) => api.capOf(id) > 2);
+    const hex = api.holdings().find((id) => api.capOf(id) > 2);
     S().map.pop[hex] = api.capOf(hex) - 1;
     api.me().res.food = api.caps().food;
     const foodBefore = api.me().res.food;
@@ -1455,7 +1465,7 @@ console.log("\n--- Free growth: the purchase model is fully excised ---");
   })());
   check("a settlement with an empty larder cannot grow at all", (() => {
     reset(); api.ensureMap();
-    const hex = S().map.owned.find((id) => id !== api.world.home);
+    const hex = api.holdings().find((id) => id !== api.world.home);
     S().map.pop[hex] = 2;
     api.me().res.food = 0;
     const before = S().map.pop[hex];
@@ -1469,7 +1479,7 @@ console.log("\n--- Free growth: the purchase model is fully excised ---");
     // 2026-08-25, so room has to be made deliberately.)
     const gain = (food) => {
       reset(); api.ensureMap();
-      const hex = S().map.owned.slice().sort((a, b) => api.capOf(b) - api.capOf(a))[0];
+      const hex = api.holdings().slice().sort((a, b) => api.capOf(b) - api.capOf(a))[0];
       S().map.pop[hex] = 2;
       api.syncPopMirror();
       api.me().res.food = food;
@@ -1735,7 +1745,7 @@ console.log("\n--- C1: capstone gating and the real transition ---");
   const capstone = api.MANIFESTS.bronze.upgrades.find(u => u.id === "ironAge");
   // The gate is 50 real people now: give the trio deep pops (held above cap,
   // never shrunk) and let the mirror report them.
-  for (const id of S().map.owned) S().map.pop[id] = 20;
+  for (const id of api.holdings()) S().map.pop[id] = 20;
   api.syncPopMirror();
   check("pop alone does not reveal the iron capstone", !api.isRevealed(capstone));
   api.me().units.archer = 1; api.syncPopMirror();
@@ -1771,7 +1781,7 @@ console.log("\n--- C1: capstone gating and the real transition ---");
   check("the border takes nothing: population survives the crossing whole",
     api.me().pop >= snapPop - 4);
   check("the border takes nothing: every hex crossed with you",
-    S().map.owned.length >= 1 && api.me().pop >= S().map.owned.length);
+    api.holdCount() >= 1 && api.me().pop >= api.holdCount());
   check("the fighting bands carry whole across a levy border",
     api.me().units.soldier === 2 && api.me().units.archer === 1 && api.me().units.horseman === 1);
   // (The walked-home check died with the S.jobs bucket on 2026-08-25: the jobs
@@ -1799,10 +1809,10 @@ console.log("\n--- C1: iron-era economy runs ---");
     .filter((p) => p.terrain === "hills" && !p.adversary && !p.minor).slice(0, 2);
   const fed = Object.values(api.world.places)
     .filter((p) => (p.terrain === "plains" || p.terrain === "river") && !p.adversary && !p.minor).slice(0, 3);
-  S().map.owned = fed.map((p) => p.id).concat(oreHills.map((p) => p.id));
-  if (!S().map.owned.includes(api.world.home)) S().map.owned.push(api.world.home);
+  setHoldings(fed.map((p) => p.id).concat(oreHills.map((p) => p.id)));
+  if (!api.isOwned(api.world.home)) api.claimTile(api.world.home);
   S().map.pop = {}; api.ensurePop();
-  for (const id of S().map.owned) S().map.pop[id] = 4;
+  for (const id of api.holdings()) S().map.pop[id] = 4;
   S().map.built = {};
   for (const h of oreHills) S().map.built[h.id] = "ironMine";
   api.syncPopMirror();
@@ -2515,7 +2525,7 @@ console.log("\n--- Ledger rates: converter flows shown honestly ---");
   // zero stock) rather than one hand-tuned equilibrium.
   api.ensureMap();
   const hill = Object.values(api.world.places).find((p) => p.terrain === "hills" && !p.adversary && !p.minor);
-  S().map.owned = [api.world.home, hill.id];
+  setHoldings([api.world.home, hill.id]);
   S().map.pop = {}; api.ensurePop();
   S().map.pop[hill.id] = 5;
   S().map.built = {}; S().map.built[hill.id] = "copperMine";
@@ -2552,7 +2562,7 @@ console.log("\n--- Ledger rates: converter flows shown honestly ---");
   api.ensureMap();
   const woods = Object.values(api.world.places)
     .filter((p) => p.terrain === "forest" && !p.adversary && !p.minor).slice(0, 2);
-  S().map.owned = woods.map((p) => p.id);
+  setHoldings(woods.map((p) => p.id));
   S().map.built = {};
   S().map.pop = {}; api.ensurePop();
   for (const w of woods) S().map.pop[w.id] = 4;
@@ -2561,7 +2571,7 @@ console.log("\n--- Ledger rates: converter flows shown honestly ---");
   // The forge hexes were claimed by the fixture and produce nothing; the two
   // forests are the whole timber line.
   for (const w of woods) S().map.pop[w.id] = 4;
-  for (const id of S().map.owned) if (S().map.built[id]) S().map.pop[id] = 0;
+  for (const id of api.holdings()) if (S().map.built[id]) S().map.pop[id] = 0;
   api.syncPopMirror();
   api.me().res.iron = 100; api.me().res.wood = 100;
   r = api.ledgerRates();
@@ -2573,7 +2583,7 @@ console.log("\n--- Ledger rates: converter flows shown honestly ---");
   // manifest's business, not this check's.
   // Derived from the BOARD, not restated: how many people ended up on timber
   // is the fixture's business and the yields table's, not this check's.
-  const grossWood = S().map.owned.reduce((sum, id) => {
+  const grossWood = api.holdings().reduce((sum, id) => {
     const y = api.hexYield(id);
     return sum + (y && y.res === "wood" ? Math.floor(S().map.pop[id] || 0) * 0.2 * y.rate : 0);
   }, 0);
@@ -2604,7 +2614,7 @@ console.log("\n--- Phase 3: offline is gone; the save is load-bearing ---");
   // survives serialization verbatim and the revived save finishes the build.
   reset(); api.ensureMap();
   api.me().res.wood = 100; api.me().res.stone = 60;
-  api.launchStructure(S().map.owned.find((id) => id !== api.world.home), "infirmary");
+  api.launchStructure(api.holdings().find((id) => id !== api.world.home), "infirmary");
   run(3);
   const midRemaining = api.me().buildQueue[0].remaining;
   api.save();
@@ -2668,19 +2678,19 @@ console.log("\n--- Phase 6d: the growth verbs -- minors, settle, routes ---");
   // own a straight-ish line toward it (annex neighbours along the hex line)
   const target = api.world.places[far];
   const line = Object.values(api.world.places)
-    .filter((p) => p.terrain !== "water" && !p.minor && !p.adversary && !S().map.owned.includes(p.id))
+    .filter((p) => p.terrain !== "water" && !p.minor && !p.adversary && !api.isOwned(p.id))
     .sort((a, b) =>
       (api.hexDistance(a.q, a.r, target.q, target.r) + api.hexDistance(a.q, a.r, 0, 0)) -
       (api.hexDistance(b.q, b.r, target.q, target.r) + api.hexDistance(b.q, b.r, 0, 0)))
     .slice(0, 4).map((p) => p.id);
-  S().map.owned.push(...line);
+  for (const id of line) api.claimTile(id);
   check("a line of your own country cheapens the route (supply lines)",
     api.routeCost(far) < before);
-  S().map.owned = S().map.owned.filter((id) => !line.includes(id));
+  setHoldings(api.holdings().filter((id) => !line.includes(id)));
 
   // Settle: queued, priced, completes into a holdfast that works its ground.
   const empty = Object.values(api.world.places)
-    .find((p) => p.terrain !== "water" && !p.minor && !p.adversary && !S().map.owned.includes(p.id));
+    .find((p) => p.terrain !== "water" && !p.minor && !p.adversary && !api.isOwned(p.id));
   const plan = api.settlePlan(empty.id);
   check("settling is priced work, scaled by the route", plan && plan.cost.food >= 24 && plan.time >= 27);
   api.me().res.food = 500; api.me().res.wood = 500; api.me().res.stone = 500; api.me().res.iron = 500;
@@ -2692,7 +2702,7 @@ console.log("\n--- Phase 6d: the growth verbs -- minors, settle, routes ---");
   run(Math.ceil(plan.time) + 60);       // completion, not event weather -- a sickness
   api.setRngSource(null);               // or raid in ~90s would shift pop (the old flake)
   check("the party raises a hall: owned, peopled, working its own ground",
-    S().map.owned.includes(empty.id) && api.hexPop(empty.id) >= 2 && api.me().pop > popBefore &&
+    api.isOwned(empty.id) && api.hexPop(empty.id) >= 2 && api.me().pop > popBefore &&
     !S().map.built[empty.id] && !!api.hexYield(empty.id));
 
   // Capture: a campaign against a minor, forced win, takes the place whole.
@@ -2708,7 +2718,7 @@ console.log("\n--- Phase 6d: the growth verbs -- minors, settle, routes ---");
   api.resolveExpeditions(0.2);
   api.setRngSource(null);
   check("capture: the tile swears fealty -- owned, peopled, working its ground",
-    S().map.owned.includes(mtile) && api.hexPop(mtile) >= 2 && api.me().pop > popBefore2 &&
+    api.isOwned(mtile) && api.hexPop(mtile) >= 2 && api.me().pop > popBefore2 &&
     !S().map.built[mtile]);
   check("the whole stock came home", Object.keys(mstock).every((k) => api.me().res[k] >= mstock[k]));
   check("the minor's remnant is gone -- the Chronicle had the name last",
@@ -2717,7 +2727,7 @@ console.log("\n--- Phase 6d: the growth verbs -- minors, settle, routes ---");
   // A captured tile survives the save: ownership is state, the minor is not.
   api.save(); api.load(); api.ensureMap();
   check("capture survives save/load -- ownership trumps the regenerated seat",
-    S().map.owned.includes(mtile) && !S().map.minors[mtile]);
+    api.isOwned(mtile) && !S().map.minors[mtile]);
 }
 
 console.log("\n--- Phase 10: the renderer port keeps the marks ---");
@@ -2750,7 +2760,7 @@ console.log("\n--- Phase 10: the renderer port keeps the marks ---");
   const seat = Object.values(api.world.places).find((x) => x.adversary);
   // Reveal it by hand: what a seat looks like ONCE FOUND is the thing under
   // test here, and scouting is not built until slice 6.
-  api.S.map.revealed.push(seat.id);
+  api.me().revealed.push(seat.id);
   const sm = api.markFor(seat);
   // A HOUSE MEANS A HOME, and colour says whose: your seat and a rival's seat
   // wear the SAME glyph, because they are the same kind of thing. The board
@@ -2767,13 +2777,13 @@ console.log("\n--- Phase 10: the renderer port keeps the marks ---");
     homeMark.cls === "home" && sm.cls === "seat");
 
   const minor = Object.values(api.world.places).find((x) => x.minor && !api.isOwned(x.id));
-  api.S.map.revealed.push(minor.id);
+  api.me().revealed.push(minor.id);
   check("a minor wears a house too, and no label (a map, not a directory)",
     api.markFor(minor).glyph === "\u2302" && !api.markFor(minor).label);
 
   // Owned country reports what it PRODUCES, and every resource letter is
   // distinct -- a collision here would be invisible on screen and wrong.
-  const ownedId = api.S.map.owned.find((id) => id !== api.world.home);
+  const ownedId = api.holdings().find((id) => id !== api.world.home);
   check("owned country wears the letter of what its ground gives",
     api.markFor(P(ownedId)).glyph === (api.hexYield(ownedId) ? api.markFor(P(ownedId)).glyph : null) &&
     api.markFor(P(ownedId)).glyph.length > 0);
@@ -2941,10 +2951,10 @@ console.log("\n--- Slice 4b: sight across water ---");
   const diag0 = api.frameDiagnostics(api.world);
   const islandTiles = new Set(diag0.islands.flatMap((i) => i.tiles));
   const mainland = Object.keys(api.world.places).filter((id) => !wet(id) && !islandTiles.has(id));
-  api.S.map.owned = mainland.slice();
+  setHoldings(mainland.slice());
   api.syncCharted();
 
-  const sighted = api.S.map.sighted || [];
+  const sighted = api.me().sighted || [];
   check("sight reaches the sea from a charted coast", sighted.some((id) => wet(id)));
   check("and finds land across it", sighted.some((id) => !wet(id) && !api.isCharted(id)));
 
@@ -2987,16 +2997,16 @@ console.log("\n--- Slice 4b: sight across water ---");
   // "keeps its size secret" -- untrue for a small island ringed by charted
   // coast, which is genuinely seen from several angles at once. The honest
   // invariant is that sight never CHARTS.)
-  const ownedBefore = api.S.map.owned.length;
-  const chartedBefore = api.S.map.revealed.length;
+  const ownedBefore = api.holdCount();
+  const chartedBefore = api.me().revealed.length;
   api.syncSighted();
   check("sight never charts and never claims",
-    api.S.map.owned.length === ownedBefore && api.S.map.revealed.length === chartedBefore);
+    api.holdCount() === ownedBefore && api.me().revealed.length === chartedBefore);
 
   // Sticky, like charting.
   const before = sighted.length;
   api.syncCharted();
-  check("sight is sticky and additive", (api.S.map.sighted || []).length >= before);
+  check("sight is sticky and additive", (api.me().sighted || []).length >= before);
   api.setRngSource(null);
   // ...and the same rule again, measured from the ORIGIN THAT MATTERS. The
   // check above walks water back to any CHARTED land, which is the very
@@ -3013,8 +3023,8 @@ console.log("\n--- Slice 4b: sight across water ---");
     for (let seed = 1; seed <= 12; seed++) {
       reset(); S().seed = seed;
       api.initAdversaries(); api.ensureMap();
-      const owned = S().map.owned;
-      const vis = new Set([...(S().map.revealed || []), ...(S().map.sighted || [])]);
+      const owned = api.holdings();
+      const vis = new Set([...(api.me().revealed || []), ...(api.me().sighted || [])]);
       for (const id of vis) {
         let best = Infinity;
         for (const o of owned) best = Math.min(best, api.distance(api.world, o, id));
@@ -3083,7 +3093,7 @@ console.log("\n--- The dominion cap: what one age can hold ---");
   const wild = () => Object.values(api.world.places)
     .find((x) => x.terrain !== "water" && !x.adversary && !x.minor && !api.isOwned(x.id)
       && !api.pendingSettle(x.id));
-  while (S().map.owned.length < 6) api.captureTile(wild().id);
+  while (api.holdCount() < 6) api.captureTile(wild().id);
   const seventh = wild();
   api.launchSettle(seventh.id);
   check("the seventh party counts while still on the road",
@@ -3109,7 +3119,7 @@ console.log("\n--- The dominion cap: what one age can hold ---");
   reset(); api.closeModal();
   api.me().era = "iron"; api.initAdversaries(); api.ensureMap();
   api.me().upgrades.musterGround = true; api.me().units.soldier = 6; api.me().res.food = 5000;
-  while (S().map.owned.length < 20) {
+  while (api.holdCount() < 20) {
     const w = Object.values(api.world.places)
       .find((x) => x.terrain !== "water" && !x.adversary && !x.minor && !api.isOwned(x.id));
     if (!w) break;
@@ -3130,7 +3140,7 @@ console.log("\n--- The march-hold: walls act on resolution, never selection ---"
   api.ensureMap();
   api.me().res.wood = 9999; api.me().res.stone = 9999; api.me().res.iron = 9999; api.me().res.food = 9999;
   const home = api.world.home;
-  const hex = api.S.map.owned.find((id) => id !== home);
+  const hex = api.holdings().find((id) => id !== home);
 
   check("Iron declares the march-hold; Bronze does not",
     !!api.MANIFESTS.iron.structures.find((d) => d.id === "marchHold") &&
@@ -3150,7 +3160,7 @@ console.log("\n--- The march-hold: walls act on resolution, never selection ---"
   check("a fortified hex is out of the ledger entirely",
     api.hexProduces(hex) === false && api.hexResource(hex) === null);
   check("it defends the ground it stands on", api.fortStrength(hex) >= api.CONFIG.fortStrength);
-  const neighbour = api.world.places[hex].adj.find((n) => api.S.map.owned.includes(n));
+  const neighbour = api.world.places[hex].adj.find((n) => api.isOwned(n));
   if (neighbour) {
     check("...and the ground beside it", api.fortStrength(neighbour) >= api.CONFIG.fortStrength);
   }
@@ -3195,11 +3205,11 @@ console.log("\n--- The march-hold: walls act on resolution, never selection ---"
   api.captureTile(outpost);
   check("the test board has ground a single march-hold cannot cover",
     far > api.CONFIG.fortRange + 1);
-  for (const id of api.S.map.owned) api.S.map.pop[id] = 6;
+  for (const id of api.holdings()) api.S.map.pop[id] = 6;
   api.syncPopMirror();
   const tally = (fortified) => {
     const counts = {};
-    for (const id of api.S.map.owned) counts[id] = 0;
+    for (const id of api.holdings()) counts[id] = 0;
     for (let i = 0; i < 600; i++) {
       api.setRngSource(null);
       api.S.rngState = 1000 + i;
@@ -3210,7 +3220,7 @@ console.log("\n--- The march-hold: walls act on resolution, never selection ---"
     return counts;
   };
   const plain = tally(null);
-  const walled = tally(api.S.map.owned.find((id) => id !== api.world.home));
+  const walled = tally(api.holdings().find((id) => id !== api.world.home));
   check("a march-hold does not change where raids land -- selection is untouched",
     Object.keys(plain).every((id) => plain[id] === walled[id]));
 }
@@ -3294,7 +3304,7 @@ console.log("\n--- Building on a hex: the farm ---");
   api.me().era = "bronze"; api.initAdversaries(); api.ensureMap();
   api.me().upgrades.farming = true;
   api.me().res.wood = 9999; api.me().res.stone = 9999; api.me().res.food = 9999;
-  const doomed = api.S.map.owned.find((id) => id !== api.world.home);
+  const doomed = api.holdings().find((id) => id !== api.world.home);
   api.launchStructure(doomed, "farm");
   api.killAt(doomed, 99);                       // a raid empties it: the hex is lost
   check("the ground went with its people", !api.isOwned(doomed));
@@ -3348,7 +3358,7 @@ console.log("\n--- One hex, one use ---");
 
   // The LEDGER must not earn anything from a hex whose structure gives nothing
   // -- the behaviour that used to be right only by accident.
-  api.S.map.owned = [home];
+  setHoldings([home]);
   api.S.map.pop = {}; api.ensurePop();
   api.S.map.pop[home] = 20;
   api.syncPopMirror();
@@ -3725,7 +3735,7 @@ console.log("\n--- Engine rework E5: the world strikes hexes ---");
 
   // Sickness strikes ONE hex and takes a fifth of it (min 1) -- big hexes
   // host worse outbreaks, small ones lose one soul.
-  for (const id of S().map.owned) S().map.pop[id] = 10;
+  for (const id of api.holdings()) S().map.pop[id] = 10;
   api.syncPopMirror();
   // Sickness OWNS ITS TRIGGER since 2026-08-25 (it has to pick the hex before
   // it can ask whether healers cover it), so drive resolve() with the dice
@@ -3733,11 +3743,11 @@ console.log("\n--- Engine rework E5: the world strikes hexes ---");
   const sicknessEv2 = api.MANIFESTS.stone.events.find((e) => e.id === "sickness");
   check("sickness resolves itself, so the hex is chosen before healers are asked",
     typeof sicknessEv2.resolve === "function" && sicknessEv2.effect === undefined);
-  const popsBefore = S().map.owned.map((id) => api.hexPop(id));
+  const popsBefore = api.holdings().map((id) => api.hexPop(id));
   api.setRngSource(() => 0);              // it fires, and nothing negates it
   sicknessEv2.resolve(S(), 1);
   api.setRngSource(() => 0.99);
-  const popsAfter = S().map.owned.map((id) => api.hexPop(id));
+  const popsAfter = api.holdings().map((id) => api.hexPop(id));
   const losses = popsBefore.map((v, i) => v - popsAfter[i]).filter((d) => d > 0);
   check("the fever broke out at exactly one hex", losses.length === 1);
   check("it took a fifth of that hex (10 -> 8)", losses[0] === 2);
@@ -3757,11 +3767,11 @@ console.log("\n--- Engine rework E4: the frontier starves first ---");
     .sort((a, b) => api.adminDistance(b.id) - api.adminDistance(a.id))[0];
   api.captureTile(far.id);
   check("a far holding is administratively farther than the trio",
-    api.adminDistance(far.id) > Math.max(...S().map.owned.filter((id) => id !== far.id)
+    api.adminDistance(far.id) > Math.max(...api.holdings().filter((id) => id !== far.id)
       .map((id) => api.adminDistance(id))));
 
   // Famine: everyone rests, the larder empties, and the drain walks inward.
-  for (const id of S().map.owned) S().map.pop[id] = 3;
+  for (const id of api.holdings()) S().map.pop[id] = 3;
   api.syncPopMirror();
   // PURE DEFICIT. Emptying the allocation map used to do this; ground works
   // itself now, so nothing-produces has to be built rather than left undone --
@@ -3769,7 +3779,7 @@ console.log("\n--- Engine rework E4: the frontier starves first ---");
   // declares no yield, which is exactly the "produces nothing" case.
   S().map.built = {};
   api.me().era = "iron";              // the age that has walls to build
-  for (const id of S().map.owned) S().map.built[id] = "marchHold";
+  for (const id of api.holdings()) S().map.built[id] = "marchHold";
   api.me().res.food = 1;
   const seatBefore = api.hexPop(api.world.home);
   run(40);
@@ -3783,7 +3793,7 @@ console.log("\n--- Engine rework E4: the frontier starves first ---");
   check("the far holding empties entirely -- and the ground is LOST with it",
     !api.isOwned(far.id) && !(far.id in S().map.pop));
   check("...and the slot comes back, so the loss can be re-planned around",
-    S().map.owned.length < 3);
+    api.holdCount() < 3);
   check("no one is born during a famine",
     api.hexPopSum() <= 12);
 
@@ -3805,7 +3815,7 @@ console.log("\n--- Engine rework E4: the frontier starves first ---");
   // rather than read from it.
   {
     reset(); api.closeModal(); api.ensureMap();
-    const hex = api.S.map.owned.find((id) => id !== api.world.home);
+    const hex = api.holdings().find((id) => id !== api.world.home);
     const cap = api.capOf(hex);
     // (allocation line removed 2026-08-25: ground works its own terrain now)
     api.me().res.food = 500;
@@ -3830,7 +3840,7 @@ console.log("\n--- Engine rework E4: the frontier starves first ---");
   // again. Deleted on purpose rather than left to rot -- this block is the
   // tombstone for a mechanic that shipped and was reversed.
   reset(); api.closeModal(); api.ensureMap();
-  const emptied = S().map.owned.find((id) => id !== api.world.home);
+  const emptied = api.holdings().find((id) => id !== api.world.home);
   // (allocation line removed 2026-08-25: ground works its own terrain now)
   api.me().res.food = 100;
   api.killAt(emptied, 99);
@@ -3853,7 +3863,7 @@ console.log("\n--- Engine rework E4: the frontier starves first ---");
 
   // A structure goes with the ground, and there is no refund.
   reset(); api.closeModal(); api.ensureMap();
-  const fort = S().map.owned.find((id) => id !== api.world.home);
+  const fort = api.holdings().find((id) => id !== api.world.home);
   S().map.built[fort] = "fortification";
   api.killAt(fort, 99);
   check("losing a hex destroys what was built on it",
@@ -3921,10 +3931,10 @@ console.log("\n--- Engine rework E1: population lives on hexes ---");
   check("the seat opens worked to what its ground supports",
     api.hexPop(api.world.home) === api.capOf(api.world.home));
   check("...and so does every other hex of the opening trio",
-    S().map.owned.every((id) => api.hexPop(id) === Math.max(2, api.capOf(id))));
+    api.holdings().every((id) => api.hexPop(id) === Math.max(2, api.capOf(id))));
   check("the seat's ground reports a carrying cap", api.capOf(api.world.home) > 0);
   check("unowned hexes carry no people",
-    Object.keys(api.S.map.pop).every((id) => api.S.map.owned.includes(id)));
+    Object.keys(api.S.map.pop).every((id) => api.isOwned(id)));
 
   // Growth: logistic toward the cap, floored for every reader. Ground taken
   // LATER arrives as a settling party and grows into the place -- that dip is
@@ -3943,7 +3953,7 @@ console.log("\n--- Engine rework E1: population lives on hexes ---");
   check("growth stops at what the ground supports (never above cap)",
     api.S.map.pop[api.world.home] <= cap && api.hexPop(api.world.home) === Math.floor(cap));
   check("the odometer is the sum of the hexes",
-    api.hexPopSum() === api.S.map.owned.reduce((n, id) => n + api.hexPop(id), 0));
+    api.hexPopSum() === api.holdings().reduce((n, id) => n + api.hexPop(id), 0));
   // The game-over screen reads S.bought. It was declared in E1 and never
   // incremented, so every run ever played ended on "Arrivals welcomed: 0".
   check("lifetime arrivals are actually counted (S.bought)", api.me().bought > 0);
@@ -4006,19 +4016,19 @@ console.log("\n--- Phase 10: one board, forever ---");
   // Dominion never shrinks -- and since E5 there is no machinery left that
   // even could: consolidation is deleted, borders re-denominate only.
   api.syncDominion();
-  const held = api.S.map.owned.slice().sort().join("|");
+  const held = api.holdings().slice().sort().join("|");
   api.me().era = "iron"; api.initAdversaries(); api.ensureMap(); api.syncDominion();
   check("a border takes no land -- the SAME tiles cross it",
-    api.S.map.owned.slice().sort().join("|") === held);
+    api.holdings().slice().sort().join("|") === held);
 
   // Reveal is sticky and additive, per the interface's reveals-never-flicker
   // law applied to geography. Ground is TAKEN now, never granted (E3).
-  const seenBefore = api.S.map.revealed.length;
+  const seenBefore = api.me().revealed.length;
   const frontier = Object.values(api.world.places)
     .find((x) => x.terrain !== "water" && !x.adversary && !x.minor && !api.isOwned(x.id));
   api.captureTile(frontier.id);
-  check("taking ground reveals what borders it", api.S.map.revealed.length > seenBefore);
-  const snapshot = api.S.map.revealed.slice();
+  check("taking ground reveals what borders it", api.me().revealed.length > seenBefore);
+  const snapshot = api.me().revealed.slice();
   api.syncCharted();
   check("charting never un-charts (sticky, like every other reveal)",
     snapshot.every((id) => api.isCharted(id)));
@@ -4067,7 +4077,7 @@ console.log("\n--- Phase 6b: Conquest Growth G1 -- levy, output, no housing ---"
   // than assuming it: the terrain is the seed's business.
   api.ensureMap();
   const oneHex = api.world.home;
-  S().map.owned = [oneHex];
+  setHoldings([oneHex]);
   S().map.pop = {}; api.ensurePop();
   S().map.pop[oneHex] = 4;
   S().map.built = {};
@@ -4081,8 +4091,11 @@ console.log("\n--- Phase 6b: Conquest Growth G1 -- levy, output, no housing ---"
     Math.abs(r.upkeep - 6 * 0.04) < 1e-9);
 
   // The army cap answers to the LAND now (E5): hexes x armyPerHex, every era.
-  S().map = { seed: 1, gen: 1, tileNoun: "holdfast", owned: ["f1", "f2", "f3"],
-    work: {}, pop: { "f1": 4, "f2": 3, "f3": 3 } };
+  // Ownership is keyed by tile since 2026-08-26, so a hand-built fixture map
+  // seats its tiles rather than listing them.
+  S().map = { seed: 1, gen: 1, tileNoun: "holdfast",
+    owner: { "f1": 0, "f2": 0, "f3": 0 },
+    built: {}, pop: { "f1": 4, "f2": 3, "f3": 3 } };
   api.syncPopMirror();
   api.me().units = { soldier: 5, archer: 0, horseman: 0, siegeEngine: 0 };
   api.syncPopMirror();
@@ -4093,7 +4106,7 @@ console.log("\n--- Phase 6b: Conquest Growth G1 -- levy, output, no housing ---"
     api.me().buildQueue.length === 1 && api.levyUsed() === 6);
   api.build(soldierDef);
   check("the queue counts against the muster the instant it is queued", api.me().buildQueue.length === 1);
-  S().map.owned.push("f4"); S().map.pop.f4 = 2; api.syncPopMirror();
+  api.claimTile("f4"); S().map.pop.f4 = 2; api.syncPopMirror();
   api.build(soldierDef);
   check("a grown dominion raises the muster (4 hexes = cap 8)", api.me().buildQueue.length === 2);
   api.me().buildQueue.length = 0;
@@ -4111,7 +4124,7 @@ console.log("\n--- Phase 6b: Conquest Growth G1 -- levy, output, no housing ---"
   reset(); api.closeModal(); api.ensureMap();
   api.me().era = "iron"; api.initAdversaries(); api.ensureMap();
   api.me().upgrades.barracks = true; api.me().res.wood = 500; api.me().res.food = 500; api.me().res.iron = 500;
-  for (const id of S().map.owned) S().map.pop[id] = 30;   // above cap, so growth
+  for (const id of api.holdings()) S().map.pop[id] = 30;   // above cap, so growth
   api.syncPopMirror();                                     // cannot refill the draw
   const seatBefore = api.hexPop(api.world.home);
   api.setRngSource(() => 0.99);   // E5's own fevers must not strike this fixture
@@ -4175,7 +4188,7 @@ console.log("\n--- Phase 6a: the map exists ---");
   {
     const seatTile = Object.values(api.world.places).find((x) => x.adversary);
     const campTile = Object.values(api.world.places).find((x) => x.minor);
-    api.S.map.revealed.push(seatTile.id, campTile.id);
+    api.me().revealed.push(seatTile.id, campTile.id);
     const seatBody = api.detailHTML(seatTile), campBody = api.detailHTML(campTile);
     check("a stone-age tile offers no march, not even a greyed one",
       seatBody.indexOf("data-act=\"march\"") < 0 && campBody.indexOf("data-act=\"march\"") < 0);
@@ -4240,10 +4253,10 @@ console.log("\n--- Phase 6a: the map exists ---");
   // and the ledger must read exactly what the manifest declares for that
   // ground -- nothing assumed, everything read from the world.
   api.me().pop = 2; api.syncDominion();
-  const tid = S().map.owned.find((id) => id !== "0,0");
+  const tid = api.holdings().find((id) => id !== "0,0");
   const terr = api.world.places[tid].terrain;
   const decl = api.active().map.yields[terr];
-  S().map.owned = [tid];
+  setHoldings([tid]);
   S().map.pop = {}; api.ensurePop();
   S().map.pop[tid] = 3;   // three people on the ground, exactly
   api.me().units = { soldier: 0, archer: 0, horseman: 0, siegeEngine: 0 };
@@ -4402,7 +4415,7 @@ console.log("\n--- Seeded RNG: determinism and the source ban ---");
     api.ensureMap();   // world derives from the seed, so this is deterministic too
     run(120);
     // affordable or not, identically in both runs
-    api.launchStructure(S().map.owned.find((id) => id !== api.world.home), "infirmary");
+    api.launchStructure(api.holdings().find((id) => id !== api.world.home), "infirmary");
     run(240);
     return JSON.stringify(S());
   };
@@ -4570,7 +4583,7 @@ console.log("\n--- The hex economy: one resource per ground ---");
 
   // BARE GROUND WORKS ITSELF. No allocation verb, no resting hex, no default
   // to forget to set -- which is what the border bread-default existed for.
-  const bare = api.S.map.owned.find((id) => api.hexUse(id).kind === "bare");
+  const bare = api.holdings().find((id) => api.hexUse(id).kind === "bare");
   check("a fresh dominion is bare and already producing",
     !!bare && api.hexProduces(bare) === true);
   check("the ledger earns from every owned hex, not only assigned ones", (() => {
@@ -4603,7 +4616,7 @@ console.log("\n--- The hex economy: one resource per ground ---");
         found.has("forest") && found.has("hills"));
       // And the opening actually produces both food and timber, which is the
       // deadlock the trio-variety rule exists to prevent: claiming costs wood.
-      const opening = new Set(api.S.map.owned.map((id) => api.hexResource(id)));
+      const opening = new Set(api.holdings().map((id) => api.hexResource(id)));
       check(`${c.id}/${seed}: the opening trio gives food AND timber`,
         opening.has("food") && opening.has("wood"));
     }
@@ -4686,6 +4699,53 @@ console.log("\n--- The player split: a civilization is a record, not the world -
   check("era lives on the civ, never on the world", !("era" in S()) && "era" in api.me());
   check("eraHistory is the civ's too -- each one crosses its own borders",
     !("eraHistory" in S()) && "eraHistory" in api.me());
+}
+
+console.log("\n--- Ownership is a property of the tile, and fog belongs to the knower ---");
+{
+  // Review Part I.2 and I.4. Ownership was an array on the one player and fog
+  // was a pair of arrays on the shared map -- both encode "there is one civ".
+  reset(); api.ensureMap();
+  const home = api.world.home;
+
+  check("the board answers whose a tile is, by id",
+    api.ownerOf(home) === 0 && api.isOwned(home) && api.isOwned(home, 0));
+  check("an unheld tile has no owner rather than a false one", (() => {
+    const wild = Object.values(api.world.places)
+      .find((p) => p.terrain !== "water" && !api.isOwned(p.id));
+    return !!wild && api.ownerOf(wild.id) === null && !api.isOwned(wild.id);
+  })());
+  check("the per-civ list is DERIVED -- there is no second copy to drift",
+    !("owned" in S().map) &&
+    api.holdings().length === api.holdCount() &&
+    api.holdings().every((id) => api.ownerOf(id) === 0));
+
+  // A SECOND CIV CAN HOLD GROUND, which the old array could not express at all.
+  const rival = api.freshPlayer(1, { color: "teal" });
+  S().players.push(rival);
+  const theirs = Object.values(api.world.places)
+    .find((p) => p.terrain !== "water" && !p.adversary && !p.minor && !api.isOwned(p.id));
+  api.claimTile(theirs.id, 1);
+  check("a rival can hold a tile, and the tile says so",
+    api.ownerOf(theirs.id) === 1 && api.isOwned(theirs.id, 1));
+  check("...without it counting as yours",
+    !api.isOwned(theirs.id, 0) && !api.holdings(0).includes(theirs.id));
+  check("each civ's holdings are its own",
+    api.holdings(1).length === 1 && api.holdCount(1) === 1 &&
+    api.holdCount(0) === api.holdings(0).length);
+  api.releaseTile(theirs.id);
+  check("releasing returns it to nobody", api.ownerOf(theirs.id) === null);
+
+  // FOG IS KNOWLEDGE, so it belongs to the civ that knows it. A bot reading
+  // the true board is cheating; a bot reading YOUR fog is broken.
+  check("fog lives on the civ, not the shared map",
+    Array.isArray(api.me().revealed) && Array.isArray(api.me().sighted) &&
+    !("revealed" in S().map) && !("sighted" in S().map));
+  check("two civs can know different things about the same board", (() => {
+    const before = api.me().revealed.length;
+    return before > 0 && rival.revealed.length === 0;
+  })());
+  S().players.pop();
 }
 
 console.log(`\n${fails === 0 ? "ALL CHECKS PASSED" : fails + " CHECK(S) FAILED"}`);

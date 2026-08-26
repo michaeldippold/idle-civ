@@ -2,7 +2,7 @@ import { active } from "../content/compile.js";
 import { CONFIG } from "../core/config.js";
 import { capWord, caps, fmtSouls, ledgerRates, souls, soulsPerPerson } from "../core/derived.js";
 import { S, me } from "../core/state.js";
-import { atDominionCap, capOf, hexPopSum } from "../map/map.js";
+import { atDominionCap, capOf, hexPopSum, holdings } from "../map/map.js";
 import { attachTip, fmt, fmtRate } from "./dom.js";
 
 export function renderPopRow(bar) {
@@ -59,7 +59,7 @@ export function renderPopRow(bar) {
   // had no tooltip. Rewritten to the law that actually runs now -- population
   // lives on hexes, terrain sets the ceiling, and EXPANSION is the growth verb.
   attachTip(row, () => {
-    const owned = S.map && S.map.owned ? S.map.owned : [];
+    const owned = holdings();
     let ceiling = 0;
     for (const id of owned) ceiling += capOf(id);
     const room = ceiling - truePop;

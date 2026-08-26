@@ -3,7 +3,7 @@ import { rng } from "../core/rng.js";
 import { caps, totalUnits } from "../core/derived.js";
 import { S, me } from "../core/state.js";
 import { CONFLICT_FLAVOR, armorFactor, counterCoverage, militaryStrength, pick, raidGround, removeRandomUnit, reconcileReservations, rollRaidSize, rollRaidType, sentenceCase, stealResources } from "../sim/combat.js";
-import { builtCount, fortStrength, healersNear, hexPop, killAt, strikeHex, world } from "../map/map.js";
+import { builtCount, fortStrength, healersNear, hexPop, holdCount, killAt, strikeHex, world } from "../map/map.js";
 import { hostilityMultiplier, raidAttribution } from "../sim/expeditions.js";
 import { log } from "../ui/log.js";
 
@@ -273,7 +273,7 @@ export const HINT_LIB = {
   wood:  { when: () => me().res.wood  > 0, msg: "You have wood enough to notice its worth." },
   stone: { when: () => me().res.stone > 0, msg: "Stone piles up beside the wood." },
   build: { when: () => me().res.wood >= 8, msg: "There is timber enough to build. Put it to work on the land you hold." },
-  tools: { when: () => S.map && S.map.owned.length >= 4, msg: "With new ground claimed, your people turn to better tools." },
+  tools: { when: () => S.map && holdCount() >= 4, msg: "With new ground claimed, your people turn to better tools." },
   // Legacy saves hold storage-building counts from before 4c. The counts are
   // INERT (state is never implicitly destroyed) -- this line narrates the
   // change exactly once for anyone who built them.
@@ -304,7 +304,7 @@ export const HINT_LIB = {
     msg: "Raw iron blooms are heaped up rusting in the open — the excess is lost. This age can hold no more: spend it, or outgrow the age." },
   // (directHoldfasts died 2026-08-25 with the allocation verb: ground works
   // itself now, so no holding has ever "awaited direction".)
-  develop: { when: () => S.map && S.map.owned.length >= 4,
+  develop: { when: () => S.map && holdCount() >= 4,
     msg: "Your holdings work their own ground. What you BUILD on them is how they do better — open the Map and look at what each hex could become." },
   firstSteel: { when: () => me().res.steel > 0,
     msg: "The Forge runs hotter than it ever did for bronze. The first steel is yours." },

@@ -58,9 +58,29 @@ export function load() {
   if (typeof src.pop === "number") p.pop = src.pop;
   if (typeof src.bought === "number") p.bought = src.bought;
 
+  if (typeof src.revealed !== "undefined") p.revealed = Array.isArray(src.revealed) ? src.revealed : [];
+  if (typeof src.sighted !== "undefined") p.sighted = Array.isArray(src.sighted) ? src.sighted : [];
+
   S.seen = data.seen || {};
   S.adversaries = data.adversaries || {};
   S.map = data.map || null;
+
+  // THE OWNERSHIP SPLIT (2026-08-26). Ownership was `S.map.owned`, an array on
+  // the one player; it is `S.map.owner[tileId] = playerId` now, so a tile can
+  // answer "whose?" for anybody. Fog moved the other way, off the shared map
+  // and onto the civ that knows it. A save from before either carries the old
+  // shape, and this is the one place that has to know both.
+  if (S.map) {
+    if (!S.map.owner) {
+      S.map.owner = {};
+      for (const id of (Array.isArray(S.map.owned) ? S.map.owned : [])) S.map.owner[id] = S.me;
+    }
+    delete S.map.owned;
+    if (Array.isArray(S.map.revealed) && !p.revealed.length) p.revealed = S.map.revealed;
+    if (Array.isArray(S.map.sighted) && !p.sighted.length) p.sighted = S.map.sighted;
+    delete S.map.revealed;
+    delete S.map.sighted;
+  }
 
   // Saves from before the tick clock counted seconds in S.playtime. One-time
   // conversion; the old field rides along inert, per the state invariant.

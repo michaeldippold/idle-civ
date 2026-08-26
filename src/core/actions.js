@@ -1,7 +1,7 @@
 import { buildCost, canAfford, caps, civilians, defById, isCapped, levyCap, levyUsed, pendingCount, playtime, reserved } from "./derived.js";
 import { active } from "../content/compile.js";
 import { CONFIG } from "./config.js";
-import { atDominionCap, hexUse, isOwned, marchFactor, routeCost, world, captureTile, setHexBuild, structureCount, structureDef, syncPopMirror } from "../map/map.js";
+import { atDominionCap, captureTile, hexUse, holdCount, holdings, isOwned, marchFactor, routeCost, setHexBuild, structureCount, structureDef, syncPopMirror, world } from "../map/map.js";
 import { S, me } from "./state.js";
 import { record } from "./journal.js";
 import { save } from "./persist.js";
@@ -106,7 +106,7 @@ export function settlePlan(tileId) {
   if (!world || !world.places[tileId]) return null;
   const p = world.places[tileId];
   if (p.terrain === "water" || p.adversary || p.minor) return null;
-  if (S.map.owned.includes(tileId)) return null;
+  if (isOwned(tileId)) return null;
   const factor = marchFactor(tileId);
   // The claim's price is an era-fact (E3): Stone pays food and time only --
   // the first claim must be affordable before wood exists -- and later eras
@@ -118,7 +118,7 @@ export function settlePlan(tileId) {
   // QUEUED claims count too (owner bug report: queue two and both priced at
   // the same step) -- exactly as building costs already count their queue.
   const pendingClaims = me().buildQueue.filter((q) => q.kind === "settle").length;
-  const esc = Math.pow(CONFIG.claimScale, Math.max(0, S.map.owned.length + pendingClaims - 3));
+  const esc = Math.pow(CONFIG.claimScale, Math.max(0, holdCount() + pendingClaims - 3));
   const cost = {};
   for (const k in spec.cost) cost[k] = Math.round(spec.cost[k] * factor * esc);
   return {
@@ -235,7 +235,7 @@ export function launchStructure(tileId, sid) {
 // ground a rival can see and take -- not a menu that was always there.
 export function hasMarket() {
   if (!S.map || !S.map.built) return false;
-  for (const id of S.map.owned) {
+  for (const id of holdings()) {
     const def = structureDef((S.map.built || {})[id]);
     if (def && def.trades) return true;
   }
@@ -248,7 +248,7 @@ export function hasMarket() {
 export function tradeRate() {
   if (!S.map || !S.map.built) return null;
   let n = 0;
-  for (const id of S.map.owned) {
+  for (const id of holdings()) {
     const def = structureDef((S.map.built || {})[id]);
     if (def && def.trades) n += 1;
   }
@@ -328,7 +328,7 @@ export function completeConstruction(site) {
       let from = (S.map.pop[world.home] || 0) >= def.popCost ? world.home : null;
       if (!from) {
         let best = 0;
-        for (const id of S.map.owned) {
+        for (const id of holdings()) {
           if ((S.map.pop[id] || 0) > best) { best = S.map.pop[id]; from = id; }
         }
       }

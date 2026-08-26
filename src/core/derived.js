@@ -1,5 +1,5 @@
 import { DEF_INDEX, active } from "../content/compile.js";
-import { builtCount, growthSpendRate, hexPopSum, hexYield, upkeepMouths, world } from "../map/map.js";
+import { builtCount, growthSpendRate, hexPopSum, hexYield, holdCount, holdings, upkeepMouths, world } from "../map/map.js";
 import { CONFIG, TICK_SECONDS } from "./config.js";
 import { S, me } from "./state.js";
 import { log } from "../ui/log.js";
@@ -78,7 +78,7 @@ export function civilians() { return me().pop - totalUnits(); }   // the levy di
 // every era -- the levy re-homed to the land. Territory is what lets you
 // fight. (No map -- harness fixtures -- means no cap.)
 export function levyCap() {
-  return S.map ? S.map.owned.length * CONFIG.armyPerHex : Infinity;
+  return S.map ? holdCount() * CONFIG.armyPerHex : Infinity;
 }
 export function levyUsed() {
   return totalUnits() + me().buildQueue.filter((q) => q.kind === "unit").length;
@@ -151,7 +151,7 @@ export function rates() {
   // you read is what you earn. A tile the rebuilt world doesn't know (a
   // harness fixture, a mid-migration save) works at par rather than silently
   // at zero.
-  const owned = (S.map && S.map.owned) || [];
+  const owned = holdings();
   const pops = (S.map && S.map.pop) || {};
   // EVERY OWNED HEX PRODUCES (2026-08-25). This used to walk the allocation
   // map, so a hex nobody had pointed at anything sat idle -- which is what

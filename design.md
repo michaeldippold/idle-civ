@@ -1370,10 +1370,17 @@ means you click a neighbour's army, see bronze dots against your grey ones, and 
 before reading a word. It is also real information, because manifests **accumulate**: an army can be
 genuinely half-obsolete, old spearmen beside new cavalry, and nothing surfaces that today.
 
-- **The dot means the age the unit TYPE was introduced**, not the age the individual soldier was
-  trained. Introduced-in is static and free — it is whichever manifest first declares the id.
-  Trained-in would need per-instance tracking, and a roster is a count (`{soldier: 4}`), so it cannot
-  carry that without becoming a list of individuals.
+- **The dot is a property of the unit TYPE** — whichever manifest first declares the id — and it is
+  read off the def, never tracked per soldier. A roster is a count (`{footman: 4}`), so there is
+  nowhere to put a per-instance training date and no need for one.
+  - *An earlier draft of this section distinguished "the age it was introduced" from "the age this
+    soldier was trained". **They are the same fact.** Every footman that exists was trained in Stone,
+    because the build gate means Stone is the only age a footman can be made in — a distinction
+    without a difference (owner, 2026-08-26).*
+  - **But the equivalence DEPENDS on the gate, and on one type belonging to exactly one age.** If a
+    unit were ever authored as buildable across two ages — declared in Stone and still purchasable in
+    Bronze — the two would come apart and the dot would quietly start lying about half the roster.
+    "One unit type, one age" is therefore not flavour; it is what makes the dot true.
 - **Therefore units must be distinct ids per age**, not one id renamed. A rename makes every dot in
   your army the current age and the column says nothing. *"A footman you build in Stone should not be
   the same as a soldier in Bronze, else what was the point of renaming it?"*

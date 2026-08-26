@@ -324,6 +324,28 @@ enough that it is an actively made choice rather than a default nobody read.
 - Editable while marching, frozen the moment the battle seals. Same line as everything else: it is
   a standing order right up until it becomes a battle input.
 
+**ARMIES ARE DISBANDABLE, NEVER DURING A BATTLE.** (Owner, 2026-08-26.) Disbanding returns the
+troops to the global pool. The cost is real but indirect: you have to assemble a new army and
+dispatch it again, and that is the whole price — no attrition on top.
+
+- **It returns them to the UNIT pool, not to the population.** Units carry `popCost: 1`, so a
+  soldier is a person already spent out of the workforce. Disbanding a *formation* does not
+  discharge its soldiers: the `me().units[id]` counts go back up, the popCost stays paid. Turning
+  soldiers back into population is a different action with a different problem (hexes have terrain
+  caps and may have no room), and it is not this one. A future session must not conflate them.
+- **Disband only on your own territory.** Otherwise disband is strictly better than marching home
+  — an army deep in enemy land could evaporate and reappear at the capital instantly, which makes
+  retreat pointless and teleports units for free. Your soldiers disperse because they are already
+  home. An army caught deep is genuinely caught, and territory gets another job.
+- That one rule also covers the parked case for free: a force parked next to an enemy hex is
+  usually standing on ground that is not yours, so it cannot dissolve itself out of trouble, while
+  a defender reorganising inside their own borders can. The asymmetry is correct.
+- **No partial disband, and no splitting armies.** An army is one object. Splitting is a fiddle,
+  and disband-and-reform *is* the split mechanic — priced in travel time, which is the right price
+  for reorganising. The group's stance dies with the group.
+- Never during a battle, on the same line as everything else: the moment a battle seals, an army
+  stops being something you can give orders to.
+
 **THE PANEL CONSTRAINS THE RULES.** Everything that fires in a battle is standing on the hex. No
 adjacency bonuses, no off-board modifiers, no tower two hexes away covering this one. The panel
 must show the player exactly why they lost, and it can only show what it can line up on screen —

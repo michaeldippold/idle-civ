@@ -325,7 +325,10 @@ function pathMarkFor(id) {
   const sel = selectedArmyObj();
   if (!sel || sel.pl.id !== S.me || !sel.a.order || !sel.a.path) return null;
   if (id === sel.a.order.to) return { glyph: "\u25CE", cls: "pathdest" };
-  if (sel.a.path.slice(sel.a.step).includes(id)) return { glyph: "\u2022", cls: "path" };
+  // (The interior dots retired 2026-08-26, the day they shipped: the march
+  // LINE draws the road itself now -- the dots said which hexes, the line
+  // says the order they come in -- and dots on top of it were noise. The
+  // destination ring stays; the line needs somewhere to be going.)
   return null;
 }
 
@@ -334,8 +337,13 @@ function pathMarkFor(id) {
 // same thing twice. The SVG debug board keeps markFor whole, flags included,
 // because it has no piece layer.
 function stageMarkFor(p) {
+  // The destination ring outranks the fog: it marks YOUR OWN order, and you
+  // know where you sent them even when you cannot see it yet. Everything else
+  // stays behind the charted line.
+  const path = pathMarkFor(p.id);
+  if (path) return path;
   if (!isCharted(p.id)) return null;
-  return pathMarkFor(p.id) || baseMarkFor(p);
+  return baseMarkFor(p);
 }
 
 // WHO IS STANDING HERE, AND WHAT THEY CAN DO. This panel is the whole of the
@@ -825,6 +833,13 @@ export function renderMapStage() {
       { isOwned, isVisible, isCharted, homeId: world.home, era: me().era });
     stage3d.setSelected(selectedId);
     if (stage3d.setPieces) stage3d.setPieces(piecesForBoard());
+    if (stage3d.setMarchPath) {
+      const sel = selectedArmyObj();
+      const marching = sel && sel.pl.id === S.me && sel.a.order && sel.a.path;
+      stage3d.setMarchPath(
+        marching ? [sel.a.at].concat(sel.a.path.slice(sel.a.step)) : null,
+        playerColor().ring);
+    }
     return;
   }
 

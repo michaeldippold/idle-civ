@@ -23,7 +23,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { axialToWorld, hash01, worldToAxialRounded } from "./hex3d.js";
-import { disposePieces, initPieces, pickPiece, setPieces as setPieceMeshes, tickPieces } from "./pieces3d.js";
+import { disposePieces, initPieces, pickPiece, setHoveredPiece, setPieces as setPieceMeshes, tickPieces } from "./pieces3d.js";
 import { buildProps, setPropPhase } from "./props3d.js";
 import { buildRing, buildTerrain, RIM_Y } from "./terrain3d.js";
 
@@ -354,6 +354,39 @@ export function setPieces(list) {
   setPieceMeshes(list || [], elev);
 }
 
+// THE MARCH LINE (owner, 2026-08-26): the road itself, drawn from under the
+// selected disc through every hex it has still to walk, ending at the
+// destination ring. The dots said WHICH hexes; the line says the ORDER they
+// come in, which is the difference between knowing the stops and knowing the
+// route -- "not being sure HOW it is going to get there makes the game harder
+// to predict." Dashed, in the player's colour, dying with the selection like
+// every other preview.
+let marchLine = null;
+export function setMarchPath(hexIds, colorHex) {
+  if (marchLine) {
+    scene.remove(marchLine);
+    marchLine.geometry.dispose();
+    marchLine.material.dispose();
+    marchLine = null;
+  }
+  if (!hexIds || hexIds.length < 2) return;
+  const pts = [];
+  for (const id of hexIds) {
+    const p = byId[id];
+    if (!p) continue;
+    const w = axialToWorld(p.q, p.r);
+    pts.push(new THREE.Vector3(w.x, (elev[id] || 0) + 0.06, w.z));
+  }
+  if (pts.length < 2) return;
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  marchLine = new THREE.Line(geo, new THREE.LineDashedMaterial({
+    color: colorHex || "#c3a3ff", dashSize: 0.14, gapSize: 0.09,
+    transparent: true, opacity: 0.9,
+  }));
+  marchLine.computeLineDistances();
+  scene.add(marchLine);
+}
+
 export function setSelected(id) {
   selectedId = id;
   placeRing(selectRing, id);
@@ -509,6 +542,24 @@ function pickAt(clientX, clientY) {
 
 function wirePointer(canvas) {
   canvas.addEventListener("pointermove", (e) => {
+    // PIECES HOVER FIRST, same priority picking gives them: a cursor over a
+    // disc lights the disc's silhouette, not the hex behind it -- the thing
+    // you would select is the thing that answers the hover.
+    const rr = stageEl.getBoundingClientRect();
+    ndc.x = ((e.clientX - rr.left) / rr.width) * 2 - 1;
+    ndc.y = -((e.clientY - rr.top) / rr.height) * 2 + 1;
+    raycaster.setFromCamera(ndc, camera);
+    const overPiece = pickPiece(raycaster);
+    setHoveredPiece(overPiece);
+    canvas.style.cursor = overPiece ? "pointer" : "";
+    if (overPiece) {
+      if (hoveredId !== null) {
+        hoveredId = null;
+        placeRing(hoverRing, null);
+        if (hooks.onHoverChange) hooks.onHoverChange(null, null);
+      }
+      return;
+    }
     const p = pickAt(e.clientX, e.clientY);
     const id = p ? p.id : null;
     if (id !== hoveredId) {
@@ -631,6 +682,7 @@ function disposeTree(root) {
 // rather than layering a second canvas over a live one. Everything acquired
 // up there is released here, in reverse order.
 export function dispose() {
+  setMarchPath(null);
   disposePieces();
   if (rafId) cancelAnimationFrame(rafId);
   rafId = 0;

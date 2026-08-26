@@ -80,15 +80,31 @@ let discGeo = null;
 function makeDisc(color, count, height, selected) {
   if (!discGeo) discGeo = new THREE.CylinderGeometry(1, 1, 1, 24);
   const side = new THREE.MeshStandardMaterial({ color, roughness: 0.55 });
-  const top = new THREE.MeshStandardMaterial({ map: topTexture(color, count), roughness: 0.55 });
+  // THE TOP IS UNLIT. Facing straight up, a lit material takes the sun full
+  // on and washes the player colour toward white (owner, from a screenshot:
+  // "the much lighter background color on the top is making them harder to
+  // read"). Basic material means the texture IS the final colour -- exact at
+  // every light angle, like a sticker on a chip -- while the sides stay lit
+  // and keep the object looking like an object.
+  const top = new THREE.MeshBasicMaterial({ map: topTexture(color, count) });
   const bottom = new THREE.MeshStandardMaterial({ color, roughness: 0.8 });
   if (selected) {
     side.emissive = new THREE.Color(color); side.emissiveIntensity = 0.35;
-    top.emissive = new THREE.Color("#ffffff"); top.emissiveIntensity = 0.12;
   }
   const m = new THREE.Mesh(discGeo, [side, top, bottom]);
   m.scale.set(DISC_RADIUS, height, DISC_RADIUS);
   m.castShadow = true;
+  // The hover silhouette: the same cylinder, slightly larger, back faces
+  // only, white -- an outline that costs one mesh and no post-processing.
+  // A child, so it inherits position and the hop for free; picking uses a
+  // non-recursive intersect, so it can never eat its parent's click.
+  const rim = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({
+    color: "#ffffff", side: THREE.BackSide,
+  }));
+  rim.scale.set(1.09, 1.06, 1.09);
+  rim.visible = false;
+  rim.name = "rim";
+  m.add(rim);
   return m;
 }
 
@@ -180,6 +196,15 @@ export function pickPiece(raycaster) {
   if (!group) return null;
   const hits = raycaster.intersectObjects(group.children, false);
   return hits.length ? hits[0].object.userData.pieceKey : null;
+}
+
+// Hover: the white silhouette on exactly one disc, or none. The stage calls
+// this from pointermove; the disc under the cursor is the disc that lights.
+export function setHoveredPiece(key) {
+  for (const [k, rec] of meshes) {
+    const rim = rec.mesh.children.find((c) => c.name === "rim");
+    if (rim) rim.visible = k === key;
+  }
 }
 
 export function disposePieces() {

@@ -277,6 +277,15 @@ export const BRONZE_DELTA = {
     },
   ],
 
+  // A BRONZE PEOPLE FIGHTS DIFFERENTLY. Massed charges are the age's shape --
+  // alloyed spearheads and enough of them to press a line -- and the first
+  // horsemen appear. Against a Stone player neither has an answer.
+  raidTypes: [
+    { id: "warband", name: "warband",         weight: 48 },
+    { id: "massed",  name: "massed charge",   weight: 37 },
+    { id: "riders",  name: "band of riders",  weight: 15 },
+  ],
+
   contact: "open",
 
   // WHAT AN AGE SENDS: the building that must stand before anything marches.

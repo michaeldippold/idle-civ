@@ -1146,7 +1146,20 @@ const warband = RAID_TYPES.find(t => t.id === "warband");
 const massed  = RAID_TYPES.find(t => t.id === "massed");
 const riders  = RAID_TYPES.find(t => t.id === "riders");
 const archerDef = findT("archer"), horseDef = findT("horseman"), soldierDef2 = findT("soldier");
-check("bronze inherits stone's raid types unchanged", api.MANIFESTS.stone.raidTypes === RAID_TYPES);
+// THE ROSTER IS AN ERA FACT since 2026-08-26 (the era clock's wire): every age
+// fields the same three shapes, in proportions that are its own. What must NOT
+// drift is the id set -- the counter matrix names these by id, so a shape that
+// vanished from an age would strand the unit that answers it.
+check("every age fields the same three shapes, by id",
+  api.ERA_ORDER.every((e) =>
+    api.MANIFESTS[e].raidTypes.map((t) => t.id).sort().join(",") === "massed,riders,warband"));
+check("...in proportions that are its own -- an age rides more than the last",
+  (() => {
+    const w = (e, id) => api.MANIFESTS[e].raidTypes.find((t) => t.id === id).weight;
+    return w("stone", "riders") < w("bronze", "riders") &&
+           w("bronze", "riders") < w("iron", "riders") &&
+           w("stone", "warband") > w("iron", "warband");
+  })());
 
 console.log("\n--- P3: units are NEVER penalised for being the wrong type ---");
 reset();
@@ -5129,6 +5142,83 @@ console.log("\n--- The era clock: every other player advances on its own hidden 
   })());
   check("...and a capped clock survives the save, where Infinity would not",
     JSON.parse(JSON.stringify({ t: null })).t === null);
+}
+
+console.log("\n--- The clock's wire: a raid knows who sent it ---");
+{
+  // design.md ruling 7: "the wire must exist, or the clock is flavour." Before
+  // this, raid damage was hexPop x raidSize and the SENDER appeared nowhere in
+  // the formula -- attribution named the raider, the arithmetic still did not
+  // know they existed, and a neighbour advancing an age changed nothing but a
+  // line of prose.
+  const setup = (them, you) => {
+    reset(); S().seed = 5; S().rngState = 5;
+    api.initAdversaries(); api.ensureMap(); api.assignPaces(api.rivals());
+    api.me().pop = 40; api.me().era = you;
+    for (const r of api.rivals()) r.era = them;
+    return api.raidSender();
+  };
+  const avgSize = (sender) => {
+    S().rngState = 99;
+    let sum = 0;
+    for (let i = 0; i < 3000; i++) sum += api.rollRaidSize(sender);
+    return sum / 3000;
+  };
+  const shape = (sender) => {
+    S().rngState = 99;
+    const k = {};
+    for (let i = 0; i < 3000; i++) { const t = api.rollRaidType(sender); k[t.id] = (k[t.id] || 0) + 1; }
+    return k;
+  };
+
+  // WHO SENT IT is a different question from whether you can NAME them.
+  // Conflating the two meant that at Stone -- exactly when a gap matters most
+  // -- the sender fell out of the arithmetic and the raid was shaped by nobody.
+  const stoneSender = setup("bronze", "stone");
+  check("at Stone the danger has no name...", api.raidAttribution() === null);
+  check("...but it still has a sender, and the arithmetic knows them",
+    !!stoneSender && !!stoneSender.civ && stoneSender.civ.era === "bronze");
+
+  // NUMBER, the late half of ruling 6: a raid from an age ahead is bigger, and
+  // the per-age bonus ramps with how deep that age is.
+  const level = avgSize(setup("stone", "stone"));
+  const oneAhead = avgSize(setup("bronze", "stone"));
+  const twoAhead = avgSize(setup("iron", "stone"));
+  check("an age ahead sends a bigger raid", oneAhead > level * 1.2);
+  check("two ages ahead sends a bigger one again", twoAhead > oneAhead * 1.3);
+  check("the bonus RAMPS -- the second age of gap costs more than the first",
+    (twoAhead - oneAhead) > (oneAhead - level));
+  check("a neighbour you have OUTRUN gets no penalty and no bonus",
+    Math.abs(avgSize(setup("stone", "iron")) - level) < 1e-9);
+
+  // KIND, the early half: what comes over the hill is drawn from the SENDER's
+  // roster, and each age fields its own proportions.
+  const fromStone = shape(setup("stone", "stone"));
+  const fromIron = shape(setup("iron", "stone"));
+  check("a stone people sends warbands; horsemen are essentially unknown",
+    fromStone.warband > 2000 && (fromStone.riders || 0) < 200);
+  check("an iron people rides -- a third of what arrives is mounted",
+    fromIron.riders > 800);
+  check("...which a Stone player cannot answer at all, by construction", (() => {
+    reset(); api.me().era = "stone";
+    return api.active(api.me()).units.every((u) => !u.counters);
+  })());
+  check("the answers arrive with the age that has them -- archers and horsemen",
+    api.MANIFESTS.bronze.units.some((u) => u.counters === "massed") &&
+    api.MANIFESTS.bronze.units.some((u) => u.counters === "riders"));
+
+  // And an age ahead skews toward whatever the defender has no answer for.
+  // ISOLATED PROPERLY: the SAME sender roster against two defenders, so only
+  // the gap differs. (The first version of this check compared an iron sender
+  // to a bronze one and measured the difference between their rosters instead
+  // -- a comparison that could never have shown the skew.)
+  check("being ahead skews the sender toward what you cannot counter", (() => {
+    const gapped = shape(setup("iron", "bronze"));   // iron roster, one age ahead
+    const levelled = shape(setup("iron", "iron"));   // iron roster, no gap
+    // Nothing counters a plain warband in any age, so it is the unanswerable
+    // shape for both defenders -- and only the gapped one should see more.
+    return gapped.warband > levelled.warband * 1.1;
+  })());
 }
 
 console.log(`\n${fails === 0 ? "ALL CHECKS PASSED" : fails + " CHECK(S) FAILED"}`);

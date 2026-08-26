@@ -1,4 +1,4 @@
-import { active } from "../content/compile.js";
+import { ERA_ORDER, active } from "../content/compile.js";
 import { syncPopMirror } from "../map/map.js";
 import { rng } from "../core/rng.js";
 import { dropQueueItem } from "../core/actions.js";
@@ -85,9 +85,31 @@ export const RAID_SIZES = [
 export function raidSizeScale() {
   return 1 + (me().pop || 0) / CONFIG.raidSizePopScale;
 }
-export function rollRaidSize() {
+
+// HOW MANY AGES AHEAD OF YOU THE SENDER IS. Negative means behind, and behind
+// is deliberately worth nothing: falling behind should hurt, getting ahead
+// should be safety, and a neighbour you have outrun does not get weaker than
+// their own manifest says.
+export function eraGap(sender) {
+  if (!sender) return 0;
+  const civ = sender.civ || sender;
+  if (!civ || typeof civ.era !== "string") return 0;
+  return Math.max(0, ERA_ORDER.indexOf(civ.era) - ERA_ORDER.indexOf(me().era));
+}
+
+// NUMBER, the late-game half of ruling 6. A raid from an age ahead is bigger,
+// and the per-age bonus itself RAMPS with how deep the sender's age is -- the
+// early ladder is gentle on purpose (bronze barely moved in two thousand
+// years) and the last stretch is vertical. That ramp is the difficulty curve
+// across the whole span: falling behind gets more dangerous the longer a game
+// runs.
+export function rollRaidSize(sender) {
   const total = RAID_SIZES.reduce((s, r) => s + r.weight, 0);
-  const scale = raidSizeScale();
+  const gap = eraGap(sender);
+  const civ = sender && (sender.civ || sender);
+  const depth = civ && civ.era ? Math.max(0, ERA_ORDER.indexOf(civ.era)) : 0;
+  const eraMult = 1 + gap * CONFIG.raidEraSizeBonus * (1 + depth * CONFIG.raidEraSizeRamp);
+  const scale = raidSizeScale() * eraMult;
   let roll = rng() * total;
   for (const r of RAID_SIZES) {
     if (roll < r.weight) return r.size * scale;
@@ -99,13 +121,31 @@ export function rollRaidSize() {
 // What kind of raid shows up is the active manifest's `raidTypes` list (the
 // counter-relationship notes live with it, in the Stone Age authoring).
 export function counterUnitFor(raid) { return raid ? active().units.find((u) => u.counters === raid.id) : undefined; }
-export function rollRaidType() {
-  const types = active().raidTypes;
-  const total = types.reduce((s, r) => s + r.weight, 0);
+// SHAPE, the early half of ruling 6. Drawn from the SENDER's roster, and
+// skewed by how far ahead they are toward the types you cannot answer.
+//
+// "An era-ahead raid at Bronze doesn't hit harder so much as hit in a shape
+// you can't answer -- archers and horsemen show up while you're still
+// mustering spears." The counter matrix already says which shapes those are:
+// a type whose countering unit does not EXIST in the defender's age is one
+// they have no answer to, however many spears they have.
+export function rollRaidType(sender) {
+  const civ = sender && (sender.civ || sender);
+  const types = active(civ || me()).raidTypes;
+  const gap = eraGap(sender);
+  // What the DEFENDER could field an answer with, by kind rather than by
+  // count: being out of archers is a bad afternoon, having no archers at all
+  // is the era gap.
+  const answerable = new Set(
+    active(me()).units.filter((u) => u.counters).map((u) => u.counters));
+  const weightOf = (r) =>
+    r.weight * (gap > 0 && !answerable.has(r.id) ? 1 + gap * (CONFIG.raidShapeSkew - 1) : 1);
+  const total = types.reduce((s, r) => s + weightOf(r), 0);
   let roll = rng() * total;
   for (const r of types) {
-    if (roll < r.weight) return r;
-    roll -= r.weight;
+    const w = weightOf(r);
+    if (roll < w) return r;
+    roll -= w;
   }
   return types[0];
 }

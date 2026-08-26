@@ -4,7 +4,7 @@ import { caps, totalUnits } from "../core/derived.js";
 import { S, me } from "../core/state.js";
 import { CONFLICT_FLAVOR, armorFactor, counterCoverage, militaryStrength, pick, raidGround, removeRandomUnit, reconcileReservations, rollRaidSize, rollRaidType, sentenceCase, stealResources } from "../sim/combat.js";
 import { builtCount, fortStrength, healersNear, hexPop, holdCount, killAt, strikeHex, world } from "../map/map.js";
-import { hostilityMultiplier, raidAttribution } from "../sim/expeditions.js";
+import { hostilityMultiplier, raidAttribution, raidSender } from "../sim/expeditions.js";
 import { chronicle } from "../core/bus.js";
 
 // ---------- Event library -----------------------------------
@@ -135,10 +135,22 @@ export const EVENT_LIB = {
       const p = 1 - Math.pow(1 - chance, dt);
       if (rng() >= p) return;
 
-      const raidSize = rollRaidSize();
-      const raid = rollRaidType();
+      // ---- SELECTION: that it happens, WHO SENDS IT, and where it lands ----
+      // ATTRIBUTION MOVED FIRST (2026-08-26, the era clock's wire). It used to
+      // be drawn after the raid was already rolled and resolved, which was
+      // honest about what it was: decoration. The sender appeared nowhere in
+      // the arithmetic, so a neighbour advancing an age changed nothing but a
+      // line of prose. Now the raid is SHAPED by who sent it -- their roster,
+      // their age, their advantage over yours.
+      // WHO SENT IT shapes the raid; whether you can NAME them is a separate
+      // question the age answers. At Stone you see a war party out of the dark
+      // -- and if they are an age ahead, it is a war party you cannot answer.
+      const sender = raidSender();
+      const raidSize = rollRaidSize(sender);
+      const raid = rollRaidType(sender);
+      const raiders = raidAttribution();
 
-      // ---- SELECTION: that it happens, who sends it, and WHERE IT LANDS ----
+      // ---- Where it lands ----
       // The hex is chosen here, before anything is resolved. It used to be
       // picked last, inside the failure branch, which made the place a
       // consequence of the outcome; a raid arrives somewhere and THEN is
@@ -153,11 +165,8 @@ export const EVENT_LIB = {
       // with no soldiers at all.
       const defense = militaryStrength(raid) + (at ? fortStrength(at) : 0);
       const repelChance = defense / (defense + raidSize);
-      // WHOSE raid this is (C3). Null at Stone by era-fact, which selects the
-      // anonymous pool -- the danger is identical, only the attribution
-      // changes. Drawn once here so both the flavor line and the hex strike
-      // below blame the same people.
-      const raiders = raidAttribution();
+      // (both drawn during selection above, so the flavour line, the hex strike
+      // and the arithmetic all concern the same people.)
       const say = (anon, named, sev) => {
         const line = raiders
           ? pick(named).replace(/\{who\}/g, raiders.name).replace("{ground}", raidGround(raiders))

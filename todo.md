@@ -148,10 +148,18 @@ cold start **before** this file's older sections:
    *The browser caught a real bug:* `assignPaces` ran at every boot and re-scheduled from the
    CURRENT tick, so refreshing the page pushed every border further away — the clock was
    dodgeable with F5. It is idempotent now, with a check pinning it.
-   **Still open from ruling 7 — the wire.** The clock fires and the notification lands, but the
-   raid ARITHMETIC still does not read the sender: an era-ahead player hits with the same numbers
-   as a stone-age one. Design canon calls this out as the thing that separates a clock from
-   flavour, and it is the next piece of this feature rather than a separate one.
+   **Ruling 7, the wire — SHIPPED the same day.** A raid reads its sender now: attribution is
+   drawn during SELECTION, before the raid is rolled, and the sender's manifest supplies the
+   roster while their era supplies the size. Each age has its own raid roster (a stone people
+   essentially never fields horsemen; an iron people rides a third of the time), and being ahead
+   skews further toward shapes the defender cannot answer — which the counter matrix already
+   expressed, since both answering units are Bronze. Measured against a Stone player: a Bronze
+   neighbour raids ~45% larger, an Iron one ~120%, and the per-age bonus ramps with depth so
+   falling behind gets worse the longer a run goes.
+   *A conflation surfaced while building it:* **who sent a raid** and **whether you can name
+   them** were one function. `contact` gates the name — at Stone the danger comes out of the dark
+   — but it never gated who was really out there. While they were one, a Stone player's raids
+   were shaped by nobody, which is exactly the case the clock exists for.
    **Also started here: the Chronicle's turn toward notifications.** `notify()` on the bus and a
    `news` severity in the log are the first thread — facts arriving from the world, marked and
    styled apart from settlement flavour so the two can be separated when the rest of the

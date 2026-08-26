@@ -1740,18 +1740,27 @@ you can hear but not read.
    Project Zomboid framing: most extinction spawns kill you immediately, and that's fine at 5–6 runs
    an hour) **because the verdict is fast**. A doomed run must reveal itself in minutes, never
    twenty-five minutes in. Same brutality, honest clock.
-6. **An era gap reads as unit KIND early and unit NUMBER late.** The strength ladder is gentle in
+6. **An era gap reads as unit KIND early and unit NUMBER late.** *(**BUILT 2026-08-26.** KIND: the
+   raid roster is an era fact read from the SENDER — a stone people sends warbands and essentially
+   never horsemen (weight 2), an iron people rides (35) — and being ahead skews them further toward
+   shapes the defender cannot answer. The answers are the counter matrix, and both of them (archer,
+   horseman) are Bronze, so a Bronze raid on a Stone player is unanswerable *by construction*
+   rather than by a special rule. NUMBER: size scales per age of gap, and the per-age bonus itself
+   ramps with the sender's depth, which is what makes falling behind worse the longer a run goes.
+   Measured: against a Stone player, a Bronze neighbour raids ~45% larger and an Iron one ~120%.)* The strength ladder is gentle in
    the early ages (Hill Clans 5 → 7 → 9) and that is correct — bronze barely moved in two thousand
    years, while the last thousand years and the next thousand are vertical. So an era-ahead raid at
    Bronze doesn't hit *harder* so much as hit in a **shape you can't answer** — archers and horsemen
    show up while you're still mustering spears; the counter matrix already exists to express it.
    Deep eras escalate quantitatively on top. Consequence, wanted: **falling behind gets more
    dangerous the longer the game runs.** That is the difficulty curve across the twelve-era span.
-7. **The wire must exist, or the clock is flavour.** *(**STILL OPEN as of 2026-08-26** — the only
-   ruling here not yet built. The clock fires, the notification lands, and a player an age ahead
-   fields next-age units on paper; what the raid ARITHMETIC still does not read is the sender.
-   Until it does, an era-ahead neighbour hits with the same numbers as a stone-age one. This is the
-   next piece of the feature, not a separate one.)* Today raid damage is
+7. **The wire must exist, or the clock is flavour.** *(**BUILT 2026-08-26**, same day. A raid now
+   reads its sender: attribution is drawn during SELECTION, before the raid is rolled, and the
+   sender's own manifest supplies the roster while their era supplies the size. The build also
+   split a conflation that had been hiding in plain sight — **who sent it** and **whether you can
+   name them** are different questions. `contact` gates the name; it never gated who was really
+   out there. While they were one function, a Stone player — exactly the case the clock exists for
+   — had their raids shaped by nobody.)* Today raid damage is
    `hexPop × min(raidTollMax, raidTollShare × raidSize)` — **the sender appears nowhere in the
    formula**. Attribution (C3) named the raider; the arithmetic still doesn't know they exist. The
    clock's raids must read the sender's era — roster, size, strength — or an adversary advancing

@@ -270,10 +270,26 @@ export const STONE = {
   // bonus.) A warband is simply a raid no unit names, so nothing counters it.
   // All three types roll in the Stone Age too; no counters exist yet, so they
   // read as pure flavor until Bronze makes them matter.
+  // THE RAID ROSTER IS AN ERA FACT, and it is read from the SENDER's age
+  // (2026-08-26, the era clock's wire). This list is what a STONE people can
+  // put in the field: mostly a warband, occasionally a massed rush, and
+  // essentially never horsemen -- there are no horsemen in the stone age.
+  //
+  // Later ages re-weight it, which is the "roster" half of design.md ruling 7
+  // and the KIND half of ruling 6: an age-ahead neighbour does not merely hit
+  // harder, it arrives in a shape your people have no answer to. The answers
+  // are the counter matrix -- archers answer a massed charge, horsemen answer
+  // riders -- and both of those units are Bronze. So a Bronze raid landing on
+  // a Stone player is unanswerable BY CONSTRUCTION, not by a special rule.
+  //
+  // Every id stays present in every age even at a trivial weight, because the
+  // validator requires a countering unit to name a live raid type and because
+  // a people that has not yet learned a shape should be rare rather than
+  // impossible.
   raidTypes: [
-    { id: "warband", name: "warband",         weight: 50 },
-    { id: "massed",  name: "massed charge",   weight: 30 },
-    { id: "riders",  name: "band of riders",  weight: 20 },
+    { id: "warband", name: "warband",         weight: 82 },
+    { id: "massed",  name: "massed charge",   weight: 16 },
+    { id: "riders",  name: "band of riders",  weight: 2 },
   ],
 
   // CONTACT: what this age can do about its neighbours, in either direction.

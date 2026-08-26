@@ -4,7 +4,7 @@ import { CONFIG } from "../core/config.js";
 import { availableUnits } from "../core/derived.js";
 import { save } from "../core/persist.js";
 import { atDominionCap, captureTile, marchFactor, routeCost, seatOf, syncPopMirror, world } from "../map/map.js";
-import { S, me, playerByKey } from "../core/state.js";
+import { S, me, playerByKey, rivals } from "../core/state.js";
 import { record } from "../core/journal.js";
 import { armorFactor, weaponMultiplier } from "./combat.js";
 import { chronicle, requestRender } from "../core/bus.js";
@@ -100,21 +100,39 @@ export function hostileRouteRisk() { return !!riskAdversary(); }
 //
 // Returns null when nobody could plausibly be blamed, which is a real state
 // and not a failure: the caller falls back to the anonymous voice.
-export function raidAttribution() {
-  if (active().contact === "none") return null;
+// WHO ACTUALLY SENT IT, always -- and this is a different question from
+// whether you can NAME them (2026-08-26, the clock's wire).
+//
+// `contact` gates ATTRIBUTION: at Stone the danger has no name, it comes out of
+// the dark. It never gated who was really out there. Conflating the two meant
+// that at Stone -- exactly when an era gap matters most, because a Bronze
+// neighbour raiding a Stone player is the whole point of the clock -- the
+// sender fell out of the arithmetic entirely and the raid was shaped by
+// nobody. You should not know who they are. Their bronze should still arrive.
+export function raidSender() {
   const pool = [];
   let total = 0;
-  for (const a of active().adversaries) {
+  // ITERATES PLAYERS, NOT THE HUMAN'S ROSTER (2026-08-26, the clock's wire).
+  // This used to walk `active().adversaries` -- the roster as YOUR age
+  // describes it -- which meant a neighbour an age ahead was still read out of
+  // your manifest. Each is read out of ITS OWN now, so who they have become is
+  // what shows up.
+  for (const civ of rivals()) {
+    const def = (active(civ).adversaries || []).find((a) => a.id === civ.key);
+    if (!def) continue;
     // Peaceful neighbours do not raid you. If they ever should, that is a
-    // disposition change with its own fiction, not a quiet exception here.
-    if (a.disposition !== "warlike") continue;
-    if (!playerByKey(a.id)) continue;
+    // disposition change with its own fiction, not a quiet exception here --
+    // and disposition is read from their age, so a people can turn.
+    if (def.disposition !== "warlike") continue;
     // A grudge does not decide WHETHER a warlike neighbour raids -- the
     // trigger roll upstream already did that, and hostilityMultiplier()
     // already made anger raise the rate. It decides how likely it is to be
     // THEM: neutral weighs 1, the angriest possible neighbour weighs 6.
-    const w = 1 + Math.max(0, -(playerByKey(a.id).standing || 0));
-    pool.push([a, w]);
+    const w = 1 + Math.max(0, -(civ.standing || 0));
+    // The def, plus the civ that sent it. Callers keep reading `.name` and
+    // `.homeTerrain`; the arithmetic reads `.civ` and finally knows who it is
+    // fighting.
+    pool.push([Object.assign({}, def, { civ }), w]);
     total += w;
   }
   if (!pool.length) return null;
@@ -123,13 +141,21 @@ export function raidAttribution() {
   // an rng() call that cannot change an outcome should never be spent.
   if (pool.length === 1) return pool[0][0];
   let roll = rng() * total;
-  for (const [a, w] of pool) { if (roll < w) return a; roll -= w; }
-  return pool[pool.length - 1][0];
+  for (const [a, w] of pool) {
+    if (roll < w) return a;
+    roll -= w;
+  }
+  return pool[0][0];
 }
 
-// A campaign force's strength: the same math as home defense, pointed
-// outward -- weapon tiers apply, and counters match against the adversary's
-// fighting style instead of a rolled raid type.
+// WHOSE RAID YOU CAN SEE IT WAS. The same draw, revealed only once the age
+// says you have contact -- so the prose stays honest about what you know while
+// the arithmetic stays honest about what happened.
+export function raidAttribution() {
+  if (active().contact === "none") return null;
+  return raidSender();
+}
+
 export function campaignStrength(unitCounts, adv) {
   let attack = 0;
   for (const uid in unitCounts) {

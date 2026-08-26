@@ -319,6 +319,15 @@ export const IRON_DELTA = {
     },
   ],
 
+  // AN IRON PEOPLE RIDES. Horsemen stop being a curiosity and become a third
+  // of what comes over the hill -- and a player still in Stone has neither the
+  // archers for a massed charge nor the riders to run down a mounted raid.
+  raidTypes: [
+    { id: "warband", name: "warband",         weight: 30 },
+    { id: "massed",  name: "massed charge",   weight: 35 },
+    { id: "riders",  name: "band of riders",  weight: 35 },
+  ],
+
   contact: "open",
   // The Muster Ground's cap of 1 is the real pacing: one outbound column at a
   // time, whatever its size. How big that column can be is answered by what

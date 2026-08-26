@@ -47,6 +47,22 @@ export const CONFIG = {
   // A little jitter so two runs on adjacent seeds do not feel identical, kept
   // small enough that pace remains the thing you are reading.
   eraClockJitter: 0.15,
+  // ---- WHAT AN ERA GAP DOES TO A RAID (2026-08-26, the clock's wire) ------
+  // design.md ruling 6: an era gap reads as unit KIND early and unit NUMBER
+  // late. The strength ladder is gentle in the early ages and that is correct
+  // -- bronze barely moved in two thousand years -- so an era-ahead raid at
+  // Bronze does not hit HARDER so much as hit in a shape you cannot answer.
+  //
+  // SHAPE. How much an age of advantage skews the sender toward raid types
+  // whose counter-unit the defender cannot field yet. The counter matrix
+  // already expresses this: archers answer a massed charge, horsemen answer
+  // riders, and nothing answers a warband.
+  raidShapeSkew: 1.6,
+  // NUMBER. How much bigger a raid gets per age of advantage -- and the ramp
+  // is why falling behind gets MORE dangerous the longer a game runs, which is
+  // the difficulty curve across the whole era span.
+  raidEraSizeBonus: 0.30,
+  raidEraSizeRamp: 0.5,
   tradeBaseRate: 4,
   tradeRateStep: 0.5,
   tradeFloorRate: 2,

@@ -282,6 +282,48 @@ a unit-vs-unit lookup table.*
   granting extra defending dice, longbows improving the archers' number, or any of the rest. A
   mechanic that is complete at tier one has no tech tree in it.
 
+**A CONTESTED HEX IS LOCKED, AND THE SECOND WAVE IS A NEW ORDER.** (Owner, 2026-08-26.) While a
+battle runs, no new force may enter that hex. An army dispatched there parks on an adjacent hex and
+stops. When the battle ends it does *not* roll in on its own — you must affirmatively re-dispatch
+it against whatever walls and whoever is left. Dispatching is a real order aimed at a board you
+looked at, not a queue you fill and walk away from while the next fights resolve.
+
+- This lands the first-attack-buys-information pattern for free. The second wave is dispatched by
+  someone who *watched the panel* — they know the remaining garrison, the wall state, and how
+  badly it went. The opening assault is a scouting expense as much as an attack, which is exactly
+  what a real siege is.
+- It is symmetric: a relief force parks adjacent the same way and is re-dispatched the same way.
+- **The risk is an attention tax**, and it is the only thing that can make this bad. A parked army
+  that nobody notices is a game punishing a player for looking away — the failure mode an
+  idle-descended game must be most careful about. The mitigation is that a battle ending with
+  friendly forces adjacent **must** raise a notification. This is a good job for the Chronicle in
+  its new notification role: *"Your twelve spearmen wait at the Ashen Ridge."*
+- Open edge case: an army retreating into a hex that has since been locked. Retreat is flight, not
+  an attack, so it should still arrive — as a parked force, never as a joiner. If no legal
+  destination exists, the army is lost, which is a fair price for overextending.
+
+**STANCE IS SET AT DISPATCH, IN NAMED STEPS, AND IS EDITABLE UNTIL THE BATTLE SEALS.** (Owner,
+2026-08-26.) The stance belongs on the dispatch screen where the group is created, stated loudly
+enough that it is an actively made choice rather than a default nobody read.
+
+- **Named steps, never a number the player types.** Withdraw at a quarter lost / at half / at three
+  quarters / never. Round as needed. A quarter lost — three quarters intact — is the cautious one;
+  half is already rough, and the owner is right that half a force lost can still be a battle you
+  would win if you felt adventurous.
+- **It is a RISK BUDGET, not a tactical brain.** The threshold reads only your own losses, and it
+  deliberately does not know whether you are winning: "I will spend up to half this army on this"
+  is a strategic sentence. Anything cleverer — retreat-if-outnumbered, retreat-if-losing — is the
+  game playing itself, and the player did not ask for a second opinion.
+- The known flaw is that you can withdraw at half with the enemy one round from breaking. **Do not
+  patch it.** That is the same coin as the improbable win: pre-commitment costs something, and both
+  faces of it are stories. Possible small guard: no retreat check before the end of round one, so a
+  freak opening round cannot rout an army instantly.
+- **Default to fight-to-the-death**, because it is the least surprising — it does what the word
+  "attack" means. An army that quietly withdrew from a battle the player thought they were winning
+  is *confusing*, and confusing is worse than bad.
+- Editable while marching, frozen the moment the battle seals. Same line as everything else: it is
+  a standing order right up until it becomes a battle input.
+
 **THE PANEL CONSTRAINS THE RULES.** Everything that fires in a battle is standing on the hex. No
 adjacency bonuses, no off-board modifiers, no tower two hexes away covering this one. The panel
 must show the player exactly why they lost, and it can only show what it can line up on screen —

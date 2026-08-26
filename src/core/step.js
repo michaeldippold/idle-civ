@@ -6,6 +6,7 @@ import { S, loopId, me, saveId } from "./state.js";
 import { endFamine, growPopulation, starveTick } from "../map/map.js";
 import { resolveEvents, runConverters } from "../sim/events.js";
 import { resolveExpeditions } from "../sim/expeditions.js";
+import { tickEraClock } from "../sim/eraclock.js";
 import { chronicle, requestRender, runEnded } from "../core/bus.js";
 
 // ---------- Core simulation ---------------------------------
@@ -69,6 +70,10 @@ export function step() {
 
   // Outbound columns tick and resolve on the world's schedule.
   resolveExpeditions(dt);
+  // THE ERA CLOCK. Every other player runs a hidden countdown to its next age;
+  // this is where it ticks. Ticks rather than wall-clock, so pause stops every
+  // countdown and fast-forward speeds them all (design ruling 2).
+  tickEraClock();
 
   // Conflict (and in principle anything else) can zero out population --
   // checked generically here rather than attributed to a specific event.

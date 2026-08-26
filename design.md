@@ -1692,12 +1692,12 @@ wholesale annexation of a major is worth.*
 
 ### Every Civilization Keeps Its Own Time — the era clock
 
-*(Consensus 2026-08-25. **The mechanism shipped 2026-08-26 with the per-player refactor; the
-countdown below is what remains.** Every civilization now carries its own era, is authored out of
-its own manifest, restocks when its own clock turns, and can cross a border without touching
-anyone else's screen or speed. What is missing is only the POLICY that decides when a neighbour
-advances — `paceRivals()` in `sim/era.js`, which today keeps them level with the human. Replacing
-that one function with the countdowns described here is the whole remaining job.)*
+*(Consensus 2026-08-25. **SHIPPED 2026-08-26** — mechanism and countdown both. `sim/eraclock.js`
+draws a pace per player off its own seeded stream at the world's birth, runs a hidden tick
+countdown per civ, advances them through the same `advanceEra` verb the human uses, and telegraphs
+each crossing as a NOTIFICATION. Every ruling below is implemented and pinned by the harness, with
+one exception noted at ruling 7. Tuning lives in `CONFIG.eraClockSeconds` / `eraPaceMult` /
+`eraClockJitter`; today the first border lands around five to six minutes on every seed tested.)*
 
 *(The night's arc: the caps discussion → "the game is still not hard enough" → this. The owner's
 framing, which is the whole idea:)*
@@ -1747,7 +1747,11 @@ you can hear but not read.
    show up while you're still mustering spears; the counter matrix already exists to express it.
    Deep eras escalate quantitatively on top. Consequence, wanted: **falling behind gets more
    dangerous the longer the game runs.** That is the difficulty curve across the twelve-era span.
-7. **The wire must exist, or the clock is flavour.** Today raid damage is
+7. **The wire must exist, or the clock is flavour.** *(**STILL OPEN as of 2026-08-26** — the only
+   ruling here not yet built. The clock fires, the notification lands, and a player an age ahead
+   fields next-age units on paper; what the raid ARITHMETIC still does not read is the sender.
+   Until it does, an era-ahead neighbour hits with the same numbers as a stone-age one. This is the
+   next piece of the feature, not a separate one.)* Today raid damage is
    `hexPop × min(raidTollMax, raidTollShare × raidSize)` — **the sender appears nowhere in the
    formula**. Attribution (C3) named the raider; the arithmetic still doesn't know they exist. The
    clock's raids must read the sender's era — roster, size, strength — or an adversary advancing

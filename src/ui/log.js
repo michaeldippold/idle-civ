@@ -25,7 +25,12 @@ export function log(text, cls) {
   // which is deliberate: it survives being skimmed, and it survives colour
   // blindness. Neutral lines get a quiet mid-dot rather than nothing, so the
   // gutter reads as a ruled column instead of an intermittent one.
-  const MARKS = { good: "+", bad: "!", big: "★" };
+  // `news` is the notification thread: a fact arriving from the world rather
+  // than prose about your settlement. Marked with a right-pointing guillemet
+  // so it reads as "incoming" at a glance, and kept distinct from the flavour
+  // marks precisely so the two can be separated when the Chronicle finishes
+  // becoming a notification system.
+  const MARKS = { good: "+", bad: "!", big: "★", news: "»" };
   div.innerHTML =
     `<span class="mark">${MARKS[cls] || "·"}</span>` +
     `<span class="text"></span>`;

@@ -2,7 +2,7 @@ import { DEF_CATEGORIES, active } from "../content/compile.js";
 import { fmtTime, playtime } from "../core/derived.js";
 import { ensureMap, syncDominion } from "../map/map.js";
 import { initAdversaries } from "../core/persist.js";
-import { S, me, rivals } from "../core/state.js";
+import { S, me } from "../core/state.js";
 import { chronicle, eraAdvanced, requestSpeed } from "../core/bus.js";
 
 
@@ -48,10 +48,7 @@ export function advanceEra(era, civ) {
   // human is not looking through crosses its border silently -- the Chronicle
   // will carry the news when the notification system lands, which is a
   // different thing from seizing the world and holding a modal open.
-  if (!looking) {
-    return;
-  }
-  paceRivals();
+  if (!looking) return;
   purgeDom(fromM, toM);
   // A new age begins at 1x (user ruling, after a 12x border starved a run
   // before its modal was even closed): the ceremony modal already holds the
@@ -62,29 +59,12 @@ export function advanceEra(era, civ) {
   eraAdvanced(era);
 }
 
-// WHEN RIVALS ADVANCE -- and this function is a POLICY, not a mechanism.
-//
-// The mechanism above is finished and correct: any civ can cross a border on
-// its own clock, restock out of its own manifest, and keep its own history.
-// What is not built yet is the thing that DECIDES when a neighbour advances --
-// the hidden per-civ countdowns the design settled on (design.md, Every
-// Civilization Keeps Its Own Time), where one speedster is guaranteed and the
-// Chronicle telegraphs the race.
-//
-// Until that exists, rivals keep pace with the human. That is deliberately the
-// OLD behaviour expressed through the NEW verb, and the distinction matters:
-// their strength now comes from THEIR manifest and their larder refills on
-// THEIR era changing, so nothing reads the human's clock any more. Replacing
-// this policy with countdowns is a change to this function and nothing else.
-//
-// The alternative -- decoupling them today with no clock to advance them --
-// would freeze every neighbour in the Stone Age while the player reaches Iron,
-// which is the Oblivion problem with the sign flipped.
-export function paceRivals() {
-  for (const r of rivals()) {
-    if (r.era !== me().era) advanceEra(me().era, r);
-  }
-}
+// (paceRivals() lived here from 2026-08-26 morning to 2026-08-26 evening. It
+// was the stand-in policy while the per-player refactor built the mechanism
+// underneath it -- rivals kept level with the human, which was the old
+// behaviour expressed through the new verb. The real policy is the era clock:
+// hidden per-civ countdowns in sim/eraclock.js. Replacing it was a change to
+// one function, which is what the stub was shaped to make true.)
 
 // Applies an era's state migrations. Implicit default: everything carries.
 // State under ids that left the manifest is INERT, never deleted (the

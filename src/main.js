@@ -2,7 +2,8 @@ import { ERA_ORDER } from "./content/compile.js";  // side-effect first: build +
 import { CONFIG } from "./core/config.js";
 import { applyPlayerColor } from "./core/palette.js";
 import { initAdversaries, load, save } from "./core/persist.js";
-import { S, me, setLoops } from "./core/state.js";
+import { S, me, rivals, setLoops } from "./core/state.js";
+import { assignPaces } from "./sim/eraclock.js";
 import { step } from "./core/step.js";
 import { cycleSpeed, modalHold, paused, preGame, renderAll, renderSpeed, setPaused, setPreGame, setSpeed, speed } from "./ui/chrome.js";
 import { ensureMap, revealAll, setRevealAll, setPickedContinent } from "./map/map.js";
@@ -54,6 +55,11 @@ export function boot() {
   }
 
   initAdversaries();
+  // Draw every other player's pace the moment the roster exists, rather than
+  // on the first tick. Functionally the same -- the clock assigns lazily if it
+  // ever finds one unscheduled -- but it means a run's paces are inspectable
+  // from frame zero, which is what a QA lens and a bug report both want.
+  assignPaces(rivals());
   // Before the first render and before the 3D stage builds its rings: the
   // colour is chosen on the start screen and fixed for the run, so this is the
   // only place it is ever applied.

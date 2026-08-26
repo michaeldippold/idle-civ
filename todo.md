@@ -139,10 +139,23 @@ cold start **before** this file's older sections:
    *Two real bugs it surfaced, both predicted by the review:* a bot reaching Bronze would have
    reset the human's game speed and opened the human's ceremony modal; and the owned-ground
    discount in pathfinding would have let your roads cheapen a rival's frontier.
-6. **The era clock (4d) — now cheap** ← **NEXT, and the smallest high-value thing left.**
-   The mechanism shipped with the refactor; what remains is the POLICY in `paceRivals()`
-   (`sim/era.js`): hidden per-civ countdowns, one speedster guaranteed, the Chronicle
-   telegraphing the race. Replacing that one function is the whole job.
+6. ~~**The era clock (4d)**~~ **SHIPPED 2026-08-26** — `sim/eraclock.js`. Pace drawn per player
+   off its own seeded stream at the world's birth (so it cannot perturb the simulation's dice),
+   a hidden tick countdown per civ, advancement through the same `advanceEra` verb the human
+   uses, and a **notification** on every crossing. One "faster" player guaranteed in every world;
+   the first border lands around five to six minutes on every seed tested; capped at the last
+   implemented era. `paceRivals()` is retired.
+   *The browser caught a real bug:* `assignPaces` ran at every boot and re-scheduled from the
+   CURRENT tick, so refreshing the page pushed every border further away — the clock was
+   dodgeable with F5. It is idempotent now, with a check pinning it.
+   **Still open from ruling 7 — the wire.** The clock fires and the notification lands, but the
+   raid ARITHMETIC still does not read the sender: an era-ahead player hits with the same numbers
+   as a stone-age one. Design canon calls this out as the thing that separates a clock from
+   flavour, and it is the next piece of this feature rather than a separate one.
+   **Also started here: the Chronicle's turn toward notifications.** `notify()` on the bus and a
+   `news` severity in the log are the first thread — facts arriving from the world, marked and
+   styled apart from settlement flavour so the two can be separated when the rest of the
+   Chronicle's idle-era prose is retired.
 7. **Armies, combat, per-player era content** — built on the new shape, so bots and the human
    share the systems from birth. Slice 6 scouting is still the prerequisite.
 8. **The docs collapse, ten → four** (review IX.0): harvest `map.md` and `interface.md` into

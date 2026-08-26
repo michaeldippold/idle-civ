@@ -25,6 +25,28 @@ export const CONFIG = {
   // means on this board, and two systems that both answer "is it close?"
   // should not answer it differently.
   healRange: 1,
+  // ---- THE ERA CLOCK (2026-08-26) ----------------------------------------
+  // Every other player runs a hidden countdown to its next age. The player has
+  // no clock at all: advance or don't, to your heart's content (design.md
+  // ruling 1 -- absolute, never relative). Falling behind has to be genuinely
+  // possible, and so does outrunning them.
+  //
+  // TICKS, never wall-clock (ruling 2): pause stops every countdown and
+  // fast-forward speeds them all, both correct for free, and being away
+  // advances nothing.
+  //
+  // The base is how long a NORMAL pace takes to cross one border, in seconds
+  // of simulated time. Sized against ruling 5 -- the telegraph must arrive
+  // EARLY, because the owner accepts brutal starts only when the verdict is
+  // fast. A doomed run should say so in minutes, never twenty-five minutes in.
+  eraClockSeconds: 540,
+  // Pace multipliers on that base. A "faster" neighbour crosses at ~5.5
+  // minutes, which is inside the window where a player can still feel the
+  // ground shift and do something about it.
+  eraPaceMult: { slower: 1.45, normal: 1.0, faster: 0.62 },
+  // A little jitter so two runs on adjacent seeds do not feel identical, kept
+  // small enough that pace remains the thing you are reading.
+  eraClockJitter: 0.15,
   tradeBaseRate: 4,
   tradeRateStep: 0.5,
   tradeFloorRate: 2,

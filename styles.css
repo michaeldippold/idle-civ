@@ -685,6 +685,18 @@ button { font-family: inherit; cursor: pointer; }
 .log .entry.bad  .mark, .log .entry.bad  .text { color: var(--danger); }
 .log .entry.big  .mark { color: #9a5b12; }
 .log .entry.big  .text { color: #9a5b12; font-weight: 600; }
+/* NEWS: a fact arriving from the world rather than prose about your own
+   settlement -- a rival crossing a border today, an army sighted tomorrow.
+   Deliberately NOT in the semantic three (red blocked / green gained / amber
+   queued): news is not a state of yours, it is something that happened to the
+   world, so it gets weight and a rule of its own instead of a colour that
+   already means something. This is the first visible thread of the Chronicle
+   becoming a notification system. */
+.log .entry.news .mark { color: var(--ink); font-weight: 700; }
+.log .entry.news .text {
+  color: var(--ink); font-weight: 600;
+  border-left: 2px solid var(--ink); padding-left: 7px; margin-left: -2px;
+}
 /* Exactly one entry ever carries .latest -- "what just happened" stays findable
    without reading. */
 .log .entry.latest .text { font-size: 14px; font-weight: 600; color: var(--ink); }

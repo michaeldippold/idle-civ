@@ -58,6 +58,20 @@ export function chronicle(text, cls, pid) {
   emit("chronicle", { text, cls, pid: pid == null ? S.me : pid });
 }
 
+// NEWS ABOUT THE WORLD, as opposed to your settlement's own memory. A rival
+// crossing a border, and in time an army sighted or a hex lost -- facts that
+// arrive from outside rather than prose about your people.
+//
+// This is the first thread of the notification system the Chronicle is turning
+// into. The Chronicle began as an idle game's substitute for watching, and
+// most of its flavour will not survive the 4X: what should survive is the
+// half that tells you something you have to act on. `news` is that half,
+// marked so the interface can style it apart today and lift it out entirely
+// later without hunting for which lines meant what.
+export function notify(text) {
+  emit("chronicle", { text, cls: "news", pid: S.me });
+}
+
 // The board or the panels need redrawing. Deliberately payload-free: the
 // renderer already knows how to decide what actually changed.
 export function requestRender() { emit("render"); }

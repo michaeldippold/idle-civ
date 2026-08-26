@@ -44,6 +44,7 @@ import * as mMapUi from "./src/ui/map.js";
 import * as mPalette from "./src/core/palette.js";
 import * as mJournal from "./src/core/journal.js";
 import * as mBus from "./src/core/bus.js";
+import * as mEraClock from "./src/sim/eraclock.js";
 import fs from "node:fs";
 import nodePath from "node:path";
 import { fileURLToPath } from "node:url";
@@ -52,7 +53,7 @@ const MODS = [mConfig, mRng, mLib, mStone, mBronze, mIron, mCompile, mIcons, mSt
   mContinents,
   mDerived, mCombat, mEvents, mExped, mStep, mActions, mEra, mLog, mDom,
   mPLedger, mPPeople, mPHold, mPBuy, mExpedUi, mModal, mChrome, mPersist,
-  mMapModel, mMapGen, mMapCore, mMapUi, mPalette, mJournal, mBus];
+  mMapModel, mMapGen, mMapCore, mMapUi, mPalette, mJournal, mBus, mEraClock];
 
 function fakeEl() {
   const el = {
@@ -126,6 +127,14 @@ function snap(label) {
 // still reserves a civilian the instant it's placed.
 const spare = () => api.civilians() - api.reserved();
 function reset() { api.S = api.freshState(); }
+
+// Walk every other player up to a named age. The stand-in policy that used to
+// do this (paceRivals) was replaced by the era clock on 2026-08-26; fixtures
+// that only care about a rival BEING in an age say so directly rather than
+// waiting out a countdown.
+function advanceRivalsTo(era) {
+  for (const r of api.rivals()) if (r.era !== era) api.advanceEra(era, r);
+}
 
 // SEAT EXACTLY THIS LIST. Ownership is `S.map.owner[tileId] = playerId` since
 // 2026-08-26, so a fixture that used to assign an array has to say whose the
@@ -1742,7 +1751,7 @@ console.log("\n--- C1: capstone gating and the real transition ---");
   api.setRngSource(() => 0.999999);   // no hazards during the long build
   reset();
   api.me().era = "bronze";
-  api.paceRivals();
+  advanceRivalsTo(api.me().era);
   api.initAdversaries(); api.ensureMap();
   const capstone = api.MANIFESTS.bronze.upgrades.find(u => u.id === "ironAge");
   // The gate is 50 real people now: give the trio deep pops (held above cap,
@@ -1998,7 +2007,7 @@ console.log("\n--- A refusal always says why ---");
   // the sim will then quietly refuse.
   reset();
   api.me().era = "iron";
-  api.paceRivals();
+  advanceRivalsTo(api.me().era);
   api.initAdversaries(); api.ensureMap();
   const minor = Object.values(api.world.places).find((p) => p.minor);
   const ref = "tile:" + minor.id;
@@ -2043,7 +2052,7 @@ console.log("\n--- C2: you march on what you can feed ---");
 {
   reset();
   api.me().era = "bronze";
-  api.paceRivals();
+  advanceRivalsTo(api.me().era);
   api.initAdversaries(); api.ensureMap();
   api.me().upgrades.warCamp = true;
   api.me().units.soldier = 10;          // ten at home...
@@ -2132,7 +2141,7 @@ console.log("\n--- C2: larders refill per age, grudges do not ---");
     river().walls === 0 && steading().walls === 0);
 
   api.me().era = "bronze";
-  api.paceRivals();
+  advanceRivalsTo(api.me().era);
   api.initAdversaries(); api.ensureMap();
   check("an age turns and the larder refills, larger than it was",
     river().res.food > stoneFood && steading().stock.food > 0);
@@ -2142,7 +2151,7 @@ console.log("\n--- C2: larders refill per age, grudges do not ---");
     river().standing === -4);
 
   api.me().era = "iron";
-  api.paceRivals();
+  advanceRivalsTo(api.me().era);
   api.initAdversaries(); api.ensureMap();
   check("a people that survives to Iron is richer again, and remembers still",
     Object.values(river().res).reduce((a, b) => a + b, 0) > 400 &&
@@ -2157,7 +2166,7 @@ console.log("\n--- C2: living adversary state ---");
 {
   reset();
   api.me().era = "iron";
-  api.paceRivals();
+  advanceRivalsTo(api.me().era);
   api.initAdversaries();
   check("state seeded from the manifest", api.playerByKey("hillClans") &&
     api.playerByKey("hillClans").res.food === 120 && api.playerByKey("hillClans").standing === 0);
@@ -2177,7 +2186,7 @@ console.log("\n--- C2: deployment thins home defense ---");
 {
   reset();
   api.me().era = "iron";
-  api.paceRivals();
+  advanceRivalsTo(api.me().era);
   api.initAdversaries();
   api.me().pop = 12; api.me().units = { soldier: 4, archer: 2, horseman: 0 };
   const homeBefore = api.militaryStrength();
@@ -2197,7 +2206,7 @@ console.log("\n--- C2: launching expeditions ---");
 {
   reset();
   api.me().era = "iron";
-  api.paceRivals();
+  advanceRivalsTo(api.me().era);
   api.initAdversaries();
   api.me().pop = 12; api.me().units = { soldier: 4, archer: 0, horseman: 0 };
   api.me().res.food = 100;
@@ -2236,7 +2245,7 @@ console.log("\n--- C2.1: escorts decide how an ambush ends ---");
 {
   reset();
   api.me().era = "iron";
-  api.paceRivals();
+  advanceRivalsTo(api.me().era);
   api.initAdversaries();
   api.me().upgrades.musterGround = true;
   api.me().pop = 15; api.me().units = { soldier: 6, archer: 0, horseman: 0 };
@@ -2287,7 +2296,7 @@ console.log("\n--- C2: campaign resolution -- victory (one-shot breach) ---");
 {
   reset();
   api.me().era = "iron";
-  api.paceRivals();
+  advanceRivalsTo(api.me().era);
   api.initAdversaries();
   api.me().pop = 12; api.me().units = { soldier: 6, archer: 0, horseman: 0 };
   api.me().upgrades.musterGround = true; api.me().res.food = 100;
@@ -2316,7 +2325,7 @@ console.log("\n--- Siege: repelled at the walls, and the walls remember ---");
 {
   reset();
   api.me().era = "iron";
-  api.paceRivals();
+  advanceRivalsTo(api.me().era);
   api.initAdversaries();
   api.me().pop = 10; api.me().units = { soldier: 2, archer: 0, horseman: 0 };
   api.me().upgrades.musterGround = true; api.me().res.food = 200;
@@ -2402,7 +2411,7 @@ console.log("\n--- Siege: the machinery of the engine itself ---");
 {
   reset();
   api.me().era = "iron";
-  api.paceRivals();
+  advanceRivalsTo(api.me().era);
   api.initAdversaries();
   check("nomads circle wagons, not walls (2)", api.playerByKey("saltNomads").walls === 2);
   // A neighbour whose walls were breached gets them back when ITS age turns,
@@ -2436,7 +2445,7 @@ console.log("\n--- C2: caravan resolution and the gold well running dry ---");
 {
   reset();
   api.me().era = "iron";
-  api.paceRivals();
+  advanceRivalsTo(api.me().era);
   api.initAdversaries();
   api.me().upgrades.musterGround = true;
   api.me().pop = 8; api.me().res.food = 200; api.me().builds.treasury = 1;
@@ -2478,7 +2487,7 @@ console.log("\n--- C2: expeditions resolve through step() ---");
   api.setRngSource(() => 0.999999);
   reset();
   api.me().era = "iron";
-  api.paceRivals();
+  advanceRivalsTo(api.me().era);
   api.initAdversaries();
   api.me().pop = 10; api.me().units.soldier = 2;
   api.me().upgrades.musterGround = true;
@@ -2498,7 +2507,7 @@ console.log("\n--- C2: an era flip mid-flight strands nobody ---");
 {
   reset();
   api.me().era = "iron";
-  api.paceRivals();
+  advanceRivalsTo(api.me().era);
   api.initAdversaries();
   api.me().pop = 10; api.me().units.soldier = 3;
   api.me().expeditions.push({ uid: 9, type: "campaign", adversary: "ghostsOfAnOldEra",
@@ -3155,7 +3164,7 @@ console.log("\n--- The march-hold: walls act on resolution, never selection ---"
 {
   reset();
   api.me().era = "iron";
-  api.paceRivals();
+  advanceRivalsTo(api.me().era);
   api.initAdversaries();
   api.ensureMap();
   api.me().res.wood = 9999; api.me().res.stone = 9999; api.me().res.iron = 9999; api.me().res.food = 9999;
@@ -3251,7 +3260,7 @@ console.log("\n--- Building on a hex: the farm ---");
   // the queue paces it, the hex's one use holds, and pulling it down costs.
   reset();
   api.me().era = "bronze";
-  api.paceRivals();
+  advanceRivalsTo(api.me().era);
   api.initAdversaries();
   api.ensureMap();
   const home = api.world.home;
@@ -3343,7 +3352,7 @@ console.log("\n--- One hex, one use ---");
   // one structure. There is no third state and nothing to point anywhere.
   reset();
   api.me().era = "iron";
-  api.paceRivals();
+  advanceRivalsTo(api.me().era);
   api.initAdversaries();
   api.ensureMap();
   const home = api.world.home;
@@ -4028,7 +4037,7 @@ console.log("\n--- Phase 10: one board, forever ---");
   const stoneSeed = api.S.map.seed;
 
   api.me().era = "iron";
-  api.paceRivals();
+  advanceRivalsTo(api.me().era);
   api.initAdversaries();
   api.ensureMap();
   check("the tile noun re-denominates across the border",
@@ -4488,7 +4497,7 @@ console.log("\n--- The action layer: one seam for every player verb ---");
   // these checks actually protect, so they moved to the verbs that survived.
   reset();
   api.me().era = "bronze";
-  api.paceRivals();
+  advanceRivalsTo(api.me().era);
   api.initAdversaries();
   api.ensureMap();
   api.clearJournal();
@@ -5010,7 +5019,7 @@ console.log("\n--- Neighbours are civilizations, not a side table ---");
     return clans.res.food === 3;
   })());
   check("...their own advance does", (() => {
-    api.paceRivals();
+    advanceRivalsTo(api.me().era);
     api.initAdversaries();
     return api.playerByKey("hillClans").res.food > 3 &&
       api.playerByKey("hillClans").era === "iron";
@@ -5018,13 +5027,108 @@ console.log("\n--- Neighbours are civilizations, not a side table ---");
   check("a grudge outlives the granary -- standing is never re-seeded", (() => {
     const c = api.playerByKey("hillClans");
     c.standing = -4;
-    api.me().era = "stone"; api.paceRivals(); api.initAdversaries();
+    api.me().era = "stone"; advanceRivalsTo("stone"); api.initAdversaries();
     return api.playerByKey("hillClans").standing === -4;
   })());
 
   // The pacing POLICY is the only thing left unbuilt, and it is one function.
   check("rivals advance through the same verb the human does",
-    typeof api.paceRivals === "function" && typeof api.advanceEra === "function");
+    typeof api.tickEraClock === "function" && typeof api.advanceEra === "function");
+}
+
+console.log("\n--- The era clock: every other player advances on its own hidden countdown ---");
+{
+  // design.md, Every Civilization Keeps Its Own Time. "They never just beat
+  // you with width. They ADVANCE FASTER." The mechanism shipped with the
+  // per-player refactor; this is the policy that decides when.
+  reset();
+  api.initAdversaries(); api.ensureMap();
+  api.assignPaces(api.rivals());
+
+  check("every other player draws a pace and a countdown",
+    api.rivals().length === 3 &&
+    api.rivals().every((p) => ["slower", "normal", "faster"].includes(p.pace) &&
+      typeof p.nextEraTick === "number" && p.nextEraTick > 0));
+  check("the player has no clock at all -- absolute, never relative",
+    api.me().pace === undefined && api.me().nextEraTick === undefined);
+
+  // RULING 3: at least one speedster per world, guaranteed. Independent rolls
+  // would leave roughly a third of runs with no clock pressure at all and no
+  // visible reason the run felt flat.
+  check("there is a faster player in EVERY world", (() => {
+    for (let seed = 1; seed <= 40; seed++) {
+      reset(); S().seed = seed; api.initAdversaries(); api.assignPaces(api.rivals());
+      if (!api.rivals().some((p) => p.pace === "faster")) return false;
+    }
+    return true;
+  })());
+
+  // RULING 5: the telegraph must arrive EARLY. A doomed run has to reveal
+  // itself in minutes, never twenty-five minutes in.
+  check("the first border lands inside the opening minutes", (() => {
+    let worst = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      reset(); S().seed = seed; api.initAdversaries(); api.assignPaces(api.rivals());
+      const first = Math.min(...api.rivals().map((p) => p.nextEraTick)) * api.TICK_SECONDS;
+      worst = Math.max(worst, first);
+    }
+    return worst < 8 * 60;
+  })());
+
+  // DETERMINISM: pace comes off the seed, through its own stream, so adding
+  // this feature cannot have shifted the dice the simulation rolls.
+  check("the same seed deals the same clocks", (() => {
+    const read = () => {
+      reset(); S().seed = 777; api.initAdversaries(); api.assignPaces(api.rivals());
+      return api.rivals().map((p) => p.pace + ":" + p.nextEraTick).join("|");
+    };
+    return read() === read();
+  })());
+
+  // THE BUG THE BROWSER FOUND: assignPaces runs at every boot, and a boot
+  // happens on every reload. An unconditional draw re-scheduled from the
+  // CURRENT tick, so refreshing the page pushed every border further away --
+  // the clock was dodgeable with F5.
+  check("a reload does not reset the countdown", (() => {
+    reset(); S().seed = 4242; api.initAdversaries(); api.assignPaces(api.rivals());
+    const before = api.rivals().map((p) => p.nextEraTick).join(",");
+    for (let i = 0; i < 500; i++) api.step();
+    api.assignPaces(api.rivals());          // what a reload does
+    return api.rivals().map((p) => p.nextEraTick).join(",") === before;
+  })());
+
+  // IT ACTUALLY FIRES, and it tells you.
+  {
+    reset(); S().seed = 31337; api.initAdversaries(); api.ensureMap();
+    api.assignPaces(api.rivals());
+    const news = [];
+    const stop = api.on("chronicle", (e) => { if (e.cls === "news") news.push(e.text); });
+    api.setRngSource(() => 0.999);          // no event weather; the clock is on trial
+    const first = Math.min(...api.rivals().map((p) => p.nextEraTick));
+    while (S().tick <= first + 1) api.step();
+    api.setRngSource(null);
+    check("when a countdown lapses, that player advances",
+      api.rivals().some((p) => p.era !== "stone"));
+    check("...and a NOTIFICATION says so, marked as news rather than flavour",
+      news.length >= 1 && /entered the .* Age/.test(news[0]));
+    check("...naming them by what they have BECOME, in their own age",
+      news[0].includes("Hill") || news[0].includes("River") || news[0].includes("Salt"));
+    check("...and saying it is ahead of you, which is the half that lands",
+      news[0].includes("ahead of you"));
+    stop();
+  }
+
+  // RULING 4: capped at the last implemented era, exactly like the player.
+  check("a player out of ages stops rather than walking off the manifest", (() => {
+    reset(); api.initAdversaries(); api.ensureMap(); api.assignPaces(api.rivals());
+    const r = api.rivals()[0];
+    r.era = api.ERA_ORDER[api.ERA_ORDER.length - 1];
+    r.nextEraTick = S().tick;
+    api.tickEraClock();
+    return r.era === api.ERA_ORDER[api.ERA_ORDER.length - 1] && r.nextEraTick === null;
+  })());
+  check("...and a capped clock survives the save, where Infinity would not",
+    JSON.parse(JSON.stringify({ t: null })).t === null);
 }
 
 console.log(`\n${fails === 0 ? "ALL CHECKS PASSED" : fails + " CHECK(S) FAILED"}`);

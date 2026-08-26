@@ -234,14 +234,24 @@ a unit-vs-unit lookup table.*
 - **A battle is sealed when it joins.** The roster is fixed at the start — a reinforcement arriving
   mid-fight cannot join it. This matches the board games, keeps the panel honest (who you see lined
   up is who is fighting), and forbids drip-feeding units in, which is micro in disguise.
-- **A battle is one ENGAGEMENT; engagements repeat while the hex is contested.** Inside an
-  engagement everything is sealed and scripted; between them armies arrive, stances fire, and
-  fallen walls stay fallen. A siege is a stack of engagements against the same wall pool, and a
-  relief force joins the next one.
-- **While walls stand, the attacker's hits go to the WALLS, not the garrison.** The defenders keep
-  firing the whole time. Cracking a walled hex therefore needs overwhelming force rather than
-  marginal force. When the walls break, it becomes an ordinary fight *in the same engagement* —
-  the roster is sealed, the wall state is not, and that turn is the drama the panel exists to show.
+- **A battle runs to annihilation or retreat.** There is no between-rounds, because a between-
+  rounds is a door micro walks back in through. An earlier draft here proposed "engagements repeat
+  while the hex is contested, and a relief force joins the next one" — that is drip-feeding with a
+  board-game costume on, it hands back exactly what sealing took away, and no reference game
+  permits it. Struck. If one side retreats the battle is over; otherwise it ends when a side is
+  gone.
+- **Relief does not join a siege — it fights the winner.** You cannot slip an army inside a fight
+  already underway. You muster a second one and attack whoever is standing on the hex when the
+  first battle ends. The walls still buy the time (that is what the wall pool is *for*), and the
+  garrison that died still bled the attacker, so the relief force meets a weakened enemy. "I could
+  not save them, but I retook it" is the better beat anyway.
+- **While walls stand, the attacker's hits go to the WALLS, not the garrison** — and the garrison
+  answers with its archers *only* (see below), never at full strength. When the walls break it
+  becomes an ordinary fight in the same battle: the roster is sealed, the wall state is not, and
+  that turn is the drama the panel exists to show.
+- **The wall pool is a PACING knob as much as a strength one.** Battle length is measured in
+  rounds, rounds play over ticks, and the wall pool sets the round count. A siege is simply a long
+  battle; it does not need a separate structure to be one.
 - **Only ARCHERS fire from inside a fortification.** Melee units stand there and hope the walls
   hold (owner's idea, 2026-08-26). They are not free hit points — hits go to the walls, so melee
   in a fort does *nothing at all* until the breach, at which point every one of them wakes up at
@@ -262,8 +272,15 @@ a unit-vs-unit lookup table.*
 - The exception is the capital, and walls are its mechanism — which finally gives the **capital
   tier** (Camp → Village → Town → City) a mechanical job: each tier is a larger wall pool. Growing
   your capital stops being cosmetic.
-- A structure that is *designed* to shoot (a Tower) may fire a pre-battle volley, the idiom both
-  A&A and TI4 landed on for static defences. Walls themselves do not — one job each.
+- **No building ever rolls a die.** An earlier draft imported the A&A / TI4 idiom of a static
+  defence firing a pre-battle volley (AA guns, PDS). Struck: this game has no referent for it —
+  there are units in the field and units behind walls, and that is all. The garrison IS the
+  defence. Whatever bunkers turn out to be later, they will not work by shooting.
+- **Leave the baseline thin enough that upgrades have somewhere to go.** This is the strongest
+  argument for archers-only, and it generalises: if a whole garrison fired at full strength the
+  defence would already be overwhelming and there would be no room for thicker walls, watchtowers
+  granting extra defending dice, longbows improving the archers' number, or any of the rest. A
+  mechanic that is complete at tier one has no tech tree in it.
 
 **THE PANEL CONSTRAINS THE RULES.** Everything that fires in a battle is standing on the hex. No
 adjacency bonuses, no off-board modifiers, no tower two hexes away covering this one. The panel

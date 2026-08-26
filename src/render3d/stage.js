@@ -22,7 +22,7 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { axialToWorld, hash01, worldToAxialRounded } from "./hex3d.js";
+import { axialToWorld, hash01, PIECE_SOCKETS, worldToAxialRounded } from "./hex3d.js";
 import { disposePieces, initPieces, pickPiece, setHoveredPiece, setPieces as setPieceMeshes, tickPieces } from "./pieces3d.js";
 import { buildProps, setPropPhase } from "./props3d.js";
 import { buildRing, buildTerrain, RIM_Y } from "./terrain3d.js";
@@ -366,7 +366,7 @@ export function setPieces(list) {
 // marker is a READOUT, and readouts do not get to be washed out by the sun.
 let marchTrail = null;
 const DASH_LEN = 0.20, DASH_GAP = 0.13, DASH_LIFT = 0.10;
-export function setMarchPath(hexIds, colorHex) {
+export function setMarchPath(hexIds, colorHex, socketIdx) {
   if (marchTrail) {
     scene.remove(marchTrail);
     marchTrail.geometry.dispose();
@@ -378,10 +378,17 @@ export function setMarchPath(hexIds, colorHex) {
   // above the taller neighbour.
   const pts = [];
   let prev = null;
-  for (const id of hexIds) {
+  for (let i = 0; i < hexIds.length; i++) {
+    const id = hexIds[i];
     const p = byId[id];
     if (!p) { prev = null; continue; }
     const w = axialToWorld(p.q, p.r);
+    // The FIRST point is the disc's own socket, not the hex centre (owner):
+    // the road comes out from under the piece that will walk it.
+    if (i === 0 && socketIdx != null) {
+      const sk = PIECE_SOCKETS[socketIdx % PIECE_SOCKETS.length];
+      w.x += sk.dx; w.z += sk.dz;
+    }
     const top = (elev[id] || 0) + DASH_LIFT;
     if (prev) {
       const midY = Math.max(prev.y, top);

@@ -110,8 +110,11 @@ function makeDisc(color, count, height, selected) {
   const rim = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({
     color: "#12151b", side: THREE.BackSide,
   }));
-  rim.scale.set(1.09, 1.06, 1.09);
-  rim.visible = false;
+  rim.scale.set(1.14, 1.09, 1.14);
+  // SELECTION KEEPS THE RIM (owner): same grammar as a hex, where hover and
+  // selection wear the same ring. The rim is on while the piece is selected,
+  // and hover lights it on anything else.
+  rim.visible = !!selected;
   rim.name = "rim";
   m.add(rim);
   return m;
@@ -156,7 +159,8 @@ export function setPieces(list, elev) {
       group.add(mesh);
       // Bob phase hashed off the key, never rolled -- paint-only, and the
       // harness source-scans src/ for the global dice on purpose.
-      rec = { mesh, hex: it.hex, sig, baseY, hop: null, marching: it.marching, phase: hash01(it.key) };
+      rec = { mesh, hex: it.hex, sig, baseY, hop: null, marching: it.marching,
+              selected: it.selected, phase: hash01(it.key) };
       meshes.set(it.key, rec);
     } else if (rec.hex !== it.hex) {
       // THE PLOP. The sim moved the piece a whole hex; the board shows the
@@ -170,6 +174,7 @@ export function setPieces(list, elev) {
       rec.baseY = baseY;
     }
     rec.marching = it.marching;
+    rec.selected = it.selected;
   }
   for (const [key, rec] of meshes) {
     if (!seen.has(key)) {
@@ -215,7 +220,7 @@ export function setHoveredPiece(key) {
   for (const [k, rec] of meshes) {
     const on = k === key;
     const rim = rec.mesh.children.find((c) => c.name === "rim");
-    if (rim) rim.visible = on;
+    if (rim) rim.visible = on || !!rec.selected;   // selection keeps the rim
     const side = rec.mesh.material[0];
     side.emissiveIntensity = (rec.mesh.userData.baseEmissive || 0) + (on ? 0.28 : 0);
   }

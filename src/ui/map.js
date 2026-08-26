@@ -855,7 +855,8 @@ export function renderMapStage() {
       const marching = sel && sel.pl.id === S.me && sel.a.order && sel.a.path;
       stage3d.setMarchPath(
         marching ? [sel.a.at].concat(sel.a.path.slice(sel.a.step)) : null,
-        playerColor().ring);
+        playerColor().ring,
+        marching ? sel.pl.id % 4 : null);
     }
     return;
   }

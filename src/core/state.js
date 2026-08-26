@@ -34,6 +34,18 @@ export function freshPlayer(id, opts = {}) {
     // reason naming is never a gate on starting a run.
     seatName: opts.seatName || "",
 
+    // WHERE THIS CIV SITS -- the tile id of its capital, and the point every
+    // administrative distance is measured from. Null until the world exists;
+    // seated by ensureMap for the human and, when adversaries become players,
+    // by the seat the generator already gives them.
+    //
+    // This is what `world.home` was, generalised: the generator translates the
+    // frame so the HUMAN's seat lands on "0,0" (the camera and a dozen reads
+    // assume it), which is fine for one civ and meaningless for the rest --
+    // only one of N seats can be the origin. The seat that matters to a
+    // calculation is the seat of the civ doing the calculating.
+    seat: opts.seat || null,
+
     // THE AGE THIS CIV IS LIVING IN. Per-player from the start of the split,
     // because the alternative -- one world era -- is the thing the design
     // explicitly killed (Empire Earth: everyone advances on their own clock,

@@ -211,6 +211,9 @@ export function releaseTile(id) {
 export function syncDominion() {
   if (!world || !S.map) return;
   if (!isOwned(world.home)) claimTile(world.home);
+  // The human sits where the generator translated the frame to. Every other
+  // civ will be seated at the place the generator already gave it.
+  if (!me().seat) me().seat = world.home;
   for (const tid in S.map.built) if (!isOwned(tid)) setHexBuild(tid, null);
   ensurePop();
   syncPopMirror();
@@ -736,15 +739,22 @@ export function upkeepMouths() {
 // march); adminDistance() measures from your SEAT (administration -- how well
 // can you hold it). A tendril of hexes is logistically close and
 // administratively terrible, which is exactly what the famine drain punishes.
-export function adminDistance(targetId) {
+// MEASURED FROM THE ASKING CIV'S SEAT (2026-08-26). "How well can you hold
+// this?" is a question about a specific capital, so a rival's frontier is far
+// from THEIR seat, not from yours -- and roads through THEIR country are what
+// is cheap for them.
+export function adminDistance(targetId, civ) {
   if (!world || !S.map || !world.places[targetId]) return Infinity;
+  const p = civ || me();
+  const from = p.seat || world.home;
+  if (!world.places[from]) return Infinity;
   const stepInto = (id) => {
-    if (isOwned(id)) return 0.5;
+    if (isOwned(id, p.id)) return 0.5;
     return world.places[id].terrain === "water" ? 3 : 1;
   };
   const dist = {};
-  const queue = [world.home];
-  dist[world.home] = 0;
+  const queue = [from];
+  dist[from] = 0;
   while (queue.length) {
     let bi = 0;
     for (let i = 1; i < queue.length; i++) if (dist[queue[i]] < dist[queue[bi]]) bi = i;

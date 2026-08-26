@@ -52,6 +52,7 @@ export function load() {
   p.buildQueue = Array.isArray(src.buildQueue) ? src.buildQueue : [];
   if (typeof src.era === "string") p.era = src.era;
   if (typeof src.seatName === "string") p.seatName = src.seatName;
+  if (typeof src.seat === "string") p.seat = src.seat;
   // `playerColor` was the pre-split name and sat on S.
   if (typeof src.color === "string") p.color = src.color;
   else if (typeof data.playerColor === "string") p.color = data.playerColor;

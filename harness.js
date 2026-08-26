@@ -4791,4 +4791,44 @@ console.log("\n--- Every civilization keeps its own time ---");
   api.setSpeed(1);
 }
 
+console.log("\n--- A seat is a civ's own, and distance is measured from it ---");
+{
+  // Review Part I.3. `world.home` is what the generator translates the frame
+  // to so the HUMAN lands on "0,0" -- fine for one civ, meaningless for the
+  // rest, since only one of N seats can be the origin. What a calculation
+  // actually needs is the seat of the civ doing the calculating.
+  reset(); api.ensureMap();
+  check("the human is seated where the generator put them",
+    api.me().seat === api.world.home);
+
+  const rival = api.freshPlayer(1, { color: "teal" });
+  S().players.push(rival);
+  // Seat the rival somewhere real and far, and give it a holding there.
+  const far = Object.values(api.world.places)
+    .filter((p) => p.terrain !== "water" && !p.adversary && !p.minor && !api.isOwned(p.id))
+    .sort((a, b) => api.hexDistance(b.q, b.r, 0, 0) - api.hexDistance(a.q, a.r, 0, 0))[0];
+  rival.seat = far.id;
+  api.claimTile(far.id, 1);
+
+  check("a rival's seat is its own tile, not yours",
+    rival.seat === far.id && rival.seat !== api.me().seat);
+  check("its own capital is administrative distance zero to IT",
+    api.adminDistance(far.id, rival) === 0);
+  check("...and a long way from YOU", api.adminDistance(far.id, api.me()) > 0);
+  check("your seat is zero to you and distant to them",
+    api.adminDistance(api.me().seat, api.me()) === 0 &&
+    api.adminDistance(api.me().seat, rival) > 0);
+  check("distance still defaults to the seat we are looking through",
+    api.adminDistance(far.id) === api.adminDistance(far.id, api.me()));
+
+  // Roads through YOUR country are cheap for YOU: the half-step discount
+  // follows ownership, so it has to be read per-civ or a rival's frontier
+  // would be cheapened by your roads.
+  check("the owned-ground discount follows whose ground it is", (() => {
+    const probe = api.holdings(0).find((id) => id !== api.me().seat);
+    return probe && api.adminDistance(probe, api.me()) < api.adminDistance(probe, rival);
+  })());
+  S().players.pop();
+}
+
 console.log(`\n${fails === 0 ? "ALL CHECKS PASSED" : fails + " CHECK(S) FAILED"}`);

@@ -22,6 +22,7 @@ import * as mState from "./src/core/state.js";
 import * as mDerived from "./src/core/derived.js";
 import * as mCombat from "./src/sim/combat.js";
 import * as mBattle from "./src/sim/battle.js";
+import * as mArmies from "./src/sim/armies.js";
 import * as mEvents from "./src/sim/events.js";
 import * as mExped from "./src/sim/expeditions.js";
 import * as mStep from "./src/core/step.js";
@@ -52,7 +53,7 @@ import { fileURLToPath } from "node:url";
 
 const MODS = [mConfig, mRng, mLib, mStone, mBronze, mIron, mCompile, mIcons, mState,
   mContinents,
-  mDerived, mCombat, mBattle, mEvents, mExped, mStep, mActions, mEra, mLog, mDom,
+  mDerived, mCombat, mBattle, mArmies, mEvents, mExped, mStep, mActions, mEra, mLog, mDom,
   mPLedger, mPPeople, mPHold, mPBuy, mExpedUi, mModal, mChrome, mPersist,
   mMapModel, mMapGen, mMapCore, mMapUi, mPalette, mJournal, mBus, mEraClock];
 
@@ -5453,6 +5454,86 @@ console.log("\n--- The battle resolver: dice, walls, and who fires from behind t
     const sol = api.MANIFESTS.stone.units.find((u) => u.id === "soldier");
     return s && api.expectedHits(s) < api.expectedHits(sol) &&
       api.unitWallDamage(s) >= 4 * api.unitWallDamage(sol);
+  })());
+}
+
+console.log("\n--- Armies take the field: the object, and who is spoken for ---");
+{
+  reset(); S().seed = 90210; S().rngState = 90210; S().map = null; S().seen = {};
+  api.ensureMap();
+  const P = api.me();
+  const home = api.holdings(P.id)[0];
+  const other = api.holdings(P.id)[1];
+  // A hex nobody holds, for the "not your ground" checks.
+  const foreign = Object.values(api.world.places).find((x) =>
+    x.terrain !== "water" && !api.isOwned(x.id, P.id)).id;
+  P.units.soldier = 10;
+
+  check("a fresh player carries an army list", Array.isArray(P.armies));
+
+  const a1 = api.formArmy(home, { soldier: 4 });
+  check("raising an army commits its soldiers", a1 && api.availableUnits("soldier") === 6);
+  check("but the roster still counts every soldier you own", P.units.soldier === 10);
+  check("the army knows where it is standing", a1.at === home && api.armySize(a1) === 4);
+  check("a garrison is just an army standing on your own ground", (() => {
+    const r = api.garrisonRoster(home, P);
+    return r.length === 1 && r[0].def.id === "soldier" && r[0].n === 4;
+  })());
+  check("the roster it hands the resolver is unit DEFS with dice on them", (() => {
+    const r = api.armyRoster(a1, P);
+    return r[0].def.dice >= 1 && r[0].def.hit >= 2 && typeof r[0].def.role === "string";
+  })());
+
+  check("the stance defaults to fight-to-the-last, the least surprising order",
+    a1.stance === api.DEFAULT_STANCE && a1.stance === "never");
+  check("a stance set at muster is the stance it keeps",
+    api.formArmy(other, { soldier: 2 }, "half").stance === "half");
+  const a2 = api.armyAt(other, P);
+  check("the stance stays editable while they march", api.setStance(a2.uid, "quarter", P) && a2.stance === "quarter");
+  a2.inBattle = true;
+  check("and freezes the moment a battle seals", !api.setStance(a2.uid, "never", P) && a2.stance === "quarter");
+  a2.inBattle = false;
+
+  check("you may not raise an army on ground you do not hold",
+    api.formArmy(foreign, { soldier: 1 }, null, P) === null &&
+    /ground you hold/.test(api.formRefusal(foreign, { soldier: 1 }, P)));
+  check("you may not raise one out of soldiers you have already committed",
+    api.formArmy(api.holdings(P.id)[2], { soldier: 99 }, null, P) === null);
+  check("an army needs somebody in it",
+    api.formArmy(api.holdings(P.id)[2], { soldier: 0 }, null, P) === null);
+  check("one army to a hex", api.formArmy(home, { soldier: 1 }, null, P) === null &&
+    /already stands/.test(api.formRefusal(home, { soldier: 1 }, P)));
+
+  // Disband: the troops come back to the POOL, never to the population.
+  const popBefore = api.hexPopSum();
+  check("disbanding hands the soldiers back", (() => {
+    const free = api.availableUnits("soldier");
+    return api.disbandArmy(a1.uid, P) && api.availableUnits("soldier") === free + 4;
+  })());
+  check("and does not discharge them into the population",
+    P.units.soldier === 10 && api.hexPopSum() === popBefore);
+
+  check("an army caught deep cannot dissolve itself out of trouble", (() => {
+    const a = api.formArmy(home, { soldier: 3 }, null, P);
+    a.at = foreign;                      // as if it had marched there
+    const why = api.disbandRefusal(a.uid, P);
+    return !api.disbandArmy(a.uid, P) && /ground you hold/.test(why);
+  })());
+  check("nor may one disperse in the middle of a fight", (() => {
+    const a = api.armyAt(foreign, P);
+    a.at = home; a.inBattle = true;
+    const ok = !api.disbandArmy(a.uid, P) && /fight/.test(api.disbandRefusal(a.uid, P));
+    a.inBattle = false; api.disbandArmy(a.uid, P);
+    return ok;
+  })());
+
+  check("armies survive a save and load", (() => {
+    api.formArmy(home, { soldier: 5 }, "half", P);
+    api.save();
+    api.load();
+    const a = api.armyAt(home, api.me());
+    return a && a.roster.soldier === 5 && a.stance === "half" &&
+      api.availableUnits("soldier") === 10 - 5 - api.armySize(api.armyAt(other, api.me()) || { roster: {} });
   })());
 }
 

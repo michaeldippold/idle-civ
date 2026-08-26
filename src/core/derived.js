@@ -2,6 +2,7 @@ import { DEF_INDEX, active } from "../content/compile.js";
 import { builtCount, growthSpendRate, hexPopSum, hexYield, holdCount, holdings, upkeepMouths, world } from "../map/map.js";
 import { CONFIG, TICK_SECONDS } from "./config.js";
 import { S, me } from "./state.js";
+import { freeUnits } from "../sim/armies.js";
 import { chronicle } from "../core/bus.js";
 
 // ---------- Derived values ----------------------------------
@@ -117,7 +118,11 @@ export function reserved() {
 export function deployedCount(unitId) {
   return me().expeditions.reduce((sum, ex) => sum + ((ex.units && ex.units[unitId]) || 0), 0);
 }
-export function availableUnits(unitId) { return (me().units[unitId] || 0) - deployedCount(unitId); }
+// EVERYTHING COMMITTED IS SPOKEN FOR -- to an expedition still counting down,
+// or (since armies took the field) to an army standing somewhere on the board.
+// The arithmetic lives in sim/armies.js rather than here: two answers to "how
+// many can I give an order to" is how a roster starts lying.
+export function availableUnits(unitId) { return freeUnits(unitId, me()); }
 
 // Tool upgrades lift every gather rate (including the ores -- better tools cut
 // ore too); boost buildings lift one resource each.

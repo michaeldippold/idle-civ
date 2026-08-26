@@ -88,7 +88,13 @@ export function freshPlayer(id, opts = {}) {
     upgrades: {},     // { [upgradeId]: true } -- presence means owned, one-time
     buildQueue: [],   // FIFO: [{ id, kind, uid, total, remaining, cost }] -- only [0] progresses
     buildSeq: 0,
-    expeditions: [],  // { uid, type, adversary, units?, cargo?, total, remaining }
+    expeditions: [],
+    // ARMIES ON THE BOARD. An army is an expedition that knows where it is
+    // standing: it occupies a hex, can be seen on it, walked into, and fought
+    // with the resolver rather than a strength number. p.units still counts
+    // EVERY unit this civ owns, home or away; an army lists the subset that is
+    // currently committed. See sim/armies.js.
+    armies: [],  // { uid, type, adversary, units?, cargo?, total, remaining }
 
     // WHAT THIS CIV KNOWS OF THE BOARD. Knowledge, not board truth, which is
     // why it lives here and not on the world: a bot reading the true map is

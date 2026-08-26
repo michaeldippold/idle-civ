@@ -377,25 +377,31 @@ several tempting ideas later, and it should.
    bars the road, and `repelChance` is finally deleted — and **A5** the bots, at which point a raid
    stops being weather and becomes somebody's decision.
 
-   **BLOCKING QUESTION FOR A4: HOW AN ARMY IS DEPICTED IS STILL OPEN** (owner, 2026-08-26, pondering).
-   The ruling that exists is the **sockets** one in `2026-08-25-architecture-review.md`: each hex
-   reserves anchor points the prop scatter never fills — *one centre socket for the structure, a ring
-   of 3–4 sockets for pieces*, enough for one piece per player at max seats — with opposing armies at
-   ring sockets angled to face each other, and a garrisoned army merging visually into the structure
-   so a siege reads as a flagged fort with a hostile banner at the rim.
+   **HOW AN ARMY IS DEPICTED — SETTLED 2026-08-26.** Full canon and reasoning in `design.md` →
+   *How an Army Is Depicted* / *The Army Detail Panel* / *The ERA Dot*. It is no longer blocking A4.
+   The short version, as a build list:
 
-   Today's banner is a **placeholder that does not implement this**: a DOM label at the hex centre,
-   in the overlay layer, not a piece in the 3D scene at all. It reads fine for one army and falls
-   apart the moment two players share a hex — **which is precisely what A4 creates**. So the
-   depiction wants settling before contact lands, not after.
+   - A **player-coloured disc**, a real 3D object with its own picking — not the banner-on-a-pole
+     that was drawn and discarded, and not today's DOM label. **Three thickness tiers** by headcount
+     (war party / column / host, absolute cutoffs, non-linearly spaced), fixed diameter so socket
+     spacing never moves, smallest tier clearing the scenery cap.
+   - **Scenery shrinks and gets a height cap**, so pieces are always the tallest thing on a hex.
+   - **The count is printed on the disc's top face.** The camera's 25–66° pitch clamp already
+     guarantees the top is never edge-on. Upside-down at some azimuths is fine — it is a poker chip.
+   - **Selection becomes typed** (nothing / hex / army) and picking raycasts pieces before ground.
+     The tile panel keeps a **pointer** to each army standing there, never an embedded card.
+   - **The army detail panel** — ERA · # · Type · Role · Dice, with dice **drawn as boxes**, no
+     army-wide total, casualty order by default, identical layout for yours and theirs, and the same
+     component as the battle panel's rosters.
 
-   Two things to resolve when it is picked up: the review says 3–4 ring sockets "enough for one piece
-   per player at max seats" while `palette.js` carries **seven** player colours, so the ring must be
-   sized to real max seats or an art decision quietly becomes the occupancy cap; and a session on
-   2026-08-26 briefly argued the *opposite* arrangement (centre for pieces, scenery pushed out) by
-   reasoning from the code instead of reading this ruling — the ring is right, because one centre
-   spot cannot hold two opposing banners.
- **The scouting prerequisite is DROPPED, and the dependency is
+   *The sockets ruling in `2026-08-25-architecture-review.md` is superseded in its particulars* — a
+   ring of 3–4 for banners angled to face each other — but its principle stands: anchor points the
+   prop scatter never fills, a garrison merging into the structure, and position (not flag heading)
+   carrying the confrontation. The hex-locking rule also caps real occupancy at the structure plus
+   two pieces, since a contested hex bars new entrants and a battle is two-sided, so the ring never
+   needed to be sized to the seven player colours.
+
+   **The scouting prerequisite is DROPPED, and the dependency is
    inverted** (owner, 2026-08-26): we do not yet know how scouting works, and scouts can be caught
    by armies — so combat wants to exist *first*, and scouting is built against it. The older note
    ("without reach-beyond-the-border an inbound army is invisible until adjacent") described a

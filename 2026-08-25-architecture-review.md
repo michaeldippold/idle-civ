@@ -576,6 +576,16 @@ physical board game does:
   saturated player color (the `palette.js` THEIRS/RESERVED law already reserves this
   channel). The only saturated player-colored vertical objects on the board are pieces.
 
+> **PARTLY SUPERSEDED 2026-08-26.** The owner settled army depiction, and the piece is a
+> **player-coloured disc with the count printed on its top face**, not a banner. Three thickness
+> tiers by headcount; scenery shrinks under a height cap so pieces always stand above it. The ring
+> of 3–4 sockets is also over-specced: the hex-locking rule (a contested hex bars new entrants, and
+> a battle is two-sided) caps real occupancy at **the structure plus two pieces**, so it never
+> needed sizing to the seven player colours. What survives intact: two visual vocabularies, anchor
+> points the prop scatter never fills, one group = one piece, composition never depicted on the
+> board, a garrison merging into the structure, pick-up-and-plop travel, and fog gating pieces on
+> the stricter *sighted* tier. Full canon in `design.md` → *How an Army Is Depicted*.
+
 Rulings:
 - **One group = one piece, and it's a banner.** A banner flies for every army regardless of
   size; composition is never depicted on the board. Strength shows as a badge via the

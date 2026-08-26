@@ -1236,6 +1236,195 @@ The original direction, recorded 2026-08-25, and still the shape of it:
   the board already owns — the piece sinks, and rises in the next hex. Motion at the moment of a
   change, only to the thing that changed: the existing animation law covers it verbatim.
 
+### How an Army Is Depicted *(settled 2026-08-26, owner)*
+
+An army is a **player-coloured disc** standing on the hex — a chunky token, not a banner and not a
+flag on a pole. Both of those were designed and discarded in the same session; the reasoning is kept
+below because it explains the shape.
+
+**A DISC, and clickable.**
+
+- **Rotationally symmetric**, so there is no heading to get wrong and it looks identical from every
+  azimuth. A cube has corners and therefore an orientation tell.
+- **The silhouette is unused.** The board already spends hexes, cones (trees), icosahedra (rocks) and
+  boxes (buildings). A cylinder reads as a *token* and reads as nothing else — a cube would risk
+  reading as a small building.
+- **It is a real 3D object with its own picking**, not an overlay label. See *An army is an object,
+  not a property of a hex* below, which is the reason this matters more than the shape does.
+
+**THE NUMBER IS PRINTED ON THE TOP FACE.** Not a floating screen-space badge — that was proposed and
+rejected, and the rejection is the important part: a detached number sitting in the same visual space
+as the work letters and house glyphs (which *are* hex properties) re-opens exactly the "is this the
+hex's or the army's?" ambiguity that putting armies on the board was meant to close. Printed on the
+object, the number belongs to the object because it is physically on it.
+
+- **The camera clamp already guarantees this works.** Pitch is locked between 25° and 66° polar
+  (`render3d/stage.js`), so the view is always between 24° and 65° above horizontal and the top face
+  is never edge-on and never hidden — foreshortened to between 41% and 91%, no worse. A constraint
+  set for cinematic reasons in August 2026 solved the orientation problem for free.
+- **The number will be upside-down at some azimuths, and that is fine.** *"This is not a requirement
+  for any board game ever"* — a poker chip is upside-down half the time and nobody has ever been
+  confused by one. Tabletop Simulator makes you rotate to read opponents' pieces and that is normal,
+  even pleasant, when the camera is good. **The number is shorthand; the panel is the truth.**
+- *Available later if two-digit counts nag in play:* keep the decal on the disc's surface but let it
+  swivel around the vertical so it never reads upside-down. Physically still on the object, still
+  occludes and scales correctly. Not worth deciding in advance — it is a ten-second look at a real
+  board.
+
+**THREE SIZES, NOT A GRADIENT.** Disc *thickness* steps through three tiers by headcount; diameter
+stays fixed so socket spacing never has to change.
+
+- **A gradient is not readable and a category is.** Linear height in headcount cannot distinguish 7
+  from 9 without a reference beside it, so it adds nothing the number did not already give you. Three
+  tiers sort every disc on the board instantly, and crossing a threshold becomes an **event** — *"that
+  just became a big one"* — which a gradient can never produce. Same principle as named withdrawal
+  stances instead of a typed number.
+- **Reuse the vocabulary the game already has: war party / column / host.** `launchCampaign()` has
+  banded army size since long before this, at ≤5, and its comment already settled the hard half of the
+  question: *"The word follows the SIZE of the thing that actually left, not an era fact: a handful of
+  spears is a war party in any age, and twenty is a column even in Bronze if you can feed them that
+  far."* The chronicle line and the piece on the board then say the same word about the same force.
+- **Cutoffs are ABSOLUTE, never scaled per era.** Era-normalised tiers would erase the era gap: a
+  Bronze neighbour's column and your Stone one would render identically and the danger would go
+  invisible, which is the opposite of what the era clock exists to do. Late game showing more large
+  discs is not the channel going dead — it is the channel telling the truth.
+- **Space the tiers non-linearly** (roughly 1.0 / 1.35 / 2.1). Evenly spaced, the largest reads as
+  "the next size up"; disproportionate, it reads as a different *class* of object, which is the
+  "oh no" the top tier is for.
+- **The smallest tier must clear the scenery height cap** (below), so no army can ever sink into the
+  trees. One cap, two jobs.
+
+**SCENERY SHRINKS AND GETS A HEIGHT CAP.** Anything that does not indicate game state is scaled down
+and forbidden from exceeding a maximum height; pieces are deliberately oversized against it.
+
+- **Height becomes the second half of a rule that already exists.** Saturated player colour is already
+  reserved for pieces (`palette.js`, and the review's two-vocabularies ruling). Height + colour
+  together is a grammar: *tall and saturated means yours and it matters; low and muted is landscape.*
+- **It costs no flavour.** Twenty small trees read as *forest*; four big ones read as *four trees*.
+  Miniaturised scenery becomes **texture**, and texture is what makes pieces pop — today scenery and
+  markers compete because they carry similar visual weight. The board ends up looking more like a
+  tabletop, not less.
+- It also solves collision without collision *detection*: a piece owns a vertical corridor nothing
+  else may enter.
+
+**AN ARMY IS AN OBJECT, NOT A PROPERTY OF A HEX.** This is the load-bearing half, and it is a
+selection-model problem rather than a rendering one. Today the board has exactly one selectable
+thing — a hex — and everything else is a field on it, which works while the board holds only ground
+and breaks the moment it holds pieces: an army persists across hexes while a hex does not, the verbs
+differ (build/settle/demolish vs march/disperse/stance, so the tile panel is two panels stapled
+together), and "click the hex" is ambiguous the instant two armies stand on one. *On a physical board
+you pick up the piece, not the square.*
+
+- **Picking grows a priority order**: raycast pieces first, fall through to the ground plane. `pickAt`
+  currently only ever intersects a flat plane, which is why everything is a hex.
+- **Selection becomes typed** — nothing, or a hex, or an army — rather than a bare `selectedId`. Small
+  refactor, but it touches the tile panel, the stage's selection ring and the render signature, so it
+  is worth doing deliberately.
+- **The hex panel keeps a route to the army, as a POINTER and never an embedded card.** Today it
+  inlines the whole army card, and that embedding is precisely what makes an army read as a property.
+  It should instead list what is standing there — *"Standing here — ⚑ Your army (4) → · ⚑ Hill Clans
+  (7) →"* — as links that open the army's own panel. The hex then *reports what is around it* rather
+  than owning it, the way a folder lists filenames without inlining their contents. It also scales
+  into the contested case, which the embedded version handles badly.
+- **The army panel links back**: *"standing on: Broken Hills →"*. Two objects pointing at each other
+  rather than one containing the other.
+- **Clicking a second disc swaps the panel**, never requiring a close first. If comparing two armies
+  costs a close-click each time, nobody compares, and then nobody scouts.
+
+### The Army Detail Panel
+
+**More load-bearing than the disc.** This is where the never-print-the-odds deal either works or
+collapses: if reading two armies is slow, players will want the number that saves them the work, and
+the pressure to print odds comes back — not because the rule was wrong but because the interface made
+obeying it expensive.
+
+Columns, per the owner's layout: **ERA · # · Type · Role · Dice.**
+
+- **DRAW THE DICE, DO NOT DESCRIBE THEM.** `[5] [5]` beats "2 dice at 5+" — you count boxes instead of
+  parsing a rule, and a row's worth of ink is proportional to how dangerous it is, so two armies can
+  be compared without reading numbers at all. It also makes the dice-count tech lever *sell itself*: an
+  upgrade that grants a die is visibly a new box appearing in the row, which is a far better thing to
+  buy than a number going up.
+- **NO ARMY-WIDE DICE TOTAL.** Not for purity — because it is a bad statistic. Twelve dice at 9+ is
+  worse than six at 5+, so a sum across different to-hit numbers actively misleads, and summing is one
+  step from a percentage anyway. Per-unit dice are the honest unit.
+- **Sort in casualty order** (worst first) by default, which is the order they will actually die in —
+  information available nowhere else, for free. Sorting and filtering are interactive on top of that.
+- **Identical layout for your army and theirs.** Skimming is really *comparing*: the roster block must
+  sit in the same place at the same size whoever owns it, or the eye has to re-find everything on
+  every click. Actions go strictly **below** the roster, never above or interleaved.
+- **Same component as the battle panel's rosters**, so the two cannot drift, and so the player learns
+  to read dice notation in a calm moment rather than mid-battle.
+- Hovering or clicking a unit reveals its rules text. Role gets a glyph — archer / melee / siege is now
+  the most consequential fact about a unit and the names only imply it if you already know the game.
+- *"Hit Dice" wants renaming* — it already means hit points to anyone with D&D history.
+- **The panel needs a stated budget.** Supply, veterancy, morale and order history will all want a line
+  in it. The roster owns the top, or in six months this is a wall you read instead of a thing you
+  glance at.
+
+### The ERA Dot, and What a Unit Is Across Twelve Ages
+
+The era column is the quiet standout of that layout. Nothing in the game currently lets a player
+*feel* an era gap — it is expressed as raid size and raid shape, both invisible. A dot per unit line
+means you click a neighbour's army, see bronze dots against your grey ones, and know you are behind
+before reading a word. It is also real information, because manifests **accumulate**: an army can be
+genuinely half-obsolete, old spearmen beside new cavalry, and nothing surfaces that today.
+
+- **The dot means the age the unit TYPE was introduced**, not the age the individual soldier was
+  trained. Introduced-in is static and free — it is whichever manifest first declares the id.
+  Trained-in would need per-instance tracking, and a roster is a count (`{soldier: 4}`), so it cannot
+  carry that without becoming a list of individuals.
+- **Therefore units must be distinct ids per age**, not one id renamed. A rename makes every dot in
+  your army the current age and the column says nothing. *"A footman you build in Stone should not be
+  the same as a soldier in Bronze, else what was the point of renaming it?"*
+- **Roles are the continuity; units are the rungs, and rungs need not share a shape.** melee / ranged
+  / siege persist across all twelve ages, so a cannon and a trebuchet are both "the answer to a wall"
+  with no lineage relationship in the data. **No upgrade graph is needed** — Civ-style unit lines are
+  a habit this design does not want. Cavalry does not become Knights; Cavalry stops being buildable
+  and Knights start.
+- **An age may OMIT a role**, and that is a lever: an age with no good wall-breaker is an age where
+  fortifications rule and wars are sieges nobody wins — roughly what happened between Rome and
+  gunpowder. Free character for an era out of rules that already exist. Roles may also be retired and
+  added as the ages run.
+- **The dice have far more room than a strength number ever did.** Dice count scales without bound —
+  twelve ages at ~1.3× each is about 17× total, which is 8 dice at 5+ in the last age, an ordinary row.
+  And they buy an axis strength could not express: **variance.** For the same expected damage, *few
+  dice at a good number* (1 die at 2+) is elite and dependable, while *many dice at a bad number*
+  (3 dice at 8+) has nearly three times the spread — sometimes nothing, sometimes everything. So a
+  machine gun is many mediocre dice and useless against walls (it *statistically is* suppressing
+  fire), artillery is one die at 2+, a cannon is few dice with enormous `wallDamage`. Character, not
+  just power, and none of it needs a new mechanic.
+  - *(Undaunted does this as shoot-for-effect vs shoot-for-suppression. The flavour transfers; the
+    mechanic cannot, because choosing a dice mode per activation is exactly the micro an autobattler
+    forbids. A unit with a fixed profile still reads as a machine gun — it just does not ask what kind
+    of machine gun it is being this round.)*
+
+**Prior-age units: GATE THE BUILD, NEVER REMOVE THE DEF.** Once an age turns you can no longer *make*
+the previous age's units, but existing ones remain coherent game objects. `armyRoster()` walks the
+active era's unit list and the manifests accumulate, so dropping a def instead of blocking the
+purchase would make every existing unit of that type **vanish from every roster mid-run**. Same id,
+still in the manifest, simply not buyable.
+
+- Consequence: **the muster screen and the army panel need different filters on the same list.** Muster
+  shows only what is currently buildable; the army panel shows whatever is actually standing there,
+  however old.
+
+**THE EMPIRE EARTH DYNAMIC, WHICH IS ALREADY BUILT.** Rosters replace rather than upgrade, so every
+era boundary is also a *military* transition — you cross into a new age holding an army you can no
+longer replace, facing someone whose roster is fresh. The enforcement already exists and had simply
+never been named as a military pressure: `levyCap()` is `holdCount() × armyPerHex`, checked at recruit
+time, so **obsolete units occupy the cap and you cannot build the new age's units while the old ones
+are still standing there taking up the space.** No decay timer, no obsolescence mechanic. The old
+units are not deleted; they are *in the way*, which is the honest version.
+
+- **Losing a battle can be net positive** when what you lost was two ages old — the defeat frees
+  capacity you could not otherwise free. That makes an era boundary a *play* rather than a penalty.
+- **Territory is the modernisation budget.** A fresh army without spending the old one means taking
+  more ground, so expansion and military renewal are the same currency — and turtling fails twice
+  over: you do not gain the hexes to build the new army, and the old one you are sitting on is what
+  blocks it.
+- The era dots then read as something sharper than obsolescence: **how much of my cap is dead weight.**
+
 ### Failure
 
 > **Amended 2026-08-23/24 (*Population Lives Somewhere*, shipped E4+E5).** Starvation drains the

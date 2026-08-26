@@ -353,7 +353,11 @@ so anything that cannot be drawn as a row of dice cannot be in the combat system
 several tempting ideas later, and it should.
 
 7. **Armies, combat, per-player era content** — built on the new shape, so bots and the human
-   share the systems from birth. Slice 6 scouting is still the prerequisite.
+   share the systems from birth. **The scouting prerequisite is DROPPED, and the dependency is
+   inverted** (owner, 2026-08-26): we do not yet know how scouting works, and scouts can be caught
+   by armies — so combat wants to exist *first*, and scouting is built against it. The older note
+   ("without reach-beyond-the-border an inbound army is invisible until adjacent") described a
+   world where raids arrived from nowhere; armies on the board are visible by standing on it.
 8. **The docs collapse, ten → four** (review IX.0): harvest `map.md` and `interface.md` into
    `design.md`/`tech.md`, then delete them; prune `todo.md`'s archive. Best done at a hold near
    the refactor, since the refactor obsoletes more passages and `tech.md`'s rewrite should

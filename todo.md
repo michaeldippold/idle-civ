@@ -256,6 +256,23 @@ a unit-vs-unit lookup table.*
   hold (owner's idea, 2026-08-26). They are not free hit points — hits go to the walls, so melee
   in a fort does *nothing at all* until the breach, at which point every one of them wakes up at
   once. They are the reserve, and they are why storming a breach is terrifying.
+- **FIRING SLOTS** (owner, 2026-08-26). A fortification has a fixed number of positions on its
+  wall, and only archers may use them. This closes a degenerate optimum the archers-only rule has
+  on its own: measured against twenty attackers behind a 24 pool, ten archers held **60%** where
+  five archers and five horsemen held **17%** — an all-archer garrison simply outshoots the assault
+  before the wall ever falls, so its melee never collect their post-breach value and garrisoning
+  them is a wasted slot. With a cap, archers past it are bodies waiting for the breach exactly like
+  the melee, and the reserve is worth having again. Measured after: at eighteen attackers, six
+  archers and four horsemen hold **61%** where ten archers hold **37%**.
+  - Slots are the **building's dial**, and a good one: 2 slots holds 0%, 4 holds 8%, 6 holds 35%,
+    8 holds 65%, 10 holds 87%. Three things that had no number to move now have one — the
+    fortification itself, the **capital tier**, and any structure that wants to trade wall for
+    positions. The owner's example is a **watchtower**: fewer walls, two to four slots, and it sees
+    one hex further in every direction. *"Once slots are in, this doesn't really add any new rules."*
+  - The garrison mans the wall with its **best** archers first.
+  - The filler decision has real texture: your *best* melee behind the wall is clearly right, and
+    *cheap* melee is roughly a wash against surplus archers. Bodies are bodies; what matters is
+    what they are worth once the wall is down.
 - Therefore archers must be **worse than melee in the open**, or they are strictly better and the
   choice is fake. A garrison wants archers, a field army wants melee, and a mixed force is a
   compromise — which is the decision we want to force.

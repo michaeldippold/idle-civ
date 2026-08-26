@@ -320,8 +320,14 @@ export const IRON_DELTA = {
       id: "marchHold", name: "March-hold",
       requires: "fortification",
       fortifies: true,
+      // Thick walls and six positions on them. RANGE DIED 2026-08-26: this used
+      // to fortify "the ground beside it" through fortRange, which is exactly
+      // what the panel law forbids -- everything that fires in a battle is
+      // standing on the hex, because the panel can only show what it can line
+      // up on screen.
+      wallPool: 24, slots: 6,
       base: { wood: 120, stone: 200, iron: 40 }, scale: 1.35, buildTime: 75,
-      desc: "Walls, a gate, and people who watch the road. Produces nothing at all — it holds this ground and the ground beside it, and raids that come here break on it instead of on your people.",
+      desc: "Walls, a gate, and six positions to shoot from. Produces nothing at all — an assault on this ground has to bring the wall down before it can reach anyone behind it.",
     },
   ],
 

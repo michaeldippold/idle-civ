@@ -95,27 +95,61 @@ function cloneRoster(roster) {
 }
 function headcount(roster) { return roster.reduce((n, s) => n + s.n, 0); }
 
+// FIRING SLOTS. A fortification has only so many positions on its wall, and
+// only archers may use them (2026-08-26). Without this cap the archers-only
+// rule has a degenerate optimum: an all-archer garrison simply outshoots the
+// assault before the wall ever falls, so its melee never collect their
+// post-breach value and garrisoning them is a wasted slot. Measured, against
+// twenty attackers behind a 24 pool: ten archers held 60% of the time, five
+// archers and five horsemen held 17%.
+//
+// With a cap, archers past it are bodies waiting for the breach exactly like
+// the melee, so the cheapest filler wins and a mixed garrison becomes correct.
+// It also hands three things a number to move that had none: the fortification
+// itself, the capital tier, and any building that wants to trade wall for
+// positions (the owner's watchtower -- fewer walls, two to four slots, and it
+// sees a hex further).
+//
+// The garrison mans the wall with its BEST archers first. Deterministic, and
+// what anyone sensible would do.
+function firingPlan(roster, slots) {
+  const plan = new Map();
+  let free = Math.max(0, slots);
+  const ranked = roster.filter((s) => s.n > 0 && unitRole(s.def) === "ranged").sort((a, b) =>
+    expectedHits(b.def) - expectedHits(a.def) ||
+    unitCost(b.def) - unitCost(a.def) ||
+    (a.def.id < b.def.id ? -1 : a.def.id > b.def.id ? 1 : 0));
+  for (const s of ranked) {
+    const k = Math.min(s.n, free);
+    plan.set(s.def.id, k);
+    free -= k;
+  }
+  return plan;
+}
+
 // One side's dice for one round. `behindWalls` is the fortification rule:
-// ONLY ARCHERS FIRE FROM INSIDE. Melee stand there and hope the walls hold --
-// and they are not free hit points either, since the attacker's hits are going
-// into masonry, so they do nothing at all until the breach and then all of them
-// wake at once. They are the reserve, and they are why storming a breach is
-// terrifying.
+// ONLY ARCHERS FIRE FROM INSIDE, and only as many of them as there are slots.
+// Melee stand there and hope the walls hold -- and they are not free hit points
+// either, since the attacker's hits are going into masonry, so they do nothing
+// at all until the breach and then all of them wake at once. They are the
+// reserve, and they are why storming a breach is terrifying.
 //
 // The FACES are kept, not just the totals: the panel has to show the player
 // exactly why they lost, and it cannot do that from a sum.
-function rollSide(roster, rng, behindWalls) {
+function rollSide(roster, rng, behindWalls, slots) {
   const stacks = [];
+  const plan = behindWalls ? firingPlan(roster, slots) : null;
   let hits = 0, wall = 0;
   for (const s of roster) {
     if (s.n <= 0) continue;
-    if (behindWalls && unitRole(s.def) !== "ranged") {
-      stacks.push({ id: s.def.id, n: s.n, hit: unitHit(s.def), faces: [], hits: 0, silent: true });
+    const fire = behindWalls ? (plan.get(s.def.id) || 0) : s.n;
+    if (fire <= 0) {
+      stacks.push({ id: s.def.id, n: s.n, firing: 0, hit: unitHit(s.def), faces: [], hits: 0, silent: true });
       continue;
     }
     const faces = [];
     let stackHits = 0;
-    const n = s.n * unitDice(s.def);
+    const n = fire * unitDice(s.def);
     for (let i = 0; i < n; i++) {
       const face = 1 + Math.floor(rng() * DIE);
       faces.push(face);
@@ -123,7 +157,7 @@ function rollSide(roster, rng, behindWalls) {
     }
     hits += stackHits;
     wall += stackHits * unitWallDamage(s.def);
-    stacks.push({ id: s.def.id, n: s.n, hit: unitHit(s.def), faces, hits: stackHits, silent: false });
+    stacks.push({ id: s.def.id, n: s.n, firing: fire, hit: unitHit(s.def), faces, hits: stackHits, silent: false });
   }
   return { stacks, hits, wall };
 }
@@ -146,8 +180,12 @@ function applyCasualties(roster, hits, order) {
 // spec: {
 //   attacker: { pid, roster: [{def, n}], stance },
 //   defender: { pid, roster: [{def, n}], stance },
-//   walls, rng
+//   walls, slots, rng
 // }
+//
+// `slots` is how many archers the fortification can put on its wall; it is a
+// property of the STRUCTURE standing on the hex, and it only matters while the
+// walls stand.
 //
 // Resolved to completion in ONE call. What plays out over ticks is the SCRIPT
 // this returns -- the sim knows the ending immediately, the world does not see
@@ -164,6 +202,7 @@ export function resolveBattle(spec) {
   const atk = cloneRoster(spec.attacker && spec.attacker.roster);
   const def = cloneRoster(spec.defender && spec.defender.roster);
   let walls = Math.max(0, spec.walls || 0);
+  const slots = spec.slots == null ? CONFIG.fortSlots : Math.max(0, spec.slots);
 
   const atkOrder = casualtyOrder(atk), defOrder = casualtyOrder(def);
   const atkStart = headcount(atk), defStart = headcount(def);
@@ -191,8 +230,8 @@ export function resolveBattle(spec) {
     // SIMULTANEOUS. Both sides roll off the pre-round rosters, so a unit that
     // dies this round still fired this round. That is the whole reason one
     // infantry can kill six tanks.
-    const aRoll = rollSide(atk, rng, false);
-    const dRoll = rollSide(def, rng, behindWalls);
+    const aRoll = rollSide(atk, rng, false, Infinity);
+    const dRoll = rollSide(def, rng, behindWalls, slots);
 
     let defLost = [], breached = false;
     const wallsBefore = walls;
@@ -247,7 +286,7 @@ export function resolveBattle(spec) {
       ? "attacker" : "defender";
 
   return {
-    rounds, outcome, holder, walls, wallsStart,
+    rounds, outcome, holder, walls, wallsStart, slots,
     attacker: atk, defender: def, atkStart, defStart, breachedAt,
   };
 }

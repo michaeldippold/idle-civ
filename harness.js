@@ -5245,7 +5245,7 @@ console.log("\n--- The battle resolver: dice, walls, and who fires from behind t
   const R = (atk, def, walls, o = {}) => api.resolveBattle({
     attacker: { roster: atk.map((x) => ({ ...x })), stance: o.atkStance },
     defender: { roster: def.map((x) => ({ ...x })), stance: o.defStance },
-    walls, rng: stream(o.seed == null ? 7 : o.seed),
+    walls, slots: o.slots, rng: stream(o.seed == null ? 7 : o.seed),
   });
   const left = (side) => side.reduce((n, s) => n + s.n, 0);
   const many = (n, f) => { let c = 0; for (let i = 0; i < n; i++) if (f(i)) c++; return c; };
@@ -5387,6 +5387,47 @@ console.log("\n--- The battle resolver: dice, walls, and who fires from behind t
       worst = Math.max(worst, r.rounds.length);
     }
     return worst < api.CONFIG.battleMaxRounds / 4;
+  })());
+
+  // ---- Firing slots, and the degenerate optimum they close ----
+  check("only as many archers fire as the wall has positions", (() => {
+    const r = R([{ def: SOLDIER, n: 5 }], [{ def: ARCHER, n: 10 }], 30, { seed: 21, slots: 4 });
+    const a = r.rounds[0].defender.roll.stacks.find((x) => x.id === "archer");
+    return r.rounds[0].behindWalls && a.n === 10 && a.firing === 4 && a.faces.length === 4;
+  })());
+
+  check("the garrison mans the wall with its BEST archers first", (() => {
+    const GOOD = D("longbow", { hit: 5, role: "ranged", base: { wood: 40 } });
+    const r = R([{ def: SOLDIER, n: 5 }], [{ def: ARCHER, n: 6 }, { def: GOOD, n: 3 }], 30,
+      { seed: 22, slots: 4 });
+    const st = r.rounds[0].defender.roll.stacks;
+    const good = st.find((x) => x.id === "longbow"), plain = st.find((x) => x.id === "archer");
+    return good.firing === 3 && plain.firing === 1;
+  })());
+
+  check("slots are the building's dial: more positions, stronger ground", (() => {
+    const holds = (slots) => many(200, (i) =>
+      R([{ def: SOLDIER, n: 18 }], [{ def: ARCHER, n: 10 }], 24, { seed: i + 1200, slots }).holder === "defender");
+    const a = holds(2), b = holds(6), c = holds(10);
+    return a < b && b < c;
+  })());
+
+  check("slots close the all-archer optimum: the best melee is worth garrisoning", (() => {
+    // Measured before slots existed, a garrison of ten archers held 60% where
+    // five archers and five horsemen held 17% -- so melee behind a wall was a
+    // wasted slot and the rule had a degenerate answer. With a cap, the archers
+    // past it are bodies waiting for the breach exactly like the melee, and the
+    // reserve is worth having.
+    const holds = (roster) => many(300, (i) =>
+      R([{ def: SOLDIER, n: 18 }], roster, 24, { seed: i + 1300, slots: 6 }).holder === "defender");
+    return holds([{ def: ARCHER, n: 6 }, { def: HORSE, n: 4 }]) > holds([{ def: ARCHER, n: 10 }]) * 1.3;
+  })());
+
+  check("a fortification is still worth its ground", (() => {
+    const G = [{ def: ARCHER, n: 6 }, { def: HORSE, n: 4 }];
+    const holds = (w) => many(200, (i) =>
+      R([{ def: SOLDIER, n: 14 }], G, w, { seed: i + 1400, slots: 6 }).holder === "defender");
+    return holds(24) > holds(0) * 4;
   })());
 
   // The manifest's own numbers, which the rule checks above are deliberately

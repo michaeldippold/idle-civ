@@ -136,6 +136,14 @@ export const CONFIG = {
   // siege takes. Per fortifying structure standing ON the hex -- range died
   // with the panel law (everything that fires is standing on the hex).
   wallPool: 12,
+  // HOW MANY ARCHERS CAN MAN A WALL. Without a cap the archers-only rule has a
+  // degenerate optimum -- an all-archer garrison outshoots the assault before
+  // the wall falls, so its melee never collect their post-breach value. With
+  // one, archers past the cap are bodies waiting for the breach exactly like
+  // the melee, the cheapest filler wins, and a mixed garrison becomes correct.
+  // Buildings differ: a fortification is thick walls and many positions, a
+  // watchtower is thin walls and few (and sees further).
+  fortSlots: 6,
   armyPerHex: 2,          // the army cap (E5): each held hex supports this many standing
                           // units, in every era -- the levy re-homed to the land, per the
                           // owner's ruling ("make it serve the hex"). Territory is what

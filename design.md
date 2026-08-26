@@ -1236,6 +1236,38 @@ The original direction, recorded 2026-08-25, and still the shape of it:
   the board already owns — the piece sinks, and rises in the next hex. Motion at the moment of a
   change, only to the thing that changed: the existing animation law covers it verbatim.
 
+### You Don't Pick Your Battles *(owner, 2026-08-26 — the principle under the march system)*
+
+*"In a turn-based game, you generally get to pick your battles, or at least you have some sense of
+where and when they will happen. You get time to stop and think during your turn. Our system feels
+much more like real life. You dispatch a force, but you cannot guarantee exactly when and where it
+will engage, because that depends on enemy players too. A general can dispatch troops to match, but
+the enemy gets a say too and a battle might break out when not intended."*
+
+The term of art is a **meeting engagement** — a battle that breaks out where neither commander
+chose, because two moving forces found each other first. Most real battles before modern
+reconnaissance started this way; Gettysburg was one. Our contact rules produce them naturally: the
+mover is the attacker, transit and destination alike, and two marching columns can collide mid-road
+on ground neither was aiming at.
+
+Two systems already built are load-bearing for this principle, and only make sense together with it:
+
+- **The stance exists BECAUSE you don't pick your battles.** Turn-based, a pre-committed withdrawal
+  threshold would be pointless — you would decide in the moment, on your turn, with full
+  information. Here, pre-commitment is the only form of tactical agency *compatible* with not
+  choosing when the fight starts. "I will spend up to half this army" is what a general's written
+  orders actually were, for exactly this reason: the dispatcher could not be there at contact.
+- **Legibility replaces control.** Since the player cannot control when battles happen, the game
+  owes them the ability to *predict* them — the march trail, the visible discs, the to-hit number
+  on every drawn unit, armies charting the road they walk. You read trajectories instead of
+  commanding moments. This is also what will make scouting genuinely valuable when it lands:
+  scouting is **buying back predictability** the real-time system deliberately took away — warning
+  time, which is already slice 6's promoted meaning.
+
+And it rhymes with the era clock on purpose: both come from the same law — **the world does not
+wait for you.** Other civilizations advance on clocks you cannot read, and their armies move on
+roads you did not approve.
+
 ### How an Army Is Depicted *(settled 2026-08-26, owner)*
 
 An army is a **player-coloured disc** standing on the hex — a chunky token, not a banner and not a

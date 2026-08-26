@@ -34,6 +34,22 @@ export function freshPlayer(id, opts = {}) {
     // reason naming is never a gate on starting a run.
     seatName: opts.seatName || "",
 
+    // THE MANIFEST ID THIS CIV IS AUTHORED UNDER, or null for the human. The
+    // three neighbours are content ("hillClans", "riverKingdom", "saltNomads")
+    // -- named, described and statted per era -- so a bot record needs a way
+    // back to its own authoring. The human has no key because nobody authored
+    // them.
+    key: opts.key || null,
+
+    // A NEIGHBOUR'S STANDING WITH THIS CIV, and the walls it keeps. Both are
+    // adversary-shaped today and both are on the road to becoming ordinary:
+    // walls want to be fortification structures standing on their hexes, and
+    // standing wants to be whatever survives the trade-and-diplomacy ruling.
+    // They live on the player record so that when they do become ordinary,
+    // there is no second home to migrate out of.
+    standing: 0,
+    walls: 0,
+
     // WHERE THIS CIV SITS -- the tile id of its capital, and the point every
     // administrative distance is measured from. Null until the world exists;
     // seated by ensureMap for the human and, when adversaries become players,
@@ -132,6 +148,18 @@ export function me() { return S.players[S.me]; }
 
 // A civ by id, for the systems that already know whose turn it is.
 export function playerById(id) { return S.players[id] || null; }
+
+// A civ by its MANIFEST id -- how the three neighbours are named in content
+// and referenced by every campaign, caravan and rim on the board. This is the
+// bridge that let adversaries become players without rewriting the systems
+// that talk to them by name.
+export function playerByKey(key) {
+  return S.players.find((p) => p.key === key) || null;
+}
+
+// Every civ that is not the human. Named for what it will keep meaning when
+// one of them is another person rather than a bot.
+export function rivals() { return S.players.filter((p) => p.key !== null); }
 
 // ES-module live bindings are read-only from outside their home module; every
 // cross-module reassignment of the mutables above goes through these.

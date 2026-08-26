@@ -4,7 +4,7 @@ import { CONFIG } from "../core/config.js";
 import { availableUnits } from "../core/derived.js";
 import { save } from "../core/persist.js";
 import { atDominionCap, captureTile, marchFactor, routeCost, seatOf, syncPopMirror, world } from "../map/map.js";
-import { S, me } from "../core/state.js";
+import { S, me, playerByKey } from "../core/state.js";
 import { record } from "../core/journal.js";
 import { armorFactor, weaponMultiplier } from "./combat.js";
 import { chronicle, requestRender } from "../core/bus.js";
@@ -63,7 +63,7 @@ export function bumpStanding(st, delta) {
 export function hostilityMultiplier() {
   let mult = 1;
   for (const adv of active().adversaries) {
-    const st = S.adversaries[adv.id];
+    const st = playerByKey(adv.id);
     if (adv.disposition === "warlike" && st && st.standing <= -2) mult *= CONFIG.hostileConflictMult;
   }
   return mult;
@@ -74,7 +74,7 @@ export function hostilityMultiplier() {
 export function riskAdversary() {
   let worst = null;
   for (const a of active().adversaries) {
-    const st = S.adversaries[a.id];
+    const st = playerByKey(a.id);
     if (a.disposition !== "warlike" || !st || st.standing > -2) continue;
     if (!worst || a.strength > worst.strength) worst = a;
   }
@@ -108,12 +108,12 @@ export function raidAttribution() {
     // Peaceful neighbours do not raid you. If they ever should, that is a
     // disposition change with its own fiction, not a quiet exception here.
     if (a.disposition !== "warlike") continue;
-    if (!S.adversaries[a.id]) continue;
+    if (!playerByKey(a.id)) continue;
     // A grudge does not decide WHETHER a warlike neighbour raids -- the
     // trigger roll upstream already did that, and hostilityMultiplier()
     // already made anger raise the rate. It decides how likely it is to be
     // THEM: neutral weighs 1, the angriest possible neighbour weighs 6.
-    const w = 1 + Math.max(0, -(S.adversaries[a.id].standing || 0));
+    const w = 1 + Math.max(0, -(playerByKey(a.id).standing || 0));
     pool.push([a, w]);
     total += w;
   }
@@ -175,17 +175,22 @@ export function campaignTarget(ref) {
     return {
       ref, kind: "minor", tile: tid, name: p.minor.name,
       strength: p.minor.strength, wallsMax: p.minor.wallsMax,
-      fightsAs: "warband", st,
+      // A MINOR IS NOT A PLAYER. The three majors became civilizations on
+      // 2026-08-26 and their larder is now simply `res`, the same pile yours
+      // comes out of. A steading is still a remnant on the map with a `stock`,
+      // so the target carries `larder` and resolution never has to know which
+      // kind it is holding.
+      fightsAs: "warband", st, larder: st ? st.stock : null,
       baseTime: 60,
     };
   }
   const adv = findAdversary(ref);
-  const st = S.adversaries[ref];
+  const st = playerByKey(ref);
   if (!adv || !st) return null;
   return {
     ref, kind: "major", id: ref, name: adv.name,
     strength: adv.strength, wallsMax: adv.walls || 0,
-    fightsAs: adv.fightsAs, st, adv,
+    fightsAs: adv.fightsAs, st, adv, larder: st.res,
     baseTime: adv.campaignTime,
   };
 }
@@ -276,10 +281,10 @@ export function launchCampaign(advId, unitCounts) {
 export function launchCaravan(advId, escort) {
   if (S.dead || expeditionOut("caravan") || !musterBuilt()) return;
   const adv = findAdversary(advId);
-  const st = S.adversaries[advId];
+  const st = playerByKey(advId);
   if (!adv || !adv.buys || !st) return;
   if (st.standing <= -2) return;                       // they remember your raids
-  if ((st.stock.gold || 0) <= 0) return;               // traded dry
+  if ((st.res.gold || 0) <= 0) return;               // traded dry
   if ((me().res[adv.buys.res] || 0) < adv.buys.amount) return;
   if (escort && !validUnitCounts(escort)) return;
   const guards = escort ? Object.values(escort).reduce((a, b) => a + b, 0) : 0;
@@ -357,8 +362,9 @@ export function resolveCampaign(ex, target) {
       // CAPTURE: the whole stock comes home, the tile swears fealty, and the
       // Chronicle records the name for the last time (design.md).
       const takes = [];
-      for (const k in st.stock) {
-        if (st.stock[k] > 0) { me().res[k] = (me().res[k] || 0) + st.stock[k]; takes.push(`${st.stock[k]} ${k}`); }
+      const larder = target.larder || {};
+      for (const k in larder) {
+        if (larder[k] > 0) { me().res[k] = (me().res[k] || 0) + larder[k]; takes.push(`${larder[k]} ${k}`); }
       }
       captureTile(target.tile, false);
       chronicle(`${capMinor(target.name)} swears fealty to your banner — one more holdfast, and ${takes.length ? takes.join(", ") : "little else"} besides. The Chronicle records the name for the last time.`, "big");
@@ -369,9 +375,10 @@ export function resolveCampaign(ex, target) {
       return;
     }
     const takes = [];
-    for (const k in st.stock) {
-      const take = Math.floor(st.stock[k] * CONFIG.plunderFraction);
-      if (take > 0) { st.stock[k] -= take; me().res[k] = (me().res[k] || 0) + take; takes.push(`${take} ${k}`); }
+    const larder = target.larder || {};
+    for (const k in larder) {
+      const take = Math.floor(larder[k] * CONFIG.plunderFraction);
+      if (take > 0) { larder[k] -= take; me().res[k] = (me().res[k] || 0) + take; takes.push(`${take} ${k}`); }
     }
     chronicle(`Victory over ${adv.name}. The column returns with ${takes.length ? takes.join(", ") : "little worth taking"}.`, "big");
     // Winning can still cost someone -- softened by armor, same dial as home.
@@ -414,11 +421,11 @@ export function resolveCaravan(ex, adv, st) {
 
   const wary = st.standing < 0;   // read BEFORE the trade improves things
   const premium = st.standing >= 2 ? 1.25 : 1;
-  const pays = Math.min(Math.floor(adv.buys.pays * premium), Math.floor(st.stock.gold || 0));
-  st.stock.gold = (st.stock.gold || 0) - pays;
+  const pays = Math.min(Math.floor(adv.buys.pays * premium), Math.floor(st.res.gold || 0));
+  st.res.gold = (st.res.gold || 0) - pays;
   // Sold goods JOIN their stock -- stocks are real, and what you sell them a
   // later campaign could take back. The game never mentions this.
-  st.stock[ex.cargo.res] = (st.stock[ex.cargo.res] || 0) + ex.cargo.amount;
+  st.res[ex.cargo.res] = (st.res[ex.cargo.res] || 0) + ex.cargo.amount;
   me().res.gold = (me().res.gold || 0) + pays;
   bumpStanding(st, 1);
   if (pays <= 0) {
@@ -446,7 +453,7 @@ export function resolveExpeditions(dt) {
       continue;
     }
     const adv = findAdversary(ex.adversary);
-    const st = S.adversaries[ex.adversary];
+    const st = playerByKey(ex.adversary);
     if (adv && st) resolveCaravan(ex, adv, st);
   }
 }

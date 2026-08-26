@@ -1742,6 +1742,7 @@ console.log("\n--- C1: capstone gating and the real transition ---");
   api.setRngSource(() => 0.999999);   // no hazards during the long build
   reset();
   api.me().era = "bronze";
+  api.paceRivals();
   api.initAdversaries(); api.ensureMap();
   const capstone = api.MANIFESTS.bronze.upgrades.find(u => u.id === "ironAge");
   // The gate is 50 real people now: give the trio deep pops (held above cap,
@@ -1997,6 +1998,7 @@ console.log("\n--- A refusal always says why ---");
   // the sim will then quietly refuse.
   reset();
   api.me().era = "iron";
+  api.paceRivals();
   api.initAdversaries(); api.ensureMap();
   const minor = Object.values(api.world.places).find((p) => p.minor);
   const ref = "tile:" + minor.id;
@@ -2041,6 +2043,7 @@ console.log("\n--- C2: you march on what you can feed ---");
 {
   reset();
   api.me().era = "bronze";
+  api.paceRivals();
   api.initAdversaries(); api.ensureMap();
   api.me().upgrades.warCamp = true;
   api.me().units.soldier = 10;          // ten at home...
@@ -2111,12 +2114,12 @@ console.log("\n--- C2: larders refill per age, grudges do not ---");
   reset();
   api.initAdversaries(); api.ensureMap();
   const minorId = Object.values(api.world.places).find((p) => p.minor).id;
-  const river = () => api.S.adversaries.riverKingdom;
+  const river = () => api.playerByKey("riverKingdom");
   const steading = () => api.S.map.minors[minorId];
 
-  const stoneFood = river().stock.food;
+  const stoneFood = river().res.food;
   // Plunder them, and give them a reason to remember it.
-  river().stock.food = 1; river().walls = 0; river().standing = -4;
+  river().res.food = 1; river().walls = 0; river().standing = -4;
   steading().stock.food = 0; steading().walls = 0;
 
   // WITHIN an age, nothing refills. This is the half that would break silently
@@ -2124,46 +2127,49 @@ console.log("\n--- C2: larders refill per age, grudges do not ---");
   // and a plundered larder would be full again on the next frame.
   api.initAdversaries(); api.ensureMap();
   check("within one age, a plundered larder STAYS plundered",
-    river().stock.food === 1 && steading().stock.food === 0);
+    river().res.food === 1 && steading().stock.food === 0);
   check("...and a breached wall stays breached",
     river().walls === 0 && steading().walls === 0);
 
   api.me().era = "bronze";
+  api.paceRivals();
   api.initAdversaries(); api.ensureMap();
   check("an age turns and the larder refills, larger than it was",
-    river().stock.food > stoneFood && steading().stock.food > 0);
+    river().res.food > stoneFood && steading().stock.food > 0);
   check("...and the walls come back taller than they were",
     river().walls > 0 && steading().walls >= 0);
   check("but the grudge outlives the granary -- standing is never re-seeded",
     river().standing === -4);
 
   api.me().era = "iron";
+  api.paceRivals();
   api.initAdversaries(); api.ensureMap();
   check("a people that survives to Iron is richer again, and remembers still",
-    Object.values(river().stock).reduce((a, b) => a + b, 0) > 400 &&
+    Object.values(river().res).reduce((a, b) => a + b, 0) > 400 &&
     river().walls === 26 && river().standing === -4);
   // Gold is the one that broke: seeding-once left every Iron major with a
   // stone-age larder, so caravans read "traded dry" the instant they launched.
   check("and has the gold that makes trade possible at all",
-    (river().stock.gold || 0) > 0);
+    (river().res.gold || 0) > 0);
 }
 
 console.log("\n--- C2: living adversary state ---");
 {
   reset();
   api.me().era = "iron";
+  api.paceRivals();
   api.initAdversaries();
-  check("state seeded from the manifest", S().adversaries.hillClans &&
-    S().adversaries.hillClans.stock.food === 120 && S().adversaries.hillClans.standing === 0);
-  S().adversaries.hillClans.stock.food = 7; S().adversaries.hillClans.standing = -3;
+  check("state seeded from the manifest", api.playerByKey("hillClans") &&
+    api.playerByKey("hillClans").res.food === 120 && api.playerByKey("hillClans").standing === 0);
+  api.playerByKey("hillClans").res.food = 7; api.playerByKey("hillClans").standing = -3;
   api.initAdversaries();
-  check("re-init never resets a living remnant", S().adversaries.hillClans.stock.food === 7 &&
-    S().adversaries.hillClans.standing === -3);
+  check("re-init never resets a living remnant", api.playerByKey("hillClans").res.food === 7 &&
+    api.playerByKey("hillClans").standing === -3);
   check("standing words", api.standingWord(-3) === "Hostile" && api.standingWord(-1) === "Wary" &&
     api.standingWord(0) === "Neutral" && api.standingWord(2) === "Friendly");
   check("a Hostile warlike neighbor raises home conflict frequency",
     Math.abs(api.hostilityMultiplier() - api.CONFIG.hostileConflictMult) < 1e-9);
-  S().adversaries.hillClans.standing = 0;
+  api.playerByKey("hillClans").standing = 0;
   check("...and calm neighbors don't", api.hostilityMultiplier() === 1);
 }
 
@@ -2171,6 +2177,7 @@ console.log("\n--- C2: deployment thins home defense ---");
 {
   reset();
   api.me().era = "iron";
+  api.paceRivals();
   api.initAdversaries();
   api.me().pop = 12; api.me().units = { soldier: 4, archer: 2, horseman: 0 };
   const homeBefore = api.militaryStrength();
@@ -2190,6 +2197,7 @@ console.log("\n--- C2: launching expeditions ---");
 {
   reset();
   api.me().era = "iron";
+  api.paceRivals();
   api.initAdversaries();
   api.me().pop = 12; api.me().units = { soldier: 4, archer: 0, horseman: 0 };
   api.me().res.food = 100;
@@ -2218,7 +2226,7 @@ console.log("\n--- C2: launching expeditions ---");
   api.launchCaravan("saltNomads");
   check("...but only one CARAVAN at a time", api.me().expeditions.length === 2);
   api.me().expeditions.length = 0;
-  S().adversaries.riverKingdom.standing = -2;
+  api.playerByKey("riverKingdom").standing = -2;
   api.me().res.food = 100;
   api.launchCaravan("riverKingdom");
   check("a Hostile partner refuses your caravans", api.me().expeditions.length === 0);
@@ -2228,10 +2236,11 @@ console.log("\n--- C2.1: escorts decide how an ambush ends ---");
 {
   reset();
   api.me().era = "iron";
+  api.paceRivals();
   api.initAdversaries();
   api.me().upgrades.musterGround = true;
   api.me().pop = 15; api.me().units = { soldier: 6, archer: 0, horseman: 0 };
-  S().adversaries.hillClans.standing = -3;    // the roads are dangerous
+  api.playerByKey("hillClans").standing = -3;    // the roads are dangerous
   api.me().res.food = 300; api.me().builds.treasury = 1;
 
   // Unescorted + forced ambush: cargo gone, their books never move.
@@ -2242,7 +2251,7 @@ console.log("\n--- C2.1: escorts decide how an ambush ends ---");
   api.setRngSource(null);
   check("unescorted ambush: cargo lost, nothing paid",
     api.me().expeditions.length === 0 && api.me().res.gold === 0);
-  check("the kingdom's books never moved", S().adversaries.riverKingdom.stock.gold === 240);
+  check("the kingdom's books never moved", api.playerByKey("riverKingdom").res.gold === 240);
 
   // Escorted + forced ambush + forced fight-through: the trade completes.
   api.me().res.food = 200;
@@ -2258,7 +2267,7 @@ console.log("\n--- C2.1: escorts decide how an ambush ends ---");
   api.resolveExpeditions(0.2);
   api.setRngSource(null);
   check("the escort fought through and the trade completed", api.me().res.gold === 15);
-  check("their gold moved this time", S().adversaries.riverKingdom.stock.gold === 225);
+  check("their gold moved this time", api.playerByKey("riverKingdom").res.gold === 225);
   check("the escort came home whole", api.deployedCount("soldier") === 0 && api.me().units.soldier === 6);
 
   // Escorted + forced loss: cargo gone and a guard falls.
@@ -2271,20 +2280,21 @@ console.log("\n--- C2.1: escorts decide how an ambush ends ---");
   api.setRngSource(null);
   check("a lost ambush costs the cargo and a guard -- but not the holdfast that raised them (levy)",
     api.me().res.gold === 15 && api.me().units.soldier === 5 && api.me().pop === 15);
-  check("no payment on a lost ambush", S().adversaries.riverKingdom.stock.gold === 225);
+  check("no payment on a lost ambush", api.playerByKey("riverKingdom").res.gold === 225);
 }
 
 console.log("\n--- C2: campaign resolution -- victory (one-shot breach) ---");
 {
   reset();
   api.me().era = "iron";
+  api.paceRivals();
   api.initAdversaries();
   api.me().pop = 12; api.me().units = { soldier: 6, archer: 0, horseman: 0 };
   api.me().upgrades.musterGround = true; api.me().res.food = 100;
   api.me().builds.treasury = 1;
   api.launchCampaign("hillClans", { soldier: 6 });   // wall-power 6 vs palisade 5: one assault
-  const st = S().adversaries.hillClans;
-  const stockBefore = Object.assign({}, st.stock);
+  const st = api.playerByKey("hillClans");
+  const stockBefore = Object.assign({}, st.res);
   api.me().expeditions[0].remaining = 0.1;
   api.setRngSource((() => { let n = 0; return () => [0, 0.999][n++] ?? 0.999; })());  // win, no casualty
   api.resolveExpeditions(0.2);
@@ -2292,24 +2302,25 @@ console.log("\n--- C2: campaign resolution -- victory (one-shot breach) ---");
   check("expedition resolved and cleared", api.me().expeditions.length === 0);
   check("the palisade came down in the same assault (power 6 >= walls 5)", st.walls === 0);
   check("plunder took 40% of each stock, floored",
-    st.stock.food === stockBefore.food - Math.floor(stockBefore.food * 0.4) &&
-    st.stock.gold === stockBefore.gold - Math.floor(stockBefore.gold * 0.4));
+    st.res.food === stockBefore.food - Math.floor(stockBefore.food * 0.4) &&
+    st.res.gold === stockBefore.gold - Math.floor(stockBefore.gold * 0.4));
   check("the plunder came home", api.me().res.gold >= Math.floor(stockBefore.gold * 0.4) &&
     api.me().res.iron >= Math.floor(stockBefore.iron * 0.4));
   check("standing fell -- plunder is not diplomacy", st.standing === -1);
   check("nobody died on a clean win", api.me().units.soldier === 6 && api.me().pop === 12);
   check("their stock is permanently poorer (stock, not economy)",
-    st.stock.food < stockBefore.food);
+    st.res.food < stockBefore.food);
 }
 
 console.log("\n--- Siege: repelled at the walls, and the walls remember ---");
 {
   reset();
   api.me().era = "iron";
+  api.paceRivals();
   api.initAdversaries();
   api.me().pop = 10; api.me().units = { soldier: 2, archer: 0, horseman: 0 };
   api.me().upgrades.musterGround = true; api.me().res.food = 200;
-  const st = S().adversaries.riverKingdom;
+  const st = api.playerByKey("riverKingdom");
   check("the castle's walls are seeded from the manifest", st.walls === 26);
   api.launchCampaign("riverKingdom", { soldier: 2 });   // wall-power 2 vs walls 26: repelled
   api.me().expeditions[0].remaining = 0.1;
@@ -2391,10 +2402,14 @@ console.log("\n--- Siege: the machinery of the engine itself ---");
 {
   reset();
   api.me().era = "iron";
+  api.paceRivals();
   api.initAdversaries();
-  check("nomads circle wagons, not walls (2)", S().adversaries.saltNomads.walls === 2);
-  check("legacy adversary state gets walls raised once",
-    (delete S().adversaries.hillClans.walls, api.initAdversaries(), S().adversaries.hillClans.walls === 5));
+  check("nomads circle wagons, not walls (2)", api.playerByKey("saltNomads").walls === 2);
+  // A neighbour whose walls were breached gets them back when ITS age turns,
+  // not merely because init ran again -- depletion persists within an age.
+  check("a breached wall stays breached within the age",
+    (api.playerByKey("hillClans").walls = 0, api.initAdversaries(),
+     api.playerByKey("hillClans").walls === 0));
   api.me().units = { soldier: 2, archer: 0, horseman: 0, siegeEngine: 2 };
   check("wall-power: engines at x6, soldiers at x1 (2 + 12)",
     Math.abs(api.wallPower({ soldier: 2, siegeEngine: 2 }) - 14) < 1e-9);
@@ -2421,33 +2436,34 @@ console.log("\n--- C2: caravan resolution and the gold well running dry ---");
 {
   reset();
   api.me().era = "iron";
+  api.paceRivals();
   api.initAdversaries();
   api.me().upgrades.musterGround = true;
   api.me().pop = 8; api.me().res.food = 200; api.me().builds.treasury = 1;
-  const st = S().adversaries.riverKingdom;
+  const st = api.playerByKey("riverKingdom");
   api.launchCaravan("riverKingdom");
   api.me().expeditions[0].remaining = 0.1;
   api.setRngSource(() => 0.999);   // no route risk roll matters (no hostile warlike anyway)
   api.resolveExpeditions(0.2);
   api.setRngSource(null);
   check("the caravan paid out", api.me().res.gold === 15);
-  check("their gold came out of their stock", st.stock.gold === 225);
-  check("the sold food JOINED their stock", st.stock.food === 250 + 60);
+  check("their gold came out of their stock", st.res.gold === 225);
+  check("the sold food JOINED their stock", st.res.food === 250 + 60);
   check("trade builds standing", st.standing === 1);
 
   // Trade them dry: their gold is finite, so the well really empties.
-  st.stock.gold = 4;
+  st.res.gold = 4;
   api.launchCaravan("riverKingdom");
   api.me().expeditions[0].remaining = 0.1;
   api.setRngSource(() => 0.999);
   api.resolveExpeditions(0.2);
   api.setRngSource(null);
-  check("a nearly-dry partner pays what they have left", api.me().res.gold === 19 && st.stock.gold === 0);
+  check("a nearly-dry partner pays what they have left", api.me().res.gold === 19 && st.res.gold === 0);
   api.launchCaravan("riverKingdom");
   check("a traded-dry partner is refused at launch", api.me().expeditions.length === 0);
 
   // Friendly premium: standing >= 2 pays 25% more.
-  st.stock.gold = 100; st.standing = 2;
+  st.res.gold = 100; st.standing = 2;
   api.me().res.food = 200;
   api.launchCaravan("riverKingdom");
   api.me().expeditions[0].remaining = 0.1;
@@ -2462,6 +2478,7 @@ console.log("\n--- C2: expeditions resolve through step() ---");
   api.setRngSource(() => 0.999999);
   reset();
   api.me().era = "iron";
+  api.paceRivals();
   api.initAdversaries();
   api.me().pop = 10; api.me().units.soldier = 2;
   api.me().upgrades.musterGround = true;
@@ -2481,6 +2498,7 @@ console.log("\n--- C2: an era flip mid-flight strands nobody ---");
 {
   reset();
   api.me().era = "iron";
+  api.paceRivals();
   api.initAdversaries();
   api.me().pop = 10; api.me().units.soldier = 3;
   api.me().expeditions.push({ uid: 9, type: "campaign", adversary: "ghostsOfAnOldEra",
@@ -2641,7 +2659,7 @@ console.log("\n--- Phase 3: offline is gone; the save is load-bearing ---");
   api.me().expeditions[0].remaining = 0.4;
   run(2);
   check("the revived campaign resolves on schedule", api.me().expeditions.length === 0);
-  check("resolution had consequences (standing moved)", S().adversaries.hillClans.standing < 0);
+  check("resolution had consequences (standing moved)", api.playerByKey("hillClans").standing < 0);
 }
 
 console.log("\n--- Phase 6d: the growth verbs -- minors, settle, routes ---");
@@ -3137,6 +3155,7 @@ console.log("\n--- The march-hold: walls act on resolution, never selection ---"
 {
   reset();
   api.me().era = "iron";
+  api.paceRivals();
   api.initAdversaries();
   api.ensureMap();
   api.me().res.wood = 9999; api.me().res.stone = 9999; api.me().res.iron = 9999; api.me().res.food = 9999;
@@ -3232,6 +3251,7 @@ console.log("\n--- Building on a hex: the farm ---");
   // the queue paces it, the hex's one use holds, and pulling it down costs.
   reset();
   api.me().era = "bronze";
+  api.paceRivals();
   api.initAdversaries();
   api.ensureMap();
   const home = api.world.home;
@@ -3323,6 +3343,7 @@ console.log("\n--- One hex, one use ---");
   // one structure. There is no third state and nothing to point anywhere.
   reset();
   api.me().era = "iron";
+  api.paceRivals();
   api.initAdversaries();
   api.ensureMap();
   const home = api.world.home;
@@ -3668,11 +3689,13 @@ console.log("\n--- C3: the danger acquires a name ---");
 
   // A roster with nobody seated has nobody to blame, and that is a real state
   // rather than a crash -- the caller falls back to the anonymous voice.
-  const saved = api.S.adversaries;
-  api.S.adversaries = {};
+  // Neighbours are PLAYERS now, so "nobody seated" means no rival records --
+  // and the caller falls back to the anonymous voice rather than throwing.
+  const saved = S().players.slice();
+  S().players = [api.me()];
   check("no seated neighbours, no attribution -- and no throw",
     api.raidAttribution() === null);
-  api.S.adversaries = saved;
+  S().players = saved;
 
   // TEMPLATE LEAK. Every named line carries {who}, and some carry {ground} and
   // {raid} as well; a token that survives substitution ships a literal brace
@@ -4005,6 +4028,7 @@ console.log("\n--- Phase 10: one board, forever ---");
   const stoneSeed = api.S.map.seed;
 
   api.me().era = "iron";
+  api.paceRivals();
   api.initAdversaries();
   api.ensureMap();
   check("the tile noun re-denominates across the border",
@@ -4464,6 +4488,7 @@ console.log("\n--- The action layer: one seam for every player verb ---");
   // these checks actually protect, so they moved to the verbs that survived.
   reset();
   api.me().era = "bronze";
+  api.paceRivals();
   api.initAdversaries();
   api.ensureMap();
   api.clearJournal();
@@ -4944,6 +4969,62 @@ console.log("\n--- The simulation does not know the interface exists ---");
   check("unsubscribing actually unsubscribes",
     (api.chronicle("after"), heard.length === 2));
   api.clearBus();
+}
+
+console.log("\n--- Neighbours are civilizations, not a side table ---");
+{
+  // The last stage of the refactor, and the one the whole thing was for. The
+  // three majors were `S.adversaries[id] = { stock, standing, walls, era }` --
+  // a parallel track by construction: a record shaped nothing like a
+  // civilization, that no player system could read and no player verb touch.
+  reset(); api.initAdversaries(); api.ensureMap();
+
+  check("the roster is seated in players[], beside the human",
+    S().players.length === 4 && S().players[0].key === null);
+  check("every neighbour is a civ with a manifest key",
+    api.rivals().length === 3 &&
+    api.rivals().every((r) => typeof r.key === "string" && r.id > 0));
+  check("...reachable by that key", !!api.playerByKey("hillClans") &&
+    api.playerByKey("hillClans").key === "hillClans");
+
+  // THE MERGE THAT MATTERS: their larder is `res`, the same pile yours comes
+  // out of. The day a bot spends its own wood on its own buildings there is
+  // nothing left to convert.
+  const clans = api.playerByKey("hillClans");
+  check("a neighbour's larder IS resources, not a bespoke stock",
+    !!clans.res && clans.res.food > 0 && clans.stock === undefined);
+  check("...and it carries every field a civilization carries",
+    Array.isArray(clans.buildQueue) && !!clans.upgrades && !!clans.units &&
+    typeof clans.era === "string" && Array.isArray(clans.revealed));
+  check("S.adversaries is gone as a parallel record",
+    Object.keys(S().adversaries || {}).length === 0);
+
+  // AUTHORED OUT OF THEIR OWN AGE. Scaling a neighbour to the PLAYER's era is
+  // the Oblivion problem; the fix is that their strength comes from their
+  // manifest, and their larder refills when THEIR clock turns.
+  api.me().era = "iron";
+  api.initAdversaries();
+  check("the human advancing does not refill a rival's larder", (() => {
+    clans.res.food = 3;
+    api.initAdversaries();
+    return clans.res.food === 3;
+  })());
+  check("...their own advance does", (() => {
+    api.paceRivals();
+    api.initAdversaries();
+    return api.playerByKey("hillClans").res.food > 3 &&
+      api.playerByKey("hillClans").era === "iron";
+  })());
+  check("a grudge outlives the granary -- standing is never re-seeded", (() => {
+    const c = api.playerByKey("hillClans");
+    c.standing = -4;
+    api.me().era = "stone"; api.paceRivals(); api.initAdversaries();
+    return api.playerByKey("hillClans").standing === -4;
+  })());
+
+  // The pacing POLICY is the only thing left unbuilt, and it is one function.
+  check("rivals advance through the same verb the human does",
+    typeof api.paceRivals === "function" && typeof api.advanceEra === "function");
 }
 
 console.log(`\n${fails === 0 ? "ALL CHECKS PASSED" : fails + " CHECK(S) FAILED"}`);

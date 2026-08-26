@@ -1,5 +1,5 @@
 import { active } from "../content/compile.js";
-import { S, me } from "../core/state.js";
+import { S, me, playerByKey } from "../core/state.js";
 import { canAfford, caps, capWord, seatIsNamed, seatName } from "../core/derived.js";
 import { save } from "../core/persist.js";
 import { canBuildOn, demolishStructure, hasMarket, launchSettle, launchStructure, pendingBuild, pendingSettle, settlePlan, structureFits, structurePlan, structureUnlocked, trade, tradeRate } from "../core/actions.js";
@@ -169,7 +169,7 @@ function mapSVG() {
 function tipFor(p) {
   if (p.adversary) {
     const adv = active().adversaries.find((a) => a.id === p.adversary);
-    const st = S.adversaries[p.adversary];
+    const st = playerByKey(p.adversary);
     if (adv && st) {
       return {
         title: advName(adv),
@@ -270,7 +270,7 @@ export function detailHTML(p) {
   const parts = [];
   if (p.adversary) {
     const adv = active().adversaries.find((a) => a.id === p.adversary);
-    const st = S.adversaries[p.adversary];
+    const st = playerByKey(p.adversary);
     if (adv && st) {
       parts.push(`<b>${advName(adv)}</b> — ${adv.disposition} · ${standingWord(st.standing)}<br>${adv.desc}<br>${stockLine(st)}`);
       if (!canReachOut()) { parts.push(noReachLine()); return parts.join(""); }

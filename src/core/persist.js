@@ -1,6 +1,6 @@
 import { active } from "../content/compile.js";
 import { CONFIG, TICK_SECONDS } from "./config.js";
-import { S, freshPlayer, freshState, me, setS } from "./state.js";
+import { S, freshPlayer, freshState, me, playerByKey, setS } from "./state.js";
 import { chronicle } from "../core/bus.js";
 
 // ---------- Save / load -------------------------------------
@@ -115,21 +115,53 @@ export function load() {
 // to the Stone Age they are first seen there, and seeding-once meant every
 // Iron major stood unwalled with a stone-age larder: no gold anywhere, every
 // caravan "traded dry" the instant it launched, sieges trivial.
+// NEIGHBOURS ARE PLAYERS (2026-08-26, the last stage of the refactor). They
+// were a side table -- `S.adversaries[id] = { stock, standing, walls, era }` --
+// which is a parallel track by construction: a record shaped nothing like a
+// civilization, that no player system could read and no player verb could act
+// on. They are entries in `S.players` now, with the same fields as you.
+//
+// The merge that matters most: their `stock` became `res`. Plundering a
+// neighbour takes from their RESOURCES, the same pile yours comes out of, so
+// the day a bot spends its own wood on its own buildings there is nothing to
+// convert. That is the whole roadmap in one field rename.
+//
+// STOCKS GROW AND REFILL PER AGE, as long as their owners are alive (owner
+// ruling, 2026-08-24). A fixed stock makes their economy static while YOURS
+// compounds, so a neighbour is looted dry once and then has nothing left to
+// offer but nuisance. Growing-and-refilling is a fake economy that behaves
+// like a real one, with no engine to run.
+//
+// Within an age, depletion PERSISTS: plunder a larder and it stays plundered.
+// Across an age it does not, because an age is centuries -- you burned their
+// granary, then eighty years passed and their grandchildren rebuilt it.
+// STANDING is the exception, and deliberately so: grudges outlive granaries.
+//
+// AND IT IS THEIR OWN AGE THAT REFILLS IT NOW. This used to compare against
+// the HUMAN's era, which is the "rival strength keyed to your progress" defect
+// the review named -- scale to the player and you get the Oblivion problem.
+// Each neighbour carries its own clock and is authored out of its own
+// manifest; nothing advances them yet, and when something does, this line
+// already means the right thing.
 export function initAdversaries() {
   for (const adv of active().adversaries) {
-    const st = S.adversaries[adv.id];
-    if (!st) {
-      S.adversaries[adv.id] = {
-        stock: Object.assign({}, adv.stock), standing: 0,
-        walls: adv.walls || 0, era: me().era,
-      };
-    } else if (st.era !== me().era) {
-      st.stock = Object.assign({}, adv.stock);   // a new age, a full larder
-      st.walls = adv.walls || 0;                 // and the walls rebuilt taller
-      st.era = me().era;                            // standing is NOT touched
-    } else if (st.walls === undefined) {
-      // Saves from before fortifications existed get their walls raised once.
-      st.walls = adv.walls || 0;
+    let p = playerByKey(adv.id);
+    if (!p) {
+      p = freshPlayer(S.players.length, {
+        key: adv.id,
+        color: adv.color || null,
+        era: me().era,          // seated into the age the world is currently in
+      });
+      p.res = Object.assign({}, adv.stock);
+      p.walls = adv.walls || 0;
+      S.players.push(p);
+    } else if (p.era !== p.seenEra) {
+      p.res = Object.assign({}, adv.stock);   // a new age, a full larder
+      p.walls = adv.walls || 0;               // and the walls rebuilt taller
     }
+    // `seenEra` is the age this record was last stocked for. Kept beside the
+    // era rather than compared against it directly, so that ADVANCING is what
+    // triggers a restock rather than merely existing in an age.
+    p.seenEra = p.era;
   }
 }

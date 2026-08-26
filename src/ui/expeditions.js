@@ -1,7 +1,7 @@
 import { active } from "../content/compile.js";
 import { CONFIG } from "../core/config.js";
 import { availableUnits, isRevealed, pluralize } from "../core/derived.js";
-import { S, me } from "../core/state.js";
+import { S, me, playerByKey } from "../core/state.js";
 import { campaignPlan, campaignRefusal, campaignStrength, columnSize, expeditionOut, findAdversary, hostileRouteRisk, launchCampaign, launchCaravan, provisionsFor, riskAdversary, standingWord, wallPower } from "../sim/expeditions.js";
 import { closeModal, openModal } from "./modal.js";
 
@@ -21,8 +21,8 @@ export function fightsAsLabel(adv) {
 }
 export function advDisplayName(adv) { return adv.name.charAt(0).toUpperCase() + adv.name.slice(1); }
 export function stockLine(st) {
-  const s = Object.keys(st.stock).filter((k) => st.stock[k] > 0)
-    .map((k) => `${Math.floor(st.stock[k])} ${k}`).join(", ");
+  const s = Object.keys(st.res).filter((k) => st.res[k] > 0)
+    .map((k) => `${Math.floor(st.res[k])} ${k}`).join(", ");
   return s ? `Known stock: ${s}.` : "Nothing left worth taking.";
 }
 // Wall damage is narrated, never numbered, on the card -- the numbers live in
@@ -157,12 +157,12 @@ export function openCampaignModal(ref) {
 // one-click send, and the escort question doesn't arise.
 export function openCaravanModal(advId) {
   const adv = findAdversary(advId);
-  const st = S.adversaries[advId];
+  const st = playerByKey(advId);
   const raiders = riskAdversary();
   if (!adv || !adv.buys || !st || !raiders) return;
   muster = {};
   const premium = st.standing >= 2 ? 1.25 : 1;
-  const wouldPay = Math.min(Math.floor(adv.buys.pays * premium), Math.floor(st.stock.gold || 0));
+  const wouldPay = Math.min(Math.floor(adv.buys.pays * premium), Math.floor(st.res.gold || 0));
   const body =
     `<p class="modal-lead">The roads are not safe — ${raiders.name} prowl them. An escort won't keep a caravan from being found; it decides what happens when it is.</p>` +
     `<div class="exp-status">Exchange: ${adv.buys.amount} ${adv.buys.res} → ${wouldPay} gold · ${adv.caravanTime}s round trip.</div>` +

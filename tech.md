@@ -786,10 +786,17 @@ Composition mismatch feeds a second, softer dial rather than `repelChance`: `cou
 
 ### Conflict
 
-> **THIS IS THE OLD RESOLUTION, AND IT IS ON DEATH ROW (2026-08-26).** Every step below is still
-> what runs, so this section is accurate — but `repelChance` is deleted the moment contact is wired
-> to the new resolver, and nothing new should be built on it. See **The battle resolver** and
-> **Armies** below.
+> **EXECUTED 2026-08-26 (A5).** The algorithm below no longer exists in the code — kept here as
+> the record of what died. The conflict event survives as a TRIGGER only: same cadence
+> (`conflictBaseChance` scaling with population, `hostilityMultiplier` for grudges), but on a hit
+> it calls `spawnRaid()` (sim/raiders.js) instead of resolving anything. A raid is an army:
+> mustered at the sender's seat from `raidSender`/`rollRaidType`/`rollRaidSize` (the era-clock
+> wire, intact), marched at a frontier-weighted target that redraws once off garrisoned or walled
+> ground (raiders scout their targets), **sighted** with a Chronicle warning when it first enters
+> your view, fought by the resolver if met, turned away by walls unfought (raiders do not
+> besiege), and pillaging on arrival — the same steal fraction and capped pop toll the old event
+> used, then home to the pool as veterans. One raid out per sender at a time. Raiders never
+> conquer; ground changes hands only when armies take it.
 
 Conflict uses the `resolve()` escape hatch. Its algorithm:
 

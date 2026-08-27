@@ -1,9 +1,10 @@
 import { CONFIG } from "../core/config.js";
 import { rng } from "../core/rng.js";
-import { caps, totalUnits } from "../core/derived.js";
+import { caps } from "../core/derived.js";
 import { S, me } from "../core/state.js";
-import { CONFLICT_FLAVOR, armorFactor, counterCoverage, militaryStrength, pick, raidGround, removeRandomUnit, reconcileReservations, rollRaidSize, rollRaidType, sentenceCase, stealResources } from "../sim/combat.js";
-import { builtCount, fortStrength, healersNear, hexPop, holdCount, killAt, strikeHex, world } from "../map/map.js";
+import { pick, reconcileReservations } from "../sim/combat.js";
+import { spawnRaid } from "../sim/raiders.js";
+import { builtCount, healersNear, hexPop, holdCount, killAt, strikeHex, world } from "../map/map.js";
 import { hostilityMultiplier, raidAttribution, raidSender } from "../sim/expeditions.js";
 import { chronicle } from "../core/bus.js";
 
@@ -130,93 +131,26 @@ export const EVENT_LIB = {
     sev: "bad",
     condition: (S) => me().pop >= 4,
     resolve: (S, dt) => {
+      // THE TRIGGER SURVIVED; THE ARITHMETIC DIED (A5, 2026-08-26). This event
+      // used to be the whole of war: it rolled a size and a shape, struck a
+      // hex, and resolved everything on the spot with
+      //
+      //     repelChance = defense / (defense + raidSize)
+      //
+      // -- one number for an army, one coin flip for a war, and the raid was
+      // OVER before you ever heard of it. Now the only thing decided here is
+      // that somebody, somewhere, chose to march: spawnRaid() musters a real
+      // army at the sender's seat and sends it at your country under the same
+      // contact rules as everything else. It is visible on the road, it takes
+      // time to arrive, it can be met, and the resolver fights it. The whole
+      // pipeline of the era clock's wire (who sends, what shape, what number)
+      // lives on inside spawnRaid -- see sim/raiders.js.
+      //
       // hostilityMultiplier: every Hostile warlike neighbor raids you more.
       const chance = CONFIG.conflictBaseChance * (1 + me().pop * CONFIG.conflictPopScale) * hostilityMultiplier();
       const p = 1 - Math.pow(1 - chance, dt);
       if (rng() >= p) return;
-
-      // ---- SELECTION: that it happens, WHO SENDS IT, and where it lands ----
-      // ATTRIBUTION MOVED FIRST (2026-08-26, the era clock's wire). It used to
-      // be drawn after the raid was already rolled and resolved, which was
-      // honest about what it was: decoration. The sender appeared nowhere in
-      // the arithmetic, so a neighbour advancing an age changed nothing but a
-      // line of prose. Now the raid is SHAPED by who sent it -- their roster,
-      // their age, their advantage over yours.
-      // WHO SENT IT shapes the raid; whether you can NAME them is a separate
-      // question the age answers. At Stone you see a war party out of the dark
-      // -- and if they are an age ahead, it is a war party you cannot answer.
-      const sender = raidSender();
-      const raidSize = rollRaidSize(sender);
-      const raid = rollRaidType(sender);
-      const raiders = raidAttribution();
-
-      // ---- Where it lands ----
-      // The hex is chosen here, before anything is resolved. It used to be
-      // picked last, inside the failure branch, which made the place a
-      // consequence of the outcome; a raid arrives somewhere and THEN is
-      // fought. Nothing the player builds may touch this phase (design.md:
-      // selection and resolution are separate).
-      const at = strikeHex("raid");
-
-      // ---- RESOLUTION: what it costs, and this is where walls act ----
-      // Defence is the army (global -- units are not stationed, and unit
-      // micromanagement is out of scope) PLUS the walls covering the hex that
-      // was actually struck. Flat addition, so a march-hold defends a player
-      // with no soldiers at all.
-      const defense = militaryStrength(raid) + (at ? fortStrength(at) : 0);
-      const repelChance = defense / (defense + raidSize);
-      // (both drawn during selection above, so the flavour line, the hex strike
-      // and the arithmetic all concern the same people.)
-      const say = (anon, named, sev) => {
-        const line = raiders
-          ? pick(named).replace(/\{who\}/g, raiders.name).replace("{ground}", raidGround(raiders))
-          : pick(anon);
-        chronicle(sentenceCase(line.replace("{raid}", raid.name)), sev);
-      };
-
-      if (rng() < repelChance) {
-        // Second dial: fielding the countering unit type doesn't just help you
-        // win, it means fewer of your own die when you do.
-        const relief = 1 - CONFIG.counterCasualtyRelief * counterCoverage(raid);
-        const costlyChance = (raidSize / (defense + raidSize)) * armorFactor() * relief;
-        if (rng() < costlyChance) {
-          const lost = removeRandomUnit();
-          chronicle(`The ${raid.name} is driven off, but not without cost — a ${lost || "defender"} falls in the fighting.`, "bad");
-        } else {
-          say(CONFLICT_FLAVOR.repelledClean, CONFLICT_FLAVOR.repelledCleanNamed, "good");
-        }
-      } else {
-        const losses = Math.min(totalUnits(), 1 + Math.floor(raidSize / 5));
-        for (let i = 0; i < losses; i++) removeRandomUnit();
-        stealResources(raidSize);
-        say(CONFLICT_FLAVOR.raidSucceeds, CONFLICT_FLAVOR.raidSucceedsNamed, "bad");
-        if (defense === 0 || defense < raidSize / 2) {
-          // Only a thin defence lets them reach the people. The hex was chosen
-          // during selection; this is simply whether they got that far.
-          if (at) {
-            // A SHARE of the hex, floored at one so a raid always costs
-            // somebody. Scale-invariant by construction: a big realm loses
-            // proportionally as much as a small one, which is what stops the
-            // danger decaying into a rounding error as the map fills.
-            const here = hexPop(at);
-            // Capped, so no single blow empties a hex outright -- losing ground
-            // should take a campaign of raids, or a raid on a hex already thin,
-            // rather than one unlucky roll.
-            const share = Math.min(CONFIG.raidTollMax, CONFIG.raidTollShare * raidSize);
-            const toll = Math.max(1, Math.round(here * share));
-            const died = killAt(at, toll);
-            reconcileReservations();
-            if (died) {
-              // The same attribution, on the line that names a PLACE. An
-              // anonymous raid burns "the hills"; a named one is your
-              // neighbours doing it, which is a different sentence entirely.
-              const toll = died === 1 ? "a soul is" : died + " souls are";
-              const who = raiders ? sentenceCase(raiders.name) : "Raiders";
-              chronicle(`${who} put the ${world.places[at].terrain} to the torch — ${toll} lost.`, "bad");
-            }
-          }
-        }
-      }
+      spawnRaid();
     },
   },
   scoutFind: {

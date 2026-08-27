@@ -104,26 +104,13 @@ export function hexResource(id) {
   return y ? y.res : null;
 }
 
-// THE WALLS THAT COVER THIS HEX. Sums every march-hold within `fortRange`,
-// including one standing on the hex itself. Flat strength, added to the army
-// rather than scaling it -- see CONFIG.fortStrength.
-//
-// This is a RESOLUTION input and never a selection one (design.md: selection and
-// resolution are separate phases). Nothing here may influence whether a raid
-// happens or where it lands; it only changes what happens when one arrives.
-export function fortStrength(hexId) {
-  if (!S.map || !world || !world.places[hexId]) return 0;
-  let n = 0;
-  for (const id of holdings()) {
-    const u = hexUse(id);
-    if (u.kind !== "structure") continue;
-    const def = structureDef(u.id);
-    if (!def || !def.fortifies) continue;
-    const a = world.places[id], b = world.places[hexId];
-    if (hexDistance(a.q, a.r, b.q, b.r) <= CONFIG.fortRange) n++;
-  }
-  return n * CONFIG.fortStrength;
-}
+// (fortStrength died in A5, and CONFIG.fortRange with it. It reached a hex
+// away, which the panel law forbids -- everything that fires in a battle is
+// standing on the hex -- and its only reader was repelChance, which is gone.
+// Walls act through the resolver now: `wallPool` and `slots` on the structure
+// def, read by contact.js for the hex the fight is actually on. And walls
+// still deter with no garrison at all: raiders do not besiege, so a
+// fortification turns a war party away by standing there -- sim/raiders.js.)
 
 // HEALERS COVERING THIS HEX. Same shape as fortStrength, and deliberately so:
 // range is how this board says "near", and the two systems that care about

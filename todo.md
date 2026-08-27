@@ -381,8 +381,22 @@ several tempting ideas later, and it should.
    gospel"*), so they are not bridged into the resolver — they keep running in their corner until
    real inbound armies replace raids as a system, and then the system dies whole.
 
-   **NEXT SESSION: A5, and a combat system two players can actually engage in** (the owner's stated
-   goal at the 2026-08-26 pause). The pieces, the resolver, contact, and the depiction are all live
+   **A5 SHIPPED 2026-08-26.** The bots field real armies: the conflict event kept its cadence and
+   lost its arithmetic — `spawnRaid()` (sim/raiders.js) musters a war party at the sender's seat
+   out of the era-clock wire's rolls, marches it at a frontier-weighted soft target, and the
+   Chronicle warns when it is first sighted. Garrisons mean battles; walls turn raiders away
+   unfought; pillage is the old steal-and-toll on new legs; survivors walk home as veterans, one
+   raid out per sender. **Deleted, not deprecated:** `repelChance`, `militaryStrength`,
+   `unitStrength`, `counterUnitFor`, `counterCoverage`, `removeRandomUnit`, `CONFLICT_FLAVOR`,
+   `fortStrength`, `CONFIG.fortRange/fortStrength/counterCasualtyRelief`. There is one combat
+   system. Still on the old math: **campaigns** (`campaignStrength`, `wallPower`,
+   `weaponMultiplier`, `armorFactor`) — they die when armies absorb the campaign/minor-fealty verb.
+   Left for the goal of "a combat system two players can engage in": the **battle panel** (the
+   dice on the table — the scripts and faces are all recorded, waiting to be shown), bots that
+   DEFEND and EXPAND rather than only raid, and armies absorbing campaigns.
+
+   *(The original next-session note follows, kept for the reasoning.)* A5's shape as planned at
+   the pause: The pieces, the resolver, contact, and the depiction are all live
    and validated in play — what remains is making the OTHER side use them. The shape of the work:
    the bots raise real armies out of their own rosters and march them at real hexes (the era-clock
    wire already decides what force an age can field — it feeds `formArmy` + `orderMarch` now instead

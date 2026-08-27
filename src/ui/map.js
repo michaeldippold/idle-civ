@@ -4,7 +4,7 @@ import { availableUnits, canAfford, caps, capWord, seatIsNamed, seatName } from 
 import { save } from "../core/persist.js";
 import { canBuildOn, demolishStructure, hasMarket, launchSettle, launchStructure, pendingBuild, pendingSettle, settlePlan, structureFits, structurePlan, structureUnlocked, trade, tradeRate } from "../core/actions.js";
 import { atDominionCap, capOf, dominionCap, hexPop, hexResource, hexUse, hexYield, holdings, holdsUsed, isCharted, isOwned, isSighted, isVisible, structureDef, terrainYield, workStamp, world } from "../map/map.js";
-import { armyAt, armyBand, armyById, armyRoster, armySize, disbandArmy, disbandRefusal, haltArmy, marchRefusal, marchingTo, orderMarch, setStance } from "../sim/armies.js";
+import { armyAt, armyBand, armyById, armyRoster, armySize, canSeeArmyAt, disbandArmy, disbandRefusal, haltArmy, marchRefusal, marchingTo, orderMarch, setStance } from "../sim/armies.js";
 import { STANCES, stanceById, unitHit, unitRole } from "../sim/battle.js";
 import { battleAt } from "../sim/contact.js";
 import { colorById, FOREIGN, FOREIGN_MINOR, playerColor } from "../core/palette.js";
@@ -294,23 +294,9 @@ function noReachLine() {
 // you are actually SIGHTING its ground -- the fog rule pieces inherited from
 // the banner. Socket by pid, so two players' discs on one contested hex stand
 // apart deterministically.
-// CAN THE PLAYER SEE AN ARMY STANDING HERE? Sighted ground, or PRESENCE:
-// their own army on this hex or beside it. Presence is what closes the
-// logged A4 gap where the enemy you were actively fighting was invisible --
-// your soldiers are standing in front of them, and eyes are things you
-// currently have. Stateless on purpose: presence moves when the army does,
-// which is what "sighted is presence, charted is memory" means.
-export function canSeeArmyAt(hexId) {
-  if (isSighted(hexId)) return true;
-  const mineHere = armyAt(hexId, me());
-  if (mineHere) return true;
-  const place = world && world.places[hexId];
-  if (place) {
-    for (const n of place.adj) if (armyAt(n, me())) return true;
-  }
-  return false;
-}
-
+// canSeeArmyAt moved to sim/armies.js (2026-08-26): the sim's sighting
+// notification and the renderer's fog gate must read the same fact, so the
+// fact lives on the sim side and both import it.
 export function piecesForBoard() {
   const out = [];
   if (!world) return out;

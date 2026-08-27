@@ -5,6 +5,7 @@ import { chronicle } from "../core/bus.js";
 import { S, me, playerById } from "../core/state.js";
 import { armiesOf, armyAt, armySize, marchArmies } from "./armies.js";
 import { resolveBattle } from "./battle.js";
+import { pillageAt, repelledByWalls, tickRaiders, turnHome } from "./raiders.js";
 import {
   atDominionCap, chartGround, claimTile, ensurePop, isOwned, ownerOf,
   releaseTile, structureDef, syncCharted, syncPopMirror, world,
@@ -299,7 +300,15 @@ function conclude(b, script) {
     if (o === "defenderWiped") destroyArmy(defP, defArmy);
     else if (o === "defenderWithdrew") retreatArmy(defP, defArmy, null);
     if (atkArmy) atkArmy.inBattle = false;
-    conquer(b.hex, atkP, defP);
+    // A raider that WINS its battle still does not conquer: it pillages the
+    // ground it bled for (if it was the defender's) and heads home. Anything
+    // less would make bandits a land-transfer mechanism.
+    if (atkArmy && atkArmy.intent === "raid") {
+      if (ownerOf(b.hex) === defP.id) pillageAt(atkArmy, atkP, b.hex);
+      else turnHome(atkArmy, atkP);
+    } else {
+      conquer(b.hex, atkP, defP);
+    }
     if (b.def.pid === S.me && defArmy && o === "defenderWithdrew") {
       chronicle("Your soldiers withdraw in good order — the standing order held them to it.", "bad");
     } else if (b.def.pid === S.me && o === "defenderWiped" && b.def.uid != null) {
@@ -359,6 +368,15 @@ const HOOKS = {
     const defP = playerById(owner);
     if (!defP) return;
     const { walls } = wallsAt(army.at, owner);
+    // RAIDERS RAID; ARMIES CONQUER. A war party that reaches undefended
+    // ground pillages it and turns for home; one that finds walls thinks
+    // better of it -- raiders do not besiege, so walls win by standing there.
+    // Ground only changes hands when a real army takes it.
+    if (army.intent === "raid") {
+      if (walls > 0) repelledByWalls(army, who, army.at);
+      else pillageAt(army, who, army.at);
+      return;
+    }
     if (walls > 0) sealBattle(army.at, army, who, null, defP);
     else conquer(army.at, who, defP);
   },
@@ -369,4 +387,8 @@ const HOOKS = {
 export function tickMilitary(dt) {
   for (const p of S.players || []) marchArmies(dt, p, HOOKS);
   tickBattles(dt);
+  // Sighting notifications for every hostile column, and shepherding for
+  // raiders whose orders ran out (survivors head home; the homebound
+  // disperse). After battles, so a fight's survivors are swept the same tick.
+  tickRaiders();
 }

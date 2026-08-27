@@ -1087,19 +1087,19 @@ with no error. This was the seed of the whole manifest architecture.
 
 ### Military & Defense
 
-> **SUPERSEDED IN DESIGN, STILL LIVE IN CODE (2026-08-26).** Everything below about how a fight
-> RESOLVES — `repelChance = defense / (defense + raidSize)`, `militaryStrength()` summing one number
-> for a whole army, the counter matrix, `fortStrength` reaching a hex away — describes the code that
-> is still running and is therefore still true today. It is **not** the design any more. Combat is
-> settled as an Axis & Allies / TI4 roll-off: units contribute dice, a die hits on its unit's number
-> or better on a d10, both sides roll off the pre-round roster so a dying unit still shoots, and
-> rounds repeat until a side is gone or withdraws. The resolver is built (`src/sim/battle.js`) and
-> harnessed; what remains is wiring contact to it, at which point `repelChance` is deleted. **The
-> full ruling set is in `todo.md` under the combat note — read that before treating anything in this
-> section as canon.** In particular: the counter matrix is dead, replaced by roles whose counters
-> come from *where the fight is happening* (only archers fire from inside a fortification, siege
-> engines break walls and little else, melee wait for the breach), and `fortStrength`'s range is dead
-> with it, because everything that fires in a battle is standing on the hex.
+> **DEAD, 2026-08-26 (A5).** Everything below about how a fight RESOLVES is now historical:
+> `repelChance`, `militaryStrength()`, the counter matrix, `fortStrength`-with-range, and
+> `removeRandomUnit` are **deleted from the code**, not merely superseded. Combat is the Axis &
+> Allies / TI4 roll-off in `src/sim/battle.js`, contact seals battles in `src/sim/contact.js`, and
+> **a raid is an army** (`src/sim/raiders.js`): the conflict event kept its cadence and lost its
+> arithmetic — it musters a real war party at the sender's seat and marches it at your country
+> under the same contact rules as everything else. Visible on the road, sighted with a Chronicle
+> warning, meetable with a garrison or an interception, deterred by walls (raiders do not
+> besiege), and fought — when it is fought — by the resolver. The rulings live in `todo.md`'s
+> combat note and the sections above; what remains of THIS section that is still true is the
+> commitment principle (a soldier is never a reassignable stat) and the training pipeline.
+> The one survivor of the old math is the CAMPAIGN system (`campaignStrength`,
+> `weaponMultiplier`, `armorFactor`) — it dies when armies absorb campaigns.
 
 A soldier is a **commitment**, never a reassignable stat — a freely-toggled defense number is a
 costless switch you'd flip up before trouble and down after, which defeats the point.

@@ -1,9 +1,7 @@
 import { ERA_ORDER, active } from "../content/compile.js";
-import { syncPopMirror } from "../map/map.js";
 import { rng } from "../core/rng.js";
-import { dropQueueItem } from "../core/actions.js";
 import { CONFIG } from "../core/config.js";
-import { availableUnits, civilians, defById, reserved } from "../core/derived.js";
+import { civilians, defById, reserved } from "../core/derived.js";
 import { S, me } from "../core/state.js";
 import { chronicle } from "../core/bus.js";
 
@@ -12,41 +10,10 @@ import { chronicle } from "../core/bus.js";
 // active manifest's `events` slate (see resolveEvents). What follows here is
 // the machinery those events call into.
 
-// Two voices, and which one speaks is decided by the era's `contact` fact --
-// see raidAttribution() in sim/expeditions.js. The ANONYMOUS pool is the Stone
-// Age's: real danger belonging to nobody on your map, a warband out of the
-// dark. The NAMED pool is what Bronze buys you -- the danger acquires a name
-// and an address, and it turns out to have been your neighbours all along.
-// This is the payoff for putting the roster on the board from minute one.
-//
-// {raid} is the raid TYPE (warband, massed charge, band of riders); {who} is
-// the people; {ground} is the country they came out of. Every named line reads
-// with a PLURAL subject, because every people-name in the roster is plural in
-// every era ("the hill camps" / "the Hill People" / "the Hill Clans"), and
-// none of them takes a possessive -- "the Hill Clans's" is why.
-export const CONFLICT_FLAVOR = {
-  repelledClean: [
-    "A {raid} tests your defenses and thinks better of it. Your line holds.",
-    "A {raid} is spotted and driven off before it reaches the settlement.",
-  ],
-  repelledCleanNamed: [
-    "{who} test your defenses and think better of it. Your line holds.",
-    "A {raid} comes down out of {ground}. {who} are turned back before they reach the settlement.",
-    "{who} probe your line with a {raid} and find it holds. They withdraw the way they came.",
-  ],
-  raidSucceeds: [
-    "A {raid} breaches your defenses. Stores are looted and your fighters pay the price.",
-    "The settlement is overrun by a {raid} before anyone can hold them back.",
-  ],
-  raidSucceedsNamed: [
-    "{who} breach your defenses. Stores are looted and your fighters pay the price.",
-    "A {raid} out of {ground} overruns the settlement before anyone can hold them back. {who}, and they knew the way.",
-    "{who} come with a {raid} and leave with your stores. Your fighters pay for the difference.",
-  ],
-  civilianLost: [
-    "In the chaos, one of your people is caught and does not survive.",
-  ],
-};
+// (CONFLICT_FLAVOR died with the raid event, A5 2026-08-26: a raid is an army
+// now, and sim/raiders.js writes its own prose at spawn, sighting, pillage and
+// repulse. The two-voices rule -- anonymous at Stone, named once the age has
+// contact -- survives there as nameGate().)
 
 // The country a people came out of, from their `homeTerrain`. Deliberately
 // vague nouns: the Chronicle should place a raid without handing the player
@@ -118,17 +85,12 @@ export function rollRaidSize(sender) {
   return RAID_SIZES[0].size;
 }
 
-// What kind of raid shows up is the active manifest's `raidTypes` list (the
-// counter-relationship notes live with it, in the Stone Age authoring).
-export function counterUnitFor(raid) { return raid ? active().units.find((u) => u.counters === raid.id) : undefined; }
-// SHAPE, the early half of ruling 6. Drawn from the SENDER's roster, and
-// skewed by how far ahead they are toward the types you cannot answer.
-//
-// "An era-ahead raid at Bronze doesn't hit harder so much as hit in a shape
-// you can't answer -- archers and horsemen show up while you're still
-// mustering spears." The counter matrix already says which shapes those are:
-// a type whose countering unit does not EXIST in the defender's age is one
-// they have no answer to, however many spears they have.
+// What kind of raid shows up is the active manifest's `raidTypes` list.
+// (counterUnitFor died with the counter matrix, A5: counters come from WHERE a
+// fight happens now -- who can shoot from behind a wall, what can break one --
+// not from a unit-vs-unit lookup. The `counters` field survives on unit defs
+// because the era-gap skew below still reads it: a shape whose countering unit
+// does not EXIST in your age is a shape you have no answer to.)
 export function rollRaidType(sender) {
   const civ = sender && (sender.civ || sender);
   const types = active(civ || me()).raidTypes;
@@ -166,30 +128,13 @@ export function armorFactor() {
   return 1.0;
 }
 
-// A single unit type's contribution to defense against a given raid.
-// The counter multiplier is either CONFIG.counterBonus or exactly 1 -- never
-// below. Being the "wrong" unit costs you the bonus, never your base strength,
-// so any army is always better than no army (see design.md).
-export function unitStrength(def, raid) {
-  const n = availableUnits(def.id);   // an army on campaign isn't home
-  if (n <= 0) return 0;
-  const matched = !!raid && def.counters === raid.id;
-  return n * (def.strength || 1) * weaponMultiplier() * (matched ? CONFIG.counterBonus : 1);
-}
-
-export function militaryStrength(raid) {
-  return active().units.reduce((sum, def) => sum + unitStrength(def, raid), 0);
-}
-
-// What share of your defense comes from the unit that counters this raid.
-// Drives how much the costly-repel roll is softened.
-export function counterCoverage(raid) {
-  const def = counterUnitFor(raid);
-  if (!def) return 0;
-  const total = militaryStrength(raid);
-  if (total <= 0) return 0;
-  return Math.min(1, unitStrength(def, raid) / total);
-}
+// (unitStrength, militaryStrength and counterCoverage died in A5. They were
+// the whole of an army once -- one number, summed across a roster that lived
+// nowhere -- and the resolver in battle.js replaced every job they had: dice
+// per unit instead of strength, roles instead of the counter matrix, the
+// stance instead of the casualty-relief dial. weaponMultiplier and armorFactor
+// survive below because CAMPAIGNS still read them; they die with the campaign
+// system when armies absorb it.)
 
 export function stealResources(raidSize) {
   const fraction = Math.min(0.5, raidSize * 0.03);
@@ -238,36 +183,7 @@ export function reconcileReservations() {
   }
 }
 
-export function removeRandomUnit() {
-  // Weighted by headcount AND exposure (`casualtyWeight`), so the front line
-  // absorbs most losses. Because every weight is > 0, no type is ever immune:
-  // this only bends the odds. With one type fielded it degenerates to "that
-  // type dies," which is why an all-archer army gets no protection at all.
-  const units = active().units;
-  // Home casualties draw only from units actually AT home -- a deployed unit
-  // can die on campaign (see resolveCampaign), never to a raid it wasn't in.
-  const weightOf = (def) => Math.max(0, availableUnits(def.id)) * (def.casualtyWeight || 1);
-  const total = units.reduce((sum, def) => sum + weightOf(def), 0);
-  if (total <= 0) return null;
-
-  let roll = rng() * total;
-  for (const def of units) {
-    const w = weightOf(def);
-    if (roll < w) {
-      me().units[def.id] -= 1;
-      syncPopMirror();   // the mirror counts the army; the land is untouched
-      return def.name;
-    }
-    roll -= w;
-  }
-  // Floating-point guard: if rounding walked `roll` past the end, take from
-  // whichever type still has someone AT HOME rather than returning null.
-  for (let i = units.length - 1; i >= 0; i--) {
-    if (availableUnits(units[i].id) > 0) {
-      me().units[units[i].id] -= 1;
-      syncPopMirror();
-      return units[i].name;
-    }
-  }
-  return null;
-}
+// (removeRandomUnit died in A5. Home casualties came from raids, raids are
+// armies, and armies lose soldiers through the resolver's worst-goes-first
+// order. `casualtyWeight` stays on unit defs for the campaign system's
+// removeDeployedUnit, and dies with it.)

@@ -1,7 +1,7 @@
 import { active } from "../content/compile.js";
 import { DEFAULT_STANCE, stanceById } from "./battle.js";
 import { CONFIG } from "../core/config.js";
-import { chartGround, isOwned, pathBetween, world } from "../map/map.js";
+import { chartGround, isOwned, isSighted, pathBetween, world } from "../map/map.js";
 import { S, me, playerById } from "../core/state.js";
 
 // ---------- ARMIES ------------------------------------------
@@ -165,6 +165,27 @@ export function setStance(uid, stance, p) {
   if (!army || army.inBattle) return false;
   army.stance = stanceById(stance).id;
   return true;
+}
+
+// CAN THE PLAYER SEE AN ARMY STANDING HERE? Three kinds of eyes, all from the
+// fog canon's list of what emits sight ("your units, your structures, and
+// settled/owned hexes"): sighted ground; YOUR OWN GROUND and the ring beside
+// it -- your people live there, and an army on or next to your territory is
+// seen by definition; and presence, your own army on or beside the hex.
+// Stateless on purpose: eyes move when what carries them moves. (Lived in
+// ui/map.js for a day; moved here 2026-08-26 because the sim needs it too --
+// the sighting notification fires on the same fact the renderer draws by.)
+export function canSeeArmyAt(hexId) {
+  if (isSighted(hexId)) return true;
+  if (isOwned(hexId)) return true;
+  if (armyAt(hexId, me())) return true;
+  const place = world && world.places[hexId];
+  if (place) {
+    for (const n of place.adj) {
+      if (isOwned(n) || armyAt(n, me())) return true;
+    }
+  }
+  return false;
 }
 
 // The band an army's size falls in: war party / column / host. The same

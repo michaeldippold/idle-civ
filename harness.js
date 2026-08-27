@@ -24,6 +24,7 @@ import * as mCombat from "./src/sim/combat.js";
 import * as mBattle from "./src/sim/battle.js";
 import * as mArmies from "./src/sim/armies.js";
 import * as mContact from "./src/sim/contact.js";
+import * as mRaiders from "./src/sim/raiders.js";
 import * as mHex3d from "./src/render3d/hex3d.js";
 import * as mEvents from "./src/sim/events.js";
 import * as mExped from "./src/sim/expeditions.js";
@@ -55,7 +56,7 @@ import { fileURLToPath } from "node:url";
 
 const MODS = [mConfig, mRng, mLib, mStone, mBronze, mIron, mCompile, mIcons, mState,
   mContinents,
-  mDerived, mCombat, mBattle, mArmies, mContact, mHex3d, mEvents, mExped, mStep, mActions, mEra, mLog, mDom,
+  mDerived, mCombat, mBattle, mArmies, mContact, mRaiders, mHex3d, mEvents, mExped, mStep, mActions, mEra, mLog, mDom,
   mPLedger, mPPeople, mPHold, mPBuy, mExpedUi, mModal, mChrome, mPersist,
   mMapModel, mMapGen, mMapCore, mMapUi, mPalette, mJournal, mBus, mEraClock];
 
@@ -317,26 +318,19 @@ api.cancelBuild(uid);
 check("spare restored after cancelling", spare() === spareBefore);
 check("no soldier was created", api.me().units.soldier === 0);
 
-// ---- A dying unit drops both its own count and S.pop ----
-console.log("\n--- removeRandomUnit: the roster lightens, the land is untouched ---");
-reset(); api.ensureMap();
-api.me().units.soldier = 2; api.syncPopMirror();
-const landBefore0 = api.hexPopSum();
-const popBefore = api.me().pop;
-api.removeRandomUnit();
-check("units.soldier dropped by 1", api.me().units.soldier === 1);
-check("the mirror counts one fewer; the hexes keep their people",
-  api.me().pop === popBefore - 1 && api.hexPopSum() === landBefore0);
+// (The removeRandomUnit section died in A5 with the function: home casualties
+// came from raids, raids are armies, and armies lose soldiers through the
+// resolver's worst-goes-first order, pinned in the battle-resolver section.)
 
 // ---- Weapon/armor upgrades affect military math ----
 console.log("\n--- Weapon/armor upgrades ---");
 reset();
 api.me().units.soldier = 3;
+// (militaryStrength died in A5; the multipliers survive because CAMPAIGNS
+// still read them, and die with the campaign system when armies absorb it.)
 check("base weapon multiplier is 1.0", api.weaponMultiplier() === 1.0);
-check("militaryStrength = soldier count with no upgrade", api.militaryStrength() === 3);
 api.me().upgrades.flintSpears = true;
 check("flintSpears raises the multiplier", api.weaponMultiplier() === 1.6);
-check("militaryStrength scales with it", Math.abs(api.militaryStrength() - 4.8) < 0.001);
 check("base armor factor is 1.0 (no reduction)", api.armorFactor() === 1.0);
 api.me().upgrades.hideArmor = true;
 check("hideArmor halves the casualty-chance factor", api.armorFactor() === 0.5);
@@ -350,63 +344,83 @@ api.resolveEvents(1);
 check("no conflict effect below the pop gate", api.me().pop === popBefore2 && S().dead === false);
 api.setRngSource(null);
 
-// Call conflict's resolve() directly (not resolveEvents()) for these -- Sickness
-// sits earlier in the events slate and *also* consumes Math.random() calls when
-// its own pop>=4 gate is open, which threw off a hand-counted sequence the first pass.
-const conflictEv = findEv("conflict");
-
-// ---- Conflict: zero defense always loses the repel check ----
-console.log("\n--- Conflict: zero soldiers -> raid always succeeds, resources stolen ---");
-reset(); api.ensureMap();
-api.me().units.soldier = 0; api.syncPopMirror();
-api.me().res.food = 40; api.me().res.wood = 40;
-check("repelChance is exactly 0 with no soldiers", 0 / (0 + 2) === 0);
+console.log("\n--- The inbound war: a raid is an army now (A5) ---");
 {
+  reset(); S().seed = 313131; S().rngState = 313131; S().map = null; S().seen = {};
+  api.ensureMap(); api.initAdversaries();
+  const P = api.me();
+  const hill = api.playerByKey("hillClans");
+
+  check("the old resolution is gone -- one combat system remains",
+    api.militaryStrength === undefined && api.unitStrength === undefined &&
+    api.counterUnitFor === undefined && api.counterCoverage === undefined &&
+    api.removeRandomUnit === undefined && api.fortStrength === undefined &&
+    api.CONFIG.fortRange === undefined && api.CONFIG.fortStrength === undefined);
+
+  const seat = Object.values(api.world.places).find((x) => x.adversary === "hillClans");
+  check("the hill people have a seat on this board to muster at", !!seat);
+
+  // Force nothing: spawnRaid is the whole decision, called directly the way
+  // the conflict trigger calls it.
+  const army = api.spawnRaid();
+  check("a warlike neighbour musters a real army at their own seat",
+    !!army && army.intent === "raid" && army.home === seat.id);
+  check("the war party is marching at ground YOU hold",
+    !!army.order && api.isOwned(army.order.to));
+  check("the units are granted into the sender's pool and committed",
+    api.armySize(army) >= 1 && (hill.units.soldier || 0) + (hill.units.horseman || 0) >= api.armySize(army));
+  check("one raid out per sender -- a people is not a spawner", api.spawnRaid() === null);
+
+  // Walk the world until the raid has run its whole course: march in, pillage,
+  // march home, disperse. Military ticks only, so the economy holds still.
+  const foodBefore = P.res.food = 80; const woodBefore = P.res.wood = 80;
   const landBefore = api.hexPopSum();
-  let calls = 0;
-  // call1: trigger fires. call2: rollRaidSize -> 0 lands in the first (smallest) tier.
-  // call3: repel check -- with defense 0, ANY value fails to repel (0 < 0 is always false).
-  // Later calls (0.99): strikeHex's weighted pick still lands on SOME hex.
-  api.setRngSource(() => { calls++; return calls <= 2 ? 0 : 0.99; });
-  conflictEv.resolve(S(), 1);
-  api.setRngSource(null);
-  console.log(`  after forced raid: land=${api.hexPopSum()} food=${api.me().res.food} wood=${api.me().res.wood}`);
-  check("resources were stolen", api.me().res.food < 40 && api.me().res.wood < 40);
-  check("the civilian died ON a hex -- the land count dropped (E5)",
-    api.hexPopSum() < landBefore);
-}
+  let sighted = false, guard = 0;
+  while (api.armiesOf(hill).length > 0 && guard++ < 900) {
+    api.tickMilitary(2);
+    if (army.sightedByMe) sighted = true;
+  }
+  check("the raid ran its whole course and the war party went home", api.armiesOf(hill).length === 0);
+  check("it was SIGHTED on the way in -- warning time is real", sighted);
+  check("the pillage: stores plundered and a toll of people taken",
+    P.res.food < foodBefore && P.res.wood < woodBefore && api.hexPopSum() < landBefore);
+  check("no battle was fought -- nobody stood in their way", api.battleCount() === 0);
+  check("the survivors went home to the pool, not into the void",
+    (hill.units.soldier || 0) + (hill.units.horseman || 0) >= 1);
 
-// ---- Conflict: strong defense can repel cleanly ----
-console.log("\n--- Conflict: strong defense (many soldiers) can repel cleanly ---");
-reset();
-api.me().pop = 30; api.me().units.soldier = 20;   // defense=20 vs a small raid(2) -> repelChance ~0.909
-{
-  let calls = 0;
-  // call1: trigger fires. call2: raid size -> 0 = smallest tier (2).
-  // call3: raid TYPE -> 0 = warband (no counter, so composition is irrelevant).
-  // call4: repel check -> 0.01 < 0.909, repelled. call5: costly check -> 0.99, NOT costly.
-  api.setRngSource(() => { calls++; return [0, 0, 0, 0.01, 0.99][calls - 1] ?? 0.99; });
-  const soldiersBefore = api.me().units.soldier;
-  conflictEv.resolve(S(), 1);
-  api.setRngSource(null);
-  check("clean repel: no soldiers lost", api.me().units.soldier === soldiersBefore);
-  check("population untouched", api.me().pop === 30);
-}
+  // A GARRISON IS AN ANSWER. Same raid, but this time soldiers stand on the
+  // target: contact seals a battle, the resolver fights it, and a war party
+  // with a quarter-loss stance does not stay long.
+  const army2 = api.spawnRaid();
+  check("the next raid can muster once the last came home", !!army2);
+  const gHex = api.holdings(P.id)[0];
+  P.units.soldier = 20;
+  const garrison = api.formArmy(gHex, { soldier: 16 }, "never", P);
+  api.orderMarch(army2.uid, gHex, hill);      // force the collision
+  // A 2-v-16 battle seals AND concludes inside one 2-second tick, so polling
+  // battleCount between ticks can miss the whole war. battleSeq is the truth:
+  // it counts every seal, however fast the dice were done with it.
+  const sealsBefore = S().battleSeq || 0;
+  guard = 0;
+  while (api.armiesOf(hill).length > 0 && guard++ < 900) api.tickMilitary(2);
+  check("a garrisoned target means a BATTLE, not arithmetic", (S().battleSeq || 0) > sealsBefore);
+  check("the garrison holds its ground", api.armyAt(gHex, P) !== null);
+  check("and the war party is destroyed or driven home", api.armiesOf(hill).length === 0);
 
-// ---- Conflict: repelled but costly still costs a soldier ----
-console.log("\n--- Conflict: repelled-but-costly still costs a Soldier ---");
-reset();
-api.me().pop = 30; api.me().units.soldier = 20;
-{
-  let calls = 0;
-  // Same as above but force the costly-repel roll LOW instead of high.
-  // Sequence: trigger, raid size, raid TYPE, repel check, costly-repel check.
-  api.setRngSource(() => { calls++; return [0, 0, 0, 0.01, 0][calls - 1] ?? 0.99; });
-  const soldiersBefore = api.me().units.soldier;
-  conflictEv.resolve(S(), 1);
-  api.setRngSource(null);
-  check("costly repel: exactly one soldier lost", api.me().units.soldier === soldiersBefore - 1);
-  check("still just attrition, not a wipe", S().dead === false);
+  // WALLS DETER. Raiders do not besiege: a fortification turns a war party
+  // away by standing there, no dice rolled, the masonry untouched.
+  const army3 = api.spawnRaid();
+  check("a third raid musters", !!army3);
+  api.disbandArmy(garrison.uid, P);
+  const wHex = api.holdings(P.id).find((id) => id !== api.world.home);
+  S().map.built = S().map.built || {};
+  S().map.built[wHex] = "marchHold";
+  api.orderMarch(army3.uid, wHex, hill);
+  guard = 0;
+  while (api.armiesOf(hill).length > 0 && guard++ < 900) api.tickMilitary(2);
+  check("the walls turned them away without a fight",
+    api.battleCount() === 0 && S().map.built[wHex] === "marchHold" && api.armiesOf(hill).length === 0);
+  delete S().map.built[wHex];
 }
 
 // ---- E5: deaths land on hexes ----
@@ -1112,7 +1126,6 @@ api.me().upgrades.flintSpears = true;
 check("flint tier", api.weaponMultiplier() === 1.6);
 api.me().upgrades.bronzeWeapons = true;
 check("bronze tier supersedes flint (not 1.6 x 2.2)", api.weaponMultiplier() === 2.2);
-check("military strength follows the highest tier", Math.abs(api.militaryStrength() - 22) < 1e-9);
 
 console.log("\n--- P2: bronze-costed upgrades ---");
 {
@@ -1165,162 +1178,22 @@ check("...in proportions that are its own -- an age rides more than the last",
            w("stone", "warband") > w("iron", "warband");
   })());
 
-console.log("\n--- P3: units are NEVER penalised for being the wrong type ---");
-reset();
-api.me().era = "bronze";
+// (Five P3 sections died in A5 with the counter matrix and its helpers:
+// never-penalised, bonus-lands-right, mixed-vs-specialist, coverage-relief,
+// and the removeRandomUnit exposure statistics. Their LAWS live on in the
+// resolver and its harness section -- any army beats no army because dice
+// beat no dice; "wrong" units are un-bonused, never penalised, because roles
+// only matter where walls are involved; and worst-goes-first replaced
+// exposure weighting outright. What survives HERE is the manifest facts the
+// era-gap skew still reads.)
+console.log("\n--- P3: what the counter matrix left behind ---");
 {
-  // This is the load-bearing guarantee of the whole system: "oops all archers"
-  // must never be worse than having those bodies at all.
-  api.me().units = { soldier: 0, archer: 5, horseman: 0 };
-  const vsCountered = api.militaryStrength(massed);   // archers excel here
-  const vsNeutral   = api.militaryStrength(warband);  // no counter exists
-  const vsWrong     = api.militaryStrength(riders);   // horsemen would excel, archers don't
-  console.log(`  5 archers -> vs massed ${vsCountered}, vs warband ${vsNeutral}, vs riders ${vsWrong}`);
-  check("countered raid gives a bonus", vsCountered > vsNeutral);
-  check("wrong matchup is NOT penalised, just un-bonused", vsWrong === vsNeutral);
-  check("wrong matchup still beats having no army", vsWrong > 0);
-
-  api.me().units = { soldier: 0, archer: 0, horseman: 0 };
-  check("no army really is zero", api.militaryStrength(riders) === 0);
-}
-
-console.log("\n--- P3: the counter bonus lands on the right unit ---");
-reset();
-api.me().era = "bronze";
-{
-  api.me().units = { soldier: 0, archer: 3, horseman: 0 };
-  const archersVsMassed = api.militaryStrength(massed);
-  api.me().units = { soldier: 0, archer: 0, horseman: 3 };
-  const horsemenVsRiders = api.militaryStrength(riders);
-  const horsemenVsMassed = api.militaryStrength(massed);
-  check("archers get their bonus vs a massed charge",
-    Math.abs(archersVsMassed - 3 * 1.0 * api.CONFIG.counterBonus) < 1e-9);
-  check("horsemen get their bonus vs riders",
-    Math.abs(horsemenVsRiders - 3 * 1.5 * api.CONFIG.counterBonus) < 1e-9);
-  check("horsemen get no bonus vs a massed charge", Math.abs(horsemenVsMassed - 3 * 1.5) < 1e-9);
-  check("a warband is countered by nothing", !api.MANIFESTS.bronze.units.some(u => u.counters === "warband"));
+  check("a warband is countered by nothing -- the unanswerable shape",
+    !api.MANIFESTS.bronze.units.some(u => u.counters === "warband"));
   check("the counter relationship is stored in exactly one place",
     RAID_TYPES.every(t => !("counter" in t)));
-}
-
-console.log("\n--- P3: mixed armies have no holes, specialists have spikes ---");
-reset();
-api.me().era = "bronze";
-{
-  api.me().units = { soldier: 2, archer: 2, horseman: 2 };
-  const mixed = RAID_TYPES.map(t => api.militaryStrength(t));
-  const spread = Math.max(...mixed) / Math.min(...mixed);
-  api.me().units = { soldier: 0, archer: 6, horseman: 0 };
-  const pure = RAID_TYPES.map(t => api.militaryStrength(t));
-  const pureSpread = Math.max(...pure) / Math.min(...pure);
-  console.log(`  mixed spread ${spread.toFixed(2)}x vs all-archer spread ${pureSpread.toFixed(2)}x`);
-  check("a specialist army swings harder between matchups", pureSpread > spread);
-  check("a mixed army is never zero against anything", Math.min(...mixed) > 0);
-}
-
-console.log("\n--- P3: weapon upgrades lift every unit type ---");
-reset();
-api.me().era = "bronze";
-api.me().units = { soldier: 1, archer: 1, horseman: 1 };
-{
-  const before = api.militaryStrength(warband);
-  api.me().upgrades.bronzeWeapons = true;
-  check("bronze weapons scale the whole army, not just soldiers",
-    Math.abs(api.militaryStrength(warband) - before * 2.2) < 1e-9);
-}
-
-console.log("\n--- P3: counterCoverage drives the casualty-relief dial ---");
-reset();
-api.me().era = "bronze";
-{
-  api.me().units = { soldier: 0, archer: 0, horseman: 0 };
-  check("no army -> no coverage", api.counterCoverage(massed) === 0);
-  api.me().units = { soldier: 0, archer: 4, horseman: 0 };
-  check("all-counter army -> full coverage", Math.abs(api.counterCoverage(massed) - 1) < 1e-9);
-  api.me().units = { soldier: 4, archer: 0, horseman: 0 };
-  check("no counters present -> zero coverage", api.counterCoverage(massed) === 0);
-  api.me().units = { soldier: 4, archer: 4, horseman: 0 };
-  const partial = api.counterCoverage(massed);
-  check("partial coverage lands strictly between", partial > 0 && partial < 1);
-  check("a warband can never be countered", api.counterCoverage(warband) === 0);
-}
-
-console.log("\n--- P3: casualties can take any unit type ---");
-reset(); api.ensureMap();
-api.me().era = "bronze";
-{
-  api.me().units = { soldier: 3, archer: 3, horseman: 3 };
-  api.syncPopMirror();
-  const popBefore9 = api.me().pop;
-  const lost = api.removeRandomUnit();
-  check("a unit was removed and named", typeof lost === "string" && lost.length > 0);
-  check("total units dropped by one", api.totalUnits() === 8);
-  check("the mirror dropped with it (the land untouched)", api.me().pop === popBefore9 - 1);
-
-  // Drain the whole army: must never go negative or desync from pop.
-  let guard = 0;
-  while (api.totalUnits() > 0 && guard++ < 50) api.removeRandomUnit();
-  check("army drains to exactly zero", api.totalUnits() === 0);
-  check("no unit count went negative", api.MANIFESTS.bronze.units.every(u => (api.me().units[u.id] || 0) >= 0));
-  check("removing from an empty army is a no-op", api.removeRandomUnit() === null);
-}
-
-console.log("\n--- P3: casualty exposure -- front line dies first, but nobody is immune ---");
-{
-  // Statistical: draw one casualty from an identical army many times over.
-  const N = 30000;
-  const tally = { soldier: 0, archer: 0, horseman: 0 };
-  for (let i = 0; i < N; i++) {
-    reset();
-    api.me().era = "bronze";
-    api.me().pop = 30;
-    api.me().units = { soldier: 10, archer: 10, horseman: 10 };
-    const lost = api.removeRandomUnit();
-    if (lost === "Soldier") tally.soldier++;
-    else if (lost === "Archer") tally.archer++;
-    else if (lost === "Horseman") tally.horseman++;
-  }
-  const pct = (n) => ((n / N) * 100).toFixed(1) + "%";
-  console.log(`  even 10/10/10 army -> soldier ${pct(tally.soldier)}, horseman ${pct(tally.horseman)}, archer ${pct(tally.archer)}`);
-  check("foot soldiers die most often", tally.soldier > tally.horseman);
-  check("horsemen die more often than archers", tally.horseman > tally.archer);
-  check("archers are NOT immune -- they still die regularly", tally.archer > 0.05 * N);
-  check("every casualty was accounted for", tally.soldier + tally.archer + tally.horseman === N);
-}
-{
-  // The protection must vanish when there's no front line to hide behind.
-  let archersLost = 0;
-  for (let i = 0; i < 500; i++) {
-    reset();
-    api.me().era = "bronze";
-    api.me().pop = 10; api.me().units = { soldier: 0, archer: 5, horseman: 0 };
-    if (api.removeRandomUnit() === "Archer") archersLost++;
-  }
-  check("an all-archer army gets no protection at all", archersLost === 500);
-}
-{
-  // Heavily outnumbered front line: archers should still usually be spared,
-  // but the guarantee is only statistical, never absolute.
-  reset();
-  api.me().era = "bronze";
-  api.me().pop = 20; api.me().units = { soldier: 1, archer: 15, horseman: 0 };
-  let soldierPicked = false, archerPicked = false;
-  for (let i = 0; i < 400; i++) {
-    api.me().units = { soldier: 1, archer: 15, horseman: 0 };
-    const lost = api.removeRandomUnit();
-    if (lost === "Soldier") soldierPicked = true;
-    if (lost === "Archer") archerPicked = true;
-  }
-  check("a lone soldier can still be the one who falls", soldierPicked);
-  check("archers can still fall even with a front line present", archerPicked);
-}
-{
-  // Weights must be positive, or a unit type would become truly unkillable.
-  check("every unit has a positive casualty weight",
+  check("every unit still has a positive casualty weight (campaigns read it)",
     api.MANIFESTS.bronze.units.every(u => (u.casualtyWeight === undefined ? 1 : u.casualtyWeight) > 0));
-  check("exposure ordering is soldier > horseman > archer",
-    findT("soldier").casualtyWeight > findT("horseman").casualtyWeight &&
-    findT("horseman").casualtyWeight > findT("archer").casualtyWeight);
 }
 
 console.log("\n--- P3: training buildings gate their units, capped at one ---");
@@ -1445,7 +1318,13 @@ console.log("\n--- BUG: reservations must never outrun the living ---");
       api.build(pickOne([findT("soldier"), findT("archer"), findT("horseman")]));
     }
     for (let d = 0; d < 1 + Math.floor(Math.random() * 6); d++) {
-      api.removeRandomUnit();   // civilian deaths land on hexes now (E5)
+      // Battle-style casualty (removeRandomUnit died in A5): a unit dies the
+      // way contact's applyLost kills one, and the books must still settle.
+      const ids = ["soldier", "archer", "horseman"].filter((id) => (api.me().units[id] || 0) > 0);
+      if (!ids.length) break;
+      api.me().units[pickOne(ids)] -= 1;
+      api.syncPopMirror();
+      api.reconcileReservations();
     }
     worstIdle = Math.min(worstIdle, spare());
     worstCiv = Math.min(worstCiv, api.civilians());
@@ -2206,16 +2085,17 @@ console.log("\n--- C2: deployment thins home defense ---");
   advanceRivalsTo(api.me().era);
   api.initAdversaries();
   api.me().pop = 12; api.me().units = { soldier: 4, archer: 2, horseman: 0 };
-  const homeBefore = api.militaryStrength();
   api.me().expeditions.push({ uid: 1, type: "campaign", adversary: "hillClans",
     units: { soldier: 3, archer: 1 }, total: 90, remaining: 90 });
+  // (militaryStrength and removeRandomUnit died in A5. What this section still
+  // pins is the ACCOUNTING: a deployed unit is spoken for, and the pop count
+  // never moves while they are merely away.)
   check("deployed units are counted", api.deployedCount("soldier") === 3 && api.availableUnits("soldier") === 1);
-  check("home strength drops while the column is out", api.militaryStrength() < homeBefore);
   check("pop unchanged -- they're alive, just not home (civilians = pop minus ALL units, E5)",
     api.civilians() === 6 && api.me().pop === 12);
-  // Home casualties can only take who's home: deploy EVERYONE, then ask.
   api.me().expeditions[0].units = { soldier: 4, archer: 2 };
-  check("with everyone deployed, home casualties find no one", api.removeRandomUnit() === null);
+  check("with everyone deployed, nobody is free to give an order to",
+    api.availableUnits("soldier") === 0 && api.availableUnits("archer") === 0);
   api.me().expeditions.length = 0;
 }
 
@@ -2444,7 +2324,9 @@ console.log("\n--- Siege: the machinery of the engine itself ---");
   delete api.me().upgrades.ironWeapons;
   check("in the field the engine is an ordinary unit",
     Math.abs(api.campaignStrength({ siegeEngine: 2 }, api.findAdversary("hillClans")) - 2) < 1e-9);
-  check("and at home it defends at normal strength", Math.abs(api.militaryStrength() - 4) < 1e-9);
+  // ("at home it defends at normal strength" died with militaryStrength, A5:
+  // home defence is a garrison now, and a siege engine in one rolls its own
+  // dice -- nearly useless against people, pinned in the resolver section.)
   const m = api.MANIFESTS.iron;
   check("Siege Workshop gates the engine",
     m.upgrades.some(u => u.id === "siegeWorkshop") &&
@@ -3205,30 +3087,14 @@ console.log("\n--- The march-hold: walls act on resolution, never selection ---"
   api.S.map.built[hex] = "marchHold";
   check("a fortified hex is out of the ledger entirely",
     api.hexProduces(hex) === false && api.hexResource(hex) === null);
-  check("it defends the ground it stands on", api.fortStrength(hex) >= api.CONFIG.fortStrength);
-  const neighbour = api.world.places[hex].adj.find((n) => api.isOwned(n));
-  if (neighbour) {
-    check("...and the ground beside it", api.fortStrength(neighbour) >= api.CONFIG.fortStrength);
+  // WALLS ACT THROUGH THE RESOLVER NOW (A5): a pool of hits and a number of
+  // firing positions on the def, read for the hex the fight is actually on.
+  // Range died with fortStrength -- everything that fires is standing here.
+  {
+    const mh = api.MANIFESTS.iron.structures.find((d) => d.id === "marchHold");
+    check("the march-hold carries a wall pool and firing slots",
+      mh.wallPool > 0 && mh.slots > 0 && mh.fortifies === true);
   }
-  // The starting trio all sits within one ring, so there is no distant hex to
-  // test against until we take one. Claim the furthest land on the board --
-  // otherwise this check would silently never run, which is not a check.
-  let faraway = null, best = -1;
-  for (const p2 of Object.values(api.world.places)) {
-    if (p2.terrain === "water" || p2.adversary || p2.minor || api.isOwned(p2.id)) continue;
-    const b = api.world.places[hex];
-    const d = (Math.abs(p2.q - b.q) + Math.abs(p2.r - b.r) + Math.abs((p2.q + p2.r) - (b.q + b.r))) / 2;
-    if (d > best) { best = d; faraway = p2.id; }
-  }
-  api.captureTile(faraway);
-  check("there is distant ground to test against", best > api.CONFIG.fortRange && api.isOwned(faraway));
-  check("but the walls do not reach the far side of the country",
-    api.fortStrength(faraway) === 0);
-
-  // FLAT, NOT A MULTIPLIER: walls have to fight for a player with no army,
-  // and a multiplier on zero is zero.
-  api.me().units = { soldier: 0, archer: 0, horseman: 0, siegeEngine: 0 };
-  check("walls defend a settlement with no soldiers in it", api.fortStrength(hex) > 0);
 
   // SELECTION IS UNTOUCHED. A fort changes no odds about WHETHER a raid comes
   // or WHERE it lands -- only what happens when it arrives. This is the check
@@ -3249,8 +3115,7 @@ console.log("\n--- The march-hold: walls act on resolution, never selection ---"
     if (d > far) { far = d; outpost = p2.id; }
   }
   api.captureTile(outpost);
-  check("the test board has ground a single march-hold cannot cover",
-    far > api.CONFIG.fortRange + 1);
+  check("the test board has ground a single march-hold cannot cover", far > 2);
   for (const id of api.holdings()) api.S.map.pop[id] = 6;
   api.syncPopMirror();
   const tally = (fortified) => {
@@ -3723,22 +3588,9 @@ console.log("\n--- C3: the danger acquires a name ---");
     api.raidAttribution() === null);
   S().players = saved;
 
-  // TEMPLATE LEAK. Every named line carries {who}, and some carry {ground} and
-  // {raid} as well; a token that survives substitution ships a literal brace
-  // into the Chronicle. Rendering every line in every pool is cheap, and this
-  // is exactly the class of bug that reaches a player.
-  const who = api.MANIFESTS.iron.adversaries.find((a) => a.disposition === "warlike");
-  let leaked = null;
-  for (const pool of ["repelledClean", "repelledCleanNamed", "raidSucceeds", "raidSucceedsNamed", "civilianLost"]) {
-    for (const line of api.CONFLICT_FLAVOR[pool]) {
-      const out = api.sentenceCase(line
-        .replace(/\{who\}/g, who.name)
-        .replace("{ground}", api.raidGround(who))
-        .replace("{raid}", "warband"));
-      if (/[{}]/.test(out)) leaked = pool + ": " + out;
-    }
-  }
-  check("no flavor line leaks an unsubstituted token", leaked === null);
+  // (The TEMPLATE LEAK checks died with CONFLICT_FLAVOR in A5: raiders.js
+  // writes its Chronicle lines as template literals with no substitution
+  // tokens, so the leak class cannot exist any more.)
 
   // Sentence case, and the specific failure it exists for: a line may start
   // MORE than one sentence with a name, and every name begins "the".
@@ -3749,16 +3601,6 @@ console.log("\n--- C3: the danger acquires a name ---");
       === "They came back. The Hill Clans, and they knew the way.");
   check("...without touching a name mid-sentence",
     api.sentenceCase("A warband out of the high ground.") === "A warband out of the high ground.");
-
-  // Named and anonymous pools must stay in step: an outcome with an anonymous
-  // line and no named counterpart would silently fall back to Stone's voice in
-  // an age that has neighbours.
-  check("every attributable outcome has both voices",
-    api.CONFLICT_FLAVOR.repelledClean.length > 0 && api.CONFLICT_FLAVOR.repelledCleanNamed.length > 0 &&
-    api.CONFLICT_FLAVOR.raidSucceeds.length > 0 && api.CONFLICT_FLAVOR.raidSucceedsNamed.length > 0);
-  check("every named line actually names somebody",
-    [...api.CONFLICT_FLAVOR.repelledCleanNamed, ...api.CONFLICT_FLAVOR.raidSucceedsNamed]
-      .every((l) => l.includes("{who}")));
 
   // Attribution must not spend a draw it cannot use -- the roster ships one
   // warlike people, so the common path is a lookup, not a roll.
@@ -4163,11 +4005,13 @@ console.log("\n--- Phase 6b: Conquest Growth G1 -- levy, output, no housing ---"
   api.me().buildQueue.length = 0;
 
   // A unit's death lightens the roster, never the land: the hexes keep their
-  // people, and the mirror drops by exactly the fallen soldier.
+  // people, and the mirror drops by exactly the fallen soldier. (The death is
+  // dealt battle-style -- removeRandomUnit died in A5, and this is the exact
+  // arithmetic contact's applyLost performs per round.)
   api.syncPopMirror();
   const landBefore = api.hexPopSum();
   const mirrorBefore = api.me().pop;
-  api.removeRandomUnit();
+  api.me().units.soldier -= 1; api.syncPopMirror();
   check("a soldier's death leaves the land untouched", api.hexPopSum() === landBefore);
   check("...and the mirror counts one fewer", api.me().pop === mirrorBefore - 1);
 

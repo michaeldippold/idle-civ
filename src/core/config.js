@@ -115,16 +115,10 @@ export const CONFIG = {
                           // near-balance kills slowly, and each death shrinks the deficit,
                           // so famine converges on what the land can actually feed.
   // MARCH-HOLDS (2026-08-25). A fortified hex adds FLAT defensive strength to
-  // itself and its neighbours -- flat and not a multiplier, deliberately: a
-  // multiplier on an army of zero is still zero, and walls have to fight for a
-  // player who has no soldiers. That is most of what you are buying when you
-  // give up a hex's entire output.
-  // HALVED 2026-08-25. At 9, and stacking in range, march-holds let a player
-  // with NO ARMY AT ALL turn back 64-90% of raids -- walls doing the army's job
-  // rather than supporting it. A naked settlement should still lose; a defended
-  // one that actually has fighters should feel the difference.
-  fortStrength: 4,        // strength each march-hold contributes in range
-  fortRange: 1,           // hex distance it reaches: itself and the ring around it
+  // (fortStrength and fortRange died in A5 with repelChance, their only
+  // reader. Walls are wallPool and slots on the structure def now, resolved by
+  // the dice for the hex the fight is on -- and they deter raiders by standing
+  // there, since raiders do not besiege.)
 
   // ---- The roll-off (2026-08-26) ----
   // A runaway guard, not a rule: a battle cannot actually stall, because every
@@ -133,8 +127,7 @@ export const CONFIG = {
   battleMaxRounds: 200,
   // WALLS ARE A POOL OF HITS, and the pool is a PACING knob as much as a
   // strength one: rounds play over ticks, so this number is most of how long a
-  // siege takes. Per fortifying structure standing ON the hex -- range died
-  // with the panel law (everything that fires is standing on the hex).
+  // siege takes. Per fortifying structure standing ON the hex.
   wallPool: 12,
   // HOW MANY ARCHERS CAN MAN A WALL. Without a cap the archers-only rule has a
   // degenerate optimum -- an all-archer garrison outshoots the assault before
@@ -223,7 +216,6 @@ export const CONFIG = {
   counterBonus: 2.0,           // strength multiplier for the unit type that counters a raid.
                                // NOTE: non-countering units multiply by 1, never below -- units
                                // are never penalised for being the wrong type, only un-bonused.
-  counterCasualtyRelief: 0.5,  // how much a fully-countered raid softens the costly-repel roll
   // Provisions, paid up front when a campaign marches. PER FIGHTER, plus a
   // flat overhead for the column itself -- an army eats in proportion to its
   // size, and marching everyone you own should be a decision about whether

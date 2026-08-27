@@ -439,6 +439,35 @@ several tempting ideas later, and it should.
    After that, showing the players the DICE — the battle panel — is what makes it fully the board
    game ("when we start showing players dice, we'll be fully there").
 
+   **MARCH LEGIBILITY AND THE DEATHBALL — DIRECTION, NOT BUILT (owner, 2026-08-26, at a
+   stopping point).** Three connected observations from play, recorded for the next session:
+
+   - **When will the bobbing disc move?** "It all reads as a bit unknowable right now." The sim
+     knows exactly: remaining path cost × marchSeconds is a precise ETA. Likely v1: the selected
+     army's panel says *"next hex in Ns · arrives in ~Ms"* — exact numbers, since they are the
+     player's own order and no fog applies. (Showing the inputs, per the legibility contract.)
+   - **Armies march at identical speed regardless of size, and marching is FREE.** Confirmed in
+     code: `progress += dt / marchSeconds`, size nowhere in it, and no provisioning — the old
+     campaign system's "you march on what you can feed" (`provisionsFor`, still in
+     expeditions.js) was never carried over to armies. Two candidate levers, probably both:
+     - **Abroad upkeep**: units eat a multiplier (~2×) while their army stands off its own
+       territory. Continuous, no dispatch friction, survives re-orders mid-march, and taxes a
+       deathball in proportion to its size for every second it spends abroad.
+     - **Band speed**: marginal slowdown by the existing tiers — a war party at base pace, a
+       column a touch slower, a host slower still (owner: "marginally, not substantially").
+       Legible because it rides the disc tiers the player already reads: *"a host marches slower
+       than a war party"* is a sentence; a per-soldier gradient is not.
+   - **The chase problem**: at equal speeds a fleeing army can never be caught, only cut off or
+     met. Band speeds mostly resolve it — small-and-fast catches big-and-slow, so the answer to a
+     deathball is harassment it cannot run down, while equal-band chases stay a matter of
+     position (which is the meeting-engagement game working as intended).
+   - **Why the deathball is checked economically, not by combat math**: the resolver's
+     concentration advantage (Lanchester square, worst-first casualties shielding the good units)
+     is deliberate — walls and firing slots are the combat-side equalizer. The deathball's
+     counters should be logistics: it is slow (band speed), expensive abroad (upkeep), and it can
+     only be in one place while raiders scout for soft ground and, later, bot armies press
+     multiple fronts.
+
    *Found in browser verification of A4, both open:*
    - ~~Armies do not emit sight~~ — **closed 2026-08-26, the day the owner watched his own disc
      march off the edge of the drawn world.** Two halves, per the fog canon ("sight is emitted by

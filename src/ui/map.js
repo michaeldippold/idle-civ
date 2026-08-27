@@ -7,6 +7,7 @@ import { canBuildOn, demolishStructure, hasMarket, launchSettle, launchStructure
 import { atDominionCap, capOf, dominionCap, hexPop, hexResource, hexUse, hexYield, holdings, holdsUsed, isCharted, isOwned, isSighted, isVisible, ownerOf, structureDef, terrainYield, workStamp, world } from "../map/map.js";
 import { armyAt, armyBand, armyById, armyRoster, armySize, canSeeArmyAt, disbandArmy, disbandRefusal, haltArmy, marchRefusal, marchingTo, orderMarch, setStance } from "../sim/armies.js";
 import { STANCES, stanceById, unitHit, unitRole } from "../sim/battle.js";
+import { seatCivAt } from "../sim/bots.js";
 import { battleAt, beginSack } from "../sim/contact.js";
 import { colorById, FOREIGN, FOREIGN_MINOR, playerColor } from "../core/palette.js";
 import { hexDistance, hexPoints, toPixel } from "../map/model.js";
@@ -473,11 +474,10 @@ function anyUnitsFree() {
 export function detailHTML(p) {
   const parts = [];
   parts.push(armyHTML(p));
-  if (p.adversary && ownerOf(p.id) !== S.me) {
-    // (Guarded on ownership since the B slice: a seat YOU have conquered stops
-    // being their card and becomes ordinary ground of yours.)
-    const adv = active().adversaries.find((a) => a.id === p.adversary);
-    const st = playerByKey(p.adversary);
+  const seatCivHere = seatCivAt(p.id);
+  if (seatCivHere && ownerOf(p.id) !== S.me) {
+    const adv = active().adversaries.find((a) => a.id === seatCivHere.key);
+    const st = seatCivHere;
     if (adv && st) {
       parts.push(`<b>${advName(adv)}</b> — ${adv.disposition} · ${standingWord(st.standing)}<br>${adv.desc}<br>${stockLine(st)}`);
       if (!canReachOut()) { parts.push(noReachLine()); return parts.join(""); }
@@ -716,11 +716,16 @@ function baseMarkFor(p) {
   // for your seat, red for someone else's. A power gets a house and a name;
   // a steading gets a smaller house and no name, because minors are numerous
   // and their names live on hover -- the map stays a map, not a directory.
-  if (p.adversary) {
-    const adv = active().adversaries.find((a) => a.id === p.adversary);
-    const pl = playerByKey(p.adversary);
-    return { glyph: "\u2302", cls: "seat", label: adv ? advName(adv) : p.adversary,
-             color: pl ? (colorById(pl.color) || {}).ring : null };
+  {
+    // A LIVING seat only -- a razed marker hex is ordinary wilderness, and a
+    // reborn people's NEW seat (which the generator never marked) gets the
+    // house. One accessor answers both: seatCivAt.
+    const seatCiv = seatCivAt(p.id);
+    if (seatCiv) {
+      const adv = active().adversaries.find((a) => a.id === seatCiv.key);
+      return { glyph: "\u2302", cls: "seat", label: adv ? advName(adv) : seatCiv.key,
+               color: (colorById(seatCiv.color) || {}).ring };
+    }
   }
   if (isOwned(p.id)) return workMark(p.id);
   // Minors get a mark and no label: they are numerous, and their names live on

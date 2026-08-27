@@ -6,6 +6,7 @@ import { S, me, playerById } from "../core/state.js";
 import { armiesOf, armyAt, armySize, marchArmies } from "./armies.js";
 import { resolveBattle } from "./battle.js";
 import { pillageAt, repelledByWalls, tickRaiders, turnHome } from "./raiders.js";
+import { seatCivAt } from "./bots.js";
 import {
   atDominionCap, chartGround, claimTile, ensurePop, holdings, isOwned,
   ownerOf, releaseTile, structureDef, syncCharted, syncPopMirror, world,
@@ -95,13 +96,13 @@ function wallsAt(hexId, defenderPid) {
   // A CAPITAL'S OWN WALLS (B slice): a rival's seat carries the walls its era
   // authored on the adversary def, scaled into resolver units. Stone seats
   // author zero -- an open camp -- and the arc climbs to iron fortresses.
-  const place = world && world.places[hexId];
   const defP = playerById(defenderPid);
-  // defP.key != null is LOAD-BEARING: ordinary hexes carry adversary: null
-  // and the HUMAN's key is null too, so a bare === sent every human-owned hex
-  // down this branch with me().walls = 0 -- which silently deleted every
-  // march-hold from the resolver. Caught by the fully-walled-realm check.
-  if (place && defP && defP.key != null && place.adversary === defP.key) {
+  // (The null-key trap that once lived here -- ordinary hexes carry
+  // adversary: null, the human's key is null, and a bare === deleted every
+  // march-hold from the resolver -- died when seat reads moved to
+  // seatCivAt(), which answers by CIV, never by key comparison. The
+  // fully-walled-realm check still stands guard.)
+  if (defP && defP.key != null && seatCivAt(hexId) === defP) {
     return { walls: (defP.walls || 0) * CONFIG.seatWallScale, slots: CONFIG.fortSlots };
   }
   const sid = S.map && S.map.built && S.map.built[hexId];
@@ -279,7 +280,7 @@ function conquer(hexId, atkP, defP) {
   // what stops a single army that caught you away from ending the run on
   // arrival.
   const place = world && world.places[hexId];
-  if (place && (place.adversary || hexId === world.home)) {
+  if (place && (seatCivAt(hexId) || hexId === world.home)) {
     if (atkP.id === S.me) {
       chronicle(`Their capital lies open. Order the sack, and hold it long enough, and their story ends.`);
     }
@@ -405,8 +406,7 @@ export function beginSack(army, who) {
 }
 
 function sackDuration(hexId, victim) {
-  const place = world && world.places[hexId];
-  const capital = place && (place.adversary === victim.key || (victim.id === S.me && hexId === world.home));
+  const capital = seatCivAt(hexId) === victim || (victim.id === S.me && hexId === world.home);
   return capital ? CONFIG.sackCapitalSeconds : CONFIG.sackSeconds;
 }
 
@@ -415,6 +415,17 @@ function sackDuration(hexId, victim) {
 // treasury's share. `broken` is a persisted fact every system checks.
 function breakNation(victim, sacker, hexId) {
   victim.broken = true;
+  // THE SEAT IS RAZED (owner: "you should be able to fully delete their home
+  // hex on a completed sack" -- no ruins piling up, no rebirth anchor to
+  // camp). On the civ record, because the world rebuilds from the seed at
+  // load and a world mutation would quietly resurrect the marker.
+  victim.seatRazed = true;
+  victim.seatHex = null;
+  // The rebirth clock, drawn NOW from the game stream so a save carries the
+  // same future: a fallen people returns as ages pass (bots.js), fairly
+  // reset. The human does not rebirth; their fall is the run's end below.
+  victim.rebirthIn = victim.id === S.me ? null
+    : Math.round(CONFIG.rebirthSeconds * (1 + (rng() * 2 - 1) * CONFIG.rebirthJitter));
   for (const id of holdings(victim.id)) releaseTile(id);
   for (const a of armiesOf(victim).slice()) {
     const list = armiesOf(victim);
@@ -450,8 +461,7 @@ export function tickSacks(dt) {
       army.sacking.t += dt;
       if (army.sacking.t < sackDuration(army.at, victim)) continue;
       // Done. A capital breaks the nation; ordinary ground releases and pays.
-      const place = world.places[army.at];
-      const isCapital = place && (place.adversary === victim.key || (victim.id === S.me && army.at === world.home));
+      const isCapital = seatCivAt(army.at) === victim || (victim.id === S.me && army.at === world.home);
       army.sacking = null;
       army.intent = null;
       army.sackTarget = null;

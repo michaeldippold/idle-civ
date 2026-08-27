@@ -2,6 +2,8 @@ import { active } from "../content/compile.js";
 import { CONFIG } from "../core/config.js";
 import { rng } from "../core/rng.js";
 import { S, me, rivals } from "../core/state.js";
+import { chronicle } from "../core/bus.js";
+import { initAdversaries } from "../core/persist.js";
 import { armiesOf, armyAt, formArmy } from "./armies.js";
 import { claimTile, holdings, ownerOf, world } from "../map/map.js";
 
@@ -22,10 +24,26 @@ import { claimTile, holdings, ownerOf, world } from "../map/map.js";
 // economy. Ground and armies are what the board can show; the ledger behind
 // them stays abstract until it can earn its keep.
 
+// A civ's seat: the reborn carry their NEW seat on the record (`seatHex`); a
+// RAZED people has no seat at all until rebirth; everyone else reads the
+// generator's marker. Razing is on the civ record because the world rebuilds
+// from the seed at load -- a mutation to world.places would quietly resurrect.
 export function seatOf(civ) {
+  if (civ.seatHex) return civ.seatHex;
+  if (civ.seatRazed) return null;
   if (!world) return null;
   for (const id in world.places) {
     if (world.places[id].adversary === civ.key) return id;
+  }
+  return null;
+}
+
+// Whose LIVING capital stands on this hex, if anyone's. The single question
+// every seat read goes through now -- walls, marks, cards, dressing -- so a
+// razed marker hex is ordinary wilderness everywhere at once.
+export function seatCivAt(hexId) {
+  for (const civ of rivals()) {
+    if (seatOf(civ) === hexId) return civ;
   }
   return null;
 }
@@ -113,13 +131,79 @@ function expand(civ, dt) {
   claimTile(frontier[Math.floor(rng() * frontier.length)], civ.id);
 }
 
+// ---- Rebirth: a people rises again (owner ruling, 2026-08-26) --------------
+// "If you clear 2/3 opponents early there's really not much of a game left."
+// A broken people's countdown (drawn at the break, sim/contact.js) accrues
+// here; when it expires AND their old seat site is unowned, they return --
+// FAIRLY RESET, per the ruling: the seat and a ring, stores restocked to
+// their era's baseline, NO garrison for the first minutes (a newborn nation
+// is raidable), and territory rebuilt one hex at a time by the ordinary
+// expansion clock. They keep the era they fell at: the living rivals kept
+// advancing while they were ash, and that setback is the fair one.
+//
+// NO OCCUPATION TAX (owner, emphatically): if the seat site is settled ground
+// when the clock fires, the rebirth simply WAITS for the site to free up.
+// A hex in a dominion paying its way is not an army camped in ruins; erasure
+// is a choice priced in a dominion slot, never an upkeep.
+// Where a new people rises: unowned land, no minor, no living seat, and AT
+// LEAST rebirthMinDistance from every holding of every player -- safe by
+// geography, not by rules (owner: rebirth at the old seat "is just the
+// occupation thing again -- leave an army there and resack as soon as they
+// come back"). Among the far-enough candidates the game dice choose; if the
+// board has grown too crowded for the threshold, the farthest hex wins.
+function rebirthSite(civ) {
+  if (!world) return null;
+  const taken = [];
+  for (const pl of S.players) for (const id of holdings(pl.id)) taken.push(world.places[id]);
+  const far = [];
+  let best = null, bestD = -1;
+  for (const id in world.places) {
+    const p = world.places[id];
+    if (p.terrain === "water" || p.minor) continue;
+    if (ownerOf(id) != null) continue;
+    if (seatCivAt(id)) continue;
+    let d = Infinity;
+    for (const t of taken) {
+      const dd = (Math.abs(p.q - t.q) + Math.abs(p.r - t.r) + Math.abs((p.q + p.r) - (t.q + t.r))) / 2;
+      if (dd < d) d = dd;
+    }
+    if (d > bestD) { bestD = d; best = id; }
+    if (d >= CONFIG.rebirthMinDistance) far.push(id);
+  }
+  if (far.length) return far[Math.floor(rng() * far.length)];
+  return best;
+}
+
+function tickRebirth(civ, dt) {
+  if (civ.rebirthIn == null) return;          // the human's fall ends the run instead
+  civ.rebirthT = (civ.rebirthT || 0) + dt;
+  if (civ.rebirthT < civ.rebirthIn) return;
+  const site = rebirthSite(civ);
+  if (!site) return;                          // a full board: wait for room
+  civ.seatHex = site;                         // A NEW SEAT, far from everyone
+  civ.broken = false;
+  civ.rebirthT = 0;
+  civ.rebirthIn = null;
+  civ.seenEra = null;
+  initAdversaries();                          // restock NOW: the newborn larder is era-baseline
+  civ.everGarrisoned = true;                  // the regarrison DELAY applies: born undefended
+  civ.regarrisonT = 0;
+  civ.claimT = 0;
+  civ.standing = 0;                           // a new people owes you nothing, remembers nothing
+  civ.seat = null;                            // settle() reseats from seatOf()
+  const def = (active(civ).adversaries || []).find((a) => a.id === civ.key);
+  const name = def ? def.name.charAt(0).toUpperCase() + def.name.slice(1) : "A people";
+  chronicle(`${name} rise again — a new people on new ground, far from the old, with everything to rebuild.`, "bad");
+  settle(civ);
+}
+
 // The world tick (core/step.js). Settlement is lazy and idempotent; expansion
 // and re-garrisoning accrue real time, so pause holds a country still the way
 // it holds everything else.
 export function tickBots(dt) {
   if (!world || !S.map) return;
   for (const civ of rivals()) {
-    if (civ.broken) continue;   // a broken people keeps no house
+    if (civ.broken) { tickRebirth(civ, dt); continue; }
     civ.regarrisonT = (civ.regarrisonT || 0) + dt;
     settle(civ);
     expand(civ, dt);

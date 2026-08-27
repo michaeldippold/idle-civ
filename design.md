@@ -1175,6 +1175,20 @@ do not want to lose the game because a single army marched unopposed to my home 
   scatter, the treasury's share rides home, and the Chronicle writes the obituary. Symmetrically,
   the human's seat sacked = **the military loss condition** — and the sack timer IS the relief
   window, which is what marching at double speed through your own country was always for.
+- **The break RAZES the seat, and rebirth happens ELSEWHERE** *(owner, 2026-08-26, second
+  ruling)*. A completed capital sack deletes the seat outright — marker, towers, name — because
+  *"I do not like ruins piling up"* and because a rebirth anchored to the old seat *"is just the
+  occupation thing again: leave an army there and resack as soon as they come back."* The broken
+  people return on a semi-random clock (~an era's pace, drawn at the break) as a NEW society at a
+  new seat drawn from unowned land **far from every player's holdings** — safe by geography, not
+  by rules. Fairly reset, per the first ruling: seat and ring only, no garrison for the first
+  minutes (a newborn nation is raidable), larder restocked to era baseline, standing zeroed (a new
+  people owes you nothing and remembers nothing), territory rebuilt one hex at a time on the
+  ordinary expansion clock, and the era they fell at (the living rivals kept advancing — that
+  setback is the fair one). The human never rebirths: their capital sacked is the run's end.
+  Rationale on the record: *"if you clear 2/3 opponents early then there's really not much of a
+  game left"* — the rivals are the world's aliveness, and erasure would let aggression strip the
+  game of its own content.
 - **The sack fires only at its ordered target.** Found live within the hour: a sack aimed at a
   hill frontier crossed the river kingdom's capital, won the meeting engagement, and broke a
   nation the player never aimed at. Meeting engagements decide where you FIGHT; a targeted order

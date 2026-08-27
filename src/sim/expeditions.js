@@ -310,6 +310,7 @@ export function launchCaravan(advId, escort) {
   const adv = findAdversary(advId);
   const st = playerByKey(advId);
   if (!adv || !adv.buys || !st) return;
+  if (st.broken) return;                     // no trading with the dead
   if (st.standing <= -2) return;                       // they remember your raids
   if ((st.res.gold || 0) <= 0) return;               // traded dry
   if ((me().res[adv.buys.res] || 0) < adv.buys.amount) return;

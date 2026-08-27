@@ -169,6 +169,19 @@ export const CONFIG = {
   sackCapitalSeconds: 150,  // a capital: complete it and the nation is BROKEN
   sackLootFrac: 0.15,       // share of the victim's stores taken per ordinary sack
   sackCapitalLootFrac: 0.5, // the capital's share -- the treasury falls with the town
+  // ---- Rebirth (owner ruling, 2026-08-26) ----
+  // "If you clear 2/3 opponents early there's really not much of a game left."
+  // A broken people returns as ages pass -- semi-random, on the order of an
+  // era's pace -- FAIRLY RESET: seat and ring only, no garrison at first (a
+  // newborn nation is raidable), stores at era baseline, territory rebuilt one
+  // hex at a time by the ordinary expansion clock. No occupation tax: if the
+  // seat site is someone's settled ground when the clock fires, the rebirth
+  // waits for the site to free up -- erasure is a choice priced in a dominion
+  // slot, never an upkeep.
+  rebirthSeconds: 480,      // the base wait
+  rebirthJitter: 0.5,       // +/- half again, drawn from the game dice at break
+  rebirthMinDistance: 5,    // a newborn nation seats at least this far from every holding:
+                            // safe by GEOGRAPHY, not by rules -- no spawn to camp
   armyPerHex: 2,          // the army cap (E5): each held hex supports this many standing
                           // units, in every era -- the levy re-homed to the land, per the
                           // owner's ruling ("make it serve the hex"). Territory is what

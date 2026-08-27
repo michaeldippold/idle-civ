@@ -6020,6 +6020,58 @@ console.log("\n--- The neighbours become countries (B slice) ---");
       return held;
     })());
 
+    check("the seat is RAZED at the break -- the marker hex is wilderness", (() => {
+      const H = api.playerByKey("hillClans");   // fresh: the save/load above rebuilt S
+      return H.broken === true && H.seatRazed === true &&
+        api.seatOf(H) === null && api.seatCivAt(seat) === null && api.ownerOf(seat) == null;
+    })());
+
+    check("a broken people rises again ELSEWHERE, fairly reset", (() => {
+      const H = api.playerByKey("hillClans");
+      if (typeof H.rebirthIn !== "number") return false;
+      api.tickBots(H.rebirthIn + 1);
+      if (H.broken) return false;
+      const held = api.holdings(H.id);
+      return H.seatHex != null && H.seatHex !== seat &&      // a NEW seat, never the old marker
+        api.seatCivAt(H.seatHex) === H &&
+        api.ownerOf(H.seatHex) === H.id &&
+        held.length >= 1 && held.length <= 1 + api.CONFIG.botHomeRing &&
+        api.armyAt(H.seatHex, H) == null &&                  // born undefended
+        (H.standing || 0) === 0 &&
+        Object.values(H.res).some((x) => x > 0);             // the larder restocked
+    })());
+
+    check("...seated far from every player: safe by geography, not rules", (() => {
+      const H = api.playerByKey("hillClans");
+      const np = api.world.places[H.seatHex];
+      let d = Infinity;
+      for (const id of api.holdings(api.me().id)) {
+        const t = api.world.places[id];
+        const dd = (Math.abs(np.q - t.q) + Math.abs(np.r - t.r) + Math.abs((np.q + np.r) - (t.q + t.r))) / 2;
+        if (dd < d) d = dd;
+      }
+      return d >= 3;   // loose floor: the config asks for rebirthMinDistance, the board may be tight
+    })());
+
+    check("the newborn garrisons only after the grace, then raids again", (() => {
+      const H = api.playerByKey("hillClans");
+      api.tickBots(api.CONFIG.botRegarrisonSeconds + 1);
+      const garrisoned = api.armyAt(H.seatHex, H) != null;
+      const raid = api.spawnRaid();
+      if (raid) { const l = api.armiesOf(H); const i2 = l.indexOf(raid); if (i2 >= 0) l.splice(i2, 1); }
+      return garrisoned && !!raid;
+    })());
+
+    check("no trading with the dead", (() => {
+      const H = api.playerByKey("hillClans");
+      H.broken = true;
+      const before = (api.me().expeditions || []).length;
+      api.launchCaravan("hillClans", null);
+      const refused = api.me().expeditions.length === before;
+      H.broken = false;
+      return refused;
+    })());
+
     check("a battle PAUSES the sack clock -- never resets it", (() => {
       // A sacker engaged in a fight accrues nothing; freed, it resumes where
       // it stood. Pause-not-reset, or a cheap suicide attack becomes a

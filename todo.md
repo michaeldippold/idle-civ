@@ -407,7 +407,13 @@ several tempting ideas later, and it should.
    closes it per-battle, never remembered. Never the odds. Verified live: a 14-v-12 attack LOST
    on screen — final round, their two survivors rolled 8 and 10, mine rolled 4 and 4 — which is
    the exact-reason-you-lost the panel exists for. Left for "two players can engage": bots that
-   DEFEND and EXPAND rather than only raid, and armies absorbing campaigns.
+   DEFEND and EXPAND rather than only raid, and armies absorbing campaigns — which is also where
+   two seams the owner hit in play get closed: **marching onto a major's SEAT does nothing today**
+   (the seat is an adversary hex, not owned ground, so contact's arrived hook has no owner to
+   fight — campaigns are still the verb against majors until armies absorb them and the seat
+   becomes a real capital siege), and **white-means-foreign dies entirely** (the discs, the battle
+   panel stripe and the army links now wear real player colours; the seat HOUSES and territory
+   rims go per-player when bots hold ground the board must paint).
 
    *(The original next-session note follows, kept for the reasoning.)* A5's shape as planned at
    the pause: The pieces, the resolver, contact, and the depiction are all live

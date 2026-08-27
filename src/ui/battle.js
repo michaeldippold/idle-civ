@@ -1,5 +1,6 @@
 import { active } from "../content/compile.js";
 import { S, me, playerById } from "../core/state.js";
+import { colorById } from "../core/palette.js";
 import { scriptOf } from "../sim/contact.js";
 import { armyBand } from "../sim/armies.js";
 import { world } from "../map/map.js";
@@ -167,6 +168,14 @@ function renderRound(b, r) {
   const script = scriptOf(b);
   const mine = mySide(b);
   const foe = mine === "atk" ? "def" : "atk";
+  // THE ENEMY WEARS THEIR OWN COLOUR (owner, 2026-08-26): the discs already
+  // do, and the panel's stripe matches the piece on the board -- white-means-
+  // foreign is dying wherever a player colour exists to replace it.
+  const foeEl0 = document.getElementById("bpFoe");
+  if (foeEl0 && foeEl0.style) {
+    const fp = playerById(b[foe].pid);
+    foeEl0.style.borderLeftColor = (colorById(fp && fp.color) || {}).ring || "#ffffff";
+  }
   const titleEl = document.getElementById("bpTitle");
   if (titleEl) {
     titleEl.textContent = `⚔ ${foeName(b)} at ${placeWord(b.hex)}` +

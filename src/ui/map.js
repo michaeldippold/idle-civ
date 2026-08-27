@@ -396,7 +396,7 @@ function armyHTML(p) {
     if (!a) continue;
     const mine = pl.id === S.me;
     if (!mine && !canSeeArmyAt(p.id)) continue;
-    standing.push(`<button class="map-act army-link${mine ? " mine" : ""}" data-act="viewarmy" data-key="${
+    standing.push(`<button class="map-act army-link${mine ? " mine" : ""}" style="border-left-color:${(colorById(pl.color) || {}).ring || '#fff'}" data-act="viewarmy" data-key="${
       pl.id}:${a.uid}">\u2691 ${mine ? "Your army" : civLabel(pl)} — ${armySize(a)} \u2192</button>`);
   }
   if (standing.length) {

@@ -450,16 +450,19 @@ several tempting ideas later, and it should.
      `marchProgress()` (A2) already computes exactly the 0→1 fraction "for drawing them on the
      road" and has never yet been drawn, and the label layer already floats DOM over board
      positions, so a conic-gradient circle does it without touching three.js. Fill in the owner's
-     colour for their own armies (a foe's dial is intel — probably shown too, when sighted, since
-     the disc itself already is). The selected army's panel adds the exact words on top: *"next
+     colour for their own armies (a foe's dial is intel —
+     **RULED: shown, but only in sight**, the same fog tier as the disc itself). The selected army's panel adds the exact words on top: *"next
      hex in Ns · arrives in ~Ms"* — the player's own order, printed back.
    - **Armies march at identical speed regardless of size, and marching is FREE.** Confirmed in
      code: `progress += dt / marchSeconds`, size nowhere in it, and no provisioning — the old
      campaign system's "you march on what you can feed" (`provisionsFor`, still in
      expeditions.js) was never carried over to armies. Two candidate levers, probably both:
-     - **Abroad upkeep**: units eat a multiplier (~2×) while their army stands off its own
-       territory. Continuous, no dispatch friction, survives re-orders mid-march, and taxes a
-       deathball in proportion to its size for every second it spends abroad.
+     - **Abroad upkeep — RULED (owner, 2026-08-26)**: units eat a multiplier (~2×) while their
+       army stands off its own territory. Chosen OVER distance-priced provisioning, with the
+       owner's reasoning on the record: *"all it costs to do a series of short cheap marches is
+       attention/micro. So the cost can't scale with distance."* Cost scales with STATE (standing
+       abroad), never with order length — the anti-micro law applied to logistics. Continuous,
+       survives re-orders, taxes a deathball in proportion to its size for every second abroad.
      - **Band speed**: marginal slowdown by the existing tiers — a war party at base pace, a
        column a touch slower, a host slower still (owner: "marginally, not substantially").
        Legible because it rides the disc tiers the player already reads: *"a host marches slower

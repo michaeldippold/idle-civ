@@ -516,7 +516,12 @@ check("multipliers are tech only -- no building lifts a global rate", (() => {
 })());
 check("a structure lifts the HEX it stands on instead", (() => {
   api.ensureMap();
-  const forest = Object.values(api.world.places).find((p) => p.terrain === "forest");
+  // NOT any forest: putStructures ran just above and may have stood an
+  // infirmary on one, and a built hex yields null -- which crashed this
+  // fixture on roughly one world in sixteen (worlds are crypto-seeded per
+  // run). A seat or steading forest would null the same way.
+  const forest = Object.values(api.world.places).find((p) =>
+    p.terrain === "forest" && !p.adversary && !p.minor && !S().map.built[p.id]);
   if (!forest) return true;
   if (!api.isOwned(forest.id)) api.claimTile(forest.id);
   const bare = api.hexYield(forest.id).rate;

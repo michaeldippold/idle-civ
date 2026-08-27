@@ -6,7 +6,7 @@ import { S, me, rivals } from "../core/state.js";
 import { armiesOf, armyAt, armyBand, armySize, canSeeArmyAt, orderMarch } from "./armies.js";
 import { raidSender } from "./expeditions.js";
 import { raidGround, reconcileReservations, rollRaidSize, rollRaidType, stealResources } from "./combat.js";
-import { hexPop, killAt, strikeHex, structureDef, world } from "../map/map.js";
+import { hexPop, isOwned, killAt, strikeHex, structureDef, world } from "../map/map.js";
 
 // ---------- RAIDERS (slice A5): the inbound war -----------------------------
 // A raid is an ARMY now. The old conflict event rolled dice against
@@ -177,12 +177,33 @@ export function pillageAt(army, civ, hexId) {
 // grinding masonry for weeks is an army's work, and a war party has neither
 // the patience nor the engines -- so the walls win by standing there, which
 // is most of what walls are FOR.
+//
+// BUT THE TORCHES DO NOT GO HOME (owner, 2026-08-26): a repelled war party
+// turns on the nearest unwalled, ungarrisoned hex of yours BESIDE the walls,
+// and burns that instead. The walls still hold -- they were never in danger --
+// but deterrence stops being free at the realm level, and fortification
+// placement becomes a real decision about what you are choosing NOT to
+// protect, which is more interesting than a wall ever being a full answer.
+// Nowhere soft beside the walls, and they genuinely withdraw.
 export function repelledByWalls(army, civ, hexId) {
   const named = nameGate(civ);
+  const who = named
+    ? named.name.charAt(0).toUpperCase() + named.name.slice(1)
+    : "A war party";
+  const verb = named ? "test the walls" : "tests the walls";
   const where = world.places[hexId] ? world.places[hexId].terrain : "land";
-  chronicle(named
-    ? `${named.name.charAt(0).toUpperCase() + named.name.slice(1)} test the walls at the ${where} and think better of it. They withdraw the way they came.`
-    : `A war party tests the walls at the ${where} and thinks better of it.`, "good");
+  const adj = (world.places[hexId] && world.places[hexId].adj) || [];
+  const soft = adj.find((n) =>
+    isOwned(n) && !hardened(n) && world.places[n].terrain !== "water");
+  if (soft) {
+    chronicle(`${who} ${verb} at the ${where} and ${named ? "think" : "thinks"} better of it — and ${
+      named ? "turn" : "turns"} on the ${world.places[soft].terrain} beside them instead.`, "bad");
+    army.intent = "raid";
+    orderMarch(army.uid, soft, civ);
+    if (!army.order) turnHome(army, civ);
+    return;
+  }
+  chronicle(`${who} ${verb} at the ${where} and ${named ? "think" : "thinks"} better of it. They withdraw the way they came.`, "good");
   turnHome(army, civ);
 }
 

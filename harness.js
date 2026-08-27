@@ -407,8 +407,11 @@ console.log("\n--- The inbound war: a raid is an army now (A5) ---");
   check("the garrison holds its ground", api.armyAt(gHex, P) !== null);
   check("and the war party is destroyed or driven home", api.armiesOf(hill).length === 0);
 
-  // WALLS DETER. Raiders do not besiege: a fortification turns a war party
-  // away by standing there, no dice rolled, the masonry untouched.
+  // WALLS DETER, BUT THE TORCHES TURN ASIDE (owner, 2026-08-26). Raiders do
+  // not besiege: a fortification turns a war party away by standing there, no
+  // dice rolled, the masonry untouched -- and the raiders burn the nearest
+  // soft hex BESIDE the walls instead of going home empty-handed. Deterrence
+  // is real for the hex and never free for the realm.
   const army3 = api.spawnRaid();
   check("a third raid musters", !!army3);
   api.disbandArmy(garrison.uid, P);
@@ -416,11 +419,28 @@ console.log("\n--- The inbound war: a raid is an army now (A5) ---");
   S().map.built = S().map.built || {};
   S().map.built[wHex] = "marchHold";
   api.orderMarch(army3.uid, wHex, hill);
+  const foodAtWalls = P.res.food = 80;
+  const landAtWalls = api.hexPopSum();
   guard = 0;
   while (api.armiesOf(hill).length > 0 && guard++ < 900) api.tickMilitary(2);
-  check("the walls turned them away without a fight",
+  check("the walls held without a fight, untouched",
     api.battleCount() === 0 && S().map.built[wHex] === "marchHold" && api.armiesOf(hill).length === 0);
-  delete S().map.built[wHex];
+  check("...and the torches turned on the hex beside them",
+    P.res.food < foodAtWalls && api.hexPopSum() < landAtWalls);
+
+  // NOWHERE SOFT: every holding walled, and the war party genuinely goes home.
+  const army4 = api.spawnRaid();
+  check("a fourth raid musters", !!army4);
+  for (const id of api.holdings(P.id)) S().map.built[id] = "marchHold";
+  api.orderMarch(army4.uid, wHex, hill);
+  const foodAllWalled = P.res.food = 80;
+  const landAllWalled = api.hexPopSum();
+  guard = 0;
+  while (api.armiesOf(hill).length > 0 && guard++ < 900) api.tickMilitary(2);
+  check("a fully walled realm sends them home empty-handed",
+    api.armiesOf(hill).length === 0 && P.res.food === foodAllWalled &&
+    api.hexPopSum() === landAllWalled && api.battleCount() === 0);
+  for (const id of api.holdings(P.id)) delete S().map.built[id];
 }
 
 // ---- E5: deaths land on hexes ----

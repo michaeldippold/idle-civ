@@ -385,8 +385,13 @@ several tempting ideas later, and it should.
    lost its arithmetic — `spawnRaid()` (sim/raiders.js) musters a war party at the sender's seat
    out of the era-clock wire's rolls, marches it at a frontier-weighted soft target, and the
    Chronicle warns when it is first sighted. Garrisons mean battles; walls turn raiders away
-   unfought; pillage is the old steal-and-toll on new legs; survivors walk home as veterans, one
-   raid out per sender. **Deleted, not deprecated:** `repelChance`, `militaryStrength`,
+   unfought — **and the torches turn aside** (owner, same day): a repelled war party burns the
+   nearest unwalled hex beside the walls rather than going home, so fortification placement is a
+   decision about what you are choosing NOT to protect; pillage is the old steal-and-toll on new
+   legs; survivors walk home as veterans, one raid out per sender. *Validated in play the hour it
+   shipped — owner: "I just watched a brown player war party wander over, fuck up my shit, and
+   then peace out... this feels like another player hassling me. A very good signal going
+   forward." Every other enemy before this was an abstraction.* **Deleted, not deprecated:** `repelChance`, `militaryStrength`,
    `unitStrength`, `counterUnitFor`, `counterCoverage`, `removeRandomUnit`, `CONFLICT_FLAVOR`,
    `fortStrength`, `CONFIG.fortRange/fortStrength/counterCasualtyRelief`. There is one combat
    system. Still on the old math: **campaigns** (`campaignStrength`, `wallPower`,

@@ -896,6 +896,30 @@ roster starts lying.
 - `tickArmies()` moves **every** civilization's columns through one function on one clock. Symmetry
   is the point: anything the board shows about yours is true of theirs.
 
+### Contact, raiders, bots, and the panel — the rest of the war (pointers)
+
+Four modules complete the arc; their full reasoning lives in their own headers and in `design.md` →
+*Armies Take the Field* / *How an Army Is Depicted*:
+
+- **`sim/contact.js`** — what happens when two armies share a hex. Battles are sim objects in
+  `S.battles` playing one round per `battleRoundSeconds`; each row stores seal-time roster
+  snapshots plus ONE drawn seed, and the script is *recomputed* (WeakMap-cached per row), so
+  save/load resumes the same war bit-identically — the recompute path is the tested path. Hooks
+  (`barred`/`parked`/`entered`/`arrived`) are the one seam into `armies.js`, pointing one way.
+  `wallsAt` reads the structure ON the hex, or a capital's authored walls (`seatWallScale`) — and
+  carries the null-key-trap tombstone (the human's `key` is null, ordinary hexes' `adversary` is
+  null, and a bare `===` once deleted every march-hold from the resolver).
+- **`sim/raiders.js`** — a raid is an army: mustered at the sender's seat from the era-clock wire's
+  rolls, sighted with a warning, deterred by walls (and torching the soft hex beside them),
+  pillaging with the old steal-and-toll arithmetic, homing as veterans. One out per sender.
+- **`sim/bots.js`** — the neighbours as countries: lazy idempotent settlement (seat + home ring +
+  era-sized garrison), slow expansion to their own era's dominion cap, regarrison after
+  `botRegarrisonSeconds`. Nothing of their economy is simulated; ground and armies are what the
+  board can show.
+- **`ui/battle.js`** — the dice on the table: a live view of the script the sim is playing (never a
+  second clock, so it cannot desync; pause freezes it; reopening lands on the live round). Viewer
+  always bottom; hits lit; walls drain; never the odds.
+
 ### The board has to notice things that move on their own
 
 `ui/map.js`'s stage signature gained `armyStamp()`. Found by looking at the board rather than by

@@ -11,6 +11,38 @@
 
 ---
 
+## 2026-08-26 — The war becomes real on both sides of the board
+
+**The whole combat arc, one branch (`combat-dice`), roughly twenty commits.** In order: an Axis &
+Allies / TI4 **dice resolver** (`sim/battle.js` — d10, high wins, simultaneous fire off the
+pre-round roster, walls absorb hits, only archers fire from inside, firing slots close the
+all-archer optimum, worst-goes-first casualties priced by cost, withdrawal stances as named risk
+budgets). **Armies as board objects** (`sim/armies.js`) that muster, march a road decided at
+dispatch, merge, and disband only at home. **The disc depiction** (`render3d/pieces3d.js` — player
+colour, count on the unlit top face, three thickness tiers on the war party / column / host bands,
+piece sockets the scenery scatter respects, hover as charcoal rim + emissive lift, the dashed march
+trail as real geometry over the terrain). **Contact** (`sim/contact.js` — battles seal on shared
+hexes, play over ticks, survive save/load on one drawn seed; a contested hex bars the road; walls
+besiege; ground changes hands). **Raids became armies** (`sim/raiders.js`) and the whole old
+resolution — `repelChance`, `militaryStrength`, the counter matrix, `removeRandomUnit`,
+`fortStrength`-with-range — was **deleted, not deprecated**; repelled raiders torch the soft hex
+beside the walls. **The battle panel** (`ui/battle.js` — the dice on the table, viewer always
+bottom, never the odds). And **the neighbours became countries** (`sim/bots.js` — owned ground in
+their colours, era-sized garrisons, slow expansion, capitals as real sieges).
+
+Bugs worth remembering: the stage signature didn't know armies existed (the board never repainted
+for the first thing that moves on its own); SETTLE was offered on rival-held ground (territory
+theft priced as a settle, latent since the player split); a null-key trap matched every human hex
+to the capital-walls branch and silently deleted every march-hold from the resolver; and
+`initAdversaries` restocked rival walls from the viewer's manifest, so a bronze kingdom rebuilt
+stone walls. Each carries a harness tombstone.
+
+The owner's acceptance, live: *"I just watched a brown player war party wander over, fuck up my
+shit, and then peace out... this feels like another player hassling me."* Every enemy before this
+arc was an abstraction.
+
+---
+
 ## 2026-08-25 — The ledger stops lying about food
 
 **Two bugs from the owner's live playtest, one screenshot each.** The food rate printed the accrual

@@ -370,16 +370,14 @@ so anything that cannot be drawn as a row of dice cannot be in the combat system
 several tempting ideas later, and it should.
 
 7. **Armies, combat, per-player era content** — built on the new shape, so bots and the human
-   share the systems from birth. **IN PROGRESS on branch `combat-dice`.** Shipped: the resolver
-   (`f0998c4`), firing slots (`0447b69`), **A1** armies exist and are accounted for (`cbf2667`),
-   **A2** they march (`c771973`), **A3** they are visible and inspectable (`86f949e`). Left:
-   **A4 contact SHIPPED 2026-08-26** — two armies on one hex seal a battle, the resolver runs for
-   real over ticks, a contested hex bars the road, walls besiege, ground changes hands, battles
-   survive save/load mid-fight on one drawn seed. Left: **A5** the bots, at which point a raid stops
-   being weather and becomes somebody's decision — and **that is where `repelChance` dies**, not A4:
-   the raid EVENTS are idle-game holdover top to bottom (owner: *"don't take any of that code as
-   gospel"*), so they are not bridged into the resolver — they keep running in their corner until
-   real inbound armies replace raids as a system, and then the system dies whole.
+   share the systems from birth. **THE WHOLE ARC SHIPPED 2026-08-26, on branch `combat-dice`** —
+   in order: the resolver (`f0998c4`), firing slots (`0447b69`), **A1** armies exist (`cbf2667`),
+   **A2** they march (`c771973`), **A3** discs on the board (`86f949e` and the depiction commits),
+   **A4** contact (`d5e0f0a`) — battles seal, play over ticks, survive save/load on one drawn seed
+   — **A5** raids are armies and `repelChance` is deleted (`a63d364`, torch-aside `7a63065`),
+   **the battle panel** (`819071d`), and **B** the neighbours become countries (`662bf40`).
+   Detailed records for each below; the paragraphs that follow preserve the reasoning as it
+   unfolded, including the A4-era note about where repelChance would die (it died exactly there).
 
    **A5 SHIPPED 2026-08-26.** The bots field real armies: the conflict event kept its cadence and
    lost its arithmetic — `spawnRaid()` (sim/raiders.js) musters a war party at the sender's seat

@@ -1134,21 +1134,31 @@ specialists their safety.
 Starport/Fleet/photon-weapons/shields are the same underlying system. If that stops being true for
 some future age, that's a sign the age needs its own mechanic, not a forced fit.
 
-### Armies Take the Field *(direction ruled 2026-08-25; **BUILDING since 2026-08-26**, slices A1–A3 shipped)*
+### Armies Take the Field *(direction ruled 2026-08-25; **BUILT, end to end, 2026-08-26**)*
 
-The largest structural change ever proposed for this codebase. It is no longer parked.
+The largest structural change ever proposed for this codebase — and it is IN, the whole arc, on
+branch `combat-dice`.
 
-**What is built.** An army is an object standing on a hex (`src/sim/armies.js`). It is raised on
-ground you hold, out of soldiers that stop being available the moment they are committed; it marches
-a path decided once at dispatch and walks it hex by hex; it merges into one of your own armies if it
-arrives on top of it; and it disperses back into the pool only on your own territory, so an army
-caught deep is genuinely caught. Every civilization's columns move through the same function on the
-same clock — there is no separate code path for a neighbour's army, which is the whole reason this
-was worth doing. A **garrison is not a second concept**: it is an army standing on your own ground.
+**What is built.** An army is an object standing on a hex (`src/sim/armies.js`), raised on ground
+you hold from soldiers that stop being free the moment they are committed, marching a road decided
+once at dispatch, merging into your own armies, dispersing only on your own territory. **Contact**
+(`src/sim/contact.js`): two armies on one hex seal a battle, the resolver decides it over ticks, a
+contested hex bars the road, walls besiege, ground changes hands, and battles survive save/load
+mid-fight on one drawn seed. **Raids are armies** (`src/sim/raiders.js`): the conflict event kept
+its cadence and lost its arithmetic — a war party musters at the sender's seat, is sighted with a
+Chronicle warning, pillages soft ground, is turned aside by walls (and torches the hex beside them),
+and walks home as veterans; `repelChance` and the whole old resolution are deleted. **The
+neighbours are countries** (`src/sim/bots.js`): seat and home ring in the real ownership table,
+their territory rimmed in their colour, a standing garrison sized by their own era's authoring,
+slow expansion toward their own era's dominion cap, and their capital a real siege with their
+authored walls in the pool. **The dice are on the table** (`ui/battle.js`): the battle panel is a
+live view of the script the sim is playing — viewer always bottom, faces shown, hits lit, walls
+draining, never the odds. Every civilization runs through the same functions on the same clock;
+there is no separate code path for a neighbour's war, which was the whole point.
 
-**What is left.** Contact — two armies on one hex sealing a battle and handing it to the resolver,
-the losing side's ground changing hands, and a contested hex barring the road. Then the bots, at
-which point a raid stops being weather and becomes somebody's decision.
+**What is left.** Bots that WAGE WAR — conquest-intent armies, not only raiders — minors absorbed
+into the army system (campaigns survive only for them), caravans re-imagined or retired, and the
+battle panel's design polish. The combat NUMBERS are first-guess throughout and want playtest.
 
 **Still open, and it gates contact:** *how an army is DEPICTED.* See the sockets ruling in
 `2026-08-25-architecture-review.md` — a centre socket for the structure, a ring of 3–4 for pieces,

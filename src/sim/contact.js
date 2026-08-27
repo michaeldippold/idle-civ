@@ -1,7 +1,7 @@
 import { active } from "../content/compile.js";
 import { CONFIG } from "../core/config.js";
 import { makeRng, rng } from "../core/rng.js";
-import { chronicle } from "../core/bus.js";
+import { chronicle, emit } from "../core/bus.js";
 import { S, me, playerById } from "../core/state.js";
 import { armiesOf, armyAt, armySize, marchArmies } from "./armies.js";
 import { resolveBattle } from "./battle.js";
@@ -137,6 +137,10 @@ export function sealBattle(hexId, atkArmy, atkP, defArmy, defP) {
     round: 0, t: 0,
   };
   battles().push(b);
+  // The panel's cue (wired in ui/wire.js): the seal, each round as it plays,
+  // and the ending. Emitted only for wars the human is IN -- a battle you are
+  // standing in is visible by definition, and nobody else's dice are shown.
+  if (atkP.id === S.me || defP.id === S.me) emit("battleSealed", { b });
   if (atkP.id === S.me) {
     chronicle(walls > 0
       ? `Your army sets against the walls at ${placeWord(hexId)}. The dice will decide it.`
@@ -171,6 +175,7 @@ function playRound(b) {
   if (!round) { conclude(b, script); return true; }
   applyLost(b.atk.pid, b.atk.uid, round.attacker.lost);
   applyLost(b.def.pid, b.def.uid, round.defender.lost);
+  if (b.atk.pid === S.me || b.def.pid === S.me) emit("battleRound", { b, round: b.round });
   if (round.breached && (b.atk.pid === S.me || b.def.pid === S.me)) {
     chronicle(`The wall at ${placeWord(b.hex)} comes down.`, b.def.pid === S.me ? "bad" : "good");
   }
@@ -268,6 +273,7 @@ function conquer(hexId, atkP, defP) {
 }
 
 function conclude(b, script) {
+  if (b.atk.pid === S.me || b.def.pid === S.me) emit("battleEnded", { b, script });
   const atkP = playerById(b.atk.pid), defP = playerById(b.def.pid);
   const atkArmy = findArmy(atkP, b.atk.uid);
   const defArmy = findArmy(defP, b.def.uid);

@@ -396,8 +396,17 @@ several tempting ideas later, and it should.
    `fortStrength`, `CONFIG.fortRange/fortStrength/counterCasualtyRelief`. There is one combat
    system. Still on the old math: **campaigns** (`campaignStrength`, `wallPower`,
    `weaponMultiplier`, `armorFactor`) — they die when armies absorb the campaign/minor-fealty verb.
-   Left for the goal of "a combat system two players can engage in": the **battle panel** (the
-   dice on the table — the scripts and faces are all recorded, waiting to be shown), bots that
+   **THE BATTLE PANEL SHIPPED the same day** (`ui/battle.js`): the sim narrates every round over
+   the bus (seal / round / ended, human battles only) and the panel draws whatever round just
+   played — a live view of the script, not a second clock, so it can never desync, pause freezes
+   it, fast-forward speeds it, and reopening (the Watch button on any battle card) lands on the
+   live round because there is no other round to land on. Viewer always bottom in their colour;
+   die faces drawn with hits lit; walls as a draining masonry bar with melee greyed "behind the
+   walls — waiting for the breach" and THE WALL COMES DOWN as the flash; casualties as red −n;
+   the outcome banner lingers seven seconds and tidies itself away. "Just tell me how it ends"
+   closes it per-battle, never remembered. Never the odds. Verified live: a 14-v-12 attack LOST
+   on screen — final round, their two survivors rolled 8 and 10, mine rolled 4 and 4 — which is
+   the exact-reason-you-lost the panel exists for. Left for "two players can engage": bots that
    DEFEND and EXPAND rather than only raid, and armies absorbing campaigns.
 
    *(The original next-session note follows, kept for the reasoning.)* A5's shape as planned at

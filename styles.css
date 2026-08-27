@@ -1168,3 +1168,107 @@ body.dead #mainArea .block { filter: saturate(.25); }
 /* Sighted: real terrain, seen from a shore. A dashed edge marks "seen, not
    held" in the debug view; the 3D board says it by having no props at all. */
 .tile-sighted { stroke: rgba(25, 23, 16, .38); stroke-dasharray: 3 3; }
+
+/* ---------- THE BATTLE PANEL: the dice on the table ----------
+   A live view of the script the sim is playing -- the viewer's side is ALWAYS
+   the bottom block (owner ruling), the enemy the top, the wall strip between
+   them when there are walls to break. Non-blocking: it floats over the board,
+   the world keeps running, and the pause button does what it always does. */
+#battlePanel {
+  position: absolute;
+  left: 50%; top: 54px;
+  transform: translateX(-50%);
+  width: min(560px, calc(100% - 40px));
+  z-index: 60;
+  background: rgba(14, 17, 23, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  padding: 10px 12px 12px;
+  color: #f0ead8;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+#battlePanel.hidden { display: none; }
+
+.bp-head {
+  display: flex; align-items: center; gap: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  padding-bottom: 7px; margin-bottom: 8px;
+}
+.bp-title { font-weight: 700; }
+.bp-round { font-family: var(--mono); font-size: 12px; opacity: 0.75; flex: 1; }
+
+/* The two sides. YOURS IS ALWAYS THE BOTTOM -- the tabletop seat. Colour says
+   whose: your rows wear the run's colour on their left edge, theirs wear
+   white, the same grammar as the discs and the houses. */
+.bp-side { padding: 4px 0; }
+.bp-side.foe  { border-left: 3px solid #ffffff; padding-left: 9px; }
+.bp-side.mine { border-left: 3px solid var(--player-glyph, #c3a3ff); padding-left: 9px; }
+
+.bp-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; flex-wrap: wrap; }
+.bp-row.silent { opacity: 0.45; }
+.bp-unit { display: inline-flex; align-items: center; gap: 5px; min-width: 150px; }
+.bp-unit svg { width: 16px; height: 16px; }
+.bp-waiting { font-size: 11px; font-style: italic; opacity: 0.8; }
+
+/* THE DICE. High is good, and a hit face lights up -- the whole reason the
+   player can be shown WHY they lost without ever being shown their odds. */
+.bp-dice { display: inline-flex; flex-wrap: wrap; gap: 3px; }
+.bp-die {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 21px; height: 21px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  font-family: var(--mono); font-size: 12px; font-weight: 700;
+  background: rgba(255, 255, 255, 0.06);
+  color: #9aa2b1;
+  animation: bp-roll 0.28s ease-out;
+}
+.bp-die.hit {
+  background: #f2cf3f;      /* STATUS notice yellow: a hit is an event, not an identity */
+  border-color: #f2cf3f;
+  color: #14161c;
+}
+@keyframes bp-roll {
+  from { transform: translateY(-6px) rotate(-18deg); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+.bp-more { font-family: var(--mono); font-size: 11px; opacity: 0.75; align-self: center; }
+.bp-lost {
+  font-family: var(--mono); font-weight: 700; color: #e8402c;
+  animation: bp-roll 0.4s ease-out;
+}
+
+/* The wall strip: the pool draining between the two sides, and the breach. */
+.bp-wall {
+  position: relative; height: 16px; margin: 5px 0;
+  border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 3px;
+  background: rgba(255, 255, 255, 0.04);
+  overflow: hidden;
+}
+.bp-wall.hidden { display: none; }
+.bp-wall-fill {
+  position: absolute; inset: 0 auto 0 0;
+  background: #7d7568;      /* masonry */
+  transition: width 0.5s ease;
+}
+.bp-wall-label {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.06em;
+  color: #f0ead8; text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+.bp-flash {
+  text-align: center; font-weight: 800; letter-spacing: 0.12em;
+  color: #f2cf3f; padding: 2px 0;
+  animation: bp-roll 0.5s ease-out;
+}
+.bp-flash.hidden { display: none; }
+
+.bp-outcome {
+  margin-top: 8px; padding-top: 7px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  font-weight: 700; text-align: center;
+}
+.bp-outcome.hidden { display: none; }
+.bp-outcome.won  { color: #8ad45c; }
+.bp-outcome.lost { color: #e8402c; }

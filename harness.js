@@ -25,6 +25,7 @@ import * as mBattle from "./src/sim/battle.js";
 import * as mArmies from "./src/sim/armies.js";
 import * as mContact from "./src/sim/contact.js";
 import * as mRaiders from "./src/sim/raiders.js";
+import * as mBattleUi from "./src/ui/battle.js";
 import * as mHex3d from "./src/render3d/hex3d.js";
 import * as mEvents from "./src/sim/events.js";
 import * as mExped from "./src/sim/expeditions.js";
@@ -57,7 +58,7 @@ import { fileURLToPath } from "node:url";
 const MODS = [mConfig, mRng, mLib, mStone, mBronze, mIron, mCompile, mIcons, mState,
   mContinents,
   mDerived, mCombat, mBattle, mArmies, mContact, mRaiders, mHex3d, mEvents, mExped, mStep, mActions, mEra, mLog, mDom,
-  mPLedger, mPPeople, mPHold, mPBuy, mExpedUi, mModal, mChrome, mPersist,
+  mPLedger, mPPeople, mPHold, mPBuy, mExpedUi, mBattleUi, mModal, mChrome, mPersist,
   mMapModel, mMapGen, mMapCore, mMapUi, mPalette, mJournal, mBus, mEraClock];
 
 function fakeEl() {
@@ -5842,6 +5843,65 @@ console.log("\n--- The pieces: discs, tiers, sockets, and who gets drawn ---");
       }
     }
     return true;
+  })());
+}
+
+console.log("\n--- The battle panel's wire: the sim narrates every round ---");
+{
+  reset(); S().seed = 616161; S().rngState = 616161; S().map = null; S().seen = {};
+  api.ensureMap(); api.initAdversaries();
+  const P = api.me();
+  const R = api.rivals()[0];
+  P.units.soldier = 40; R.units.soldier = 40;
+  const land = Object.values(api.world.places).find((x) =>
+    x.terrain !== "water" && !x.adversary && !x.minor && !api.ownerOf(x.id));
+  api.claimTile(land.id, R.id);
+  api.formArmy(land.id, { soldier: 9 }, "never", R);
+  const mine = api.formArmy(api.holdings(P.id)[0], { soldier: 11 }, "never", P);
+
+  // Subscribe the way wire.js does, count what the sim says, then unhook.
+  const got = { sealed: 0, rounds: [], ended: 0, script: null };
+  const hSeal = ({ b }) => { got.sealed++; };
+  const hRound = ({ b, round }) => { got.rounds.push(round); };
+  const hEnd = ({ b, script }) => { got.ended++; got.script = script; };
+  api.on("battleSealed", hSeal); api.on("battleRound", hRound); api.on("battleEnded", hEnd);
+
+  api.orderMarch(mine.uid, land.id, P);
+  let guard = 0;
+  while ((api.armiesOf(R).length > 0 || api.battleCount() > 0) && guard++ < 900) api.tickMilitary(2);
+
+  api.off("battleSealed", hSeal); api.off("battleRound", hRound); api.off("battleEnded", hEnd);
+
+  check("one seal, one ending", got.sealed === 1 && got.ended === 1 && !!got.script);
+  check("every round of the script was narrated, in order",
+    got.rounds.length === got.script.rounds.length &&
+    got.rounds.every((r, i) => r === i));
+
+  // The panel itself, headless: every handler runs against the stub DOM
+  // without throwing -- the create-once skeleton, a round render, an ending.
+  check("the panel survives a whole war with no real DOM", (() => {
+    reset(); S().seed = 616162; S().rngState = 616162; S().map = null; S().seen = {};
+    api.ensureMap(); api.initAdversaries();
+    const P2 = api.me(), R2 = api.rivals()[0];
+    P2.units.soldier = 30; R2.units.soldier = 30;
+    const l2 = Object.values(api.world.places).find((x) =>
+      x.terrain !== "water" && !x.adversary && !x.minor && !api.ownerOf(x.id));
+    api.claimTile(l2.id, R2.id);
+    api.formArmy(l2.id, { soldier: 6 }, "never", R2);
+    const m2 = api.formArmy(api.holdings(P2.id)[0], { soldier: 8 }, "never", P2);
+    api.on("battleSealed", api.onBattleSealed);
+    api.on("battleRound", api.onBattleRound);
+    api.on("battleEnded", api.onBattleEnded);
+    let ok = true;
+    try {
+      api.orderMarch(m2.uid, l2.id, P2);
+      let g = 0;
+      while ((api.armiesOf(R2).length > 0 || api.battleCount() > 0) && g++ < 900) api.tickMilitary(2);
+    } catch (e) { ok = false; console.log("  panel threw: " + e.message); }
+    api.off("battleSealed", api.onBattleSealed);
+    api.off("battleRound", api.onBattleRound);
+    api.off("battleEnded", api.onBattleEnded);
+    return ok;
   })());
 }
 

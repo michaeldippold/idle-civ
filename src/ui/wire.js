@@ -3,6 +3,7 @@ import { S } from "../core/state.js";
 import { renderAll, setSpeed } from "./chrome.js";
 import { log as writeChronicle } from "./log.js";
 import { openEraModal, openGameOverModal } from "./modal.js";
+import { onBattleEnded, onBattleRound, onBattleSealed } from "./battle.js";
 
 // ---------- Where the two halves meet ------------------------
 // THE ONLY MODULE THAT KNOWS BOTH SIDES (2026-08-26, review Part II.3). The
@@ -25,6 +26,13 @@ export function wireInterface() {
   on("render", () => renderAll());
 
   on("speed", ({ value }) => setSpeed(value));
+
+  // THE DICE ON THE TABLE. The sim plays the script; the panel draws whatever
+  // round just played -- a live view, not a second clock, which is why it can
+  // never desync, pause freezes it, and reopening lands on the live round.
+  on("battleSealed", onBattleSealed);
+  on("battleRound", onBattleRound);
+  on("battleEnded", onBattleEnded);
 
   // Your own border is a ceremony; somebody else's is news, and news is the
   // notifications system's job rather than a modal that seizes the world.

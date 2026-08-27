@@ -12,6 +12,7 @@ import { hexDistance, hexPoints, toPixel } from "../map/model.js";
 import { campaignPlan, expeditionOut, musterBuilt, standingWord } from "../sim/expeditions.js";
 import { attachTip, esc, tipHide, tipMove, tipShow } from "./dom.js";
 import { openCampaignModal, openCaravanModal, openRaiseModal, stockLine } from "./expeditions.js";
+import { watchBattle } from "./battle.js";
 
 // ---------- The map stage (the flip, 2026-08-22) ------------
 // The map is the game's main surface now -- not a modal, the CANVAS, with
@@ -381,7 +382,8 @@ function armyHTML(p) {
   const b = battleAt(p.id);
   if (b) {
     out.push(`<div class="army-card battle"><div class="army-head">\u2694 <b>A battle rages here</b> — round ${
-      (b.round || 0) + 1}. No one enters, and no one is called away, until it is decided.</div></div>`);
+      (b.round || 0) + 1}. No one enters, and no one is called away, until it is decided.</div>` +
+      `<div class="map-actions"><button class="map-act" data-act="watchbattle" data-tile="${p.id}">Watch</button></div></div>`);
   }
   // POINTERS, NEVER EMBEDDED CARDS (canon: the hex panel reports what is
   // around it rather than owning it, the way a folder lists filenames without
@@ -418,7 +420,8 @@ function armyDetailHTML(pl, a) {
   const b = battleAt(a.at);
   if (b) {
     parts.push(`<div class="army-card battle"><div class="army-head">\u2694 <b>Locked in battle</b> — round ${
-      (b.round || 0) + 1}. The dice are rolling.</div></div>`);
+      (b.round || 0) + 1}. The dice are rolling.</div>` +
+      `<div class="map-actions"><button class="map-act" data-act="watchbattle" data-tile="${a.at}">Watch</button></div></div>`);
   }
   parts.push(`<div class="army-head">\u2691 <b>${armySize(a)} under arms</b> — a ${armyBand(armySize(a)).name}</div>`);
   parts.push(armyRoster(a, pl).map((x) => unitLine(x.def, x.n)).join(""));
@@ -1055,6 +1058,7 @@ export function initMapStage() {
       if (act === "raise") { openRaiseModal(btn.dataset.tile); return; }
       if (act === "viewarmy") { selectPiece(btn.dataset.key); return; }
       if (act === "viewhex") { sending = null; selectTile(btn.dataset.tile); return; }
+      if (act === "watchbattle") { watchBattle(battleAt(btn.dataset.tile)); return; }
       if (act === "stance") {
         setStance(Number(btn.dataset.army), btn.dataset.stance);
         lastDetail = ""; renderTileDetail();

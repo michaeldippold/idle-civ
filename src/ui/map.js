@@ -3,7 +3,7 @@ import { S, me, playerByKey } from "../core/state.js";
 import { availableUnits, canAfford, caps, capWord, seatIsNamed, seatName } from "../core/derived.js";
 import { save } from "../core/persist.js";
 import { canBuildOn, demolishStructure, hasMarket, launchSettle, launchStructure, pendingBuild, pendingSettle, settlePlan, structureFits, structurePlan, structureUnlocked, trade, tradeRate } from "../core/actions.js";
-import { atDominionCap, capOf, dominionCap, hexPop, hexResource, hexUse, hexYield, holdings, holdsUsed, isCharted, isOwned, isSighted, isVisible, structureDef, terrainYield, workStamp, world } from "../map/map.js";
+import { atDominionCap, capOf, dominionCap, hexPop, hexResource, hexUse, hexYield, holdings, holdsUsed, isCharted, isOwned, isSighted, isVisible, ownerOf, structureDef, terrainYield, workStamp, world } from "../map/map.js";
 import { armyAt, armyBand, armyById, armyRoster, armySize, canSeeArmyAt, disbandArmy, disbandRefusal, haltArmy, marchRefusal, marchingTo, orderMarch, setStance } from "../sim/armies.js";
 import { STANCES, stanceById, unitHit, unitRole } from "../sim/battle.js";
 import { battleAt } from "../sim/contact.js";
@@ -457,22 +457,39 @@ function anyUnitsFree() {
 export function detailHTML(p) {
   const parts = [];
   parts.push(armyHTML(p));
-  if (p.adversary) {
+  if (p.adversary && ownerOf(p.id) !== S.me) {
+    // (Guarded on ownership since the B slice: a seat YOU have conquered stops
+    // being their card and becomes ordinary ground of yours.)
     const adv = active().adversaries.find((a) => a.id === p.adversary);
     const st = playerByKey(p.adversary);
     if (adv && st) {
       parts.push(`<b>${advName(adv)}</b> — ${adv.disposition} · ${standingWord(st.standing)}<br>${adv.desc}<br>${stockLine(st)}`);
       if (!canReachOut()) { parts.push(noReachLine()); return parts.join(""); }
-      // The same refusals the Expeditions panel carried, or the buttons
-      // silently no-op and read as broken (found in play).
+      // THE MARCH BUTTON DIED HERE (B slice, 2026-08-26): a major's seat is
+      // owned, walled, garrisoned ground now, and ARMIES are the verb against
+      // it -- raise one, march it onto their capital, and the contact rules
+      // seal a real siege with their walls in the pool. The campaign system
+      // survives only for MINORS (fealty is a different prize) and dies
+      // entirely when armies absorb that too. Caravans are unaffected.
       const noGround = !musterBuilt();
-      const marchOut = expeditionOut("campaign"), caravanOut = expeditionOut("caravan");
-      const acts = [`<button class="map-act" data-act="march" data-adv="${adv.id}"${noGround || marchOut ? " disabled" : ""}>March</button>`];
+      const caravanOut = expeditionOut("caravan");
+      const acts = [];
       if (adv.buys) acts.push(`<button class="map-act" data-act="caravan" data-adv="${adv.id}"${noGround || caravanOut ? " disabled" : ""}>Caravan</button>`);
-      parts.push(`<div class="map-actions">${acts.join("")}</div>`);
-      if (noGround) parts.push(`<span class="map-noworks">${musterName()} must stand before columns or caravans can leave.</span>`);
-      else if (marchOut || caravanOut) parts.push(`<span class="map-noworks">${marchOut ? "A campaign is already in the field." : "A caravan is already on the road."}</span>`);
+      if (acts.length) parts.push(`<div class="map-actions">${acts.join("")}</div>`);
+      parts.push(`<span class="map-noworks">Their walls answer to armies now — march a force onto their ground.</span>`);
+      if (adv.buys && noGround) parts.push(`<span class="map-noworks">${musterName()} must stand before caravans can leave.</span>`);
+      else if (adv.buys && caravanOut) parts.push(`<span class="map-noworks">A caravan is already on the road.</span>`);
       return parts.join("");
+    }
+  }
+  // THEIR COUNTRY, when a rival's expansion has painted ordinary ground: name
+  // the owner and offer nothing -- taking it is an army's job.
+  {
+    const owner = ownerOf(p.id);
+    if (owner != null && owner !== S.me) {
+      const pl = S.players[owner];
+      const adv = pl && active().adversaries.find((a) => a.id === pl.key);
+      parts.push(`<span class="map-noworks">This is the country of ${adv ? adv.name : "another people"}. Taking it is an army's work.</span>`);
     }
   }
   if (!isOwned(p.id) && p.minor && S.map.minors && S.map.minors[p.id]) {
@@ -685,7 +702,9 @@ function baseMarkFor(p) {
   // and their names live on hover -- the map stays a map, not a directory.
   if (p.adversary) {
     const adv = active().adversaries.find((a) => a.id === p.adversary);
-    return { glyph: "\u2302", cls: "seat", label: adv ? advName(adv) : p.adversary };
+    const pl = playerByKey(p.adversary);
+    return { glyph: "\u2302", cls: "seat", label: adv ? advName(adv) : p.adversary,
+             color: pl ? (colorById(pl.color) || {}).ring : null };
   }
   if (isOwned(p.id)) return workMark(p.id);
   // Minors get a mark and no label: they are numerous, and their names live on
@@ -768,7 +787,16 @@ export function devRedress() {
 // sight reveals the BOARD and never the PIECES (map.md, slice 4b), and a rim
 // saying "someone lives here" is a piece.
 export function rimFor(p) {
-  if (isOwned(p.id)) return playerColor().ring;
+  // EVERY OWNER PAINTS THEIR OWN BORDER (B slice, 2026-08-26): the bots hold
+  // real ground now, and their country rims in their colour the same way yours
+  // does. White-means-foreign survives only where nothing owns the ground --
+  // a minor's steading, a seat not yet settled by its people.
+  const owner = ownerOf(p.id);
+  if (owner === S.me) return playerColor().ring;
+  if (owner != null) {
+    const pl = S.players[owner];
+    return (colorById(pl && pl.color) || {}).ring || FOREIGN;
+  }
   // The GROUND's mark, deliberately: an army standing on a foreign seat must
   // not stop that seat's rim from reading as foreign.
   const m = baseMarkFor(p);

@@ -406,8 +406,23 @@ several tempting ideas later, and it should.
    the outcome banner lingers seven seconds and tidies itself away. "Just tell me how it ends"
    closes it per-battle, never remembered. Never the odds. Verified live: a 14-v-12 attack LOST
    on screen — final round, their two survivors rolled 8 and 10, mine rolled 4 and 4 — which is
-   the exact-reason-you-lost the panel exists for. Left for "two players can engage": bots that
-   DEFEND and EXPAND rather than only raid, and armies absorbing campaigns — which is also where
+   the exact-reason-you-lost the panel exists for. **THE B SLICE SHIPPED the same day** (`sim/bots.js`): the neighbours are COUNTRIES. Every
+   power settles its seat and a home ring in the real ownership table, keeps a standing garrison
+   sized by its own era's authoring (5 at Stone, a host of 32 for an Iron kingdom — the arc was
+   already authored), and expands one frontier hex at a time on a slow clock toward its own era's
+   dominion cap — the same scope law the human answers to. Their territory rims in their colour,
+   their seat house wears it, and marching onto their capital seals a real SIEGE with their
+   authored walls in the pool (`seatWallScale`; Stone seats are open camps, Iron seats are
+   fortresses). A fallen capital stays fallen; a beaten-but-unconquered people regarrisons after
+   `botRegarrisonSeconds` — a takeable window as the reward for beating the last garrison. The
+   major March button DIED: armies are the verb against powers now, campaigns survive only for
+   minors (fealty is a different prize) and die when armies absorb that too. Two real bugs came
+   out in the digging: a null-key trap in wallsAt matched every human hex to the seat branch and
+   silently deleted every march-hold from the resolver (ordinary hexes carry adversary: null, the
+   human's key is null — caught by the fully-walled-realm check); and initAdversaries restocked a
+   rival's walls from the VIEWER's manifest, so a bronze kingdom rebuilt stone walls — the same
+   defect its own header said raidSender had already fixed. Left for "two players can engage": bots
+   that WAGE WAR (conquest intent, not just raids), minors absorbed into armies — which is also where
    two seams the owner hit in play get closed: **marching onto a major's SEAT does nothing today**
    (the seat is an adversary hex, not owned ground, so contact's arrived hook has no owner to
    fight — campaigns are still the verb against majors until armies absorb them and the seat

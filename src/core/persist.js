@@ -178,8 +178,14 @@ export function initAdversaries() {
         : (PLAYER_COLORS.find((c) => !taken.includes(c.id)) || { id: p.color }).id;
     }
     if (p.era !== p.seenEra) {
-      p.res = Object.assign({}, adv.stock);   // a new age, a full larder
-      p.walls = adv.walls || 0;               // and the walls rebuilt taller
+      // FROM THEIR OWN AGE, not the viewer's (fixed 2026-08-26, caught by the
+      // capital-siege check): `adv` above is the human manifest's def, so a
+      // bronze kingdom was restocking STONE walls -- exactly the defect the
+      // header comment says raidSender already fixed. Who they have become is
+      // what refills the larder and rebuilds the walls.
+      const own = (active(p).adversaries || []).find((a) => a.id === adv.id) || adv;
+      p.res = Object.assign({}, own.stock);   // a new age, a full larder
+      p.walls = own.walls || 0;               // and the walls rebuilt taller
     }
     // `seenEra` is the age this record was last stocked for. Kept beside the
     // era rather than compared against it directly, so that ADVANCING is what

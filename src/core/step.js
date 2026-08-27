@@ -7,6 +7,7 @@ import { endFamine, growPopulation, starveTick } from "../map/map.js";
 import { resolveEvents, runConverters } from "../sim/events.js";
 import { resolveExpeditions } from "../sim/expeditions.js";
 import { tickMilitary } from "../sim/contact.js";
+import { tickBots } from "../sim/bots.js";
 import { tickEraClock } from "../sim/eraclock.js";
 import { chronicle, requestRender, runEnded } from "../core/bus.js";
 
@@ -78,6 +79,10 @@ export function step() {
   // hooks: a step onto an enemy seals a battle, a contested hex bars the road,
   // and arrivals on enemy ground besiege or conquer (sim/contact.js).
   tickMilitary(dt);
+  // THE NEIGHBOURS KEEP HOUSE. Settlement is lazy and idempotent (covers
+  // boot, load and era entry with no persist hook); expansion and
+  // re-garrisoning accrue real time, so pause holds a country still.
+  tickBots(dt);
   // THE ERA CLOCK. Every other player runs a hidden countdown to its next age;
   // this is where it ticks. Ticks rather than wall-clock, so pause stops every
   // countdown and fast-forward speeds them all (design ruling 2).

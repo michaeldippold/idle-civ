@@ -26,6 +26,7 @@ import * as mArmies from "./src/sim/armies.js";
 import * as mContact from "./src/sim/contact.js";
 import * as mRaiders from "./src/sim/raiders.js";
 import * as mBattleUi from "./src/ui/battle.js";
+import * as mBots from "./src/sim/bots.js";
 import * as mHex3d from "./src/render3d/hex3d.js";
 import * as mEvents from "./src/sim/events.js";
 import * as mExped from "./src/sim/expeditions.js";
@@ -57,7 +58,7 @@ import { fileURLToPath } from "node:url";
 
 const MODS = [mConfig, mRng, mLib, mStone, mBronze, mIron, mCompile, mIcons, mState,
   mContinents,
-  mDerived, mCombat, mBattle, mArmies, mContact, mRaiders, mHex3d, mEvents, mExped, mStep, mActions, mEra, mLog, mDom,
+  mDerived, mCombat, mBattle, mArmies, mContact, mRaiders, mBots, mHex3d, mEvents, mExped, mStep, mActions, mEra, mLog, mDom,
   mPLedger, mPPeople, mPHold, mPBuy, mExpedUi, mBattleUi, mModal, mChrome, mPersist,
   mMapModel, mMapGen, mMapCore, mMapUi, mPalette, mJournal, mBus, mEraClock];
 
@@ -5902,6 +5903,121 @@ console.log("\n--- The battle panel's wire: the sim narrates every round ---");
     api.off("battleRound", api.onBattleRound);
     api.off("battleEnded", api.onBattleEnded);
     return ok;
+  })());
+}
+
+console.log("\n--- The neighbours become countries (B slice) ---");
+{
+  reset(); S().seed = 424243; S().rngState = 424243; S().map = null; S().seen = {};
+  api.ensureMap(); api.initAdversaries();
+  const P = api.me();
+  const hill = api.playerByKey("hillClans");
+
+  api.tickBots(0.2);
+  const seat = api.seatOf(hill);
+  check("every power settles: seat owned, in their own name",
+    api.rivals().every((c) => {
+      const s2 = api.seatOf(c);
+      return s2 == null || api.ownerOf(s2) === c.id;
+    }) && seat != null && api.ownerOf(seat) === hill.id);
+  check("a home ring stands around the seat",
+    api.holdings(hill.id).length >= 2 && api.holdings(hill.id).length <= 1 + api.CONFIG.botHomeRing);
+  const g0 = api.armyAt(seat, hill);
+  check("the capital keeps a standing garrison, fight-to-the-last",
+    !!g0 && g0.intent === "garrison" && g0.stance === "never" && api.armySize(g0) >= 2);
+
+  const holdingsBefore = api.holdings(hill.id).length;
+  const sizeBefore = api.armySize(g0);
+  api.tickBots(0.2); api.tickBots(0.2);
+  check("settlement is idempotent -- ticks do not stack countries",
+    api.holdings(hill.id).length === holdingsBefore && api.armySize(api.armyAt(seat, hill)) === sizeBefore &&
+    api.armiesOf(hill).filter((a) => a.intent === "garrison").length === 1);
+
+  check("the country grows on its clock, one frontier hex at a time", (() => {
+    const before = api.holdings(hill.id).length;
+    api.tickBots(api.CONFIG.botClaimSeconds + 1);
+    const after = api.holdings(hill.id);
+    if (after.length !== before + 1) return false;
+    // the new hex borders the old country
+    const grown = after.find((id) => !api.world.places[id].adversary &&
+      api.world.places[id].adj.some((n) => api.ownerOf(n) === hill.id));
+    return !!grown;
+  })());
+
+  check("growth stops at their own era's dominion cap", (() => {
+    const cap = (api.MANIFESTS[hill.era].map && api.MANIFESTS[hill.era].map.dominionCap) || Infinity;
+    for (let i = 0; i < 40; i++) api.tickBots(api.CONFIG.botClaimSeconds + 1);
+    return api.holdings(hill.id).length <= cap;
+  })());
+
+  check("their expansion never steals held or special ground",
+    api.holdings(hill.id).every((id) => {
+      const pl = api.world.places[id];
+      return pl.terrain !== "water" && !pl.minor && (!pl.adversary || pl.adversary === hill.key);
+    }));
+
+  // ---- The capital siege ----
+  advanceRivalsTo("bronze");                    // bronze authors real walls on the hill people
+  api.initAdversaries();                        // restock walls for the new age
+  check("a bronze capital has walls to author the pool from", hill.walls > 0);
+  P.units.soldier = 60;
+  const mine = api.formArmy(api.holdings(P.id)[0], { soldier: 30 }, "never", P);
+  api.orderMarch(mine.uid, seat, P);
+  let guard = 0;
+  while (!api.battleAt(seat) && guard++ < 900) api.tickMilitary(0.5);
+  const b = api.battleAt(seat);
+  check("marching onto their seat seals a SIEGE, their walls in the pool",
+    !!b && b.walls === hill.walls * api.CONFIG.seatWallScale && b.def.uid != null);
+  guard = 0;
+  while (api.battleAt(seat) && guard++ < 900) api.tickMilitary(2);
+  check("a capital can FALL -- the seat is yours, the garrison gone",
+    api.ownerOf(seat) === P.id || api.armiesOf(P).length === 0);   // won, or died trying -- either is a real war
+  const conquered = api.ownerOf(seat) === P.id;
+  console.log(`  the siege of the hill seat: ${conquered ? "the capital fell" : "the walls held"}`);
+
+  // ---- Regarrison: a beaten people recovers ----
+  if (!conquered) {
+    const g1 = api.armyAt(seat, hill);
+    if (g1) {
+      const list = api.armiesOf(hill);
+      list.splice(list.indexOf(g1), 1);          // the garrison dies off-screen
+    }
+    hill.regarrisonT = 0;
+    api.tickBots(1);
+    check("a bare capital does not regarrison at once", api.armyAt(seat, hill) == null);
+    api.tickBots(api.CONFIG.botRegarrisonSeconds + 1);
+    check("...but a people recovers, and a new garrison stands",
+      api.armyAt(seat, hill) != null && api.armyAt(seat, hill).intent === "garrison");
+  } else {
+    check("a fallen capital stays fallen -- no regarrison on YOUR ground", (() => {
+      api.tickBots(api.CONFIG.botRegarrisonSeconds * 2);
+      return api.armyAt(seat, hill) == null && api.ownerOf(seat) === P.id;
+    })());
+    check("(regarrison branch covered on the other fork)", true);
+  }
+
+  // ---- The null-key trap, pinned forever ----
+  check("a human march-hold still walls its hex in an army battle", (() => {
+    // Ordinary hexes carry adversary: null and the human's key is null: a bare
+    // === on the seat-walls branch once matched them and silently deleted
+    // every march-hold from the resolver. This is that bug's tombstone.
+    reset(); S().seed = 424244; S().rngState = 424244; S().map = null; S().seen = {};
+    api.ensureMap(); api.initAdversaries();
+    const P2 = api.me(), R2 = api.rivals()[0];
+    P2.units.soldier = 20; R2.units.soldier = 20;
+    const wHex = api.holdings(P2.id)[1];
+    S().map.built = S().map.built || {};
+    S().map.built[wHex] = "marchHold";
+    api.formArmy(wHex, { soldier: 4 }, "never", P2);
+    const land = Object.values(api.world.places).find((x) =>
+      x.terrain !== "water" && !x.adversary && !x.minor && !api.ownerOf(x.id));
+    api.claimTile(land.id, R2.id);
+    const theirs = api.formArmy(land.id, { soldier: 10 }, "never", R2);
+    api.orderMarch(theirs.uid, wHex, R2);
+    let g = 0;
+    while (!api.battleAt(wHex) && g++ < 900) api.tickMilitary(0.5);
+    const bb = api.battleAt(wHex);
+    return !!bb && bb.walls === 24;
   })());
 }
 

@@ -151,6 +151,14 @@ export const CONFIG = {
   // launchCampaign has always used); this is the upper band's floor. Absolute
   // across all eras by ruling.
   armyHostSize: 25,
+  // ---- The bots' country (B slice, 2026-08-26) ----
+  botHomeRing: 3,          // hexes claimed around the seat at settlement
+  botClaimSeconds: 75,     // one new frontier hex per this many seconds, to their era's cap
+  botRegarrisonSeconds: 240, // how long a beaten capital stays takeable before a new garrison musters
+  // A seat's walls in resolver units: the adversary def's authored `walls`
+  // times this. Stone seats author walls 0 -- an open camp -- and an Iron
+  // kingdom's 26 becomes a fortress pool of 104, which is the era arc working.
+  seatWallScale: 4,
   armyPerHex: 2,          // the army cap (E5): each held hex supports this many standing
                           // units, in every era -- the levy re-homed to the land, per the
                           // owner's ruling ("make it serve the hex"). Territory is what

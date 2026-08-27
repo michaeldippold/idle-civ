@@ -531,6 +531,9 @@ function buildLabels() {
       } else {
         g.textContent = mark.glyph;
       }
+      // A mark may carry its owner's colour (the seat houses since the bots
+      // took real ground); the class still styles everything else about it.
+      if (mark.color) g.style.color = mark.color;
       labelLayer.appendChild(g);
     }
     if (mark.label) {

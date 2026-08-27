@@ -91,8 +91,21 @@ export function scriptOf(b) {
 // the panel law ("everything that fires is standing on the hex") is enforced
 // here by construction, because nothing else is even looked at.
 function wallsAt(hexId, defenderPid) {
+  if (ownerOf(hexId) !== defenderPid) return { walls: 0, slots: 0 };
+  // A CAPITAL'S OWN WALLS (B slice): a rival's seat carries the walls its era
+  // authored on the adversary def, scaled into resolver units. Stone seats
+  // author zero -- an open camp -- and the arc climbs to iron fortresses.
+  const place = world && world.places[hexId];
+  const defP = playerById(defenderPid);
+  // defP.key != null is LOAD-BEARING: ordinary hexes carry adversary: null
+  // and the HUMAN's key is null too, so a bare === sent every human-owned hex
+  // down this branch with me().walls = 0 -- which silently deleted every
+  // march-hold from the resolver. Caught by the fully-walled-realm check.
+  if (place && defP && defP.key != null && place.adversary === defP.key) {
+    return { walls: (defP.walls || 0) * CONFIG.seatWallScale, slots: CONFIG.fortSlots };
+  }
   const sid = S.map && S.map.built && S.map.built[hexId];
-  if (!sid || ownerOf(hexId) !== defenderPid) return { walls: 0, slots: 0 };
+  if (!sid) return { walls: 0, slots: 0 };
   const def = structureDef(sid);
   if (!def || !def.fortifies) return { walls: 0, slots: 0 };
   return {

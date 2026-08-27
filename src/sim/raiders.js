@@ -5,6 +5,7 @@ import { chronicle } from "../core/bus.js";
 import { S, me, rivals } from "../core/state.js";
 import { armiesOf, armyAt, armyBand, armySize, canSeeArmyAt, orderMarch } from "./armies.js";
 import { raidSender } from "./expeditions.js";
+import { seatOf } from "./bots.js";
 import { raidGround, reconcileReservations, rollRaidSize, rollRaidType, stealResources } from "./combat.js";
 import { hexPop, isOwned, killAt, strikeHex, structureDef, world } from "../map/map.js";
 
@@ -34,15 +35,8 @@ import { hexPop, isOwned, killAt, strikeHex, structureDef, world } from "../map/
 // turns for home. Ground changes hands when ARMIES take it, not when bandits
 // visit it.
 
-// The sender's seat: where their armies muster and where survivors return.
-// Adversary seats are placed by the generator and marked on the world.
-function seatOf(civ) {
-  if (!world) return null;
-  for (const id in world.places) {
-    if (world.places[id].adversary === civ.key) return id;
-  }
-  return null;
-}
+// The sender's seat -- where their armies muster and where survivors return --
+// now lives in bots.js, which owns the whole idea of a rival having a home.
 
 // What unit a raid SHAPE means, read against the sender's own manifest.
 // Riders are horsemen where the sender's age can field them; everything else

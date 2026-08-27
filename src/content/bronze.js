@@ -75,8 +75,16 @@ export const BRONZE_DELTA = {
       // manifest is the gate now, where an me().era check used to be.
       // The ores buffer a converter rather than fund a budget -- small caps,
       // no storage (the Ore Yard died with the rest of the line in 4c).
-      { id: "copper", name: "Copper", baseCap: 50,  reveal: () => true },
-      { id: "tin",    name: "Tin",    baseCap: 50,  reveal: () => true },
+      // ORE BUFFERS HOLD MINUTES OF MINING, not seconds (owner bug report,
+      // 2026-08-26: both sat at the pre-hex-economy default of 50 -- set when
+      // ore yards could raise them, stranded when storage buildings died, and
+      // a mine filled one in under a minute). Sized by the era-is-the-budget
+      // law read against their real job, feeding the smelter at 4:1: copper
+      // holds ~2.5 minutes of one mine's yield, tin ~3.3 of its slower seam,
+      // and bronze's own cap stays above both -- the currency outranks its
+      // feedstock.
+      { id: "copper", name: "Copper", baseCap: 150, reveal: () => true },
+      { id: "tin",    name: "Tin",    baseCap: 100, reveal: () => true },
       // Bronze is spent on upgrades rather than stockpiled, so it gets a
       // generous ceiling.
       { id: "bronze", name: "Bronze", baseCap: 200, reveal: () => true },

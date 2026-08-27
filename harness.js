@@ -1009,6 +1009,16 @@ reset();
   const bronzeRes = api.MANIFESTS.bronze.resources.find(r => r.id === "bronze");
   check("bronze runs a generous flat cap over its ore buffers",
     bronzeRes.capBuilding === undefined && bronzeRes.baseCap > copperRes.baseCap);
+  check("an ore buffer holds MINUTES of mining, never the stranded default", (() => {
+    // Owner bug report: copper and tin sat at 50 -- the pre-hex-economy
+    // default, set when ore yards could raise it and stranded when storage
+    // died. The law: an ore's cap must hold at least two minutes of one
+    // mine's yield, read from the mine's own authored rate.
+    const yieldOf = (sid) => api.MANIFESTS.bronze.structures.find((d) => d.id === sid).yield.rate;
+    const tinRes = api.MANIFESTS.bronze.resources.find((r) => r.id === "tin");
+    return copperRes.baseCap >= 120 * yieldOf("copperMine") &&
+           tinRes.baseCap >= 120 * yieldOf("tinMine");
+  })());
 }
 
 console.log("\n--- P2: tin yields half of copper (same hill, same people) ---");

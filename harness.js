@@ -5970,30 +5970,81 @@ console.log("\n--- The neighbours become countries (B slice) ---");
     !!b && b.walls === hill.walls * api.CONFIG.seatWallScale && b.def.uid != null);
   guard = 0;
   while (api.battleAt(seat) && guard++ < 900) api.tickMilitary(2);
-  check("a capital can FALL -- the seat is yours, the garrison gone",
-    api.ownerOf(seat) === P.id || api.armiesOf(P).length === 0);   // won, or died trying -- either is a real war
-  const conquered = api.ownerOf(seat) === P.id;
-  console.log(`  the siege of the hill seat: ${conquered ? "the capital fell" : "the walls held"}`);
+  check("winning on a seat NEVER flips it -- capitals are not instant (owner ruling)",
+    api.ownerOf(seat) === hill.id);
 
-  // ---- Regarrison: a beaten people recovers ----
-  if (!conquered) {
-    const g1 = api.armyAt(seat, hill);
-    if (g1) {
-      const list = api.armiesOf(hill);
-      list.splice(list.indexOf(g1), 1);          // the garrison dies off-screen
-    }
-    hill.regarrisonT = 0;
-    api.tickBots(1);
-    check("a bare capital does not regarrison at once", api.armyAt(seat, hill) == null);
-    api.tickBots(api.CONFIG.botRegarrisonSeconds + 1);
-    check("...but a people recovers, and a new garrison stands",
-      api.armyAt(seat, hill) != null && api.armyAt(seat, hill).intent === "garrison");
-  } else {
-    check("a fallen capital stays fallen -- no regarrison on YOUR ground", (() => {
-      api.tickBots(api.CONFIG.botRegarrisonSeconds * 2);
-      return api.armyAt(seat, hill) == null && api.ownerOf(seat) === P.id;
+  // ---- THE SACK: time on the ground is what ends a nation ----
+  const stand = api.armiesOf(P).find((x) => x.at === seat);
+  check("the victor stands on their capital, sack available", !!stand && !stand.inBattle);
+  if (stand) {
+    stand.intent = "sack";
+    api.beginSack(stand, P);
+    check("the sack begins, and begins at zero", !!stand.sacking && stand.sacking.t === 0);
+    api.tickMilitary(api.CONFIG.sackCapitalSeconds / 2);
+    check("half a sack breaks nothing", !hill.broken && api.ownerOf(seat) === hill.id);
+    const lootBefore = Object.values(P.res).reduce((a, x) => a + (x || 0), 0);
+    api.tickMilitary(api.CONFIG.sackCapitalSeconds);
+    check("the capital falls to TIME: the nation is broken",
+      hill.broken === true);
+    check("their ground dissolves to the wild", api.holdings(hill.id).length === 0);
+    check("their columns scatter", api.armiesOf(hill).length === 0);
+    check("the treasury rides home with the sacker",
+      Object.values(P.res).reduce((a, x) => a + (x || 0), 0) > lootBefore);
+    check("a broken people raids nobody", api.spawnRaid() === null);
+    check("...and keeps no house", (() => {
+      api.tickBots(api.CONFIG.botClaimSeconds * 3);
+      return api.holdings(hill.id).length === 0 && api.armyAt(seat, hill) == null;
     })());
-    check("(regarrison branch covered on the other fork)", true);
+    check("broken survives a save and load", (() => {
+      api.save(); api.load();
+      return api.playerByKey("hillClans").broken === true;
+    })());
+    check("a sack fires only at its TARGET -- never where a road-fight left you", (() => {
+      // Found live: a sack order aimed at a hill frontier crossed the river
+      // kingdom's capital, won the meeting engagement, and broke a nation the
+      // player never aimed at. The intent now waits for its ordered target.
+      const P3 = api.me();
+      const R3 = api.rivals().find((c) => !c.broken);
+      if (!R3) return true;
+      const land3 = Object.values(api.world.places).find((x) =>
+        x.terrain !== "water" && !x.adversary && !x.minor && !api.ownerOf(x.id));
+      api.claimTile(land3.id, R3.id);
+      P3.units.soldier = (P3.units.soldier || 0) + 4;
+      const s3 = api.formArmy(api.holdings(P3.id)[0], { soldier: 4 }, "never", P3);
+      s3.intent = "sack";
+      s3.sackTarget = "somewhere,else";        // ordered at a DIFFERENT hex
+      s3.at = land3.id;                        // but standing here, mid-road
+      api.beginSack(s3, P3);
+      const held = !s3.sacking;                // it must NOT begin here
+      const list3 = api.armiesOf(P3); list3.splice(list3.indexOf(s3), 1);
+      return held;
+    })());
+
+    check("a battle PAUSES the sack clock -- never resets it", (() => {
+      // A sacker engaged in a fight accrues nothing; freed, it resumes where
+      // it stood. Pause-not-reset, or a cheap suicide attack becomes a
+      // degenerate delay tactic.
+      const P3 = api.me();
+      const R3 = api.rivals().find((c) => !c.broken) || api.rivals()[1];
+      const land2 = Object.values(api.world.places).find((x) =>
+        x.terrain !== "water" && !x.adversary && !x.minor && !api.ownerOf(x.id));
+      api.claimTile(land2.id, R3.id);
+      P3.units.soldier = (P3.units.soldier || 0) + 6;
+      const s2 = api.formArmy(api.holdings(P3.id)[0], { soldier: 6 }, "never", P3);
+      s2.at = land2.id;                        // stood on their ground
+      s2.intent = "sack";
+      api.beginSack(s2, P3);
+      api.tickSacks(10);
+      const t1 = s2.sacking.t;
+      s2.inBattle = true;
+      api.tickSacks(10);
+      const t2 = s2.sacking.t;
+      s2.inBattle = false;
+      api.tickSacks(5);
+      const ok = t1 === 10 && t2 === 10 && s2.sacking.t === 15;
+      const list = api.armiesOf(P3); list.splice(list.indexOf(s2), 1);
+      return ok;
+    })());
   }
 
   // ---- The null-key trap, pinned forever ----

@@ -1,14 +1,14 @@
 import { active } from "../content/compile.js";
 import { CONFIG } from "../core/config.js";
 import { makeRng, rng } from "../core/rng.js";
-import { chronicle, emit } from "../core/bus.js";
+import { chronicle, emit, runEnded } from "../core/bus.js";
 import { S, me, playerById } from "../core/state.js";
 import { armiesOf, armyAt, armySize, marchArmies } from "./armies.js";
 import { resolveBattle } from "./battle.js";
 import { pillageAt, repelledByWalls, tickRaiders, turnHome } from "./raiders.js";
 import {
-  atDominionCap, chartGround, claimTile, ensurePop, isOwned, ownerOf,
-  releaseTile, structureDef, syncCharted, syncPopMirror, world,
+  atDominionCap, chartGround, claimTile, ensurePop, holdings, isOwned,
+  ownerOf, releaseTile, structureDef, syncCharted, syncPopMirror, world,
 } from "../map/map.js";
 
 // ---------- CONTACT (slice A4) ------------------------------
@@ -272,6 +272,19 @@ function retreatArmy(p, army, preferred) {
 // yet, which is A5's problem and flagged there.
 function conquer(hexId, atkP, defP) {
   if (ownerOf(hexId) !== defP.id) return;
+  // CAPITALS ARE NEVER CONQUERED INSTANTLY -- for them or for you (owner,
+  // 2026-08-26). Winning a battle on a seat wins you the RIGHT to sack it
+  // unopposed; the nation falls to time on the ground, and the sack timer is
+  // the relief window. Your own home hex answers to the same law, which is
+  // what stops a single army that caught you away from ending the run on
+  // arrival.
+  const place = world && world.places[hexId];
+  if (place && (place.adversary || hexId === world.home)) {
+    if (atkP.id === S.me) {
+      chronicle(`Their capital lies open. Order the sack, and hold it long enough, and their story ends.`);
+    }
+    return;
+  }
   releaseTile(hexId);
   const capped = atkP.id === S.me && atDominionCap();
   if (!capped) claimTile(hexId, atkP.id);
@@ -325,6 +338,8 @@ function conclude(b, script) {
     if (atkArmy && atkArmy.intent === "raid") {
       if (ownerOf(b.hex) === defP.id) pillageAt(atkArmy, atkP, b.hex);
       else turnHome(atkArmy, atkP);
+    } else if (atkArmy && atkArmy.intent === "sack") {
+      beginSack(atkArmy, atkP);
     } else {
       conquer(b.hex, atkP, defP);
     }
@@ -344,6 +359,115 @@ function conclude(b, script) {
     if (waiting && !waiting.inBattle && !waiting.order) {
       chronicle(`Your army at ${placeWord(id)} awaits orders — the battle beside them is over.`);
       break;
+    }
+  }
+}
+
+// ---- THE SACK (owner ruling, 2026-08-26) -----------------------------------
+// The affirmative verb that finishes a war. An army ordered to sack marches to
+// the target and, standing UNOPPOSED on enemy ground, tears it down over real
+// time: an ordinary hex releases to the wild with a skim of the owner's
+// stores; a CAPITAL, held long enough, BREAKS THE NATION. Sacking never
+// captures ground -- it is denial, and settle/conquest stay the capture verbs
+// -- which is why a player at their dominion cap can still wage this war.
+//
+// UNOPPOSED is the whole clock: a battle at the hex pauses progress (the
+// sacker is inBattle; never a reset, or a cheap suicide attack becomes a
+// delay tactic), and killing or driving off the sacker ends it. The capital
+// timer is therefore the relief window -- the reason your own country marches
+// at double speed.
+
+export function beginSack(army, who) {
+  const owner = ownerOf(army.at);
+  if (owner == null || owner === who.id) {
+    // Nothing left to sack -- the ground changed hands or emptied mid-march.
+    army.intent = null;
+    army.sackTarget = null;
+    return;
+  }
+  // THE SACK FIRES ONLY AT ITS TARGET (found live, 2026-08-26): a sack order
+  // aimed at a hill frontier crossed the river kingdom's capital, won the
+  // meeting engagement, and the standing intent sacked what it stood on --
+  // breaking a nation the player never aimed at. Meeting engagements decide
+  // where you FIGHT; a targeted order decides what you TEAR DOWN. An army
+  // that wins short of its target stands and awaits orders, the same
+  // affirmative-second-wave rule as everything else.
+  if (army.sackTarget != null && army.at !== army.sackTarget) return;
+  if (army.sackTarget == null) army.sackTarget = army.at;   // begun in place
+  if (!army.sacking || army.sacking.hex !== army.at) {
+    army.sacking = { hex: army.at, t: 0 };
+    if (who.id === S.me) {
+      chronicle(`The sack of ${placeWord(army.at)} begins. Hold the ground, and it will not be theirs much longer.`, "bad");
+    } else if (owner === S.me) {
+      chronicle(`They have begun tearing ${placeWord(army.at)} apart! Drive them off before it is lost.`, "bad");
+    }
+  }
+}
+
+function sackDuration(hexId, victim) {
+  const place = world && world.places[hexId];
+  const capital = place && (place.adversary === victim.key || (victim.id === S.me && hexId === world.home));
+  return capital ? CONFIG.sackCapitalSeconds : CONFIG.sackSeconds;
+}
+
+// The nation ends. Their ground dissolves to wilderness, their columns
+// scatter, their raids and clocks stop, and the sacker walks off with the
+// treasury's share. `broken` is a persisted fact every system checks.
+function breakNation(victim, sacker, hexId) {
+  victim.broken = true;
+  for (const id of holdings(victim.id)) releaseTile(id);
+  for (const a of armiesOf(victim).slice()) {
+    const list = armiesOf(victim);
+    list.splice(list.indexOf(a), 1);
+  }
+  for (const r in victim.res) {
+    const take = Math.floor((victim.res[r] || 0) * CONFIG.sackCapitalLootFrac);
+    victim.res[r] -= take;
+    sacker.res[r] = (sacker.res[r] || 0) + take;
+  }
+  if (victim.id === S.me) {
+    // The military loss condition arrives with the verb: YOUR capital, sacked.
+    runEnded("sacked");
+    return;
+  }
+  if (sacker.id === S.me) {
+    const adv = active().adversaries.find((x) => x.id === victim.key);
+    const name = adv ? adv.name.charAt(0).toUpperCase() + adv.name.slice(1) : "The enemy";
+    chronicle(`${name} are BROKEN. Their capital burns, their people scatter, and their story on this board is over.`, "good");
+  }
+}
+
+export function tickSacks(dt) {
+  for (const p of S.players || []) {
+    for (const army of armiesOf(p)) {
+      if (!army.sacking) continue;
+      // The clock runs only while the sacker stands there, unengaged.
+      if (army.inBattle || army.at !== army.sacking.hex) continue;
+      const owner = ownerOf(army.at);
+      if (owner == null || owner === p.id) { army.sacking = null; army.intent = null; continue; }
+      const victim = playerById(owner);
+      if (!victim) { army.sacking = null; continue; }
+      army.sacking.t += dt;
+      if (army.sacking.t < sackDuration(army.at, victim)) continue;
+      // Done. A capital breaks the nation; ordinary ground releases and pays.
+      const place = world.places[army.at];
+      const isCapital = place && (place.adversary === victim.key || (victim.id === S.me && army.at === world.home));
+      army.sacking = null;
+      army.intent = null;
+      army.sackTarget = null;
+      if (isCapital) { breakNation(victim, p, army.at); continue; }
+      releaseTile(army.at);
+      for (const r in victim.res) {
+        const take = Math.floor((victim.res[r] || 0) * CONFIG.sackLootFrac);
+        victim.res[r] -= take;
+        p.res[r] = (p.res[r] || 0) + take;
+      }
+      ensurePop(); syncPopMirror(); syncCharted();
+      if (p.id === S.me) {
+        chronicle(`${placeWord(army.at)} is sacked — the ground returns to the wild, and their stores ride home with your soldiers.`, "good");
+      } else if (owner === S.me) {
+        chronicle(`${placeWord(army.at)} is lost — sacked to the ground.`, "bad");
+      }
     }
   }
 }
@@ -396,8 +520,10 @@ const HOOKS = {
       else pillageAt(army, who, army.at);
       return;
     }
-    if (walls > 0) sealBattle(army.at, army, who, null, defP);
-    else conquer(army.at, who, defP);
+    if (walls > 0) { sealBattle(army.at, army, who, null, defP); return; }
+    // A SACK ORDER begins the moment the army stands unopposed on the target.
+    if (army.intent === "sack") { beginSack(army, who); return; }
+    conquer(army.at, who, defP);
   },
 };
 
@@ -406,6 +532,7 @@ const HOOKS = {
 export function tickMilitary(dt) {
   for (const p of S.players || []) marchArmies(dt, p, HOOKS);
   tickBattles(dt);
+  tickSacks(dt);
   // Sighting notifications for every hostile column, and shepherding for
   // raiders whose orders ran out (survivors head home; the homebound
   // disperse). After battles, so a fight's survivors are swept the same tick.

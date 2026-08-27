@@ -119,6 +119,7 @@ function expand(civ, dt) {
 export function tickBots(dt) {
   if (!world || !S.map) return;
   for (const civ of rivals()) {
+    if (civ.broken) continue;   // a broken people keeps no house
     civ.regarrisonT = (civ.regarrisonT || 0) + dt;
     settle(civ);
     expand(civ, dt);

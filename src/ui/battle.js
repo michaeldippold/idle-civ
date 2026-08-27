@@ -263,6 +263,10 @@ export function onBattleEnded({ b, script }) {
   const o = script.outcome;
   const line =
     o === "mutual" ? "No one is left standing on either side." :
+    // The flight narrated (owner, from an interception that read as a bug):
+    // the survivor's disc scoots away the moment the outcome shows, so the
+    // words must say that is what happened.
+    o === "defenderWithdrew" && mine === "atk" ? "They break and run — the field is yours." :
     iHold && mine === "def" ? "Your soldiers hold the ground. The attack is broken." :
     iHold ? "The ground is yours." :
     o === "attackerWithdrew" && mine === "atk" ? "Your army falls back — the standing order held them to it." :

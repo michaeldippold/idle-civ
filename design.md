@@ -1156,6 +1156,30 @@ live view of the script the sim is playing — viewer always bottom, faces shown
 draining, never the odds. Every civilization runs through the same functions on the same clock;
 there is no separate code path for a neighbour's war, which was the whole point.
 
+**THE SACK, and what defeat IS** *(owner ruling, 2026-08-26, from the first playtest)*. The owner
+beat a capital's garrison and nothing happened — because nothing defined defeat. The ruling: *"yes
+there needs to be a way to take their capital... and no it can't be instant for them or for me. I
+do not want to lose the game because a single army marched unopposed to my home hex."* So:
+
+- **Sack is an affirmative, targeted order.** March there; standing UNOPPOSED on enemy ground, the
+  army tears it down over real time. A battle at the hex **pauses** the clock, never resets it —
+  or a cheap suicide attack becomes a degenerate delay tactic. Killing or driving off the sacker
+  is the counter.
+- **Sacking releases ground to the wild; it never captures.** Denial and capture are different
+  verbs: a player at their dominion cap can still wage a war of denial, and if they want the
+  ground they settle the wilderness they made, at the settle price. Ordinary hexes also pay a skim
+  of the victim's stores.
+- **Capitals are never instant, for anyone.** Winning a battle on a seat does not flip the hex —
+  it wins the RIGHT to sack unopposed. Completing a capital sack **breaks the nation**: raids
+  stop, expansion stops, the garrison never returns, their ground dissolves, their columns
+  scatter, the treasury's share rides home, and the Chronicle writes the obituary. Symmetrically,
+  the human's seat sacked = **the military loss condition** — and the sack timer IS the relief
+  window, which is what marching at double speed through your own country was always for.
+- **The sack fires only at its ordered target.** Found live within the hour: a sack aimed at a
+  hill frontier crossed the river kingdom's capital, won the meeting engagement, and broke a
+  nation the player never aimed at. Meeting engagements decide where you FIGHT; a targeted order
+  decides what you TEAR DOWN. An army that wins short of its target stands and awaits orders.
+
 **What is left.** Bots that WAGE WAR — conquest-intent armies, not only raiders — minors absorbed
 into the army system (campaigns survive only for them), caravans re-imagined or retired, and the
 battle panel's design polish. The combat NUMBERS are first-guess throughout and want playtest.

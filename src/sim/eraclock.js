@@ -81,6 +81,7 @@ function rescheduleFor(p) {
 // Called once per tick from step(). Cheap: three integer comparisons.
 export function tickEraClock() {
   for (const p of rivals()) {
+    if (p.broken) continue;   // a broken people's clock has stopped
     // NULL means CAPPED, and it is a sentinel rather than Infinity for a dull
     // but real reason: JSON.stringify turns Infinity into null on save, so a
     // capped civ would have come back looking unscheduled and been handed a

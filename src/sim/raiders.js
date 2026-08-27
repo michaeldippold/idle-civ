@@ -7,7 +7,7 @@ import { armiesOf, armyAt, armyBand, armySize, canSeeArmyAt, orderMarch } from "
 import { raidSender } from "./expeditions.js";
 import { seatOf } from "./bots.js";
 import { raidGround, reconcileReservations, rollRaidSize, rollRaidType, stealResources } from "./combat.js";
-import { hexPop, isOwned, killAt, strikeHex, structureDef, world } from "../map/map.js";
+import { hexPop, isOwned, killAt, ownerOf, strikeHex, structureDef, world } from "../map/map.js";
 
 // ---------- RAIDERS (slice A5): the inbound war -----------------------------
 // A raid is an ARMY now. The old conflict event rolled dice against
@@ -92,11 +92,15 @@ export function spawnRaid() {
   const sender = raidSender();
   if (!sender || !sender.civ) return null;
   const civ = sender.civ;
+  // A broken people raids nobody, and a seat in someone else's hands musters
+  // nothing -- both found in the owner's playtest, where a beaten power kept
+  // spawning war parties on ground it no longer held.
+  if (civ.broken) return null;
   // ONE RAID OUT PER SENDER. A people is a people, not a spawner: their war
   // party has to come home (or die) before the next one musters.
   if (armiesOf(civ).some((a) => a.intent === "raid" || a.intent === "returning")) return null;
   const seat = seatOf(civ);
-  if (!seat) return null;
+  if (!seat || (ownerOf(seat) != null && ownerOf(seat) !== civ.id)) return null;
   const target = raidTarget();
   if (!target) return null;
   const size = Math.max(1, Math.round(rollRaidSize(sender)));

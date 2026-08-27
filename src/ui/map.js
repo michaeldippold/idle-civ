@@ -1,12 +1,13 @@
 import { active } from "../content/compile.js";
-import { S, me, playerByKey } from "../core/state.js";
+import { CONFIG } from "../core/config.js";
+import { S, me, playerById, playerByKey } from "../core/state.js";
 import { availableUnits, canAfford, caps, capWord, seatIsNamed, seatName } from "../core/derived.js";
 import { save } from "../core/persist.js";
 import { canBuildOn, demolishStructure, hasMarket, launchSettle, launchStructure, pendingBuild, pendingSettle, settlePlan, structureFits, structurePlan, structureUnlocked, trade, tradeRate } from "../core/actions.js";
 import { atDominionCap, capOf, dominionCap, hexPop, hexResource, hexUse, hexYield, holdings, holdsUsed, isCharted, isOwned, isSighted, isVisible, ownerOf, structureDef, terrainYield, workStamp, world } from "../map/map.js";
 import { armyAt, armyBand, armyById, armyRoster, armySize, canSeeArmyAt, disbandArmy, disbandRefusal, haltArmy, marchRefusal, marchingTo, orderMarch, setStance } from "../sim/armies.js";
 import { STANCES, stanceById, unitHit, unitRole } from "../sim/battle.js";
-import { battleAt } from "../sim/contact.js";
+import { battleAt, beginSack } from "../sim/contact.js";
 import { colorById, FOREIGN, FOREIGN_MINOR, playerColor } from "../core/palette.js";
 import { hexDistance, hexPoints, toPixel } from "../map/model.js";
 import { campaignPlan, expeditionOut, musterBuilt, standingWord } from "../sim/expeditions.js";
@@ -68,8 +69,11 @@ let lastSignature = "";
 let lastDetail = "";
 
 // Which army is waiting for you to point at a hex. UI state, not game state:
-// it is what the NEXT click means, and it survives nothing.
+// it is what the NEXT click means, and it survives nothing. `sendingSack`
+// flavours the same gesture: the next board click orders a SACK march -- go
+// there, and once unopposed on their ground, start tearing it down.
 let sending = null;
+let sendingSack = false;
 
 // THE SELECTED PIECE, as "pid:uid", or null. Selection is TYPED now (canon:
 // an army is an object AT a hex, not a property OF one): nothing, a hex, or
@@ -430,17 +434,29 @@ function armyDetailHTML(pl, a) {
     : dest && world.places[dest] ? `Marching on ${titleFor(world.places[dest])}.`
     : "Holding this ground.";
   parts.push(`<div class="army-orders">${where}</div>`);
+  if (mine && a.sacking) {
+    const victim = playerById(ownerOf(a.at));
+    const cap = victim && world.places[a.at] &&
+      (world.places[a.at].adversary === victim.key) ? CONFIG.sackCapitalSeconds : CONFIG.sackSeconds;
+    parts.push(`<div class="army-orders bp-outcome lost">SACKING — ${Math.floor(a.sacking.t)}s of ${cap}s. ` +
+      `Hold the ground${cap === CONFIG.sackCapitalSeconds ? ", and their story ends" : ""}.</div>`);
+  }
   if (mine && !a.inBattle) {
     parts.push(`<div class="army-orders">Standing order:</div><div class="stance-pick">` +
       STANCES.map((st) => `<button class="stance-opt${st.id === a.stance ? " on" : ""}" data-act="stance" data-army="${
         a.uid}" data-stance="${st.id}">${st.name}</button>`).join("") + `</div>`);
     parts.push(`<div class="map-actions">` +
-      `<button class="map-act" data-act="send" data-army="${a.uid}">${sending === a.uid ? "Pick a hex…" : "March"}</button>` +
+      `<button class="map-act" data-act="send" data-army="${a.uid}">${sending === a.uid && !sendingSack ? "Pick a hex…" : "March"}</button>` +
+      `<button class="map-act warn" data-act="sack" data-army="${a.uid}">${sending === a.uid && sendingSack ? "Pick their hex…" : "Sack"}</button>` +
       (dest ? `<button class="map-act" data-act="halt" data-army="${a.uid}">Halt</button>` : "") +
       `<button class="map-act warn" data-act="disband" data-army="${a.uid}"${
         disbandRefusal(a.uid) ? " disabled" : ""}>Disperse</button>` +
       `</div>`);
-    if (sending === a.uid) parts.push(`<span class="map-noworks">Choose the ground they march on.</span>`);
+    if (sending === a.uid) {
+      parts.push(`<span class="map-noworks">${sendingSack
+        ? "Choose the enemy ground to tear down. A capital, held long enough, ends a nation."
+        : "Choose the ground they march on."}</span>`);
+    }
   } else if (mine) {
     parts.push(`<div class="army-orders">Standing order: <b>${stanceById(a.stance).name}</b> — frozen until the dice are done.</div>`);
   }
@@ -951,8 +967,22 @@ export function selectTile(id) {
   // flips to "Marching on...", the road wears its dots.
   if (sending != null && id) {
     const uid = sending;
-    sending = null;
+    const sack = sendingSack;
+    sending = null; sendingSack = false;
+    const army = armyById(uid, me());
+    if (sack && army && army.at === id && ownerOf(id) != null && ownerOf(id) !== S.me) {
+      // Already standing on the target: the sack begins without a march.
+      army.intent = "sack";
+      beginSack(army, me());
+      lastDetail = "";
+      renderTileDetail();
+      return;
+    }
     if (!marchRefusal(uid, id)) {
+      if (army) {
+        army.intent = sack ? "sack" : null;
+        army.sackTarget = sack ? id : null;
+      }
       orderMarch(uid, id);
       lastDetail = "";
       renderMapStage();
@@ -1108,7 +1138,18 @@ export function initMapStage() {
       // there is no list of hex names anywhere in this game and there should
       // not be one.
       if (act === "send") {
-        sending = sending === Number(btn.dataset.army) ? null : Number(btn.dataset.army);
+        const uid = Number(btn.dataset.army);
+        const same = sending === uid && !sendingSack;
+        sending = same ? null : uid;
+        sendingSack = false;
+        lastDetail = ""; renderTileDetail();
+        return;
+      }
+      if (act === "sack") {
+        const uid = Number(btn.dataset.army);
+        const same = sending === uid && sendingSack;
+        sending = same ? null : uid;
+        sendingSack = !same;
         lastDetail = ""; renderTileDetail();
         return;
       }

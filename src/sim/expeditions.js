@@ -118,6 +118,7 @@ export function raidSender() {
   // your manifest. Each is read out of ITS OWN now, so who they have become is
   // what shows up.
   for (const civ of rivals()) {
+    if (civ.broken) continue;                 // the dead send no war parties
     const def = (active(civ).adversaries || []).find((a) => a.id === civ.key);
     if (!def) continue;
     // Peaceful neighbours do not raid you. If they ever should, that is a

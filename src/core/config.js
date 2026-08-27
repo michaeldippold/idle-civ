@@ -159,6 +159,16 @@ export const CONFIG = {
   // times this. Stone seats author walls 0 -- an open camp -- and an Iron
   // kingdom's 26 becomes a fortress pool of 104, which is the era arc working.
   seatWallScale: 4,
+  // ---- The sack (owner ruling, 2026-08-26) ----
+  // "Yes there needs to be a way to take their capital... and no it can't be
+  // instant for them or for me." Sacking runs while the army stands UNOPPOSED
+  // on the target; a battle pauses it (never resets it, or cheap suicide
+  // attacks become a delay tactic). The capital timer IS the relief window:
+  // marching home at double speed exists so this race can be won.
+  sackSeconds: 60,          // an ordinary enemy hex: released to the wild, stores skimmed
+  sackCapitalSeconds: 150,  // a capital: complete it and the nation is BROKEN
+  sackLootFrac: 0.15,       // share of the victim's stores taken per ordinary sack
+  sackCapitalLootFrac: 0.5, // the capital's share -- the treasury falls with the town
   armyPerHex: 2,          // the army cap (E5): each held hex supports this many standing
                           // units, in every era -- the levy re-homed to the land, per the
                           // owner's ruling ("make it serve the hex"). Territory is what

@@ -443,9 +443,16 @@ several tempting ideas later, and it should.
    stopping point).** Three connected observations from play, recorded for the next session:
 
    - **When will the bobbing disc move?** "It all reads as a bit unknowable right now." The sim
-     knows exactly: remaining path cost × marchSeconds is a precise ETA. Likely v1: the selected
-     army's panel says *"next hex in Ns · arrives in ~Ms"* — exact numbers, since they are the
-     player's own order and no fog applies. (Showing the inputs, per the legibility contract.)
+     knows exactly: remaining path cost × marchSeconds is a precise ETA. **The owner's chosen
+     depiction (sketched): a small radial DIAL floating above each queued-to-move army**, a pie
+     sweeping down from the centre as the next step approaches — per-disc, glanceable, no
+     selection needed, the idiom every RTS player already reads. Nearly free to build:
+     `marchProgress()` (A2) already computes exactly the 0→1 fraction "for drawing them on the
+     road" and has never yet been drawn, and the label layer already floats DOM over board
+     positions, so a conic-gradient circle does it without touching three.js. Fill in the owner's
+     colour for their own armies (a foe's dial is intel — probably shown too, when sighted, since
+     the disc itself already is). The selected army's panel adds the exact words on top: *"next
+     hex in Ns · arrives in ~Ms"* — the player's own order, printed back.
    - **Armies march at identical speed regardless of size, and marching is FREE.** Confirmed in
      code: `progress += dt / marchSeconds`, size nowhere in it, and no provisioning — the old
      campaign system's "you march on what you can feed" (`provisionsFor`, still in

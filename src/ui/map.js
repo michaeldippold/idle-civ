@@ -1024,10 +1024,18 @@ export function renderMapStage() {
     if (stage3d.setMarchPath) {
       const sel = selectedArmyObj();
       const marching = sel && sel.pl.id === S.me && sel.a.order && sel.a.path;
+      // The trail's first point is the disc's own position -- "the road comes
+      // out from under the piece that will walk it" -- so a GARRISONED disc,
+      // which stands in the courtyard rather than on a ring socket, hands a
+      // null socket and the trail starts at the hex centre (owner, 2026-08-28:
+      // a disc leaving a march-hold drew its road from an empty ring slot).
+      // Same test as the courtyard placement in piecesForBoard.
+      const fromCourtyard = marching &&
+        fortDefAt(sel.a.at) && ownerOf(sel.a.at) === sel.pl.id;
       stage3d.setMarchPath(
         marching ? [sel.a.at].concat(sel.a.path.slice(sel.a.step)) : null,
         playerColor().ring,
-        marching ? sel.pl.id % 4 : null);
+        marching && !fromCourtyard ? sel.pl.id % 4 : null);
     }
     return;
   }

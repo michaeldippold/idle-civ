@@ -493,6 +493,30 @@ several tempting ideas later, and it should.
      own surface is ALSO pale in those eras, so the inverted plate lands white-on-white and only
      the letter-spacing saves it. Whatever the redesign does, buttons must contrast against the
      PANEL they sit on, not against the era's chrome.
+   **MERGED TERRITORY BORDERS (owner, 2026-08-26 — asked, not yet built).** Replace the per-hex
+   ownership ring with ONE perimeter around each realm: walk every owned hex's six edges and draw
+   a segment only where the neighbour has a different owner, skipping shared interior edges. When
+   you settle, the border MOVES OUT to encompass the new ground instead of adding another outline.
+   - **The same primitive as the connecting-wall art** above — build the edge-walk once and both
+     fall out of it. Walls become "the perimeter, but built".
+   - **Cheaper than what exists.** `terrain3d.ringInto()` emits a full hexagonal ring per owned
+     hex today, merged into one mesh; a perimeter emits only outward-facing edges, so a twelve-hex
+     blob drops from the equivalent of ~72 edge segments to ~14, and interior hexes cost nothing.
+     Still one draw call.
+   - **Flush-to-the-edge becomes CORRECT here**, and the code history says why: the rim band was
+     pulled inward (0.82–0.94) partly because a ring reaching the hex's full 1.0 extent "reached
+     the hex's very corner, where neighbouring tiles touch… which is why it read as spilling onto
+     the ground next door". That failure is per-hex-specific — rings bleeding onto your OWN
+     neighbours — and a perimeter deletes it by construction, since the only edges drawn face
+     ground that is not yours.
+   - **What it buys:** the realm reads as a country with a silhouette rather than a list of claimed
+     tiles — shape, frontier, chokepoints. Detached holdings read as islands, which is real
+     strategic information (far from the seat, hard to relieve). Two adjacent realms show two
+     parallel borders along a shared edge, which is what a contested frontier should look like.
+     And hover/selection become the only per-hex rings, so they read more clearly.
+   - **To decide when built:** interior hexes lose any per-hex ownership marker. Enclosure is
+     probably sufficient (that is how every map works), and the work letters already sit on them.
+
    **THE FIRST-PASS LAYOUT (owner's sketch, 2026-08-26) — a nav rail and three full-height
    panels.** Deliberately not a whole redesign; a re-parenting that gives every surface the room
    it now needs:

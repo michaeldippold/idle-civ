@@ -6235,4 +6235,68 @@ console.log("\n--- The neighbours become countries (B slice) ---");
   })());
 }
 
+console.log("\n--- The nav rail: one panel left, one right, focus never empty ---");
+{
+  reset(); S().seed = 9182; S().rngState = 9182; S().map = null; S().seen = {};
+  api.ensureMap(); api.initAdversaries();
+  const P = api.me();
+
+  check("the Inspector is the default panel", api.activePanel() === "inspector");
+
+  check("the rail switches which LEFT panel is open, never how many", (() => {
+    api.showPanel("tech");
+    if (api.activePanel() !== "tech") return false;
+    api.showPanel("population");
+    if (api.activePanel() !== "population") return false;
+    api.showPanel("nonsense");                       // refused, never blanks the column
+    return api.activePanel() === "population";
+  })());
+
+  check("clicking the BOARD pulls the Inspector forward -- the load-bearing rule", (() => {
+    api.showPanel("tech");
+    api.selectTile(api.holdings(P.id)[0]);
+    return api.activePanel() === "inspector";
+  })());
+
+  check("clicking a DISC does the same", (() => {
+    P.units.soldier = 6;
+    const a = api.formArmy(api.holdings(P.id)[0], { soldier: 3 }, "never", P);
+    api.showPanel("population");
+    api.selectPiece(P.id + ":" + a.uid);
+    return api.activePanel() === "inspector";
+  })());
+
+  // THE FOCUS SURVIVES ITS TARGET, two ways.
+  check("a MERGED army hands the focus to its host, not to the ground", (() => {
+    const hexA = api.holdings(P.id)[0], hexB = api.holdings(P.id)[1];
+    for (const a of api.armiesOf(P).slice()) api.disbandArmy(a.uid, P);
+    P.units.soldier = 10;
+    const host = api.formArmy(hexA, { soldier: 4 }, "never", P);
+    const comer = api.formArmy(hexB, { soldier: 3 }, "never", P);
+    api.selectPiece(P.id + ":" + comer.uid);
+    api.orderMarch(comer.uid, hexA, P);
+    // Render as the world ticks, the way the live loop does -- that is when
+    // the focus records where its army is HEADED, which is what the merge
+    // handoff needs (a merge lands and absorbs in the same tick, so the last
+    // rendered position is always the hex it left).
+    api.renderTileDetail();
+    let g = 0;
+    while (api.armyById(comer.uid, P) && g++ < 400) { api.tickMilitary(1); api.renderTileDetail(); }
+    // The comer's uid is gone; the focus must be the HOST, standing right there.
+    api.renderTileDetail();
+    return api.armyById(comer.uid, P) == null && api.armyAt(hexA, P) === host &&
+      api.selectedArmyKey() === P.id + ":" + host.uid;
+  })());
+
+  check("a DESTROYED army leaves the focus on the ground it died on", (() => {
+    const hex = api.holdings(P.id)[0];
+    const doomed = api.armyAt(hex, P);
+    api.selectPiece(P.id + ":" + doomed.uid);
+    const list = api.armiesOf(P);
+    list.splice(list.indexOf(doomed), 1);             // died off-screen
+    api.renderTileDetail();
+    return api.selectedArmyKey() == null && api.selectedHex() === hex;
+  })());
+}
+
 console.log(`\n${fails === 0 ? "ALL CHECKS PASSED" : fails + " CHECK(S) FAILED"}`);

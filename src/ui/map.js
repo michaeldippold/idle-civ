@@ -82,14 +82,78 @@ let sendingSack = false;
 // own; clicking ground selects the hex, which only POINTS at whoever stands
 // there. selectedId still carries the ring's hex either way.
 let selectedArmy = null;
+let focusDest = null;   // the selected army's destination, for the merge handoff
 
+// ---- THE NAV RAIL (2026-08-26) ----
+// One left panel is open at all times; the rail only changes WHICH. There is
+// no closed state to handle, which is why the Inspector lost its close button:
+// selection is a FOCUS, not a mode.
+//
+// THE LOAD-BEARING RULE: clicking the board auto-switches to the Inspector.
+// Without it the map silently stops answering its own primary interaction
+// whenever you happen to be reading tech -- the same class of failure as a
+// button that no-ops without saying why.
+const NAV_PANELS = ["population", "tech", "inspector"];
+let navPanel = "inspector";
+
+export function showPanel(which) {
+  if (!NAV_PANELS.includes(which)) return;
+  navPanel = which;
+  for (const name of NAV_PANELS) {
+    const el = document.getElementById("panel-" + name);
+    if (el) el.classList.toggle("hidden", name !== which);
+    const btn = document.getElementById("nav" + name.charAt(0).toUpperCase() + name.slice(1));
+    if (btn) btn.classList.toggle("active", name === which);
+  }
+  if (which === "inspector") { lastDetail = ""; renderTileDetail(); }
+}
+export function activePanel() { return navPanel; }
+// Harness seams: the focus, readable without a DOM.
+export function selectedArmyKey() { return selectedArmy; }
+export function selectedHex() { return selectedId; }
+
+// THE FOCUS SURVIVES ITS TARGET (ruled 2026-08-26). An army can vanish two
+// ways and they are different endings:
+//   MERGED -- its soldiers are standing right there under another uid, so the
+//     focus follows the HOST army; falling to the ground would read as "where
+//     did they go?".
+//   DESTROYED -- the focus falls to the hex they were standing on. You were
+//     already looking at that place, something just happened there, and the
+//     empty selected hex is itself the story if you were not watching. The
+//     Chronicle says WHAT; the selection says WHERE.
 function selectedArmyObj() {
   if (!selectedArmy) return null;
   const parts = selectedArmy.split(":");
   const pl = S.players[Number(parts[0])];
   const a = pl && (pl.armies || []).find((x) => x.uid === Number(parts[1]));
-  if (!a) { selectedArmy = null; return null; }   // died or dispersed under us
-  return { pl, a };
+  // THE FOCUS TRAVELS WITH ITS ARMY. selectedId used to be frozen at the hex
+  // you clicked, so the selection ring stayed behind while the disc marched
+  // away -- and the handoff below looked for a merge host at ground the army
+  // had long left. Tracking the piece fixes the ring, the merge handoff, and
+  // the death fallback in one line: whatever happens, selectedId is already
+  // the hex the army was standing on.
+  if (a) {
+    selectedId = a.at;
+    // Where it was HEADED, kept because a merge happens ON ARRIVAL: the army
+    // is absorbed in the same tick it lands, so its last rendered position is
+    // the hex it left, never the hex it merged into.
+    focusDest = (a.order && a.order.to) || a.at;
+    return { pl, a };
+  }
+  // Gone. One of ours standing at its destination (or where it stood) is the
+  // merge; nothing there is a death.
+  const where = [focusDest, selectedId].filter(Boolean);
+  for (const hex of where) {
+    const host = pl && (pl.armies || []).find((x) => x.at === hex);
+    if (host) {
+      selectedArmy = pl.id + ":" + host.uid;
+      selectedId = hex;
+      return { pl, a: host };
+    }
+  }
+  selectedArmy = null;             // destroyed: selectedId already holds the ground
+  focusDest = null;
+  return null;
 }
 
 function advName(adv) { return adv.name.charAt(0).toUpperCase() + adv.name.slice(1); }
@@ -917,7 +981,7 @@ export function renderMapStage() {
 export function invalidateMapStage() { lastSignature = ""; }
 
 export function renderTileDetail() {
-  const panel = document.getElementById("panel-tile");
+  const panel = document.getElementById("panel-inspector");
   if (!panel) return;
   // Typed selection: an army outranks the ground. If a piece is selected the
   // panel is the ARMY's, and clicking a second disc swaps it in place -- if
@@ -925,7 +989,6 @@ export function renderTileDetail() {
   // and then nobody would scout.
   const sel = selectedArmyObj();
   if (sel) {
-    panel.classList.toggle("hidden", false);
     const html = armyDetailHTML(sel.pl, sel.a);
     if (html === lastDetail) return;
     lastDetail = html;
@@ -936,8 +999,20 @@ export function renderTileDetail() {
     return;
   }
   const p = selectedId && world ? world.places[selectedId] : null;
-  panel.classList.toggle("hidden", !p);
-  if (!p) { lastDetail = ""; return; }
+  // THE INSPECTOR NEVER HIDES. It is the default panel and has no close, so
+  // the only "nothing selected" moment is before the first click -- which the
+  // home-hex default covers. This line survives for that instant, and for a
+  // board that has not generated yet.
+  if (!p) {
+    const t0 = document.getElementById("tileTitle");
+    if (t0) t0.textContent = "Inspector";
+    const b0 = document.getElementById("tileBody");
+    if (b0 && lastDetail !== "__empty") {
+      b0.innerHTML = `<span class="map-noworks">Click a holdfast or an army to inspect it.</span>`;
+      lastDetail = "__empty";
+    }
+    return;
+  }
   const html = detailHTML(p);
   if (html === lastDetail) return;
   lastDetail = html;
@@ -950,6 +1025,12 @@ export function renderTileDetail() {
 // A disc was clicked: the army becomes the selection. In sending mode a
 // click on an ENEMY disc aims the march at the ground it stands on instead --
 // pointing at the army and pointing at its hex are the same gesture.
+// Every board click routes through here: the map's answer is always the
+// Inspector, whatever the rail was showing a moment ago.
+function focusInspector() {
+  if (navPanel !== "inspector") showPanel("inspector");
+}
+
 export function selectPiece(key) {
   const parts = String(key).split(":");
   const pl = S.players[Number(parts[0])];
@@ -961,6 +1042,7 @@ export function selectPiece(key) {
   }
   selectedArmy = key;
   selectedId = a.at;                       // the ring stays on the ground they hold
+  focusInspector();
   if (mode === "3d") stage3d.setSelected(a.at);
   else lastSignature = "";
   renderMapStage();
@@ -1001,6 +1083,7 @@ export function selectTile(id) {
   }
   selectedArmy = null;                     // ground click: back to the hex's own panel
   selectedId = id;
+  if (id) focusInspector();
   // The 3D stage moves a ring rather than rebuilding, so selection costs it
   // nothing; the SVG stage bakes the ring into its markup and must redraw.
   if (mode === "3d") stage3d.setSelected(id);
@@ -1113,8 +1196,16 @@ export function initMapStage() {
       stage.classList.remove("stage-waiting");
     });
   }
-  const close = document.getElementById("tileClose");
-  if (close) close.addEventListener("click", () => selectTile(null));
+  // (The Inspector's close button retired 2026-08-26 with sticky selection:
+  // you never have NOTHING selected, you only move the focus, so there was
+  // nothing to close back to.)
+  const rail = document.getElementById("navRail");
+  if (rail) {
+    rail.addEventListener("click", (e) => {
+      const btn = e.target && e.target.closest ? e.target.closest(".nav-icon") : null;
+      if (btn && btn.dataset.panel) showPanel(btn.dataset.panel);
+    });
+  }
   const body = document.getElementById("tileBody");
   if (body) {
     body.addEventListener("click", (e) => {

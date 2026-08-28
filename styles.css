@@ -143,7 +143,9 @@ body {
   font-family: var(--ui);
   font-size: 13px;
   line-height: 1.45;
-  padding: 12px 16px 14px;
+  /* No page padding at all: every panel docks to a screen edge, and the
+     chrome row carries its own breathing room instead (owner, 2026-08-26). */
+  padding: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;         /* the page itself never scrolls -- panels do */
@@ -163,7 +165,7 @@ button { font-family: inherit; cursor: pointer; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 2px 9px;
+  padding: 1rem 1.25rem;
 }
 #titleLeft { display: flex; align-items: center; gap: 12px; }
 #titleName {
@@ -292,7 +294,7 @@ button { font-family: inherit; cursor: pointer; }
   background: var(--paper);
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  margin-bottom: 12px;
+  margin-bottom: 0;   /* the board starts where the ledger ends */
   min-height: 33px;
   /* Clips the rules on the outermost edges, where they would otherwise sit 1px
      inside the container's own ink border and read as a doubled line. */
@@ -371,31 +373,73 @@ button { font-family: inherit; cursor: pointer; }
    ceremony, deliberately extended from one surface to the panel layer. */
 .float-panel { box-shadow: 5px 5px 0 rgba(25, 23, 16, .18); }
 
+/* THE PANELS DOCK TO THE SCREEN EDGES (2026-08-26). The 10px gutters that
+   showed the era's ground colour down the left, right and bottom are
+   reclaimed -- same panel count as before, more room, and the map is never
+   squeezed because only ONE left panel is open at a time.
+
+   A consequence taken deliberately: these are still `.float-panel`s carrying
+   the 2026-08-22 flip's hard offset shadow, and docked, the OUTER edges have
+   nothing to cast onto. The inner edge facing the board still does its work.
+   The panels moved from floating over the map to FRAMING it; that is a
+   decision, not a bug, and re-floating them would undo the room this bought. */
 #floatLeft, #floatRight {
-  position: absolute; top: 10px; bottom: 10px;
-  display: flex; flex-direction: column; gap: 10px;
+  position: absolute; top: 0; bottom: 0;
+  display: flex; flex-direction: column; gap: 0;
   z-index: 2;
 }
-#floatLeft  { left: 10px;  width: 262px; }
-#floatRight { right: 10px; width: 306px; }
+#floatLeft  { left: 0;  width: 318px; flex-direction: row; }
+#floatRight { right: 0; width: 306px; }
 #floatLeft .block, #floatRight .block { min-height: 0; }
+
+/* The rail: three icons, one always active. It hugs the ledger above and runs
+   the full height beside whichever panel is open. */
+#navRail {
+  flex: 0 0 auto; width: 56px;
+  display: flex; flex-direction: column; gap: 2px;
+  padding: 6px 4px; background: var(--ink); border-right: 1px solid var(--hair);
+}
+.nav-icon {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 8px 2px 6px; border: 0; border-radius: 3px; cursor: pointer;
+  background: transparent; color: var(--ink-light); opacity: .62;
+  font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+}
+.nav-icon svg { width: 22px; height: 22px; }
+.nav-icon:hover { opacity: .92; background: rgba(255, 255, 255, .07); }
+.nav-icon.active {
+  opacity: 1; background: rgba(255, 255, 255, .14);
+  box-shadow: inset 3px 0 0 var(--player-glyph, #c3a3ff);
+}
+
+/* One panel beside the rail, filling the column. */
+#navPanels { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+#navPanels .block { flex: 1 1 auto; }
+#navPanels .block.hidden { display: none; }
+
+/* A heading inside a merged panel: Training under the roster. */
+.panel-sub {
+  margin: 14px 0 6px; padding-top: 10px;
+  border-top: 1px solid var(--hair-soft);
+  font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--text-2);
+}
 /* Left column: Build takes half, Train and Upgrade a quarter each (user
    ruling: all three visible at once, fixed shares -- no tab jumping). */
 /* The Construction panel retired 2026-08-25 and Upgrades took its room.
    Training keeps its band; Upgrades gets everything else, which is what it
    needs now that the unlock gates live there -- and it is a step toward the
    tech tree, which wants the whole column. */
-#panel-training { flex: 0 0 23%; }
-#panel-upgrades { flex: 1 1 auto; }
+/* (The fixed column shares retired with the rail: one panel is open at a
+   time and it takes the whole column.) */
 /* Right column: the tile detail (when open), People at roughly a third,
    the Chronicle with the rest. */
-#panel-tile    { flex: 0 0 auto; max-height: 40%; }
-#panel-village { flex: 0 0 31%; }
-#panel-log     { flex: 1 1 auto; }
+#panel-log     { flex: 1 1 auto; }   /* the Chronicle owns the right column */
 
+/* Underway docks to the bottom edge, between the two columns. */
 #panel-queue {
-  position: absolute; left: 50%; transform: translateX(-50%);
-  bottom: 10px; width: min(52vw, 700px); max-height: 140px; z-index: 2;
+  position: absolute; left: 318px; right: 306px;
+  bottom: 0; max-height: 132px; z-index: 2;
 }
 #panel-queue .queue-list { display: flex; flex-direction: row; gap: 8px; overflow-x: auto; }
 #panel-queue .queue-list > * { flex: 0 0 210px; }

@@ -89,52 +89,66 @@
     <!-- The battle panel mounts here: the dice on the table, over the board. -->
     <div id="battleMount"></div>
 
+    <!-- THE NAV RAIL (2026-08-26). One panel is open on the left at all
+         times and one on the right; the rail only changes WHICH is on the
+         left, never how many. Every panel here already existed -- this is a
+         re-parenting, not a redesign, and no mechanic moved. -->
     <div id="floatLeft">
-      <!-- All three build surfaces visible at once (user ruling after first
-           play on the flip: tabs hid too much and jumped heights). Build
-           takes half the column; Train and Upgrade a quarter each. -->
-      <section class="block float-panel" id="panel-training">
-        <h2>Training</h2>
-        <div class="block-body ruled-cork">
-          <p class="holdings-empty hidden" id="trainingEmpty">Nothing to train yet.</p>
-          <div id="trainingList" class="build-list"></div>
-        </div>
-      </section>
+      <nav id="navRail" aria-label="Panels">
+        <button class="nav-icon" id="navPopulation" data-panel="population" title="Population">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7.5" r="3.6"/><path d="M4.8 20.5c0-4.4 3.2-7 7.2-7s7.2 2.6 7.2 7"/></svg>
+          <span>People</span>
+        </button>
+        <button class="nav-icon" id="navTech" data-panel="tech" title="Tech Tree">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v3M12 18.4v3M21.4 12h-3M5.6 12h-3M18.6 5.4l-2.1 2.1M7.5 16.5l-2.1 2.1M18.6 18.6l-2.1-2.1M7.5 7.5 5.4 5.4"/></svg>
+          <span>Tech</span>
+        </button>
+        <button class="nav-icon active" id="navInspector" data-panel="inspector" title="Inspector">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 3.2 18 12.4l-5.3.7 3 5.9-2.4 1.2-3-5.9-3.8 3.8z"/></svg>
+          <span>Inspect</span>
+        </button>
+      </nav>
 
-      <!-- The CONSTRUCTION panel was retired 2026-08-25. Everything you build
-           stands on a hex now, so it is raised from the hex's own detail panel
-           and seen on the board. Its two halves went with it: the buy cards,
-           and the "Settlement" holdings grid that counted what you owned. -->
-
-      <section class="block float-panel" id="panel-upgrades">
-        <h2>Upgrades</h2>
-        <div class="block-body ruled-dot">
-          <p class="holdings-empty hidden" id="upgradesUnknown">Nothing to learn yet.</p>
-          <div class="tabs hidden" id="upgradeTabs">
-            <button class="tab active" id="tabAvailable">Available</button>
-            <button class="tab" id="tabOwned">Owned</button>
+      <div id="navPanels">
+        <!-- POPULATION: the roster and the training cards, one surface. Who
+             you have, and how you get more of them. -->
+        <section class="block float-panel hidden" id="panel-population">
+          <h2>Your People</h2>
+          <div class="block-body ruled-cork">
+            <div id="personTiles" class="holdings-grid"></div>
+            <div id="jobList" class="job-list"></div>
+            <h3 class="panel-sub">Training</h3>
+            <p class="holdings-empty hidden" id="trainingEmpty">Nothing to train yet.</p>
+            <div id="trainingList" class="build-list"></div>
           </div>
-          <p class="holdings-empty hidden" id="upgradesEmpty">Nothing owned yet.</p>
-          <div id="upgradeList" class="build-list"></div>
-        </div>
-      </section>
+        </section>
+
+        <!-- TECH TREE: the Upgrades interior, unchanged. The NAME is the
+             point -- this is the seat the real tree grows into. -->
+        <section class="block float-panel hidden" id="panel-tech">
+          <h2>Tech Tree</h2>
+          <div class="block-body ruled-dot">
+            <p class="holdings-empty hidden" id="upgradesUnknown">Nothing to learn yet.</p>
+            <div class="tabs hidden" id="upgradeTabs">
+              <button class="tab active" id="tabAvailable">Available</button>
+              <button class="tab" id="tabOwned">Owned</button>
+            </div>
+            <p class="holdings-empty hidden" id="upgradesEmpty">Nothing owned yet.</p>
+            <div id="upgradeList" class="build-list"></div>
+          </div>
+        </section>
+
+        <!-- INSPECTOR: whatever you last clicked -- a holdfast or an army.
+             The DEFAULT panel, and it has no close button: selection is a
+             focus, not a mode, so there is nothing to close back to. -->
+        <section class="block float-panel" id="panel-inspector">
+          <h2><span id="tileTitle">Inspector</span></h2>
+          <div class="block-body" id="tileBody"></div>
+        </section>
+      </div>
     </div>
 
     <div id="floatRight">
-      <!-- The Selected Tile panel: the map's click target. Hidden until a
-           tile is selected -- the one panel allowed to, since an empty
-           selection is not a blank form, it is no selection at all. -->
-      <section class="block float-panel hidden" id="panel-tile">
-        <h2><span id="tileTitle">Selected</span><button id="tileClose" class="modal-x" title="Close">×</button></h2>
-        <div class="block-body" id="tileBody"></div>
-      </section>
-      <section class="block float-panel" id="panel-village">
-        <h2>Your People</h2>
-        <div class="block-body ruled-cork">
-          <div id="personTiles" class="holdings-grid"></div>
-          <div id="jobList" class="job-list"></div>
-        </div>
-      </section>
       <section class="block float-panel" id="panel-log">
         <h2>Chronicle</h2>
         <div class="block-body legal-pad">
@@ -143,9 +157,9 @@
       </section>
     </div>
 
-    <!-- Underway: docked bottom-centre, cards running horizontally. -->
+    <!-- Underway: docked to the bottom edge, cards running horizontally. -->
     <section class="block float-panel" id="panel-queue">
-      <h2>Build Queue</h2>
+      <h2>Underway</h2>
       <div class="block-body ruled-dot">
         <p class="holdings-empty" id="queueEmpty">Nothing queued.</p>
         <div id="queueBody" class="queue-list hidden"></div>

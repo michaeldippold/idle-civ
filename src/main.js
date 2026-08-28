@@ -6,8 +6,8 @@ import { S, me, rivals, setLoops } from "./core/state.js";
 import { assignPaces } from "./sim/eraclock.js";
 import { step } from "./core/step.js";
 import { cycleSpeed, modalHold, paused, preGame, renderAll, renderSpeed, setPaused, setPreGame, setSpeed, speed } from "./ui/chrome.js";
-import { ensureMap, revealAll, setRevealAll, setPickedContinent } from "./map/map.js";
-import { devRedress, initMapStage, invalidateMapStage } from "./ui/map.js";
+import { ensureMap, revealAll, setRevealAll, setPickedContinent, world } from "./map/map.js";
+import { devRedress, initMapStage, invalidateMapStage, selectTile } from "./ui/map.js";
 import { checkReveals, log } from "./ui/log.js";
 import { closeModal, modalIsOpen, openInfoPanel, openResetModal } from "./ui/modal.js";
 import { setUpgradeTab } from "./ui/panels-buy.js";
@@ -113,6 +113,11 @@ export function boot() {
   });
   document.getElementById("infoBtn").addEventListener("click", openInfoPanel);
   initMapStage();
+  // THE INSPECTOR OPENS ON YOUR SEAT (2026-08-26). Selection is sticky -- you
+  // never have nothing selected, you only move the focus -- so the run starts
+  // focused on the one hex that always matters, rather than on an empty panel
+  // asking to be clicked.
+  if (world && world.home) selectTile(world.home);
   document.getElementById("modalClose").addEventListener("click", closeModal);
   // Clicking the dimmed backdrop closes; clicks inside the panel bubble up to
   // the overlay too, so check the target is the overlay itself.

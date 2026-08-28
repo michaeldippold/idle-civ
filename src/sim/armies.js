@@ -344,8 +344,10 @@ export function marchArmies(dt, p, hooks) {
       army.lastHex = army.at;
       army.at = next;
       // The column charts the road it walks (fog.js) -- sticky, like all
-      // charting. This is why your own disc never stands in the void.
-      if (who.id === S.me) chartGround([next]);
+      // charting, and into the MARCHER's own fog (S1): a rival's column
+      // learns the ground it crosses exactly as yours does. This is why your
+      // own disc never stands in the void.
+      chartGround([next], who);
       army.step++;
       if (hooks && hooks.entered && hooks.entered(army, who, next) === "halt") break;
       if (army.step >= army.path.length) { arrive(army, who, hooks); break; }

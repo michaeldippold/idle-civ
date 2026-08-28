@@ -155,13 +155,10 @@ export function sealBattle(hexId, atkArmy, atkP, defArmy, defP) {
   // and the ending. Emitted only for wars the human is IN -- a battle you are
   // standing in is visible by definition, and nobody else's dice are shown.
   if (atkP.id === S.me || defP.id === S.me) emit("battleSealed", { b });
-  if (atkP.id === S.me) {
-    chronicle(walls > 0
-      ? `Your army sets against the walls at ${placeWord(hexId)}. The dice will decide it.`
-      : `Your army meets ${nameOf(defP)} soldiers at ${placeWord(hexId)}. The dice will decide it.`, "bad");
-  } else if (defP.id === S.me) {
-    chronicle(`An army of ${nameOf(atkP)} falls upon ${placeWord(hexId)}. Your soldiers stand to.`, "bad");
-  }
+  chronicle(walls > 0
+    ? `Your army sets against the walls at ${placeWord(hexId)}. The dice will decide it.`
+    : `Your army meets ${nameOf(defP)} soldiers at ${placeWord(hexId)}. The dice will decide it.`, "bad", atkP.id);
+  chronicle(`An army of ${nameOf(atkP)} falls upon ${placeWord(hexId)}. Your soldiers stand to.`, "bad", defP.id);
   return b;
 }
 
@@ -180,7 +177,9 @@ function applyLost(pid, uid, lost) {
     if (army) army.roster[l.id] = Math.max(0, (army.roster[l.id] || 0) - l.n);
     if (p) p.units[l.id] = Math.max(0, (p.units[l.id] || 0) - l.n);
   }
-  if (pid === S.me && lost.length) syncPopMirror();
+  // The mirror is a HUMAN's books (keyed civs get theirs in S2) -- whoever's
+  // side bled, not whoever is watching (S1).
+  if (p && p.key == null && lost.length) syncPopMirror(p);
 }
 
 function playRound(b) {
@@ -190,8 +189,9 @@ function playRound(b) {
   applyLost(b.atk.pid, b.atk.uid, round.attacker.lost);
   applyLost(b.def.pid, b.def.uid, round.defender.lost);
   if (b.atk.pid === S.me || b.def.pid === S.me) emit("battleRound", { b, round: b.round });
-  if (round.breached && (b.atk.pid === S.me || b.def.pid === S.me)) {
-    chronicle(`The wall at ${placeWord(b.hex)} comes down.`, b.def.pid === S.me ? "bad" : "good");
+  if (round.breached) {
+    chronicle(`The wall at ${placeWord(b.hex)} comes down.`, "good", b.atk.pid);
+    chronicle(`The wall at ${placeWord(b.hex)} comes down.`, "bad", b.def.pid);
   }
   b.round++;
   if (b.round >= script.rounds.length) { conclude(b, script); return true; }
@@ -224,7 +224,7 @@ function destroyArmy(p, army) {
   const list = armiesOf(p);
   const i = list.indexOf(army);
   if (i >= 0) list.splice(i, 1);
-  if (p.id === S.me) syncPopMirror();
+  if (p.key == null) syncPopMirror(p);
 }
 
 function legalRefuge(hexId, p) {
@@ -249,12 +249,12 @@ function retreatArmy(p, army, preferred) {
   for (const id of adj) options.push(id);
   const dest = options.find((id) => legalRefuge(id, p));
   if (dest == null) {
-    if (p.id === S.me) chronicle("Your army, cut off with nowhere to fall back to, is lost.", "bad");
+    chronicle("Your army, cut off with nowhere to fall back to, is lost.", "bad", p.id);
     destroyArmy(p, army);
     return;
   }
   army.at = dest;
-  if (p.id === S.me) chartGround([dest]);
+  chartGround([dest], p);   // flight still charts -- into the fleeing civ's fog
   // Falling back onto one of your own armies merges into it, host's stance
   // standing -- the same law as an ordinary arrival, because it is one.
   const host = armiesOf(p).find((a) => a !== army && a.at === dest);
@@ -280,23 +280,26 @@ function conquer(hexId, atkP, defP) {
   // what stops a single army that caught you away from ending the run on
   // arrival.
   const place = world && world.places[hexId];
-  if (place && (seatCivAt(hexId) || hexId === world.home)) {
-    if (atkP.id === S.me) {
-      chronicle(`Their capital lies open. Order the sack, and hold it long enough, and their story ends.`);
-    }
+  const defSeat = defP.key == null ? (defP.seat || world.home) : null;
+  if (place && (seatCivAt(hexId) || hexId === defSeat)) {
+    chronicle(`Their capital lies open. Order the sack, and hold it long enough, and their story ends.`, null, atkP.id);
     return;
   }
   releaseTile(hexId);
-  const capped = atkP.id === S.me && atDominionCap();
+  // EVERYONE ANSWERS TO THE SCOPE LAW (S1, the antagonist spec): the dominion
+  // cap used to be checked for the viewer alone, so a rival's conquests were
+  // uncapped -- the B slice flagged it and the sweep closes it. An attacker at
+  // its era's cap breaks the ground without gaining it, whoever they are.
+  const capped = atDominionCap(atkP);
   if (!capped) claimTile(hexId, atkP.id);
-  ensurePop(); syncPopMirror(); syncCharted();
-  if (atkP.id === S.me) {
-    chronicle(capped
-      ? `${placeWord(hexId)} is broken and abandoned — this age cannot govern more ground than you already hold.`
-      : `${placeWord(hexId)} is taken. The ground is yours.`, "good");
-  } else if (defP.id === S.me) {
-    chronicle(`${placeWord(hexId)} is lost to ${nameOf(atkP)}.`, "bad");
-  }
+  ensurePop(atkP.id); ensurePop(defP.id);
+  if (atkP.key == null) syncPopMirror(atkP);
+  if (defP.key == null) syncPopMirror(defP);
+  syncCharted(atkP); syncCharted(defP);
+  chronicle(capped
+    ? `${placeWord(hexId)} is broken and abandoned — this age cannot govern more ground than you already hold.`
+    : `${placeWord(hexId)} is taken. The ground is yours.`, "good", atkP.id);
+  chronicle(`${placeWord(hexId)} is lost to ${nameOf(atkP)}.`, "bad", defP.id);
 }
 
 function conclude(b, script) {
@@ -304,31 +307,29 @@ function conclude(b, script) {
   const atkP = playerById(b.atk.pid), defP = playerById(b.def.pid);
   const atkArmy = findArmy(atkP, b.atk.uid);
   const defArmy = findArmy(defP, b.def.uid);
-  const mine = b.atk.pid === S.me || b.def.pid === S.me;
 
   // FALLEN WALLS STAY FALLEN. A breach razes the fortification whatever the
   // outcome -- even a failed assault that cracked the wall leaves it cracked,
   // which is most of what a failed assault buys the next one.
   if (script.wallsStart > 0 && script.walls <= 0 && S.map && S.map.built) {
     delete S.map.built[b.hex];
-    if (ownerOf(b.hex) === S.me) chronicle("The fortification is rubble. It will not be rebuilt by wishing.", "bad");
+    const wallOwner = ownerOf(b.hex);
+    if (wallOwner != null) chronicle("The fortification is rubble. It will not be rebuilt by wishing.", "bad", wallOwner);
   }
 
   const o = script.outcome;
   if (o === "mutual") {
     destroyArmy(atkP, atkArmy); destroyArmy(defP, defArmy);
-    if (mine) chronicle(`The fighting at ${placeWord(b.hex)} ends with no one left standing on either side.`, "bad");
+    chronicle(`The fighting at ${placeWord(b.hex)} ends with no one left standing on either side.`, "bad", b.atk.pid);
+    chronicle(`The fighting at ${placeWord(b.hex)} ends with no one left standing on either side.`, "bad", b.def.pid);
   } else if (script.holder === "defender") {
     if (o === "attackerWiped") destroyArmy(atkP, atkArmy);
     else retreatArmy(atkP, atkArmy, b.atk.from);
     if (defArmy) defArmy.inBattle = false;
-    if (b.atk.pid === S.me) {
-      chronicle(o === "attackerWiped"
-        ? `Your army is destroyed at ${placeWord(b.hex)}. No one returns.`
-        : `Your army falls back from ${placeWord(b.hex)} — the standing order held them to it.`, "bad");
-    } else if (b.def.pid === S.me) {
-      chronicle(`Your soldiers hold ${placeWord(b.hex)}. The attack is broken.`, "good");
-    }
+    chronicle(o === "attackerWiped"
+      ? `Your army is destroyed at ${placeWord(b.hex)}. No one returns.`
+      : `Your army falls back from ${placeWord(b.hex)} — the standing order held them to it.`, "bad", b.atk.pid);
+    chronicle(`Your soldiers hold ${placeWord(b.hex)}. The attack is broken.`, "good", b.def.pid);
   } else {
     if (o === "defenderWiped") destroyArmy(defP, defArmy);
     else if (o === "defenderWithdrew") retreatArmy(defP, defArmy, null);
@@ -344,22 +345,26 @@ function conclude(b, script) {
     } else {
       conquer(b.hex, atkP, defP);
     }
-    if (b.def.pid === S.me && defArmy && o === "defenderWithdrew") {
-      chronicle("Your soldiers withdraw in good order — the standing order held them to it.", "bad");
-    } else if (b.def.pid === S.me && o === "defenderWiped" && b.def.uid != null) {
-      chronicle(`Your garrison at ${placeWord(b.hex)} is destroyed.`, "bad");
+    if (o === "defenderWithdrew" && defArmy) {
+      chronicle("Your soldiers withdraw in good order — the standing order held them to it.", "bad", b.def.pid);
+    } else if (o === "defenderWiped" && b.def.uid != null) {
+      chronicle(`Your garrison at ${placeWord(b.hex)} is destroyed.`, "bad", b.def.pid);
     }
   }
 
   // THE ATTENTION-TAX RULE (owner): a battle ending with friendly forces
   // parked nearby MUST say so, or a parked army is the game punishing the
-  // player for looking away. The second wave is an affirmative order.
+  // player for looking away. The second wave is an affirmative order. Checked
+  // for every HUMAN seat (S1): a bot has no attention to tax.
   const adj = (world && world.places[b.hex] && world.places[b.hex].adj) || [];
-  for (const id of adj) {
-    const waiting = armyAt(id, me());
-    if (waiting && !waiting.inBattle && !waiting.order) {
-      chronicle(`Your army at ${placeWord(id)} awaits orders — the battle beside them is over.`);
-      break;
+  for (const pl of S.players) {
+    if (pl.key !== null) continue;
+    for (const id of adj) {
+      const waiting = armyAt(id, pl);
+      if (waiting && !waiting.inBattle && !waiting.order) {
+        chronicle(`Your army at ${placeWord(id)} awaits orders — the battle beside them is over.`, null, pl.id);
+        break;
+      }
     }
   }
 }
@@ -397,16 +402,14 @@ export function beginSack(army, who) {
   if (army.sackTarget == null) army.sackTarget = army.at;   // begun in place
   if (!army.sacking || army.sacking.hex !== army.at) {
     army.sacking = { hex: army.at, t: 0 };
-    if (who.id === S.me) {
-      chronicle(`The sack of ${placeWord(army.at)} begins. Hold the ground, and it will not be theirs much longer.`, "bad");
-    } else if (owner === S.me) {
-      chronicle(`They have begun tearing ${placeWord(army.at)} apart! Drive them off before it is lost.`, "bad");
-    }
+    chronicle(`The sack of ${placeWord(army.at)} begins. Hold the ground, and it will not be theirs much longer.`, "bad", who.id);
+    chronicle(`They have begun tearing ${placeWord(army.at)} apart! Drive them off before it is lost.`, "bad", owner);
   }
 }
 
 function sackDuration(hexId, victim) {
-  const capital = seatCivAt(hexId) === victim || (victim.id === S.me && hexId === world.home);
+  const capital = seatCivAt(hexId) === victim ||
+    (victim.key == null && hexId === (victim.seat || world.home));
   return capital ? CONFIG.sackCapitalSeconds : CONFIG.sackSeconds;
 }
 
@@ -414,6 +417,9 @@ function sackDuration(hexId, victim) {
 // scatter, their raids and clocks stop, and the sacker walks off with the
 // treasury's share. `broken` is a persisted fact every system checks.
 function breakNation(victim, sacker, hexId) {
+  // A HUMAN's fall ends that human's run; a keyed civ breaks and returns.
+  // Keyed on WHAT the victim is, never on who is watching (S1) -- under any
+  // two-human model the old `=== S.me` test would have diverged the sims.
   victim.broken = true;
   // THE SEAT IS RAZED (owner: "you should be able to fully delete their home
   // hex on a completed sack" -- no ruins piling up, no rebirth anchor to
@@ -424,7 +430,7 @@ function breakNation(victim, sacker, hexId) {
   // The rebirth clock, drawn NOW from the game stream so a save carries the
   // same future: a fallen people returns as ages pass (bots.js), fairly
   // reset. The human does not rebirth; their fall is the run's end below.
-  victim.rebirthIn = victim.id === S.me ? null
+  victim.rebirthIn = victim.key == null ? null
     : Math.round(CONFIG.rebirthSeconds * (1 + (rng() * 2 - 1) * CONFIG.rebirthJitter));
   for (const id of holdings(victim.id)) releaseTile(id);
   for (const a of armiesOf(victim).slice()) {
@@ -436,15 +442,16 @@ function breakNation(victim, sacker, hexId) {
     victim.res[r] -= take;
     sacker.res[r] = (sacker.res[r] || 0) + take;
   }
-  if (victim.id === S.me) {
-    // The military loss condition arrives with the verb: YOUR capital, sacked.
+  if (victim.key == null) {
+    // The military loss condition arrives with the verb: a HUMAN capital,
+    // sacked, ends that human's run.
     runEnded("sacked");
     return;
   }
-  if (sacker.id === S.me) {
-    const adv = active().adversaries.find((x) => x.id === victim.key);
+  {
+    const adv = active(sacker).adversaries.find((x) => x.id === victim.key);
     const name = adv ? adv.name.charAt(0).toUpperCase() + adv.name.slice(1) : "The enemy";
-    chronicle(`${name} are BROKEN. Their capital burns, their people scatter, and their story on this board is over.`, "good");
+    chronicle(`${name} are BROKEN. Their capital burns, their people scatter, and their story on this board is over.`, "good", sacker.id);
   }
 }
 
@@ -461,7 +468,8 @@ export function tickSacks(dt) {
       army.sacking.t += dt;
       if (army.sacking.t < sackDuration(army.at, victim)) continue;
       // Done. A capital breaks the nation; ordinary ground releases and pays.
-      const isCapital = seatCivAt(army.at) === victim || (victim.id === S.me && army.at === world.home);
+      const isCapital = seatCivAt(army.at) === victim ||
+        (victim.key == null && army.at === (victim.seat || world.home));
       army.sacking = null;
       army.intent = null;
       army.sackTarget = null;
@@ -472,12 +480,12 @@ export function tickSacks(dt) {
         victim.res[r] -= take;
         p.res[r] = (p.res[r] || 0) + take;
       }
-      ensurePop(); syncPopMirror(); syncCharted();
-      if (p.id === S.me) {
-        chronicle(`${placeWord(army.at)} is sacked — the ground returns to the wild, and their stores ride home with your soldiers.`, "good");
-      } else if (owner === S.me) {
-        chronicle(`${placeWord(army.at)} is lost — sacked to the ground.`, "bad");
-      }
+      ensurePop(p.id); ensurePop(owner);
+      if (p.key == null) syncPopMirror(p);
+      if (victim.key == null) syncPopMirror(victim);
+      syncCharted(p); syncCharted(victim);
+      chronicle(`${placeWord(army.at)} is sacked — the ground returns to the wild, and their stores ride home with your soldiers.`, "good", p.id);
+      chronicle(`${placeWord(army.at)} is lost — sacked to the ground.`, "bad", owner);
     }
   }
 }
@@ -493,9 +501,7 @@ const HOOKS = {
   // board the player looked at after watching how the first one went.
   barred: (hexId) => !!battleAt(hexId),
   parked: (army, who, hexId) => {
-    if (who.id === S.me) {
-      chronicle(`Your army halts before ${placeWord(hexId)} — a battle already rages there. They await orders.`);
-    }
+    chronicle(`Your army halts before ${placeWord(hexId)} — a battle already rages there. They await orders.`, null, who.id);
   },
   // STEPPING ONTO AN ENEMY SEALS A BATTLE, transit or destination alike. The
   // mover is the attacker: they walked in.

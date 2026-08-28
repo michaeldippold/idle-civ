@@ -1223,11 +1223,11 @@ retired, the battle panel's design polish, and two RULED-NOT-BUILT families wait
 **the fortification family** (below) and **march logistics** (the dial, abroad upkeep, band
 speed — the deathball's bill). The combat NUMBERS are first-guess throughout and want playtest.
 
-**Still open, and it gates contact:** *how an army is DEPICTED.* See the sockets ruling in
-`2026-08-25-architecture-review.md` — a centre socket for the structure, a ring of 3–4 for pieces,
-so opposing banners can square up across one hex. Today's banner is a placeholder: a DOM label at
-the hex centre, which reads fine for one army and falls apart the moment two players share a hex.
-**That is exactly what contact requires**, so the depiction wants deciding before the fighting lands.
+**~~Still open, and it gates contact: how an army is DEPICTED.~~ Settled and shipped 2026-08-26**
+(*How an Army Is Depicted*, below): a player-coloured **disc** with the count printed on its top
+face, three thickness tiers, standing on a reserved piece slot. The old ring-of-3–4-banners sketch in
+`2026-08-25-architecture-review.md` is superseded; **the slot count settled at four on a cross**
+(2026-08-28), with a fifth **courtyard** position at the centre of a fortified hex.
 
 The original direction, recorded 2026-08-25, and still the shape of it:
 
@@ -1341,7 +1341,7 @@ And it rhymes with the era clock on purpose: both come from the same law — **t
 wait for you.** Other civilizations advance on clocks you cannot read, and their armies move on
 roads you did not approve.
 
-### The Fortification Family *(ruled 2026-08-26, not yet built — the build list lives in todo.md)*
+### The Fortification Family *(ruled 2026-08-26 and 2026-08-28, not yet built — the build list lives in todo.md)*
 
 **Garrison, the term (ruled):** "garrison" applies ONLY to units behind literal fortifications —
 walls, march-holds, towers. An army standing in a field is a **parked army**. The word tracks the
@@ -1366,15 +1366,61 @@ the era race is the counterweight, never a tuning nerf.
   structure, making the fog canon's structures-emit-sight clause real, and feeding earlier raid
   warnings.
 
-**Orientation is DERIVED, never chosen.** No rotation input at placement: a lone wall gets a
-standalone look, and a fortified neighbour makes the art reach out and MEET it at the shared edge
-— walls meet march-holds, towers link too, keep–wall–tower chains happen from adjacency alone.
-(The owner's "three orientations" question resolved itself: mechanics are omnidirectional per hex,
-the line's shape comes from WHICH hexes you fortified, and the art is the territory-rim algorithm
-as 3D geometry.)
-
 **The defensive tech lane:** thicker pools, more firing slots, tower vision range — the family
 gives deep defensive upgrades a home when the tech tree arrives.
+
+#### How a fortification is DRAWN: hub and spoke *(owner, 2026-08-28)*
+
+Orientation is **derived, never chosen** — there is no rotation input at placement, and the shape of a
+wall line comes from *which hexes you fortified*, not from an angle you picked. What changed on
+2026-08-28 is the geometry that derivation produces. An earlier spec drew wall segments *along* hex
+edges (the territory-rim algorithm in 3D); it is retired in favour of the owner's model:
+
+> *"When a side can tell its neighbor is fortified, it raises the wall from the outer edge of the hex to
+> the edge of the building model… The hex provides from edge to building edge, building provides from
+> building edge to the edge of the model. A building knows what hex it's on, so it should know which of
+> its neighbors are fortifications."*
+
+- **The hex draws edge→hub.** For every edge whose neighbour is fortified, a bar runs from the edge
+  midpoint inward to the building's hub. Spokes exit through **edge midpoints**, because that is where a
+  neighbour is.
+- **The building draws hub→centre**, and usually does nothing: a solid model's interior is not viewable
+  space, so the spoke may simply pass through it.
+- **`hubRadius` is one number per structure**, and it is the only thing that varies across the whole
+  family: a Palisade's hub is tiny and reads as continuous wall, a Watchtower's is small and tall, a
+  March-hold's is large and hollow. Keep–wall–tower chains then happen from adjacency alone.
+- **A lone fortification shows its hub as a stub** — AoE's answer, and the right one. It is not an edge
+  case: every wall line has two ends, so the hub is visible at every terminus of every wall ever built.
+  It should read as deliberate and unfinished, never as a mistake.
+- **This is also what rescues walls from the cliff problem** that killed the merged territory border
+  (todo.md). A spoke lives entirely inside one hex on that hex's own flat top and never straddles a
+  shared edge, so it never has to choose between stopping dead at a height step and crawling down it.
+  Adjacent fortified hexes at different elevations meet in a **step**, which is what a real wall does on
+  a hill.
+
+#### LAW: a hexagonal model inherits its hex's orientation *(owner, 2026-08-28)*
+
+> *"If you have a natural looking building, orientation can vary. If a model is hexagonal, it MUST share
+> orientation with the hex it sits on. No exceptions. That leaves rotation as a possibility, but the
+> sides and corners must always align."*
+
+Naturalistic models — huts, towers, barns — keep the random Y-jitter that makes a scatter look
+unplanned. Hexagonal ones lose it entirely. The immediate consequence is that a hub hex is **pointy-top
+like the board**, never rotated 30°, or every spoke butts into a corner instead of a flat face. Costs
+nothing to obey and looks obviously wrong the moment it is broken. See `map.md` §3, where the pointy-top
+lock lives.
+
+#### Every building gets a central model
+
+No structure has a central footprint today: the march-hold is a ring covering the whole hex, the farm is
+three scattered bales, a seat is three scattered huts. **"A structure occupies the hex centre within
+`hubRadius`"** is a new law, and it tidies all three at once. Footprints are per-structure — the tower's
+hub is small and the march-hold's is big, and that difference *is* the family — under a cap set by where
+the piece slots sit, so adding a building never re-derives the slot geometry.
+
+Placeholder models are safe because **the floating square stays the primary identifier**: the 3D model is
+redundancy, not signal, so a brown box costs nothing in readability and buys coverage across every
+structure in one pass rather than stalling on art.
 
 ### How an Army Is Depicted *(settled 2026-08-26, owner)*
 
@@ -1438,6 +1484,23 @@ stays fixed so socket spacing never has to change.
   "oh no" the top tier is for.
 - **The smallest tier must clear the scenery height cap** (below), so no army can ever sink into the
   trees. One cap, two jobs.
+
+**WHERE A DISC STANDS MEANS SOMETHING** *(ruled 2026-08-28)*. Every hex reserves **four piece
+slots** on a cross at N/E/S/W, of which at most two are ever filled — four rather than two so that a
+wall crossing the hex can veto the slots it runs through and still leave a clean pair, and so a
+four-player game never has to redesign this. A fortified hex adds a fifth position: **the courtyard,
+at the centre**, and that one carries meaning.
+
+- **Courtyard = garrisoned. Ring slot = standing outside.** The term already means *behind walls only*
+  (see The Fortification Family), so the distinction the rules draw becomes something you can see.
+- **It draws the siege by itself**: the defender sits inside, the besieger on the ring. Who is in and
+  who is out, at a glance, with no label. The courtyard holds exactly one, because the only way two
+  armies share a fortified hex is as enemies and the second is by definition outside.
+- **It closes a real hole** (owner): *"as your troops approach a march-hold, there is no way to tell if
+  there is an army in there. And no way to know how many. It could be 4 or 40."* The count is already
+  printed on the disc's top face, so a garrison is read the same way, in the same place, as any field
+  army — no new vocabulary. A visible garrison count is an **input**, which the game owes you; odds
+  remain forbidden.
 
 **SCENERY SHRINKS AND GETS A HEIGHT CAP.** Anything that does not indicate game state is scaled down
 and forbidden from exceeding a maximum height; pieces are deliberately oversized against it.

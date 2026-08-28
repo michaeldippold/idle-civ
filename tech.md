@@ -116,6 +116,14 @@ load-bearing rather than theoretical. What exists:
   `props3d.js` (instanced dev-art props), `stage.js` (scene, camera rig, lighting, post chain,
   picking, projected labels). The module reaches game state only through hooks passed in by
   `ui/map.js`, so the sim still cannot be reached from the renderer.
+
+  **PENDING — the board geometry pass (ruled 2026-08-28, not built).** `HEX_SIZE` is only half a knob:
+  hex geometry, the ownership rim and the camera's `spanOf()` framing scale with it, while
+  `PIECE_SOCKETS`, `SOCKET_CLEARANCE`, `DISC_RADIUS`, every prop model, `SINK_DEPTH` and the shadow
+  frustum are raw world units that do not. Three overlaps are live today because `SOCKET_CLEARANCE`
+  measures to a prop's centre rather than its hull. The spec — target circumradius 1.5, slots at 0.90,
+  hub-and-spoke walls, the courtyard slot — is in `todo.md` → The Board Geometry Pass. Treat the
+  constants in `hex3d.js` and `pieces3d.js` as due for a coordinated pass, not individual tuning.
 - **`vendor/`** — three@0.160.0, postprocessing@6.35.3, n8ao@2.0.1, pinned and served from the
   repo. No CDN at runtime. One non-obvious entry: n8ao imports
   `three/examples/jsm/postprocessing/Pass.js` *and* `Pass` from `postprocessing` (it duck-types

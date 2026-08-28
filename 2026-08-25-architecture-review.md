@@ -581,7 +581,10 @@ physical board game does:
 > tiers by headcount; scenery shrinks under a height cap so pieces always stand above it. The ring
 > of 3–4 sockets is also over-specced: the hex-locking rule (a contested hex bars new entrants, and
 > a battle is two-sided) caps real occupancy at **the structure plus two pieces**, so it never
-> needed sizing to the seven player colours. What survives intact: two visual vocabularies, anchor
+> needed sizing to the seven player colours. *(Amended 2026-08-28: the ring settled at FOUR after all
+> — not for occupancy, but so a wall crossing the hex can veto slots and still leave a clean pair,
+> and to leave room for a four-player game. The centre socket also gained a meaning: a disc standing
+> there is GARRISONED, inside the walls.)* What survives intact: two visual vocabularies, anchor
 > points the prop scatter never fills, one group = one piece, composition never depicted on the
 > board, a garrison merging into the structure, pick-up-and-plop travel, and fog gating pieces on
 > the stricter *sighted* tier. Full canon in `design.md` → *How an Army Is Depicted*.

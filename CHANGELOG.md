@@ -11,6 +11,39 @@
 
 ---
 
+## 2026-08-28 — A question about hex size turns into the architecture for every building
+
+**No code was written, on purpose** — the standing rule is consensus, document, commit, then code, and
+this ran the full length of it. It opened as *"I think the hexes are a bit too small… but I do not know
+if this is like trying to swap building materials on the house when you are finishing the plumbing"*
+and closed with the geometry for walls, towers, garrisons and every building model the game will draw.
+
+**The investigation found a bug, not a preference.** `SOCKET_CLEARANCE` measures to a prop's CENTRE and
+not its hull, so a legally-placed tree reaches 0.09 inside the army disc: discs and scenery
+interpenetrate today on every forest hex and on your own seat, and a garrison disc stands inside the
+march-hold's wall. Hex size turned out not to be load-bearing anywhere (march time is flat per hex, the
+sim moves in axial coordinates, the 2D board takes its size as a parameter), so the fix was affordable.
+
+**Walls became HUB AND SPOKE** (owner's model, replacing an edge-walk spec): the hex draws from an edge
+midpoint inward to the building's hub, the building covers the rest, and one number per structure —
+`hubRadius` — is the only thing that varies across Palisade, Watchtower and March-hold. It also rescues
+walls from the terrain-height collision that killed the merged territory border two days earlier, since
+a spoke never touches a shared edge. **The garrison disc moved into the march-hold's courtyard**, which
+makes the word "garrison" visible, draws the siege by itself (defender in, besieger on the ring), and
+answers *"it could be 4 or 40."* **A lone wall shows its hub as a stub** — not an edge case, since every
+wall line has two ends.
+
+A proposal to cut the piece slots from four to three was put up and **lost on the owner's argument**:
+three corners trade a rare head-on kill for a constant double-graze, can never yield an opposite pair,
+and *"4 slots allows for a 4 player game down the line without us having to redesign this system."*
+Two independent constraints — the courtyard's size and a chunky wall's clearance — then converged on the
+same hex size, **circumradius 1.5**, which is the main reason to trust it.
+
+New law, into `map.md` beside the pointy-top lock: **a hexagonal model MUST share its hex's
+orientation. No exceptions.** Naturalistic models keep their jitter; hexagonal ones lose it.
+
+---
+
 ## 2026-08-26 (later) — The playtest bites back, and the war learns to end
 
 **The first real playtest drove a day of rulings and fixes.** The **sack** arrived as the

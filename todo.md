@@ -63,6 +63,238 @@ stock) and no resource ever ends a tick below zero (the "-1 food" float-residual
 
 ---
 
+## THE BOARD GEOMETRY PASS — ruled 2026-08-28, **NOT BUILT** *(the spec; nothing below has been coded)*
+
+**Owner's priority call:** *"Since this makes walls, watchtowers, disc-in-garrison, model-per-building,
+etc etc possible it's pretty fundamental to how the game looks and IMO should come sooner rather than
+later."* Arrived at over one investigation and three rounds of the owner's drawings. It began as a
+question about hex size and ended as the architecture for every building and wall the game will draw.
+
+### Why: the hex is measurably too small, and three things already overlap
+
+The opening question: *"I think the hexes are a bit too small. Or the discs are too big… But I do not
+know if this is like trying to swap building materials on the house when you are finishing the
+plumbing. Size should not be load bearing I don't think, since travel time has nothing to do with hex
+size."*
+
+**Confirmed: size is NOT load-bearing.** `marchSeconds: 12` is flat per hex; the sim moves in axial
+`q,r` and never sees world units; the 2D SVG takes `size` as a parameter (`map/model.js → toPixel`);
+nothing in `src/` outside `render3d/` imports `hex3d.js` (only the harness does, for its socket sweep).
+It is a renderer-local constant. The instinct was right on both counts.
+
+**But `HEX_SIZE` is only half a knob.** Scales with it today: hex geometry, the ownership rim, the
+march-hold footprint, and — via `spanOf()` — camera framing, zoom limits and fog. Does NOT scale:
+`PIECE_SOCKETS`, `SOCKET_CLEARANCE`, `DISC_RADIUS`, every prop model, `SINK_DEPTH`, the shadow
+frustum, and the camera's additive constants. So raising it alone widens the one gap that was never
+tight, and this is a layout pass rather than a one-constant bump.
+
+**Measured, at circumradius 1.0 / sockets 0.5 / disc 0.30:**
+
+| Pinch | Today |
+| --- | --- |
+| disc ↔ adjacent disc | **0.107** — 18% of a disc's diameter |
+| disc ↔ ownership rim | **0.02** at the corner sockets; *overlapping* at the edge sockets |
+| disc ↔ march-hold wall | **overlapping** — all four sockets put the disc through the wall band |
+| disc ↔ trees, huts | **overlapping** — see below |
+
+**The scenery overlap is a budgeting slip, not a taste call.** `SOCKET_CLEARANCE` (0.34) measures to a
+prop's **centre, not its hull**. A canopy is radius 0.13, a hut roof 0.21. A legally-placed tree at
+exactly 0.34 reaches to 0.21 from the socket centre — 0.09 *inside* the 0.30 disc. So discs and
+scenery interpenetrate today on every forest hex and on your own seat, and a garrison disc stands
+inside the march-hold's wall. The clearance was sized against the disc radius and forgot that the prop
+has a radius of its own. **This is the actual bug behind "the hexes feel too small."**
+
+### The target: circumradius **1.5**, and why that exact number
+
+Two unrelated constraints converge on it, which is the main reason to trust it.
+
+1. **The march-hold's courtyard must hold a disc** (below). One disc plus margin needs a courtyard of
+   ~0.40; real wall thickness ~0.20 puts the ring's outer radius at **0.60**. A building footprint is
+   capped by `slot distance − disc radius`, so slots must sit at **0.90**, which needs an inradius of
+   ≥1.26 → **R ≈ 1.5**.
+2. **A chunky spoke must not cost slots.** A diagonal wall passes `0.5 × slot distance` from the N/S
+   slots, clean only while that exceeds `wall half-width + disc radius`. For a 0.30-wide wall (matching
+   the owner's drawings) that needs slots at 0.90 → **R ≈ 1.46**.
+
+**At R = 1.5, nothing is compromised:**
+
+| | Value |
+| --- | --- |
+| slot distance / disc radius | 0.90 / 0.30 |
+| opposite-pair disc gap | **1.20** (today: n/a) |
+| adjacent-pair disc gap | **0.673** (today: 0.107) |
+| E/W slot outer edge vs inradius | 1.20 vs 1.299 — 0.10 margin |
+| building footprint cap | **0.60** |
+| march-hold | courtyard 0.40, walls 0.20 thick, ring outer 0.60 — exactly the cap |
+| spoke width that still leaves 4 slots on a diagonal | up to **0.30** |
+| hex area left free for scenery after 4 reserved zones | ~45% |
+
+So the honest figure is **50% wider, not the ~35% first estimated** — the extra 15% is what the
+courtyard costs, and it buys the whole fortification family.
+
+### Piece slots: **four, on the cross** *(owner ruling — a proposal for three was put up and lost)*
+
+Slots stay at N / E / S / W. A three-slot arrangement at alternating corners was proposed on the
+grounds that corners are 30° off every possible spoke and so are never hit head-on. **The owner
+rejected it and was right**, on four counts:
+
+- **It optimised the wrong failure.** "Never head-on" is not "safe": a corner slot sits `0.5s` from two
+  of the six edge directions, which is inside the graze threshold at realistic wall widths. Three
+  corners trade a *rare head-on kill* for a *constant double-graze* — every wall orientation leaves
+  exactly **one** clean slot of three, where the cross leaves **two**.
+- *"With 4 placed as I suggested, there is only 1 wall orientation that intersects a slot, with yours
+  two."* Correct: only the horizontal wall head-on-kills anything (E and W); the two diagonals kill
+  nothing.
+- *"With your 3 circles, they are also not directly across from one another, they sit at an odd
+  angle."* Correct and it matters: three slots 120° apart can never yield an **opposite** pair, which
+  is the roomiest separation there is. The cross's survivors are always the opposite pair.
+- **"4 slots allows for a 4 player game down the line without us having to redesign this system."**
+  Decisive on its own. Hex locking caps occupancy at 2 *today*; that is a current rule, not a permanent
+  one, and four slots is free future-proofing.
+
+**Consequence to keep in mind:** wall thickness quietly spends slots. Under ~0.30 wide (at slots 0.90)
+a diagonal costs nothing; thicker, and diagonals start eating N and S, leaving the E/W pair. It
+degrades gracefully — you never drop below two — so it is a look decision, not a functional one.
+
+### Walls are **hub and spoke** *(owner's model, supersedes the edge-walk spec below)*
+
+The earlier spec drew wall segments *along* hex edges, as the territory-rim algorithm in 3D. **That is
+retired.** The owner's model:
+
+> *"When a side can tell its neighbor is fortified, it raises the wall from the outer edge of the hex to
+> the edge of the building model. The building model itself then is tasked with providing the extra wall
+> if needed… The hex provides from edge to building edge, building provides from building edge to the
+> edge of the model. A building knows what hex it's on, so it should know which of its neighbors are
+> fortifications."*
+
+- **The hex owns edge→hub.** For each of six edges whose neighbour is fortified, draw a bar from the
+  edge midpoint inward to the building's hub radius. Nothing else.
+- **The building owns hub→centre**, and mostly does nothing: a solid model's interior is not viewable
+  space, so a spoke can simply run through it (*"it can probably just run right through it"*).
+- **`hubRadius` is one number per structure** and it is the only thing that varies across the family.
+  It is also the number the spoke renderer needs to know where to stop — the same number the slot
+  budget already caps at 0.60. One parameter, two jobs.
+- **The exception that earns the parameter: the march-hold's open courtyard.** A spoke run to the centre
+  there would be visible across the courtyard *and* collide with the garrison disc standing in it. So
+  the spoke stops at the ring's outer radius. Without `hubRadius` an open courtyard would be impossible
+  to render, which would have quietly ruled out the best building on the board.
+
+**One shape, one parameter, the whole family:**
+
+| | Hub | Reads as |
+| --- | --- | --- |
+| Palisade | tiny, wall-height | a wall, continuous |
+| Watchtower | small, tall | a tower with walls meeting it |
+| March-hold | large, hollow | a keep with a courtyard |
+
+**This also retires the cliff problem that killed the merged border.** A spoke lives entirely within one
+hex, on that hex's own flat top; it never straddles a shared edge, so it never has to choose between
+stopping dead and crawling down a cliff face. Two adjacent fortified hexes at different elevations meet
+at the boundary with a **step**, which is what a real wall does on a hill. *To settle at build time:* a
+spoke's outer end should extend down to the lower of the two hex heights so the join reads as a
+buttress rather than a floating gap.
+
+### The garrison disc stands **in the courtyard** *(owner ruling)*
+
+> *"In my ideal world, for a march-hold specifically, if an army is garrisoned there their disc should go
+> in the middle. Right now, as your troops approach a march-hold, there is no way to tell if there is an
+> army in there. And no way to know how many. It could be 4 or 40."*
+
+- **It makes the word "garrison" visible.** The term already means *behind walls only* (ruled 2026-08-26,
+  below). Disc in the courtyard = garrisoned; disc on a ring slot = standing outside. The distinction
+  the rules already draw becomes something you can see.
+- **It gives the siege picture for free**: defender inside, besieger on the ring. Who is in and who is
+  out, readable at a glance, no label.
+- **The courtyard holds exactly ONE.** The only way two armies share a fortified hex is as enemies, and
+  the second is by definition outside. That is what keeps the courtyard at 0.40 instead of the ~0.66 two
+  discs would need.
+- **The count problem solves itself**, because the count is already printed on the disc's top face. A
+  garrison is read the same way, in the same place, as any field army. No new vocabulary.
+- **No conflict with the never-print-the-odds law:** a visible garrison count is an *input*, and inputs
+  are what the game owes you. Odds remain forbidden.
+- *Note:* a `host`-tier disc (0.88 tall) inside a 0.29-tall wall will visibly overflow its fort. That
+  reads correctly and should be kept.
+
+### A lone wall gets a **stub hub** *(owner ruling, AoE's solution)*
+
+> *"The way AoE solves this is if you build a single lone wall, you get a spoke in the middle waiting to
+> be connected. It'll look silly but who ever only builds one wall. It can be wall height, color, and
+> width, probably in a hex shape since it can take 6 neighbors."*
+
+Hex-shaped is right, and for the stated reason: six neighbours means six flat faces for spokes to butt
+into. **It is not an edge case, and should not look like a joke:** every wall line has two ends, so a
+five-hex wall shows the hub at both termini. The stub is permanent, common vocabulary — visible on every
+wall ever built — so it wants to read as *deliberate and unfinished*, not as a mistake.
+
+### LAW: hexagonal models inherit the hex's orientation *(owner, 2026-08-28)*
+
+> *"If you have a natural looking building, orientation can vary. If a model is hexagonal, it MUST share
+> orientation with the hex it sits on. No exceptions. That leaves rotation as a possibility, but the
+> sides and corners must always align."*
+
+Free to follow, obviously broken the moment it is violated. The immediate consequence: the hub hex is
+**pointy-top like its parent**, never rotated 30°, or every spoke butts into a corner instead of a face.
+Naturalistic models (huts, towers, barns) keep their random Y-jitter; hexagonal ones lose it. Canon also
+lives in `map.md` §3 beside the pointy-top lock.
+
+### One central model per building
+
+- **Nothing has a central footprint today.** March-hold is a hex ring at 0.63–0.80 (the whole hex), farm
+  is three scattered bales, your seat is three scattered huts. Every structure is a *scatter*, not a
+  building. "A structure occupies the hex centre within `hubRadius`" is a **new law** that tidies all
+  three at once.
+- **Footprint is per-structure, under the 0.60 cap.** A shared single number was proposed; the owner's
+  drawings settled it — the tower's hub is small and the march-hold's is big, and that difference *is*
+  the family. The cap is what keeps the slot geometry from being re-derived every time a building is
+  added.
+- **Placeholders are safe because the floating square stays the primary identifier.** The model is
+  redundancy, not signal, so a brown box costs nothing in readability and buys coverage across every
+  structure in one pass instead of stalling on art. *(Owner: "I want to get models for every building
+  soon as well, even if the currently unspecified ones are just a brown box or something.")*
+- **Home hex, first pass: move the three huts to the middle.** *"For your home hex, it can be as simple
+  as moving those 3 buildings into the middle lol. But we will eventually want one per age for just your
+  home hex."* The seats already differentiate by silhouette (your huts vs the adversaries' stone
+  towers), so the per-age models have an axis to grow along.
+
+### Also settled in the same pass
+
+- **Scenery on built hexes, restrained** (owner: *"I do think I want this. It can be restrained, but I do
+  think it's a good idea"*). Today `props3d` does `continue` on any built hex — nothing else stands on
+  built ground — so built hexes read bald beside their neighbours. Scatter returns, dodging the reserved
+  slots and the hub.
+- **Bigger floating square and home icon** (owner: *"Since everything underneath them is just a model,
+  it's basically decoration"*). These are DOM at fixed px: home/seat 22, minor 16, army 20, work 15.
+  Two constraints — they were already bumped once (19→22) on 2026-08-25 for the same reason, so this is a
+  second pass on a known-tight number; and **home/seat parity is deliberate** (your hall and a rival's
+  are the same kind of thing, told apart by colour), so those two move together.
+- **Intersections lose to walls, deliberately.** *"I am okay with a hex like the right side example in my
+  drawing, where every single neighbor is fortified, my owner hex intersects with the wall, and that is
+  perfectly fine. I want the walls more than I want zero intersections. But also no one is going to do it
+  this way, you would be much better off making them march-holds."* Do not spend geometry solving the
+  six-spoke case.
+
+### Chores that come with the bigger number
+
+- **Camera additive constants** don't scale: `near * 2.1 + 5`, clamps 6–38 and 14–120, fog `+20`/`+60`.
+  They need a pass or the framing drifts.
+- **The shadow frustum is a fixed half-extent of 14** (`stage.js`), against a board half-span of ~21
+  today — so **shadows are already dropping off at the board's edges before any change**, and 1.5× makes
+  it worse. Goes to ~32.
+- **Framing must be retightened to cash the change in.** `frameBoard()` derives distance from `spanOf()`,
+  so a 1.5× board pulls the camera back 1.5× and lands on an identical picture — same hexes, smaller
+  discs. Showing ~33% fewer hexes at rest is the actual cost. The owner's zoom check says it is
+  affordable: *"with the new interface, you can zoom out far enough to fit the ENTIRE MAP into your
+  screen, so we may not need to zoom out much further with a size increase."*
+
+### Sequencing
+
+**Two passes, not one.** Geometry first — hex size, slots, clearance sized to prop hulls, camera,
+shadows — so the board can be looked at and the proportions signed off. Then the fortification family and
+the building models on top of a size already agreed. Doing it in one pass risks discovering at the end
+that 1.5 was 10% too much, after everything has been built against it.
+
+---
+
 ## THE 8/25 REVIEW AND ITS QUEUE *(added 2026-08-25, evening)*
 
 A full-repo architecture review ran against the settled direction, and the design conversation
@@ -506,9 +738,12 @@ several tempting ideas later, and it should.
    - **What was learned and is worth keeping:** `edgeCorners(dq, dr)` in `hex3d.js` does the
      neighbour-edge lookup with no corner-ordering assumptions, and the perimeter walk itself is
      cheap and correct — the failure was entirely the collision with terrain height, not the
-     algorithm. **This matters for the WALL art above**, which was specced on the same edge-walk:
-     connecting wall segments will hit the identical cliff problem, and want walls that follow
-     terrain height as real geometry (which walls, unlike a flat rim, can plausibly do).
+     algorithm. **This mattered for the WALL art**, which was specced on the same edge-walk and
+     would have hit the identical cliff — **resolved 2026-08-28**: hub-and-spoke walls never touch a
+     shared edge, so the problem does not arise. The prediction that walls "want to follow terrain
+     height as real geometry, which walls unlike a flat rim can plausibly do" was right, and the
+     owner's model gets there by a better route: adjacent fortified hexes at different heights simply
+     meet in a step, the way a wall climbing a hill does.
    - The original proposal, for the record: Replace the per-hex
    ownership ring with ONE perimeter around each realm: walk every owned hex's six edges and draw
    a segment only where the neighbour has a different owner, skipping shared interior edges. When
@@ -630,26 +865,19 @@ several tempting ideas later, and it should.
      gets a standalone look; the moment a fortified neighbour exists, the art reaches out and
      meets it at the shared edge — walls meet march-holds, towers link too, so keep–wall–tower
      chains simply happen from adjacency. Placement stays one click; the owner's "3 orientations"
-     resolve themselves from the map. (buildProps is already per-hex with neighbours readable;
-     adjacency-aware dressing is the territory-rim algorithm as 3D geometry.)
+     resolve themselves from the map. (buildProps is already per-hex with neighbours readable.)
+     **The geometry that derivation produces is hub-and-spoke** — see *The Board Geometry Pass*.
    - **The defensive TECH LANE (owner)**: the fortification family gives deep defensive upgrades a
      home — thicker pools, more firing slots, tower vision range — a whole tech-tree vector.
-   - **Wall VISUALS**: the pool is omnidirectional, so the honest render is a full ring at the hex
-     RIM — the march-hold already draws an enclosure, but at a radius that CLIPS the garrison disc
-     standing at its socket (owner screenshot: "the clipping is just odd and confusing", though
-     the battle behind the walls held correctly). Fix = coordination, not art: ring out at ~0.82,
-     outside the 0.5 piece sockets; consider the garrisoned disc stepping to the hex CENTRE when a
-     fortification stands — reads as "inside the walls", echoes the review's garrison-merges-into-
-     structure ruling. **The real art direction (owner, corrected same day — the "3 angles" question was
-     about ART, not mechanics): EDGE-SEGMENT WALLS WITH CONTINUITY.** Wall pieces run along hex
-     edges and CONNECT at shared edges between adjacent friendly fortified hexes, so a line of
-     forts reads as one long wall and a cluster reads as a walled REGION — "a long line of hex
-     circles reads as a line of march-holds, not a wall." Mechanics stay omnidirectional per hex;
-     only the geometry is directional. Implementation is the territory-rim algorithm as 3D
-     geometry: draw wall segments on every edge whose neighbour is NOT a friendly fortified hex,
-     skip shared interior edges, and adjacent forts merge automatically into one continuous
-     perimeter around their union. A lone march-hold stays a keep; three in a line become a
-     frontier wall; a ring around the capital becomes a city wall — pure art-layer work.*
+   - ~~**Wall VISUALS**: edge-segment walls drawn along hex edges, the territory-rim algorithm as 3D
+     geometry~~ — **SUPERSEDED 2026-08-28 by HUB AND SPOKE.** See *The Board Geometry Pass* above.
+     Walls no longer run along edges at all: they run from an edge midpoint INWARD to the building's
+     hub, so they live inside one hex and never straddle a boundary. What the retired spec got right
+     and the new one keeps: mechanics stay omnidirectional per hex while only the geometry is
+     directional, adjacency alone makes keep–wall–tower chains, and *"a long line of hex circles reads
+     as a line of march-holds, not a wall."* What it got wrong: drawing on the shared edge walks
+     straight into the terrain-height problem that killed the merged border, and it had no answer for
+     the garrison disc — which the courtyard now solves outright.
 
    **GARRISON, THE TERM (ruled, corrected same day):** "garrison" applies ONLY to units behind
    literal fortifications — walls, march-holds, towers. An army standing in a field is a **parked
@@ -704,7 +932,10 @@ several tempting ideas later, and it should.
    prop scatter never fills, a garrison merging into the structure, and position (not flag heading)
    carrying the confrontation. The hex-locking rule also caps real occupancy at the structure plus
    two pieces, since a contested hex bars new entrants and a battle is two-sided, so the ring never
-   needed to be sized to the seven player colours.
+   needed to be sized to the seven player colours. **Amended 2026-08-28:** the ring settled at FOUR
+   anyway — not for simultaneous occupancy, but so a wall crossing the hex can veto the slots it runs
+   through and still leave a clean pair, and because *"4 slots allows for a 4 player game down the line
+   without us having to redesign this system."* Two-at-a-time is a current rule, not a permanent one.
 
    **The scouting prerequisite is DROPPED, and the dependency is
    inverted** (owner, 2026-08-26): we do not yet know how scouting works, and scouts can be caught

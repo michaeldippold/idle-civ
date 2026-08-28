@@ -642,6 +642,13 @@ with a hundred and fifty interacting parts. The cost that matters is design surf
 **Pointy-top hexagons — points at top and bottom, flat sides left and right. LOCKED.** This is the
 one geometry decision that must be made before any art is commissioned, and it is made.
 
+**And it binds the models, not just the tiles** *(owner, 2026-08-28)*: **if a model is hexagonal it
+MUST share the orientation of the hex it stands on. No exceptions.** Rotation stays available as an
+effect, but sides and corners always align. Naturalistic models — huts, towers, barns — keep the random
+jitter that makes a scatter look unplanned; hexagonal ones lose it entirely. The rule costs nothing to
+obey and looks obviously broken the moment it is not: a hub hex rotated 30° takes every connecting wall
+into a corner instead of a flat face. See `design.md` → The Fortification Family.
+
 Why hexes at all, in descending order of how much each one matters to this project:
 
 **Six true neighbours.** Every adjacency is symmetric and equally weighted. A square grid forces

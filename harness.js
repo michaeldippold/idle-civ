@@ -6517,4 +6517,99 @@ console.log("\n--- The nav rail: one panel left, one right, focus never empty --
   })());
 }
 
+// ---- S1 (the antagonist spec): the sim forgets who "the" player is ----
+console.log("\n--- S1: the viewer ratchet, and a second human-shaped seat ---");
+{
+  // THE RATCHET. The end state is the spec's rule -- no file in src/sim/,
+  // src/map/, or the sim half of src/core/ reads S.me or calls me() -- and
+  // this table is the road there: every count is pinned EXACTLY, so a new
+  // viewer-read cannot slip in silently and a removed one must be recorded
+  // here, on purpose, as progress. (Equality, not <=: a stale ceiling is a
+  // check that stopped checking. Parameter DEFAULTS `p || me()` count too --
+  // they retire when S2/S3 make sim callers explicit.) Zero-zero rows are the
+  // finish line, already reached by battle.js and bots.js among others.
+  const RATCHET = {
+    "src/sim/armies.js":      { sme: 1, me: 17 },
+    "src/sim/battle.js":      { sme: 0, me: 0 },
+    "src/sim/bots.js":        { sme: 0, me: 0 },
+    "src/sim/combat.js":      { sme: 0, me: 15 },
+    "src/sim/contact.js":     { sme: 8, me: 0 },
+    "src/sim/era.js":         { sme: 0, me: 5 },
+    "src/sim/eraclock.js":    { sme: 0, me: 1 },
+    "src/sim/events.js":      { sme: 0, me: 5 },
+    "src/sim/expeditions.js": { sme: 0, me: 23 },
+    "src/sim/raiders.js":     { sme: 0, me: 1 },
+    "src/map/continents.js":  { sme: 0, me: 0 },
+    "src/map/fog.js":         { sme: 0, me: 6 },
+    "src/map/generate.js":    { sme: 0, me: 0 },
+    "src/map/map.js":         { sme: 1, me: 6 },
+    "src/map/model.js":       { sme: 0, me: 0 },
+    "src/map/ownership.js":   { sme: 4, me: 0 },
+    "src/map/population.js":  { sme: 0, me: 10 },
+    "src/map/routes.js":      { sme: 0, me: 3 },
+    "src/map/structures.js":  { sme: 0, me: 0 },
+    "src/map/world.js":       { sme: 0, me: 0 },
+    "src/core/step.js":       { sme: 0, me: 14 },
+    "src/core/actions.js":    { sme: 0, me: 22 },
+    "src/core/derived.js":    { sme: 0, me: 21 },
+  };
+  const here = nodePath.dirname(fileURLToPath(import.meta.url));
+  let ratchetOk = true, drift = [];
+  for (const [rel, want] of Object.entries(RATCHET)) {
+    const src = fs.readFileSync(nodePath.join(here, rel), "utf8");
+    const sme = (src.match(/\bS\.me\b/g) || []).length;
+    const mec = (src.match(/\bme\(\)/g) || []).length;
+    if (sme !== want.sme || mec !== want.me) {
+      ratchetOk = false;
+      drift.push(`${rel}: S.me ${sme}(pinned ${want.sme}) me() ${mec}(pinned ${want.me})`);
+    }
+  }
+  check("the viewer ratchet holds: no sim file's S.me/me() count moved unrecorded", ratchetOk);
+  if (drift.length) console.log("    drift: " + drift.join("; "));
+
+  // A SECOND HUMAN-SHAPED SEAT CAN ACT -- S1's deliverable. A keyless player
+  // record (a human is a player whose decision-maker is a mouse; this one's is
+  // a harness) claims ground, spends its own stores through the real verbs,
+  // and the journal records ITS pid. The viewer's books never move.
+  reset(); api.ensureMap();
+  const guest = api.freshPlayer(api.S.players.length, { color: "teal", seatName: "Guestholm" });
+  api.S.players.push(guest);
+  const freeHex = Object.values(api.world.places).find((p) =>
+    p.terrain !== "water" && !p.adversary && !p.minor && api.ownerOf(p.id) == null);
+  api.claimTile(freeHex.id, guest.id);
+  guest.seat = freeHex.id;
+  api.ensurePop(guest.id);
+  guest.res.food = 200; guest.res.wood = 200; guest.res.stone = 100;
+  api.clearJournal();
+
+  const hostQueueBefore = api.me().buildQueue.length;
+  const hostWoodBefore = api.me().res.wood;
+  api.build(api.defById("barracks"), guest);
+  check("a guest seat's build lands on the GUEST's queue",
+    guest.buildQueue.length === 1 && api.me().buildQueue.length === hostQueueBefore);
+  check("...paid from the guest's stores, the viewer's untouched",
+    guest.res.wood < 200 && api.me().res.wood === hostWoodBefore);
+  check("...and the journal records the guest's pid",
+    api.journal().length === 1 && api.journal()[0].pid === guest.id && api.journal()[0].verb === "build");
+
+  const near = api.world.places[freeHex.id].adj.find((n) =>
+    api.world.places[n].terrain !== "water" && !api.world.places[n].adversary &&
+    !api.world.places[n].minor && api.ownerOf(n) == null);
+  if (near) {
+    api.launchSettle(near, guest);
+    check("a guest settle queues against the guest's own dominion arithmetic",
+      guest.buildQueue.some((q) => q.kind === "settle") &&
+      api.journal().some((e) => e.verb === "settle" && e.pid === guest.id));
+  }
+
+  // THE HONEST BOUNDARY, pinned so S2 must consciously flip it: the world
+  // tick still runs ONE economy. The guest's queue does not tick, its hexes
+  // do not gather, its people do not grow -- that is S2's whole job, and the
+  // day it lands this check inverts.
+  const guestRemaining = guest.buildQueue[0].remaining;
+  run(10);
+  check("S2 BOUNDARY (flip me when the economy goes per-player): the guest's queue does not tick yet",
+    guest.buildQueue[0].remaining === guestRemaining);
+}
+
 console.log(`\n${fails === 0 ? "ALL CHECKS PASSED" : fails + " CHECK(S) FAILED"}`);

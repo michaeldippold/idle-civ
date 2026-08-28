@@ -477,9 +477,19 @@ tables live with the adversary defs (authoring, not CONFIG).
 **The substrate campaign** *(the per-player-refactor shape: one branch, commits with their own
 harness sections)*:
 
-1. **S1 — the `me()` sweep**: parameter-threading, the sim-never-reads-`S.me` harness rule, the
-   known viewer-branch fixes. Check: a second human-shaped player record can issue every verb
-   headlessly and the journal records its pid.
+1. ~~**S1 — the `me()` sweep**~~ **SHIPPED 2026-08-28 (branch `substrate`, four commits).**
+   The map package, derived values, and the whole verb layer take the acting civ (defaults keep
+   the interface unchanged); the journal records the real pid; the four audit landmines are
+   defused (breakNation keys on `victim.key`, the dominion cap binds every conqueror, columns
+   chart their own fog, battle/sack/conquest narration routes by pid through the bus with the
+   wire filtering by viewer). The harness gained **the viewer ratchet** — every sim file's
+   `S.me`/`me()` count pinned exactly, so a new viewer-read cannot land unrecorded and removals
+   are recorded as progress — plus the deliverable check: a second keyless seat builds and
+   settles through the real verbs, paid from its own stores, journaled under its own pid. A
+   pinned **S2 BOUNDARY check** states the honest limit (the guest's queue does not tick) and
+   inverts when S2 lands. Mutation-tested both ways. 1040 checks green. *Found on the way: a
+   harness fixture was capturing hills out of the Hill Clans' home ring — captureTile now
+   refuses ground held by anyone.*
 2. **S2 — the per-player economy**: step loop over living civs, real bot hex pop, restock
    retirement, safety valves. Check: a bot's `res` grows from its territory; a sacked mine
    measurably slows it; no unit exists that was not paid for; famine exemption flag works.

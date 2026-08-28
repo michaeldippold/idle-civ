@@ -289,6 +289,43 @@ brother-test-game is a cheap flip once Part I lands, and so nothing in Part II a
 closes the door. Not matchmaking, not accounts, not anti-cheat (both clients hold full state; a
 friendly game does not care), not reconnect-hardening beyond what save/load already gives.
 
+### The table — how two humans end up in one game *(added same day; the owner asked and the
+first draft had hand-waved it in six words)*
+
+The flow rides the existing start screen (World / Colour / Seat name, fixed for the run) and
+the existing every-new-run-reboots rule. **The ordering constraint that shapes everything: the
+guest must join BEFORE worldgen**, because seats are placed during generation — so the lobby
+happens on the start screen, not in a running world.
+
+1. **Host opens a table**: picks World and their own colour/seat-name as today, hits "Open a
+   table" instead of Begin, and gets a **join code** (a short room id on the relay; shareable
+   as a link). The start screen becomes the lobby: host's picks shown, one empty seat waiting.
+2. **Guest joins**: enters the code (or opens the link), lands on the same start screen in
+   guest shape — World is the host's choice, display-only; **colour offers only unclaimed
+   colours** (the palette has seven and the collision-heal in `initAdversaries` already
+   reassigns bots around human picks — the mechanism exists); seat name their own.
+3. **Begin is the host's button**, enabled when the guest is seated. Worldgen runs on the host
+   with both humans' picks; the first snapshot is the guest's boot. Each client sets its own
+   `S.me` (host seat 0, guest's assigned pid) — which is exactly why S1 forbids the sim from
+   reading it.
+4. **No mid-run joining, v1.** A table is joined at the start screen or not at all; rejoining a
+   run you were already in is the snapshot-reload path below.
+
+**The real new work item this uncovers is in the GENERATOR, not the interface: N human-grade
+seats.** The seat-placement floor guarantees (food-bearing ground, timber adjacent, hills in
+reach — the hex economy's layer 1) apply to `world.home` alone today. Two humans need the
+generator to place N such seats, each carrying the full floor, at a minimum distance from each
+other (the `rebirthMinDistance` idiom: fairness by geography, not by rules). This also touches
+the authored continents — a frame must be able to feed two seats' guarantees, which the frame
+editor note already flags in its data gotchas. Adversary seat counts may need to give way on
+small frames.
+
+**Saves and the absent guest** (recommended default, listed as open question 7): the host owns
+the save, and a two-seat table resumes **paused until the guest reconnects** — the world
+holding still for a missing player is the game's own contract applied to multiplayer. A host
+override ("continue without them": the guest civ stands idle — economy runs, armies hold, no
+decisions) exists so a test game is never hostage, but the pause is the default.
+
 - **Sync model, recommended: host-authoritative snapshots.** One browser runs the sim; the
   guest client sends S3 verbs over a socket and receives the save-state (small by design, exact
   by law) a few times a second. Dodges float-determinism entirely, and disconnect/rejoin is
@@ -362,6 +399,10 @@ tables live with the adversary defs (authoring, not CONFIG).
    real loss, per the tuning law.
 6. **When `botFamineExempt` retires** — the session the BUILD card demonstrably keeps a realm
    fed through a raid and a bad map.
+7. **The absent guest** — recommended: a two-seat save resumes paused until the guest
+   reconnects, with a host override that lets the guest civ stand idle. Confirm at the first
+   real test game; the alternative (guest civ handed to a bot card) is tempting and should
+   wait until the cards exist and have proven manners.
 
 ## 7. Build order *(merged; each slice lands with mutation-tested harness checks and a playtest gate)*
 
@@ -392,10 +433,16 @@ harness sections)*:
 
 **The socket campaign** *(any time after S3; independent of B1–B4)*:
 
-8. **M1 — transport + clock**: WebSocket relay, host-authoritative snapshots, shared
-   speed/pause, host-only tab rule, two-seat start screen.
-9. **M2 — per-viewer presentation**: viewer-keyed Chronicle, per-client fog render, loser's
-   ending.
+8. **M0 — N human-grade seats in the generator**: the floor guarantees for every human seat,
+   minimum-distance placement, authored frames validated for two. *No socket needed — testable
+   headless and on the start screen today, and it is the one Part III item with real design
+   risk in it.*
+9. **M1 — the table + transport + clock**: the join-code lobby on the start screen
+   (guest-before-worldgen, colour exclusivity, host's Begin), WebSocket relay,
+   host-authoritative snapshots, shared speed/pause, host-only tab rule, the absent-guest
+   pause.
+10. **M2 — per-viewer presentation**: viewer-keyed Chronicle, per-client fog render, loser's
+    ending.
 
 **Sequencing vs. the standing queue**: Parts I–II come **before the tech tree** (a tree
 balanced against toothless antagonists is balanced against nothing) and can interleave with the

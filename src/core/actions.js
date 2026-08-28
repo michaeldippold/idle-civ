@@ -25,31 +25,37 @@ import { chronicle, requestRender } from "../core/bus.js";
 // was built for stands: every player verb below is callable with no UI in
 // the room, validates on its own, and records itself in the journal.)
 
-export function build(def) {
+// EVERY VERB TAKES THE ACTING PLAYER (S1, the antagonist spec), defaulting to
+// the viewer so a button keeps meaning what it meant. The journal records the
+// REAL pid, which is what makes a bot "indistinguishable at this seam from a
+// human clicking" -- the journal's own promise, and the seam a remote human's
+// socket delivers into.
+export function build(def, p) {
+  const who = p || me();
   if (S.dead) return;
-  if (def.kind === "upgrade" && (me().upgrades[def.id] || pendingCount(def.id) > 0)) return;
-  if (isCapped(def)) return;
-  const cost = buildCost(def);
-  if (!canAfford(cost)) return;
+  if (def.kind === "upgrade" && (who.upgrades[def.id] || pendingCount(def.id, who) > 0)) return;
+  if (isCapped(def, who)) return;
+  const cost = buildCost(def, who);
+  if (!canAfford(cost, who)) return;
   if (def.kind === "unit") {
     // One training rule in every era (E5): the army is capped by the LAND
     // (hexes x armyPerHex), and the recruit is a real person with a home.
-    if (levyUsed() + 1 > levyCap()) return;
-    if (def.popCost && civilians() - reserved() < def.popCost) return;
-  } else if (def.popCost && civilians() - reserved() < def.popCost) return;
-  for (const k in cost) me().res[k] -= cost[k];
-  const wasEmpty = me().buildQueue.length === 0;
-  me().buildQueue.push({ id: def.id, kind: def.kind, uid: ++me().buildSeq, total: def.buildTime, remaining: def.buildTime, cost });
-  record("build", { id: def.id, kind: def.kind }, S.tick);
+    if (levyUsed(who) + 1 > levyCap(who)) return;
+    if (def.popCost && civilians(who) - reserved(who) < def.popCost) return;
+  } else if (def.popCost && civilians(who) - reserved(who) < def.popCost) return;
+  for (const k in cost) who.res[k] -= cost[k];
+  const wasEmpty = who.buildQueue.length === 0;
+  who.buildQueue.push({ id: def.id, kind: def.kind, uid: ++who.buildSeq, total: def.buildTime, remaining: def.buildTime, cost });
+  record("build", { id: def.id, kind: def.kind }, S.tick, who.id);
   // Pacing telemetry (console only): stamp the game clock when age research
   // starts, so playtest timing doesn't require watching the clock.
   if (CAPSTONES[def.id]) console.log(`[pacing] ${def.name} research started at ${fmtTime(playtime())} (t${S.tick})`);
   if (def.kind === "upgrade") {
-    chronicle(wasEmpty ? `Work begins on ${def.name}.` : `${def.name} joins the queue (#${me().buildQueue.length}).`);
+    chronicle(wasEmpty ? `Work begins on ${def.name}.` : `${def.name} joins the queue (#${who.buildQueue.length}).`, null, who.id);
   } else if (def.kind === "unit") {
-    chronicle(wasEmpty ? `${def.name} training begins.` : `${def.name} training joins the queue (#${me().buildQueue.length}).`);
+    chronicle(wasEmpty ? `${def.name} training begins.` : `${def.name} training joins the queue (#${who.buildQueue.length}).`, null, who.id);
   } else {
-    chronicle(wasEmpty ? `Ground is broken for a ${def.name}.` : `A ${def.name} joins the queue (#${me().buildQueue.length}).`);
+    chronicle(wasEmpty ? `Ground is broken for a ${def.name}.` : `A ${def.name} joins the queue (#${who.buildQueue.length}).`, null, who.id);
   }
   save();
   requestRender();
@@ -62,20 +68,22 @@ export function build(def) {
 // Removes a queue entry and hands its materials back. Shared by the player's
 // cancel button and by the workforce reconciler, which has to abandon orders
 // whose worker died.
-export function dropQueueItem(idx) {
-  const item = me().buildQueue[idx];
+export function dropQueueItem(idx, p) {
+  const who = p || me();
+  const item = who.buildQueue[idx];
   if (!item) return null;
-  for (const k in item.cost) me().res[k] = (me().res[k] || 0) + item.cost[k];
-  me().buildQueue.splice(idx, 1);
+  for (const k in item.cost) who.res[k] = (who.res[k] || 0) + item.cost[k];
+  who.buildQueue.splice(idx, 1);
   return item;
 }
 
-export function cancelBuild(uid) {
+export function cancelBuild(uid, p) {
+  const who = p || me();
   if (S.dead) return;
-  const idx = me().buildQueue.findIndex((q) => q.uid === uid);
+  const idx = who.buildQueue.findIndex((q) => q.uid === uid);
   if (idx === -1) return;
-  record("cancelBuild", { uid }, S.tick);
-  const item = dropQueueItem(idx);
+  record("cancelBuild", { uid }, S.tick, who.id);
+  const item = dropQueueItem(idx, who);
   // NAME ANYTHING THE QUEUE CAN HOLD. defById only knows buildings, upgrades
   // and units -- it has never known structures or the settle verb, so
   // cancelling a queued farm or a settling party threw a TypeError on this
@@ -91,7 +99,7 @@ export function cancelBuild(uid) {
     return d ? d.name : item.id;
   };
   if (CAPSTONES[item.id]) console.log(`[pacing] ${named()} research cancelled at ${fmtTime(playtime())} (t${S.tick})`);
-  chronicle(`Construction of the ${named()} is called off; materials recovered.`);
+  chronicle(`Construction of the ${named()} is called off; materials recovered.`, null, who.id);
   save();
   requestRender();
 }
@@ -101,7 +109,8 @@ export function cancelBuild(uid) {
 // cost and a real timer, both scaled by the route. The queue's seriality is
 // the standing anti-speedrun governor: you cannot click a continent into
 // existence. Cancel refunds exactly what was paid, like any build.
-export function settlePlan(tileId) {
+export function settlePlan(tileId, civ) {
+  const who = civ || me();
   if (!world || !world.places[tileId]) return null;
   const p = world.places[tileId];
   if (p.terrain === "water" || p.adversary || p.minor) return null;
@@ -112,45 +121,46 @@ export function settlePlan(tileId) {
   // SETTLE on it -- territory theft for the settle price, no battle, found by
   // clicking a hex mid-siege. Taking held ground is what armies are for.
   if (ownerOf(tileId) != null) return null;
-  const factor = marchFactor(tileId);
+  const factor = marchFactor(tileId, who);
   // The claim's price is an era-fact (E3): Stone pays food and time only --
   // the first claim must be affordable before wood exists -- and later eras
   // price in their own materials. The route scales everything, as always.
-  const spec = (active().map && active().map.claim) || { cost: { food: 40, wood: 25 }, time: 45 };
+  const spec = (active(who).map && active(who).map.claim) || { cost: { food: 40, wood: 25 }, time: 45 };
   // Escalation (E4, from the owner's first playtest: settling was trivial):
   // each claim beyond the starting trio costs claimScale more than the last,
   // the same per-copy idiom buildings use. Distance still multiplies on top.
   // QUEUED claims count too (owner bug report: queue two and both priced at
   // the same step) -- exactly as building costs already count their queue.
-  const pendingClaims = me().buildQueue.filter((q) => q.kind === "settle").length;
-  const esc = Math.pow(CONFIG.claimScale, Math.max(0, holdCount() + pendingClaims - 3));
+  const pendingClaims = who.buildQueue.filter((q) => q.kind === "settle").length;
+  const esc = Math.pow(CONFIG.claimScale, Math.max(0, holdCount(who.id) + pendingClaims - 3));
   const cost = {};
   for (const k in spec.cost) cost[k] = Math.round(spec.cost[k] * factor * esc);
   return {
     tile: tileId,
     cost,
     time: Math.round(spec.time * factor),
-    tilesOff: Number.isFinite(routeCost(tileId)) ? Math.round(routeCost(tileId)) : null,
+    tilesOff: Number.isFinite(routeCost(tileId, who)) ? Math.round(routeCost(tileId, who)) : null,
   };
 }
 
-export function pendingSettle(tileId) {
-  return me().buildQueue.some((q) => q.kind === "settle" && q.tile === tileId);
+export function pendingSettle(tileId, p) {
+  return (p || me()).buildQueue.some((q) => q.kind === "settle" && q.tile === tileId);
 }
 
-export function launchSettle(tileId) {
+export function launchSettle(tileId, p) {
+  const who = p || me();
   if (S.dead) return;   // every era allocates hexes since E2
-  if (atDominionCap()) return;   // the age can hold no more (dominionCap)
-  const plan = settlePlan(tileId);
-  if (!plan || pendingSettle(tileId)) return;
-  if (!canAfford(plan.cost)) return;
-  for (const k in plan.cost) me().res[k] -= plan.cost[k];
-  record("settle", { tile: tileId }, S.tick);
+  if (atDominionCap(who)) return;   // the age can hold no more (dominionCap)
+  const plan = settlePlan(tileId, who);
+  if (!plan || pendingSettle(tileId, who)) return;
+  if (!canAfford(plan.cost, who)) return;
+  for (const k in plan.cost) who.res[k] -= plan.cost[k];
+  record("settle", { tile: tileId }, S.tick, who.id);
   const terrain = world.places[tileId].terrain;
-  me().buildQueue.push({ id: "settle", kind: "settle", uid: ++me().buildSeq,
+  who.buildQueue.push({ id: "settle", kind: "settle", uid: ++who.buildSeq,
     total: plan.time, remaining: plan.time, cost: plan.cost,
     tile: tileId, label: `Settling the ${terrain}` });
-  chronicle(`A party sets out to raise a holdfast on the ${terrain}. (#${me().buildQueue.length} in the queue.)`);
+  chronicle(`A party sets out to raise a holdfast on the ${terrain}. (#${who.buildQueue.length} in the queue.)`, null, who.id);
   save();
   requestRender();
 }
@@ -159,10 +169,11 @@ export function launchSettle(tileId) {
 // What a structure costs HERE, now: the era's base price escalated per copy
 // already standing, exactly like a building line. Derived from the board rather
 // than a counter, so it cannot drift.
-export function structurePlan(sid) {
+export function structurePlan(sid, p) {
+  const who = p || me();
   const def = structureDef(sid);
   if (!def) return null;
-  const n = structureCount(sid) + me().buildQueue.filter((q) => q.kind === "structure" && q.id === sid).length;
+  const n = structureCount(sid, who.id) + who.buildQueue.filter((q) => q.kind === "structure" && q.id === sid).length;
   const cost = {};
   for (const k in def.base) cost[k] = Math.ceil(def.base[k] * Math.pow(def.scale || 1, n));
   return { def, cost, time: def.buildTime };
@@ -170,16 +181,16 @@ export function structurePlan(sid) {
 
 // Is this structure available to build at all -- era declares it, and the
 // unlocking upgrade is owned?
-export function structureUnlocked(sid) {
+export function structureUnlocked(sid, p) {
   const def = structureDef(sid);
-  return !!def && (!def.requires || !!me().upgrades[def.requires]);
+  return !!def && (!def.requires || !!(p || me()).upgrades[def.requires]);
 }
 
 // One queued build per hex, and never on a hex already carrying one: the hex
 // has ONE use, and that law has to hold for pending work too or two parties
 // would arrive to build different things on the same ground.
-export function pendingBuild(tileId) {
-  return me().buildQueue.some((q) => q.kind === "structure" && q.tile === tileId);
+export function pendingBuild(tileId, p) {
+  return (p || me()).buildQueue.some((q) => q.kind === "structure" && q.tile === tileId);
 }
 
 // THE SEAT IS NOT BUILDABLE (owner ruling, 2026-08-25). Two build systems
@@ -191,8 +202,9 @@ export function pendingBuild(tileId) {
 // It also protects a landmark: the three-house cluster on your seat is how the
 // board says "you are here", and a board where that can be replaced by a wall
 // is a board where you can lose your own capital in the fog.
-export function canBuildOn(tileId) {
-  return isOwned(tileId) && !!world && tileId !== world.home;
+export function canBuildOn(tileId, p) {
+  const who = p || me();
+  return isOwned(tileId, who.id) && !!world && tileId !== (who.seat || world.home);
 }
 
 // Can this structure stand on this ground? A structure with no `terrain` list
@@ -207,19 +219,20 @@ export function structureFits(sid, tileId) {
   return !!p && def.terrain.includes(p.terrain);
 }
 
-export function launchStructure(tileId, sid) {
-  if (S.dead || !canBuildOn(tileId)) return;
-  if (!structureUnlocked(sid) || pendingBuild(tileId)) return;
+export function launchStructure(tileId, sid, p) {
+  const who = p || me();
+  if (S.dead || !canBuildOn(tileId, who)) return;
+  if (!structureUnlocked(sid, who) || pendingBuild(tileId, who)) return;
   if (!structureFits(sid, tileId)) return;           // wrong ground for it
   if (hexUse(tileId).kind === "structure") return;   // one use, and it is taken
-  const plan = structurePlan(sid);
-  if (!plan || !canAfford(plan.cost)) return;
-  for (const k in plan.cost) me().res[k] -= plan.cost[k];
-  record("structure", { tile: tileId, id: sid }, S.tick);
-  me().buildQueue.push({ id: sid, kind: "structure", uid: ++me().buildSeq,
+  const plan = structurePlan(sid, who);
+  if (!plan || !canAfford(plan.cost, who)) return;
+  for (const k in plan.cost) who.res[k] -= plan.cost[k];
+  record("structure", { tile: tileId, id: sid }, S.tick, who.id);
+  who.buildQueue.push({ id: sid, kind: "structure", uid: ++who.buildSeq,
     total: plan.time, remaining: plan.time, cost: plan.cost,
     tile: tileId, label: `Raising a ${plan.def.name}` });
-  chronicle(`Work begins on a ${plan.def.name}. (#${me().buildQueue.length} in the queue.)`);
+  chronicle(`Work begins on a ${plan.def.name}. (#${who.buildQueue.length} in the queue.)`, null, who.id);
   save();
   requestRender();
 }
@@ -238,9 +251,10 @@ export function launchStructure(tileId, sid) {
 
 // Does this realm have a market standing? Trade is a thing you BUILT, on
 // ground a rival can see and take -- not a menu that was always there.
-export function hasMarket() {
+export function hasMarket(p) {
+  const who = p || me();
   if (!S.map || !S.map.built) return false;
-  for (const id of holdings()) {
+  for (const id of holdings(who.id)) {
     const def = structureDef((S.map.built || {})[id]);
     if (def && def.trades) return true;
   }
@@ -250,10 +264,11 @@ export function hasMarket() {
 // How many markets, and therefore how good the rate is. One market is the
 // crude 4:1; each further market shaves the spread toward -- but never to --
 // parity, so trading is always a loss and never a strategy on its own.
-export function tradeRate() {
+export function tradeRate(p) {
+  const who = p || me();
   if (!S.map || !S.map.built) return null;
   let n = 0;
-  for (const id of holdings()) {
+  for (const id of holdings(who.id)) {
     const def = structureDef((S.map.built || {})[id]);
     if (def && def.trades) n += 1;
   }
@@ -263,9 +278,10 @@ export function tradeRate() {
 
 // Give `give` of one resource, receive one of another. Refuses everything the
 // UI would refuse, because the UI is not the only caller.
-export function trade(giveRes, getRes, batches) {
+export function trade(giveRes, getRes, batches, p) {
+  const who = p || me();
   if (S.dead) return false;
-  let rate = tradeRate();
+  let rate = tradeRate(who);
   if (rate == null) return false;
   if (giveRes === getRes) return false;
   // GOLD IS BOUGHT, NEVER SOLD, AND NEVER AT THE COMMODITY RATE. It sat on
@@ -274,19 +290,19 @@ export function trade(giveRes, getRes, batches) {
   // GIVE keeps the treasury from becoming a wallet.
   if (giveRes === "gold") return false;
   if (getRes === "gold") rate = rate * CONFIG.goldTradeMult;
-  const live = active().resources;
+  const live = active(who).resources;
   if (!live.some((r) => r.id === giveRes) || !live.some((r) => r.id === getRes)) return false;
   const n = Math.max(1, Math.floor(batches || 1));
   const cost = rate * n;
-  if ((me().res[giveRes] || 0) < cost) return false;
+  if ((who.res[giveRes] || 0) < cost) return false;
   // Never trade INTO a full store: the goods would evaporate on arrival and
   // the player would have paid for nothing.
-  const c = caps();
-  if ((me().res[getRes] || 0) + n > (c[getRes] != null ? c[getRes] : Infinity)) return false;
-  me().res[giveRes] -= cost;
-  me().res[getRes] = (me().res[getRes] || 0) + n;
-  record("trade", { give: giveRes, get: getRes, batches: n, rate }, S.tick);
-  chronicle(`The market moves ${Math.round(cost)} ${giveRes} for ${n} ${getRes}. The traders take their cut.`);
+  const c = caps(who);
+  if ((who.res[getRes] || 0) + n > (c[getRes] != null ? c[getRes] : Infinity)) return false;
+  who.res[giveRes] -= cost;
+  who.res[getRes] = (who.res[getRes] || 0) + n;
+  record("trade", { give: giveRes, get: getRes, batches: n, rate }, S.tick, who.id);
+  chronicle(`The market moves ${Math.round(cost)} ${giveRes} for ${n} ${getRes}. The traders take their cut.`, null, who.id);
   save();
   requestRender();
   return true;
@@ -294,25 +310,27 @@ export function trade(giveRes, getRes, batches) {
 
 // Tear it down and take the hex back. NO REFUND (design.md): converting is a
 // trade, not a toggle you flip per situation.
-export function demolishStructure(tileId) {
-  if (S.dead || !isOwned(tileId)) return;
+export function demolishStructure(tileId, p) {
+  const who = p || me();
+  if (S.dead || !isOwned(tileId, who.id)) return;
   const u = hexUse(tileId);
   if (u.kind !== "structure") return;
   const def = structureDef(u.id);
-  record("demolish", { tile: tileId, id: u.id }, S.tick);
+  record("demolish", { tile: tileId, id: u.id }, S.tick, who.id);
   setHexBuild(tileId, null);             // back to plain, unbuilt ground
-  chronicle(`The ${def ? def.name : "works"} is pulled down. The ground is plain again, and nothing comes back.`);
+  chronicle(`The ${def ? def.name : "works"} is pulled down. The ground is plain again, and nothing comes back.`, null, who.id);
   save();
   requestRender();
 }
 
-export function completeConstruction(site) {
+export function completeConstruction(site, p) {
+  const who = p || me();
   if (site.kind === "structure") {
     // The ground may have been lost while the work was queued -- a raid can
     // empty a hex and take it out of the dominion. The labour is simply wasted,
     // the same way a settling party finds its land already spoken for.
-    if (!isOwned(site.tile)) {
-      chronicle("The work crew arrives to find the ground no longer yours. Nothing is raised.", "bad");
+    if (!isOwned(site.tile, who.id)) {
+      chronicle("The work crew arrives to find the ground no longer yours. Nothing is raised.", "bad", who.id);
       return;
     }
     const def = structureDef(site.id);
@@ -324,31 +342,32 @@ export function completeConstruction(site) {
     // (seeing armies move out there) is canSeeArmyAt reading def.vision.
     if (def && def.vision) {
       const p0 = world && world.places[site.tile];
-      if (p0) chartGround([site.tile].concat(p0.adj));
+      if (p0) chartGround([site.tile].concat(p0.adj), who);
     }
-    chronicle(`${def ? def.name : "The works"} stands finished. The hex answers to it now.`, "good");
+    chronicle(`${def ? def.name : "The works"} stands finished. The hex answers to it now.`, "good", who.id);
     return;
   }
   if (site.kind === "settle") {
     // The land may have been lost or taken while the party was queued;
     // captureTile refuses gracefully and the work is simply wasted -- the
     // frontier is like that.
-    const ok = captureTile(site.tile, true);
-    if (ok) chronicle(`A hall is raised and a lord installed — the ${world && world.places[site.tile] ? world.places[site.tile].terrain : "land"} is yours. One more holdfast under your banner.`, "big");
-    else chronicle("The settling party finds the ground already spoken for, and turns back.", "bad");
+    const ok = captureTile(site.tile, true, who);
+    if (ok) chronicle(`A hall is raised and a lord installed — the ${world && world.places[site.tile] ? world.places[site.tile].terrain : "land"} is yours. One more holdfast under your banner.`, "big", who.id);
+    else chronicle("The settling party finds the ground already spoken for, and turns back.", "bad", who.id);
     return;
   }
-  const def = defById(site.id);
-  if (def.kind === "upgrade") me().upgrades[def.id] = true;
+  const def = defById(site.id, who);
+  if (def.kind === "upgrade") who.upgrades[def.id] = true;
   else if (def.kind === "unit") {
     // The recruit is drawn from the SEAT (owner ruling: no source
     // micromanagement -- the capital musters). If the seat is empty, the
     // largest holding sends its own; the person is real either way.
+    const seat = who.seat || (world && world.home);
     if (def.popCost && S.map && S.map.pop && world) {
-      let from = (S.map.pop[world.home] || 0) >= def.popCost ? world.home : null;
+      let from = (S.map.pop[seat] || 0) >= def.popCost ? seat : null;
       if (!from) {
         let best = 0;
-        for (const id of holdings()) {
+        for (const id of holdings(who.id)) {
           if ((S.map.pop[id] || 0) > best) { best = S.map.pop[id]; from = id; }
         }
       }
@@ -357,33 +376,34 @@ export function completeConstruction(site) {
       // player can't see. Refuse instead: the order is spent, the recruit
       // never appears. (Guarded 2026-08-25.)
       if (!from) {
-        chronicle(`There is no one left to answer the muster. The order lapses.`, "bad");
+        chronicle(`There is no one left to answer the muster. The order lapses.`, "bad", who.id);
         return;
       }
       S.map.pop[from] = Math.max(0, S.map.pop[from] - def.popCost);
-      syncPopMirror();
+      syncPopMirror(who);
     }
-    me().units[def.id] = (me().units[def.id] || 0) + 1;
+    who.units[def.id] = (who.units[def.id] || 0) + 1;
   }
-  else me().builds[def.id] = (me().builds[def.id] || 0) + 1;
-  onComplete(def);
+  else who.builds[def.id] = (who.builds[def.id] || 0) + 1;
+  onComplete(def, who);
 }
 
 // Which upgrade ids are age capstones, and where each one leads. The only
 // per-capstone wiring an age transition needs.
 export const CAPSTONES = { bronzeAge: "bronze", ironAge: "iron" };
 
-export function onComplete(def) {
-  if (CAPSTONES[def.id]) { advanceEra(CAPSTONES[def.id]); return; }
+export function onComplete(def, p) {
+  const who = p || me();
+  if (CAPSTONES[def.id]) { advanceEra(CAPSTONES[def.id], who); return; }
 
   // (The hut's housing announcement died in E3 with the hut itself. Its
   // branch outlived it referencing an undefined `n` -- a ReferenceError
   // waiting for the first manifest to name a building "hut". Removed
   // 2026-08-25.)
   if (def.kind === "unit") {
-    chronicle(`A settler trains as a ${def.name}. You now field ${me().units[def.id]}.`, "good");
+    chronicle(`A settler trains as a ${def.name}. You now field ${who.units[def.id]}.`, "good", who.id);
   } else {
-    chronicle(`${def.name} complete. ${def.desc}`, "good");
+    chronicle(`${def.name} complete. ${def.desc}`, "good", who.id);
   }
 }
 

@@ -602,7 +602,7 @@ so anything that cannot be drawn as a row of dice cannot be in the combat system
 several tempting ideas later, and it should.
 
 7. **Armies, combat, per-player era content** — built on the new shape, so bots and the human
-   share the systems from birth. **THE WHOLE ARC SHIPPED 2026-08-26, on branch `combat-dice`** —
+   share the systems from birth. **THE WHOLE ARC SHIPPED 2026-08-26 on branch `combat-dice`, MERGED TO `main` 2026-08-28** —
    in order: the resolver (`f0998c4`), firing slots (`0447b69`), **A1** armies exist (`cbf2667`),
    **A2** they march (`c771973`), **A3** discs on the board (`86f949e` and the depiction commits),
    **A4** contact (`d5e0f0a`) — battles seal, play over ticks, survive save/load on one drawn seed

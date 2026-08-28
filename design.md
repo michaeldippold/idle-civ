@@ -1150,8 +1150,8 @@ some future age, that's a sign the age needs its own mechanic, not a forced fit.
 
 ### Armies Take the Field *(direction ruled 2026-08-25; **BUILT, end to end, 2026-08-26**)*
 
-The largest structural change ever proposed for this codebase — and it is IN, the whole arc, on
-branch `combat-dice`.
+The largest structural change ever proposed for this codebase — and it is IN, the whole arc, built
+on branch `combat-dice` and **merged to `main` 2026-08-28** after the owner played it through.
 
 **What is built.** An army is an object standing on a hex (`src/sim/armies.js`), raised on ground
 you hold from soldiers that stop being free the moment they are committed, marching a road decided

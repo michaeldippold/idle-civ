@@ -975,6 +975,20 @@ the other.
 
 ### Resources & Storage
 
+**Every road leads to gold, and each road has a price** *(iron, settled 2026-08-26)*. Gold enters
+only from outside — never mined — and the iron age keeps four roads open: the bronze→gold
+conversion seeds the first coins at the era turn (collectors pay for antiques); **caravans** pay
+well while a peaceful trader lives and likes you; **minors** yield gold under fealty plunder; and
+**war** — sacking moves a share of the victim's whole stores, and the river kingdom's authored
+hoard is 240. The **Market's premium row** is the always-available trickle no diplomacy or corpse
+can strangle: gold is bought at the commodity rate × `goldTradeMult` (8× — it briefly sat on the
+board at 4:1 like turnips) and is NEVER accepted as payment, because the treasury is not a wallet.
+
+**Ore buffers hold minutes of mining, never a stranded default** *(law, 2026-08-26)*: an
+intermediate ore's cap must hold at least two minutes of its own mine's authored yield — copper
+and tin sat at a pre-hex-economy 50 for a day, pinning the mines with no lever anywhere. The
+harness enforces the law against the mines' own rates.
+
 Resources accumulate from allocation. Every resource has a cap; surplus past it is lost, not
 stalled — literal rot for food and wood; for stone the justification is gameplay symmetry over
 realism, stated openly. **Caps are FLAT, AUTOMATIC, and PER-ERA (4c, shipped 2026-08-25):** the era
@@ -1194,9 +1208,20 @@ do not want to lose the game because a single army marched unopposed to my home 
   nation the player never aimed at. Meeting engagements decide where you FIGHT; a targeted order
   decides what you TEAR DOWN. An army that wins short of its target stands and awaits orders.
 
-**What is left.** Bots that WAGE WAR — conquest-intent armies, not only raiders — minors absorbed
-into the army system (campaigns survive only for them), caravans re-imagined or retired, and the
-battle panel's design polish. The combat NUMBERS are first-guess throughout and want playtest.
+**Also built, from the first real playtest (2026-08-26):** **the levy binds everyone** — bot units
+are capped at territory × armyPerHex, floored at authored strength, mustering free units before
+minting, and homecomers disband into the pool instead of banking into the garrison (a bronze
+garrison of seven had reached seventeen off three free-minting taps); **war parties escalate** —
+a flush warlike muster sends a WAR ARMY instead of a raid: bigger, braver, it takes your ground
+and STAYS, though never your home hex in v1; and **an army at home is scenery, an army off its
+own ground is news** — the sighting alarm waits for the border, so seat garrisons stop being
+announced like invasions.
+
+**What is left.** Deeper bot war (capitals, coordination — v1 war armies take frontier hexes),
+minors absorbed into the army system (campaigns survive only for them), caravans re-imagined or
+retired, the battle panel's design polish, and two RULED-NOT-BUILT families waiting in `todo.md`:
+**the fortification family** (below) and **march logistics** (the dial, abroad upkeep, band
+speed — the deathball's bill). The combat NUMBERS are first-guess throughout and want playtest.
 
 **Still open, and it gates contact:** *how an army is DEPICTED.* See the sockets ruling in
 `2026-08-25-architecture-review.md` — a centre socket for the structure, a ring of 3–4 for pieces,
@@ -1315,6 +1340,41 @@ Two systems already built are load-bearing for this principle, and only make sen
 And it rhymes with the era clock on purpose: both come from the same law — **the world does not
 wait for you.** Other civilizations advance on clocks you cannot read, and their armies move on
 roads you did not approve.
+
+### The Fortification Family *(ruled 2026-08-26, not yet built — the build list lives in todo.md)*
+
+**Garrison, the term (ruled):** "garrison" applies ONLY to units behind literal fortifications —
+walls, march-holds, towers. An army standing in a field is a **parked army**. The word tracks the
+exact rules boundary where the fortification mechanics live (silent melee, firing slots, the
+breach), and the UI should say "Garrisoned" only there. A garrison is a **state, never an order**:
+standing on the fortified hex is enough.
+
+**FORTIFICATIONS ARE IMPASSABLE.** An enemy-owned fortified hex cannot be marched through — to
+cross it, you attack it. One rule, and walls actually wall: lines channel movement, chokepoints
+exist, valleys can be shut. *"It quietly makes all fortifications walls — strolling through a
+march-hold should definitely not be possible anyways."* The strategic frame, owner's words: *"It
+gives you more lines of play: fight hard, or turtle hard at the beginning. Walls are great, unless
+they get to siege engines first."* Turtling is a real opening and the siege engine is its clock —
+the era race is the counterweight, never a tuning nerf.
+
+**The family:**
+- **Palisade** (likely Bronze): a bare wall — `fortifies`, ZERO firing slots, small pool, wood-
+  heavy, yields nothing. Nobody shoots from it; it forces the engagement against the wall
+  strength and buys time. Zero new mechanics: the resolver already plays both of its cases.
+- **March-hold** (Iron, built): thick walls and six positions — the upgrade identity.
+- **Watchtower** (owner): less wall, fewer slots (2–4), **more vision** — the first sight-emitting
+  structure, making the fog canon's structures-emit-sight clause real, and feeding earlier raid
+  warnings.
+
+**Orientation is DERIVED, never chosen.** No rotation input at placement: a lone wall gets a
+standalone look, and a fortified neighbour makes the art reach out and MEET it at the shared edge
+— walls meet march-holds, towers link too, keep–wall–tower chains happen from adjacency alone.
+(The owner's "three orientations" question resolved itself: mechanics are omnidirectional per hex,
+the line's shape comes from WHICH hexes you fortified, and the art is the territory-rim algorithm
+as 3D geometry.)
+
+**The defensive tech lane:** thicker pools, more firing slots, tower vision range — the family
+gives deep defensive upgrades a home when the tech tree arrives.
 
 ### How an Army Is Depicted *(settled 2026-08-26, owner)*
 

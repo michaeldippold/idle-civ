@@ -915,7 +915,23 @@ Four modules complete the arc; their full reasoning lives in their own headers a
 - **`sim/bots.js`** — the neighbours as countries: lazy idempotent settlement (seat + home ring +
   era-sized garrison), slow expansion to their own era's dominion cap, regarrison after
   `botRegarrisonSeconds`. Nothing of their economy is simulated; ground and armies are what the
-  board can show.
+  board can show. **The levy binds everyone**: `botLevyCap` = territory × armyPerHex, floored at
+  authored strength; `botMint` musters free units first and mints only the shortfall — the fix for
+  a garrison of seventeen. Seat reads go through `seatCivAt()` (razed seats are wilderness
+  everywhere at once; reborn peoples carry `seatHex` on the record because the world rebuilds from
+  the seed at load). Rebirth: a broken people returns on a clock drawn at the break, at a NEW seat
+  far from every holding, fairly reset.
+- **The sack** (`sim/contact.js`): the war-finishing verb — an army standing UNOPPOSED on enemy
+  ground tears it down over `sackSeconds` (`sackCapitalSeconds` for capitals); battles PAUSE the
+  clock, never reset it; ordinary ground releases-and-skims, a capital BREAKS the nation (raze,
+  scatter, treasury share, rebirth clock — and the human's capital sacked is the run's military
+  loss). The sack fires only at its ordered target: meeting engagements decide where you fight,
+  never what you tear down.
+- **War intent** (`sim/raiders.js`): a flush warlike muster escalates the raid trigger to a WAR
+  ARMY (stance half, no soft-target scouting, never the human's home in v1) that conquers and then
+  converts to holding its prize. Sightings fire only for armies OFF their own civ's ground.
+- **Gold** (`core/actions.js`): the market's premium good — bought at `tradeRate × goldTradeMult`,
+  never accepted as payment.
 - **`ui/battle.js`** — the dice on the table: a live view of the script the sim is playing (never a
   second clock, so it cannot desync; pause freezes it; reopening lands on the live round). Viewer
   always bottom; hits lit; walls drain; never the odds.

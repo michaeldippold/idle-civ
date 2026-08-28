@@ -11,6 +11,36 @@
 
 ---
 
+## 2026-08-26 (later) — The playtest bites back, and the war learns to end
+
+**The first real playtest drove a day of rulings and fixes.** The **sack** arrived as the
+war-finishing verb (time on unopposed ground; capitals break nations; the human's capital sacked
+is the run's military loss condition; battles pause the clock, never reset it) — and its live
+verification immediately broke the WRONG nation via a meeting engagement en route, which produced
+the rule that a sack fires only at its ordered target. **Razing and rebirth** followed: a
+completed capital sack deletes the seat outright, and the broken people return on a drawn clock
+as a new society far from every player — safe by geography, not rules, with no occupation tax
+anywhere. **The battle panel** shipped (a live view of the sim's own script — viewer always
+bottom, dice faces lit, walls draining, never the odds) and promptly showed a 14-v-12 attack
+lost 8-and-10 against 4-and-4, which is the exact-reason-you-lost it exists for.
+
+Playtest finds, each now law: **the levy binds everyone** (a bronze garrison of seven stood
+seventeen strong off three free-minting taps — bot units now cap at territory × armyPerHex and
+homecomers disband instead of banking); **war parties escalate** (flush musters send war armies
+that take ground and STAY); **an army at home is scenery** (the sighting alarm waits for the
+border); **gold is the market's premium good** (it had been sitting at the commodity rate — one
+gold for four wood); **ore buffers hold minutes of mining** (copper and tin were stranded at a
+pre-hex-economy 50). Ruled and logged for building: the **fortification family** (palisade,
+watchtower, impassable fortifications, derived orientation, connecting wall art, the defensive
+tech lane, and "garrison" meaning behind-walls only) and **march logistics** (the countdown dial,
+abroad upkeep over distance pricing — "cost scales with state, never with order length" — and
+marginal band speed as the deathball's bill).
+
+The owner's verdict, an hour in: *"This is genuinely fun with so much more still to build! No
+tech tree yet!"*
+
+---
+
 ## 2026-08-26 — The war becomes real on both sides of the board
 
 **The whole combat arc, one branch (`combat-dice`), roughly twenty commits.** In order: an Axis &

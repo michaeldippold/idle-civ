@@ -335,11 +335,29 @@ decisions) exists so a test game is never hostage, but the pause is the default.
   replay on both sims, verify with state checksums (cheap: the serializer exists). One recorded
   hazard: `Math.pow` in event-chance math is not guaranteed bit-identical across JS engines;
   same-browser-both-ends sidesteps it, and S2's per-civ event flag reduces the surface.
-- **The clock is shared, not stripped.** One shared speed; **either player can pause** (the
-  board-game table norm — anyone can say "hold on"); pausing modals pause both. Stellaris co-op
-  works this way. The design brief predicted the shape: *"the adjustable clock is exactly the
-  thing that gets negotiated away."* One real edit: the tab-hidden pause becomes a **host-only**
-  rule.
+- **The clock is shared, not stripped — and PAUSE IS MANDATORY, not merely tolerated.** The
+  standing law *"anything time-critical must be issuable from pause"* is the enforcement
+  mechanism for no-faster-hands; strip pause from multiplayer and two humans fighting becomes
+  an execution contest, betraying the identity outright. So multiplayer generalizes pause
+  rather than dropping it. **The one rule for both pause and speed** *(ruled in conversation,
+  2026-08-28)*: **every player has a throttle; the world runs at the minimum.** Each player
+  sets their own max speed (0 through 12×); effective speed = `min()` across the table; pause
+  is a throttle at 0 under the same rule, not a second mechanism. This preserves the exact
+  single-player contract, generalized: *no one can force time to pass on you* — you can always
+  stop the world to think; what you can no longer do is speed it past someone else's comfort.
+  **What dies is PRIVATE time** — one player at 8× while the other sits at 1× is impossible,
+  because there is one world clock. Speed becomes consensus; the design brief's "the
+  adjustable clock gets negotiated away" made automatic, because `min()` IS the negotiation.
+  Pausing modals pause the table (the tabletop norm: anyone can say "hold on"). Footnotes:
+  the infinite-pause griefer is out of scope for the friendly game (social contract; the
+  someday-competitive answer is pause budgets, chess-clock shaped); and latency amplifies in
+  world-time at high speed (~100ms is ~1.2 world-seconds at 12×), one more reason `min()`
+  beats host-dictates. One real edit to today's code: the tab-hidden pause becomes
+  **host-only** — the sim runs on the host, so the host's hidden tab stops the world (reading
+  as pause for the whole table). A guest's hidden tab stops only their rendering, never the
+  world: their throttle is what they SET, and walking away from a running world without
+  turning your throttle to 0 is a choice — the 2026-08-25 ruling ("if you are not paying
+  attention, pause the game") applied to the guest seat verbatim.
 - **Per-viewer presentation**: the Chronicle's `=== S.me` branches become "is this the viewer"
   (each client filters by its own `S.me` — which is precisely why the sim itself must never
   read it, per S1); fog data is already per-civ; the start screen asks seat/colour for two.

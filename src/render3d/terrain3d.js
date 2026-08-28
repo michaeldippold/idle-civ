@@ -91,6 +91,14 @@ export function elevationOf(place) {
 // `places` is the already-filtered list the stage wants drawn; `isOwnedFn` is
 // passed in rather than imported so this module stays ignorant of game state.
 export function buildTerrain(places, rimFn, isRevealedFn, builtOn) {
+  // Who owns what, by axial key -- built once so the perimeter walk below is
+  // a lookup rather than a search. Tokens are opaque: this module compares
+  // them, it never interprets them.
+  const ownerAt = {};
+  for (const p of places) {
+    const r0 = rimFn(p);
+    if (r0 && r0.owner != null) ownerAt[p.q + "," + p.r] = r0.owner;
+  }
   const land = new SoupBuilder();
   const wet = new SoupBuilder();
   const rings = new SoupBuilder();
@@ -151,7 +159,17 @@ export function buildTerrain(places, rimFn, isRevealedFn, builtOn) {
     // One merged mesh for all of them, so a board full of rims still costs one
     // draw call however far dominion spreads.
     const rim = rimFn(p);
-    if (rim) ringInto(rings, cx, e + RIM_Y.owned, cz, rimColor.set(rim), RIM_OUTER, RIM_INNER);
+    if (rim) {
+      // A rim carries an opaque OWNER token beside its colour, so this module
+      // can tell "same realm" from "different realm" without ever learning
+      // whose board it is drawing -- the same ignorance rule isRevealedFn
+      // follows. A token-less rim (a lone marker with no territory behind it)
+      // keeps the old full ring.
+      const tok = rim.owner;
+      const col = rimColor.set(rim.color || rim);
+      if (tok == null) ringInto(rings, cx, e + RIM_Y.owned, cz, col, RIM_OUTER, RIM_INNER);
+      else borderInto(rings, cx, e + RIM_Y.owned, cz, col, p.q, p.r, ownerAt, tok);
+    }
   }
 
   const landMesh = new THREE.Mesh(land.build(), new THREE.MeshStandardMaterial({
@@ -198,6 +216,38 @@ export function buildRing(kind, pal) {
   mesh.visible = false;
   mesh.renderOrder = kind === "select" ? 6 : 5;
   return mesh;
+}
+
+// THE PERIMETER (2026-08-26). One border around a realm, not an outline around
+// every tile: for each owned hex we draw only the edges whose neighbour has a
+// DIFFERENT owner, and skip the shared interior ones. Settle a hex and the
+// border moves outward to enclose it; lose one and it shrinks back.
+//
+// Cheaper than the rings it replaces -- interior hexes emit nothing at all, so
+// a twelve-hex realm goes from the equivalent of ~72 edge segments to ~14 --
+// and it is still one merged mesh, one draw call.
+//
+// FLUSH TO THE EDGE, which is correct only here. The old band was pulled inward
+// (0.82-0.94) because a ring reaching the hex's full extent "read as spilling
+// onto the ground next door" -- a per-hex failure, rings bleeding onto your OWN
+// neighbours. A perimeter never draws those edges, so the only thing on the far
+// side of a border segment is ground that is not yours.
+//
+// `edgeCorners(dq, dr)` (hex3d) answers which two corners a neighbour direction
+// shares, so this needs no assumption about corner ordering.
+const NEIGHBOURS = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
+const BORDER_OUTER = 1.0, BORDER_INNER = 0.86;
+
+function borderInto(soup, cx, cy, cz, color, q, r, ownerAt, mine) {
+  for (const [dq, dr] of NEIGHBOURS) {
+    // Same owner across this edge? Then it is interior: draw nothing.
+    if (ownerAt[(q + dq) + "," + (r + dr)] === mine) continue;
+    const [m, n] = edgeCorners(dq, dr);
+    const o1 = corner(m, BORDER_OUTER * HEX_SIZE), o2 = corner(n, BORDER_OUTER * HEX_SIZE);
+    const i1 = corner(m, BORDER_INNER * HEX_SIZE), i2 = corner(n, BORDER_INNER * HEX_SIZE);
+    soup.tri([cx + o1.x, cy, cz + o1.z], [cx + o2.x, cy, cz + o2.z], [cx + i2.x, cy, cz + i2.z], color);
+    soup.tri([cx + o1.x, cy, cz + o1.z], [cx + i2.x, cy, cz + i2.z], [cx + i1.x, cy, cz + i1.z], color);
+  }
 }
 
 function ringInto(soup, cx, cy, cz, color, outer, inner) {

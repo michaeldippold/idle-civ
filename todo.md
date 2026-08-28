@@ -493,7 +493,23 @@ several tempting ideas later, and it should.
      own surface is ALSO pale in those eras, so the inverted plate lands white-on-white and only
      the letter-spacing saves it. Whatever the redesign does, buttons must contrast against the
      PANEL they sit on, not against the era's chrome.
-   **MERGED TERRITORY BORDERS (owner, 2026-08-26 — asked, not yet built).** Replace the per-hex
+   **~~MERGED TERRITORY BORDERS~~ — BUILT, THEN REVERTED (2026-08-26/28). DO NOT RETRY AS
+   SPECIFIED.** It works perfectly on flat ground and cannot work on this board, for a reason
+   that is geometry rather than polish: **hex elevation.** Terrain heights spread ~0.4 units
+   (measured: hills 0.528, plains 0.123) and cliff faces are drawn in the vertical plane AT the
+   shared edge. So a flush perimeter is buried in the neighbour's cliff wherever the owned hex is
+   the lower of a pair; pulled inside the cliff plane it survives, but then at every height step
+   the border either **stops dead at the edge** or would have to **crawl down the wall**, and the
+   owner's verdict on seeing both: *"there is no way to get a clean flat hex border on multilevel
+   terrain… both look weird as hell."* The per-hex inset ring works precisely BECAUSE it never
+   goes near an edge. Reverted whole (`29719f5`).
+   - **What was learned and is worth keeping:** `edgeCorners(dq, dr)` in `hex3d.js` does the
+     neighbour-edge lookup with no corner-ordering assumptions, and the perimeter walk itself is
+     cheap and correct — the failure was entirely the collision with terrain height, not the
+     algorithm. **This matters for the WALL art above**, which was specced on the same edge-walk:
+     connecting wall segments will hit the identical cliff problem, and want walls that follow
+     terrain height as real geometry (which walls, unlike a flat rim, can plausibly do).
+   - The original proposal, for the record: Replace the per-hex
    ownership ring with ONE perimeter around each realm: walk every owned hex's six edges and draw
    a segment only where the neighbour has a different owner, skipping shared interior edges. When
    you settle, the border MOVES OUT to encompass the new ground instead of adding another outline.

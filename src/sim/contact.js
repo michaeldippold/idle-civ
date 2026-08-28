@@ -343,8 +343,18 @@ function conclude(b, script) {
       else turnHome(atkArmy, atkP);
     } else if (atkArmy && atkArmy.intent === "sack") {
       beginSack(atkArmy, atkP);
-    } else {
+    } else if (atkArmy && (atkArmy.intent === "conquer" || atkArmy.intent === "war")) {
+      // The affirmative annexation, won through the dice.
       conquer(b.hex, atkP, defP);
+      if (atkArmy.intent === "conquer") atkArmy.intent = null;
+    } else {
+      // A MEETING ENGAGEMENT WON UNDER MARCH (the three-verbs ruling): you
+      // beat their army, not their country. The ground keeps its owner and
+      // the victor stands on it -- occupation without annexation, and taking
+      // it is an order still to be given.
+      if (ownerOf(b.hex) === defP.id) {
+        chronicle(`The field at ${placeWord(b.hex)} is yours; the ground is still theirs. Taking it is a choice you have not made.`, null, b.atk.pid);
+      }
     }
     if (o === "defenderWithdrew" && defArmy) {
       chronicle("Your soldiers withdraw in good order — the standing order held them to it.", "bad", b.def.pid);
@@ -370,25 +380,68 @@ function conclude(b, script) {
   }
 }
 
-// ---- The two dispatch VERBS (S3, the antagonist spec) ----------------------
-// A plain march and a sack order, as first-class verbs: validated here,
-// journaled here (human seats only -- see the journaling note in armies.js),
-// callable with no UI in the room. The sack order used to live only inside a
-// DOM click handler in ui/map.js -- `army.intent = "sack"` on a board click --
-// which is the exact defect the action layer exists to forbid: a verb no bot
-// can call, no journal can record, and no peer can replay. orderMarch stays
-// the bare MECHANISM underneath both (and under every sim-driven re-order,
-// which must never journal).
+// ---- THE THREE ARMY VERBS (S3 + owner ruling, 2026-08-28) ------------------
+// "To move is not to attack. To sack is not to conquer. Conquering for
+// territory must be a specific choice." The names are the owner's: MARCH is
+// JUST the move; any other verb merely triggers one on its way. The whole
+// dispatch grammar, clean:
+//
+//   MARCH -- repositions, and that is all. Never touches ownership, never
+//     attacks ground; parking on foreign soil is legal and IS scouting
+//     (presence extends view -- there is no separate scout verb). Meeting an
+//     enemy ARMY still seals a battle: armies collide, and interception
+//     depends on it ("You Don't Pick Your Battles" survives whole). But a
+//     battle won under Move annexes NOTHING -- you beat their army, not
+//     their country.
+//   CONQUER -- the affirmative territorial choice: march, fight whatever
+//     stands there (garrison, walls), annex on victory. Refused at order
+//     time when the age cannot govern more ground.
+//   SACK -- denial: destroy, loot, release to the wild. Never owns.
+//
+// All three validate here, journal here (human seats only -- see the
+// journaling note in armies.js), and are callable with no UI in the room.
+// orderMarch stays the bare MECHANISM underneath (and under every sim-driven
+// re-order, which must never journal). Born of a live playtest: the owner's
+// army "wandered over to scout" a rival and involuntarily annexed three hexes
+// straight to the dominion cap, under the old arrive-and-it-falls rule.
 
 export function orderMove(uid, toId, who) {
   const army = armyById(uid, who);
   if (!army || army.inBattle) return false;
   if (marchRefusal(uid, toId, who)) return false;
-  // A plain move clears any standing sack intent: the player re-aimed.
+  // TO MOVE IS NOT TO ATTACK: a peaceable march refuses a destination whose
+  // walls would have to be broken to stand there. Take and Sack are the
+  // verbs that besiege.
+  const o = ownerOf(toId);
+  if (o != null && o !== who.id && wallsAt(toId, o).walls > 0) return false;
+  // A plain move clears any standing aggressive intent: the player re-aimed.
   army.intent = null;
   army.sackTarget = null;
   orderMarch(uid, toId, who);
   if (who.key == null) record("march", { uid, to: toId }, S.tick, who.id);
+  return true;
+}
+
+export function orderConquer(uid, toId, who) {
+  const army = armyById(uid, who);
+  if (!army || army.inBattle) return false;
+  const o = ownerOf(toId);
+  // Nothing to take: wilderness is claimed by settling, never by armies.
+  if (o == null || o === who.id) return false;
+  // You cannot govern what the age cannot hold -- refused at ORDER time, so
+  // the army never marches toward ground the cap would make it abandon.
+  if (atDominionCap(who)) return false;
+  if (army.at === toId) {
+    // Already standing on it (a Move parked here): the take is immediate.
+    if (who.key == null) record("conquer", { uid, to: toId }, S.tick, who.id);
+    conquer(toId, who, playerById(o));
+    return true;
+  }
+  if (marchRefusal(uid, toId, who)) return false;
+  army.intent = "conquer";
+  army.sackTarget = null;
+  orderMarch(uid, toId, who);
+  if (who.key == null) record("conquer", { uid, to: toId }, S.tick, who.id);
   return true;
 }
 
@@ -565,10 +618,12 @@ const HOOKS = {
     }
     return null;
   },
-  // ARRIVING ON ENEMY GROUND. Walls with nobody behind them still have to be
-  // broken (a siege seals against masonry alone -- walls are a timer); bare
-  // enemy ground simply falls, no dice and no ceremony, because population
-  // does not fight. Arriving on UNOWNED ground claims nothing: settling is a
+  // ARRIVING ON ENEMY GROUND -- and what happens is the ORDER's business, not
+  // the ground's (the three-verbs ruling, 2026-08-28). Walls with nobody
+  // behind them still have to be broken by an aggressive order (a siege seals
+  // against masonry alone -- walls are a timer); bare enemy ground falls only
+  // to an army that was SENT to take it, because annexation is a specific
+  // choice. Arriving on UNOWNED ground claims nothing: settling is a
   // different verb with a different price.
   arrived: (army, who) => {
     const owner = ownerOf(army.at);
@@ -576,19 +631,35 @@ const HOOKS = {
     const defP = playerById(owner);
     if (!defP) return;
     const { walls } = wallsAt(army.at, owner);
-    // RAIDERS RAID; ARMIES CONQUER. A war party that reaches undefended
-    // ground pillages it and turns for home; one that finds walls thinks
-    // better of it -- raiders do not besiege, so walls win by standing there.
-    // Ground only changes hands when a real army takes it.
+    // RAIDERS RAID. A war party that reaches undefended ground pillages it
+    // and turns for home; one that finds walls thinks better of it -- raiders
+    // do not besiege, so walls win by standing there.
     if (army.intent === "raid") {
       if (walls > 0) repelledByWalls(army, who, army.at);
       else pillageAt(army, who, army.at);
       return;
     }
+    // TO MOVE IS NOT TO ATTACK: no aggressive intent, no consequence. The
+    // army STANDS on foreign soil -- which is what scouting is -- and the
+    // ground keeps its owner. (Walled destinations were refused at order
+    // time; if masonry rose mid-march, the column halts before it rather
+    // than besieging a fort nobody ordered attacked.)
+    if (army.intent !== "conquer" && army.intent !== "war" && army.intent !== "sack") {
+      if (walls > 0 && army.lastHex != null) {
+        const walled = army.at;
+        army.at = army.lastHex;
+        chronicle(`Your army halts before new-raised walls at ${placeWord(walled)} — besieging them is an order you have not given.`, null, who.id);
+      } else {
+        chronicle(`Your army stands on ${nameOf(defP)} ground at ${placeWord(army.at)} — theirs still, unless you take it.`, null, who.id);
+      }
+      return;
+    }
     if (walls > 0) { sealBattle(army.at, army, who, null, defP); return; }
     // A SACK ORDER begins the moment the army stands unopposed on the target.
     if (army.intent === "sack") { beginSack(army, who); return; }
+    // CONQUER (or a bot's WAR): the affirmative annexation.
     conquer(army.at, who, defP);
+    if (army.intent === "conquer") army.intent = null;   // the order is fulfilled
   },
 };
 

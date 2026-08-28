@@ -8,7 +8,7 @@ import { atDominionCap, capOf, dominionCap, hexPop, hexResource, hexUse, hexYiel
 import { armyAt, armyBand, armyById, armyRoster, armySize, canSeeArmyAt, disbandArmy, disbandRefusal, haltArmy, marchingTo, setStance } from "../sim/armies.js";
 import { STANCES, stanceById, unitHit, unitRole } from "../sim/battle.js";
 import { seatCivAt } from "../sim/bots.js";
-import { battleAt, orderMove, orderSack } from "../sim/contact.js";
+import { battleAt, orderConquer, orderMove, orderSack } from "../sim/contact.js";
 import { colorById, FOREIGN, FOREIGN_MINOR, playerColor } from "../core/palette.js";
 import { hexDistance, hexPoints, toPixel } from "../map/model.js";
 import { campaignPlan, expeditionOut, musterBuilt, standingWord } from "../sim/expeditions.js";
@@ -71,11 +71,12 @@ let lastSignature = "";
 let lastDetail = "";
 
 // Which army is waiting for you to point at a hex. UI state, not game state:
-// it is what the NEXT click means, and it survives nothing. `sendingSack`
-// flavours the same gesture: the next board click orders a SACK march -- go
-// there, and once unopposed on their ground, start tearing it down.
+// it is what the NEXT click means, and it survives nothing. `sendingIntent`
+// flavours the same gesture with one of the three verbs (owner ruling,
+// 2026-08-28): MARCH repositions and is never an attack, CONQUER annexes on
+// victory, SACK tears down. The verbs themselves live in sim/contact.js.
 let sending = null;
-let sendingSack = false;
+let sendingIntent = "move";
 
 // THE SELECTED PIECE, as "pid:uid", or null. Selection is TYPED now (canon:
 // an army is an object AT a hex, not a property OF one): nothing, a hex, or
@@ -569,17 +570,25 @@ function armyDetailHTML(pl, a) {
     parts.push(`<div class="army-orders">Standing order:</div><div class="stance-pick">` +
       STANCES.map((st) => `<button class="stance-opt${st.id === a.stance ? " on" : ""}" data-act="stance" data-army="${
         a.uid}" data-stance="${st.id}">${st.name}</button>`).join("") + `</div>`);
+    // THE THREE VERBS (owner ruling, 2026-08-28): Move repositions and is
+    // never an attack; Take is the affirmative territorial choice; Sack is
+    // denial. Take greys out when the age can hold no more ground.
+    const scopeFull = atDominionCap();
     parts.push(`<div class="map-actions">` +
-      `<button class="map-act" data-act="send" data-army="${a.uid}">${sending === a.uid && !sendingSack ? "Pick a hex…" : "March"}</button>` +
-      `<button class="map-act warn" data-act="sack" data-army="${a.uid}">${sending === a.uid && sendingSack ? "Pick their hex…" : "Sack"}</button>` +
+      `<button class="map-act" data-act="send" data-army="${a.uid}">${sending === a.uid && sendingIntent === "move" ? "Pick a hex…" : "Move"}</button>` +
+      `<button class="map-act warn" data-act="conquer" data-army="${a.uid}"${scopeFull ? " disabled" : ""}>${sending === a.uid && sendingIntent === "conquer" ? "Pick their hex…" : "Conquer"}</button>` +
+      `<button class="map-act warn" data-act="sack" data-army="${a.uid}">${sending === a.uid && sendingIntent === "sack" ? "Pick their hex…" : "Sack"}</button>` +
       (dest ? `<button class="map-act" data-act="halt" data-army="${a.uid}">Halt</button>` : "") +
       `<button class="map-act warn" data-act="disband" data-army="${a.uid}"${
         disbandRefusal(a.uid) ? " disabled" : ""}>Disperse</button>` +
       `</div>`);
     if (sending === a.uid) {
-      parts.push(`<span class="map-noworks">${sendingSack
-        ? "Choose the enemy ground to tear down. A capital, held long enough, ends a nation."
-        : "Choose the ground they march on."}</span>`);
+      parts.push(`<span class="map-noworks">${
+        sendingIntent === "sack" ? "Choose the enemy ground to tear down. A capital, held long enough, ends a nation."
+        : sendingIntent === "conquer" ? "Choose the enemy ground to conquer. Victory makes it yours — and this age must have room for it."
+        : "Choose the ground they stand on. A march is never an attack: foreign ground stays foreign, and walls will not be besieged."}</span>`);
+    } else if (scopeFull) {
+      parts.push(`<span class="map-noworks">Conquest is beyond this age — the dominion is at its full scope.</span>`);
     }
   } else if (mine) {
     parts.push(`<div class="army-orders">Standing order: <b>${stanceById(a.stance).name}</b> — frozen until the dice are done.</div>`);
@@ -1151,12 +1160,15 @@ export function selectTile(id) {
   // flips to "Marching on...", the road wears its dots.
   if (sending != null && id) {
     const uid = sending;
-    const sack = sendingSack;
-    sending = null; sendingSack = false;
+    const intent = sendingIntent;
+    sending = null; sendingIntent = "move";
     // THE ORDER IS A VERB NOW (S3): validated, journaled and issued in
     // sim/contact.js, where a bot or a replay can call the same thing this
-    // click calls. The panel work below is the only UI business left here.
-    const issued = sack ? orderSack(uid, id, me()) : orderMove(uid, id, me());
+    // click calls. March / Conquer / Sack (owner's names, 2026-08-28); the
+    // panel work below is the only UI business left here.
+    const issued = intent === "sack" ? orderSack(uid, id, me())
+      : intent === "conquer" ? orderConquer(uid, id, me())
+      : orderMove(uid, id, me());
     if (issued) {
       lastDetail = "";
       renderMapStage();
@@ -1322,17 +1334,25 @@ export function initMapStage() {
       // not be one.
       if (act === "send") {
         const uid = Number(btn.dataset.army);
-        const same = sending === uid && !sendingSack;
+        const same = sending === uid && sendingIntent === "move";
         sending = same ? null : uid;
-        sendingSack = false;
+        sendingIntent = "move";
+        lastDetail = ""; renderTileDetail();
+        return;
+      }
+      if (act === "conquer") {
+        const uid = Number(btn.dataset.army);
+        const same = sending === uid && sendingIntent === "conquer";
+        sending = same ? null : uid;
+        sendingIntent = "conquer";
         lastDetail = ""; renderTileDetail();
         return;
       }
       if (act === "sack") {
         const uid = Number(btn.dataset.army);
-        const same = sending === uid && sendingSack;
+        const same = sending === uid && sendingIntent === "sack";
         sending = same ? null : uid;
-        sendingSack = !same;
+        sendingIntent = "sack";
         lastDetail = ""; renderTileDetail();
         return;
       }

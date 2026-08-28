@@ -1379,6 +1379,46 @@ And it rhymes with the era clock on purpose: both come from the same law — **t
 wait for you.** Other civilizations advance on clocks you cannot read, and their armies move on
 roads you did not approve.
 
+### The Three Army Verbs — March, Conquer, Sack *(owner ruling, 2026-08-28, from live play; BUILT the same hour)*
+
+Born of a playtest: the owner sent a small army toward a rival *"to scout"*, and under the
+arrive-and-it-falls rule it involuntarily annexed three enemy hexes straight to the dominion
+cap. The ruling, in his words: *"I should not own a hex if I haven't affirmatively decided I
+wanted to… To move is not to attack. To sack is not to conquer. Conquering for territory must
+be a specific choice."* The names are his, and the grammar is now clean — **any action can
+trigger a move; March is JUST the move:**
+
+- **MARCH** — repositions, and that is all. Never touches ownership, never attacks ground;
+  parking on foreign soil is legal. A march **refuses a walled destination at order time**
+  (besieging is an order you give; if masonry rises mid-march the column halts before it), and
+  it is refused nothing else. Meeting an enemy ARMY still seals a battle — armies collide, and
+  interception dies without it, so *You Don't Pick Your Battles* survives whole — but **a
+  meeting engagement won under March annexes nothing**: you beat their army, not their
+  country. The ground keeps its owner and the victor stands on it. Occupation without
+  annexation, and taking it is an order still ungiven.
+- **CONQUER** — move, then attack, then TAKE. The affirmative territorial choice: march,
+  fight whatever stands there (garrison, walls, both), annex on victory. **Refused at ORDER
+  time when the age cannot govern more ground** — the army never marches toward a hex the cap
+  would make it abandon, which also retires the old break-and-abandon arrival at cap. An army
+  already parked on foreign ground conquers in place.
+- **SACK** — move, then attack, then loot and **return the ground to nature**. Denial, never
+  ownership. Unchanged in mechanics; named as the third leg of the triad.
+
+The bots' war armies carry conquer intent (they hold what they take); raiders keep their own
+grammar (pillage and leave — bandits are not a land-transfer mechanism). All three are
+journaled verbs in `sim/contact.js`, callable by a click, a card, or a socket.
+
+### Scouting is presence, not a verb *(owner ruling, same conversation)*
+
+> *"What I just did — sending a small army forward to look around — is exactly what scouting
+> is. We don't need a scout unit or action. Send army, extends view, now you have scouted."*
+
+**Slice 6 collapses.** Armies already chart the road they walk and emit presence sight; with
+March never annexing, standing a small army on foreign soil to watch a border is safe, legal,
+and already works. What survives of "scouting" as future work is tuning at most — vision
+radius by band or stance — not a system, not a unit, not a verb. The scouting-stance concept
+in older notes is dead.
+
 ### The Fortification Family *(ruled 2026-08-26 and 2026-08-28; v1 BUILT 2026-08-28 — palisade, watchtower, impassability, hub-and-spoke walls, the socket veto)*
 
 **Garrison, the term (ruled):** "garrison" applies ONLY to units behind literal fortifications —

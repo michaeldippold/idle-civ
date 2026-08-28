@@ -5686,6 +5686,9 @@ console.log("\n--- Contact: two armies on one hex, and the dice decide it ---");
   const run = (seconds) => { let t = 0; while (t < seconds) { api.tickMilitary(1); t++; } };
   const runUntilQuiet = () => { let guard = 0; while (api.battleCount() > 0 && guard++ < 600) api.tickMilitary(1); return guard < 600; };
   const march = (P, army, dest) => { api.orderMarch(army.uid, dest, P); run(600); };
+  // The affirmative territorial verb (the three-verbs ruling, 2026-08-28):
+  // conquest checks go through it, because a plain march annexes nothing now.
+  const conquer = (P, army, dest) => { api.orderConquer(army.uid, dest, P); run(600); };
 
   check("marching onto a defended hex seals a battle and freezes both sides", (() => {
     const { P, R, hex } = setupWar(11001);
@@ -5739,7 +5742,7 @@ console.log("\n--- Contact: two armies on one hex, and the dice decide it ---");
     const { P, R, hex } = setupWar(11004);
     api.formArmy(hex, { soldier: 4 }, "never", R);
     const mine = api.formArmy(api.holdings(P.id)[0], { soldier: 40 }, "never", P);
-    march(P, mine, hex);
+    conquer(P, mine, hex);
     if (!runUntilQuiet()) return false;
     return api.ownerOf(hex) === P.id && api.armiesOf(R).length === 0 &&
       R.units.soldier === 56 && api.armyAt(hex, P) && !api.armyAt(hex, P).inBattle;
@@ -5766,7 +5769,7 @@ console.log("\n--- Contact: two armies on one hex, and the dice decide it ---");
     S().map.built = S().map.built || {};
     S().map.built[hex] = "marchHold";
     const mine = api.formArmy(api.holdings(P.id)[0], { soldier: 15 }, "never", P);
-    api.orderMarch(mine.uid, hex, P);
+    api.orderConquer(mine.uid, hex, P);
     let guard = 0;
     while (api.battleCount() === 0 && guard++ < 600) api.tickMilitary(0.5);
     const b = api.battleAt(hex);
@@ -5777,11 +5780,67 @@ console.log("\n--- Contact: two armies on one hex, and the dice decide it ---");
       S().map.built[hex] === undefined;                  // fallen walls stay fallen
   })());
 
-  check("bare enemy ground falls with no dice and no battle -- population does not fight", (() => {
+  check("bare enemy ground falls to a CONQUER order with no dice -- population does not fight", (() => {
     const { P, R, hex } = setupWar(11007);
     const mine = api.formArmy(api.holdings(P.id)[0], { soldier: 8 }, "never", P);
-    march(P, mine, hex);
+    conquer(P, mine, hex);
     return api.battleCount() === 0 && api.ownerOf(hex) === P.id && P.units.soldier === 60;
+  })());
+
+  // ---- The three verbs (owner ruling, 2026-08-28, from live play) ----------
+  // "To move is not to attack. To sack is not to conquer. Conquering for
+  // territory must be a specific choice." Born of the owner's army wandering
+  // over to scout a rival and involuntarily annexing three hexes to the cap.
+
+  check("THE MARCH LAW: a plain march onto enemy bare ground parks, and annexes NOTHING", (() => {
+    const { P, R, hex } = setupWar(11011);
+    const mine = api.formArmy(api.holdings(P.id)[0], { soldier: 8 }, "never", P);
+    march(P, mine, hex);
+    return mine.at === hex && api.ownerOf(hex) === R.id && api.battleCount() === 0;
+  })());
+
+  check("...and an army parked on foreign soil can then CONQUER in place", (() => {
+    const { P, R, hex } = setupWar(11012);
+    const mine = api.formArmy(api.holdings(P.id)[0], { soldier: 8 }, "never", P);
+    march(P, mine, hex);
+    if (api.ownerOf(hex) !== R.id) return false;
+    api.orderConquer(mine.uid, hex, P);
+    return api.ownerOf(hex) === P.id;
+  })());
+
+  check("a march REFUSES a walled destination -- besieging is an order you give", (() => {
+    const { P, R, hex } = setupWar(11013);
+    S().map.built = S().map.built || {};
+    S().map.built[hex] = "marchHold";
+    const mine = api.formArmy(api.holdings(P.id)[0], { soldier: 15 }, "never", P);
+    const refused = api.orderMove(mine.uid, hex, P) === false;
+    return refused && api.battleCount() === 0 && api.ownerOf(hex) === R.id;
+  })());
+
+  check("a meeting engagement won under MARCH leaves the ground with its owner", (() => {
+    const { P, R, hex } = setupWar(11014);
+    api.formArmy(hex, { soldier: 1 }, "never", R);
+    const mine = api.formArmy(api.holdings(P.id)[0], { soldier: 40 }, "never", P);
+    march(P, mine, hex);
+    if (!runUntilQuiet()) return false;
+    // Their army is dead, their ground is still theirs, my army stands on it.
+    return api.armiesOf(R).length === 0 && api.ownerOf(hex) === R.id &&
+      api.armyAt(hex, P) != null;
+  })());
+
+  check("CONQUER is refused when the age cannot govern more ground", (() => {
+    const { P, R, hex } = setupWar(11015);
+    const mine = api.formArmy(api.holdings(P.id)[0], { soldier: 8 }, "never", P);
+    // Fill the dominion to its era cap with wilderness claims.
+    const cap = api.dominionCap(P);
+    for (const x of Object.values(api.world.places)) {
+      if (api.holdCount(P.id) >= cap) break;
+      if (x.terrain !== "water" && !x.adversary && !x.minor && api.ownerOf(x.id) == null) {
+        api.claimTile(x.id, P.id);
+      }
+    }
+    const refused = api.orderConquer(mine.uid, hex, P) === false;
+    return api.holdCount(P.id) >= cap && refused && api.ownerOf(hex) === R.id;
   })());
 
   check("arriving on UNOWNED ground claims nothing -- settling is a different verb", (() => {

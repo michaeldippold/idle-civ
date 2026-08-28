@@ -2,7 +2,7 @@ import { S, playerById } from "./state.js";
 import { defById } from "./derived.js";
 import { build, cancelBuild, demolishStructure, launchSettle, launchStructure, trade } from "./actions.js";
 import { disbandArmy, formArmy, haltArmy, setStance } from "../sim/armies.js";
-import { orderMove, orderSack } from "../sim/contact.js";
+import { orderConquer, orderMove, orderSack } from "../sim/contact.js";
 import { launchCampaign, launchCaravan } from "../sim/expeditions.js";
 import { step } from "./step.js";
 
@@ -39,6 +39,7 @@ export function issueEntry(e) {
     case "haltArmy":    return haltArmy(e.args.uid, p);
     case "march":       return orderMove(e.args.uid, e.args.to, p);
     case "orderSack":   return orderSack(e.args.uid, e.args.to, p);
+    case "conquer":     return orderConquer(e.args.uid, e.args.to, p);
     // The two expedition verbs journal without a pid today (human-only
     // surface); they replay against the viewer exactly as they ran.
     case "campaign":    return launchCampaign(e.args.target, e.args.units);

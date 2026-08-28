@@ -1434,11 +1434,13 @@ stand, gone at zero), no disband verb (a soldier is a commitment — spend them)
   seam is already built. Confirmed 2026-08-25 that this is exactly what it sounds like — the world
   presents a choice and the player picks — and that it is the headline feature the time pivot
   unlocked, because a choice can only wait for free once the clock stops when you look away.
-- **Scouting** *(map arc, slice 6)*. **PROMOTED (2026-08-25): no longer back seat** — it is the
-  prerequisite for armies taking the field (6c), and its meaning changed: scouting buys **warning
-  time**, a standing and directional value, not one-shot map knowledge. Scouting is done by army
-  groups in the scouting stance (horsemen faster), so it lands with or just before 6c rather than as
-  its own verb. The live constraint stands — it must not delete the settle-blind gamble.
+- ~~**Scouting** *(map arc, slice 6)*~~ **RESOLVED BY RULING (owner, 2026-08-28): scouting is
+  presence, not a verb.** *"Send army, extends view, now you have scouted."* Armies chart the
+  road they walk and emit presence sight, and with the three-verbs ruling (March never annexes
+  — see `design.md` → *The Three Army Verbs*) parking a small army on foreign soil to watch a
+  border is safe and already works. The slice collapses to future tuning at most (vision radius
+  by band or stance). The scouting-stance and scout-unit concepts are dead. The settle-blind
+  gamble survives untouched.
 
 ### 8 — THE BIG ONE, GATED ON PURPOSE: the tech tree
 

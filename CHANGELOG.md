@@ -11,6 +11,31 @@
 
 ---
 
+## 2026-08-28 (later still) — March, Conquer, Sack: to move is not to attack
+
+**The three army verbs, ruled from live play and built the same hour.** The owner's army
+"wandered over to scout" a rival and involuntarily annexed three hexes straight to the dominion
+cap — the old arrive-and-it-falls rule turning an innocent move into empire. The ruling: *"I
+should not own a hex if I haven't affirmatively decided I wanted to. To move is not to attack.
+To sack is not to conquer."*
+
+**MARCH** is just the move: parking on foreign soil is legal and annexes nothing, a walled
+destination is refused at order time, and a meeting engagement won under March leaves the
+ground with its owner — you beat their army, not their country. **CONQUER** is the affirmative
+territorial choice — march, fight, annex on victory — refused at order time when the age cannot
+govern more ground (which also retires break-and-abandon at cap). **SACK** is unchanged and
+named as the third leg: loot and return the ground to nature. Bots' war armies carry conquer
+intent; raiders keep their own grammar. All three are journaled verbs a click, a card, or a
+socket can call; the replay dispatcher knows them.
+
+**And scouting died as a concept, by the same ruling:** *"Send army, extends view, now you have
+scouted."* Presence is scouting — armies already chart the road and see where they stand, and
+March-never-annexes is what makes standing there safe. Slice 6 collapses to a someday tuning
+knob. Verified live: an army marched seven hexes into the Hill Clans' country, stood on their
+hex with their rim intact, and took it only when told to. 1053 checks green.
+
+---
+
 ## 2026-08-28 (later) — The substrate: the sim forgets who "the" player is
 
 **The antagonist spec's Part I, whole, on branch `substrate` (S1–S3, ~10 commits, 1048 checks

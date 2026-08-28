@@ -464,7 +464,9 @@ tables live with the adversary defs (authoring, not CONFIG).
    flag (S2). Symmetry says eventually yes; legibility says only once the Chronicle can carry
    rival news without drowning the player's own.
 3. **Fog for bots** — v1 reads only the target hex's visible defense (scout-narratable). Full
-   per-civ fog honesty is priced when scouting (slice 6) settles what fog even is.
+   per-civ fog honesty is a someday. *(Scouting itself was settled by ruling mid-substrate,
+   2026-08-28: presence IS scouting — armies chart and see; no scout verb, unit, or stance.
+   See design.md → The Three Army Verbs / Scouting is presence.)*
 4. **Difficulty presets** — pace + weights + thresholds are already per-civ numbers; a
    world-level picker is a start-screen question for after the brain proves out.
 5. **Capital strike default** — approved ON with the Part III gates; confirm after the first

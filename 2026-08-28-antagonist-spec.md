@@ -165,8 +165,12 @@ substrate is already per-hex and owner-agnostic.
   the special training slot, the special build slot, and the popCost waiver — all dead. Bots
   train units at the defs' authored costs and times through **their own build queue** (the
   civ record already carries `buildSeq`; the queue field generalizes with it), pay `popCost`
-  from their own hexes, and build structures through the same verb the human uses. **`botMint`
-  dies whole.** No unit exists that was not paid for, on either side of the table.
+  from their own hexes, and build structures through the same verb the human uses.
+  **`botMint` dies — AT B1, not S2** *(sequencing corrected at build time, 2026-08-28)*: the
+  first draft killed it here, but nothing QUEUES bot training until the brain exists, and the
+  re-sort put the whole socket campaign between S and B — killing it in S2 would have left the
+  bots armyless for the entire playtest era. S2 builds the economy underneath it; B1 replaces
+  it with real training the moment something can decide to train.
 - **What it buys the multiplayer half**: player 2 exists. This is the single largest work item
   on the second-human path, and it is shared work.
 - **What it buys the bot half**: economic warfare becomes bidirectional — sacking their mine
@@ -490,11 +494,32 @@ harness sections)*:
    inverts when S2 lands. Mutation-tested both ways. 1040 checks green. *Found on the way: a
    harness fixture was capturing hills out of the Hill Clans' home ring — captureTile now
    refuses ground held by anyone.*
-2. **S2 — the per-player economy**: step loop over living civs, real bot hex pop, restock
-   retirement, safety valves. Check: a bot's `res` grows from its territory; a sacked mine
-   measurably slows it; no unit exists that was not paid for; famine exemption flag works.
-3. **S3 — verbs all the way down**: every decision-maker calls verbs, journal complete. Check:
-   seed + journal replays a whole game bit-identically.
+2. ~~**S2 — the per-player economy**~~ **SHIPPED 2026-08-28 (branch `substrate`).** `step()`
+   loops every living civ: gather by held ground, upkeep, era caps, queue, logistic growth and
+   the pop mirror run identically for human, guest, and bot — and draw no dice, so recorded
+   seeds are untouched. Bot home ground arrives worked to capacity (the human trio's own
+   opening rule); expansion seeds a settling party; **conquest inherits the standing
+   population** (the tile-scoped prune makes Conquest Growth literal). The per-era larder
+   restock is retired — income earns back what plunder took; walls still rebuild taller;
+   rebirth keeps its one fairly-reset baseline restock. Famine went per-civ (keyed civs behind
+   `botFamineExempt`). Two decisions made at build time, recorded here: **`botMint` survives
+   until B1** (above), and **a bounded GOLD REGEN toward the authored baseline**
+   (`botGoldRegen`) stands in for their merchants — no terrain yields gold, so a traded-dry
+   treasury would otherwise never recover and the caravan loop would starve; it tops up, never
+   compounds, and dies when the brain trades. Browser-verified live: three bot economies
+   earning at their own terrain's rates, caps holding, bots stopping at their era's dominion
+   cap, save/load round-trip clean. *One bug the harness missed and the first live boot
+   caught: authored stocks name only the resources a people HAS, so income accrued NaN onto a
+   stone people's missing key — fixed both ends, healed in old saves, pinned by check.*
+3. ~~**S3 — verbs all the way down**~~ **SHIPPED 2026-08-28 (branch `substrate`).** The army
+   orders became journaled verbs, and the sack order — which lived only inside a DOM click
+   handler, the exact defect the action layer forbids — was promoted to `orderSack`/`orderMove`
+   in contact.js, callable by a bot or a socket. The journaling rule is enforced where it
+   lives: **human seats journal; keyed civs never do** (their acts are drawn from seed + tick
+   and would double-issue on playback). `core/replay.js` consumes the tape, and the harness
+   proves the codebase's oldest claim **bit-for-bit**: same seed, same boot, the sitting's tape
+   re-issued at its ticks — JSON-identical end state across five verb families while bots
+   settle, expand and raid on the world's own dice. 1048 checks green.
 
 **The socket campaign** *(promoted — this is the instrument)*:
 

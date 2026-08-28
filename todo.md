@@ -361,7 +361,13 @@ that 1.5 was 10% too much, after everything has been built against it.
 
 ---
 
-## THE ANTAGONIST SPEC — SPECCED 2026-08-28, NOT BUILT; bots + the second human, one substrate
+## THE ANTAGONIST SPEC — 2026-08-28; **PART I (THE SUBSTRATE) SHIPPED on branch `substrate`**
+
+**S1 + S2 + S3 are BUILT** — see the spec's build order for the shipped records and the
+CHANGELOG's substrate entry. The sim no longer reads the viewer (ratchet-enforced), every
+living civ runs the real economy, and (seed + tick + journal) provably replays bit-identical.
+Next on the branch: **M0, N human-grade seats in the generator.** The branch holds until the
+socket campaign is far enough to playtest; merge ruling is the owner's.
 
 **The spec is [`2026-08-28-antagonist-spec.md`](2026-08-28-antagonist-spec.md) — read it whole
 before touching bot code OR multiplayer; it contains both audits, the merged architecture, and

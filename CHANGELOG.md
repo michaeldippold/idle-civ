@@ -11,6 +11,38 @@
 
 ---
 
+## 2026-08-28 (later) — The substrate: the sim forgets who "the" player is
+
+**The antagonist spec's Part I, whole, on branch `substrate` (S1–S3, ~10 commits, 1048 checks
+green).** The largest me()-ectomy since the per-player refactor, and the same campaign shape.
+
+**S1 — the acting civ is a parameter.** The map package, derived values and the whole verb
+layer take the actor (defaulting to the viewer, so every button keeps its meaning); the journal
+records the real pid; the four audit landmines are defused — `breakNation` keys on the victim
+being HUMAN rather than being watched (the old test would have diverged two clients' sims), the
+dominion cap binds every conqueror, marching columns chart their own fog, and battle/sack
+narration routes by pid with the wire filtering by viewer. The harness gained **the viewer
+ratchet**: every sim file's `S.me`/`me()` count pinned exactly, so a viewer-read cannot land
+unrecorded and removals are recorded as progress.
+
+**S2 — every living civ keeps real books.** step() loops the players: gather, upkeep, caps,
+queue, growth and the mirror run identically for human, guest seat and bot — the bot ledger is
+the real formula with no UI, drawing no dice. Bot ground arrives worked to capacity, conquest
+inherits the standing population (Conquest Growth made literal), the per-era larder restock is
+retired in favour of income (walls still rebuild; rebirth keeps its baseline restock), and a
+bounded gold regen stands in for their merchants so trade can never go dry forever. *The first
+live boot caught what the harness had not: income accruing NaN onto ledger keys the authored
+stocks never named. Fixed at both ends, healed in saves, pinned by check.*
+
+**S3 — verbs all the way down, and the journal finally replays.** Army orders journal; the sack
+order stopped being a DOM click handler and became `orderSack`/`orderMove`; human seats journal
+while keyed civs never do (their acts replay by re-running the sim). `core/replay.js` makes the
+oldest claim in the codebase falsifiable, and the harness proves it: **(seed + tick count +
+journal) determines the state bit-for-bit**, across a scripted sitting spanning five verb
+families while bots settle, expand and raid on their own dice.
+
+---
+
 ## 2026-08-28 (night) — The ground goes level and the walls pick an age
 
 **The owner's verdict, three armies on the board** — one parked at home, two garrisoned in their

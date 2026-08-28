@@ -2258,6 +2258,18 @@ exactly what the docs pass was for — and the third is proof the sweep was wort
 
 ## Known rough edges
 
+- [ ] **Armies walk on the ocean** *(owner, 2026-08-28, from the night's last screenshot — a march
+      path dashed straight across open sea to the Hill Clans' island)*. DELIBERATE at the time it
+      was written: `routes.js` prices a water step at 3 with the stated reason *"slow crossings,
+      never impossible, so an island seat cannot deadlock a run."* Wrong the moment boats exist —
+      an army is not a fleet, and open water should be impassable to men on foot. **Do not fix
+      before the naval rules arrive** (owner: *"I am not even sure I want to fix this right now
+      because we don't have boats yet"*), and when the fix lands it MUST keep the original
+      guarantee some other way: an island seat (or an island Hill Clans) still needs to be
+      reachable — embarkation, a ferry verb, whatever the boat rules provide — or a water-locked
+      start deadlocks the run again, which is the exact bug the walk-on-water pricing was built to
+      prevent. Sighting note: the fog's sight-across-water rules (`SIGHT_RANGE` rays) already treat
+      water as *look but don't touch*; movement is the only system still treating it as ground.
 - [ ] **Mobile layout** is a basic stacked-column `@media` fallback, not designed for. Matches the
       stated non-goal; flagged only so it stays true.
 - [ ] **Holdings tiles show raw counts with no compaction.** Fine at current scale. The

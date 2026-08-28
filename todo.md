@@ -510,9 +510,27 @@ several tempting ideas later, and it should.
      you click a hex while Tech is up and nothing visibly happens — the map silently stops
      answering its primary interaction. Same for clicking a disc. Inspector's close should return
      to the previously-open panel, so dismissing a hex never dumps you on a blank surface.
-   - **Suggested: clicking the active icon collapses to the bare rail**, giving the whole left
-     column back to the map — three full-height panels squeeze the board, and you want to watch a
-     march or a siege.
+   - **TWO PANELS, NOT THREE — and no close button.** Corrected by the owner: the Chronicle is
+     always the right panel, ONE of the three is always the left panel, and neither can be
+     closed. The rail swaps *which*, it never adds a column, so the layout is exactly today's
+     two-column shape and the map is not squeezed. **Inspector is the default.** (A "collapse to
+     rail" idea was proposed and scrapped — it solved a crowding problem that does not exist.
+     Always-one-open is the stronger rule anyway: it deletes the closed state rather than
+     handling it.)
+   - **CUT THE SCREEN GUTTERS.** Panels dock to the screen edges: the era-coloured padding around
+     the board is reclaimed. Concretely — `#floatLeft`/`#floatRight` carry `top/bottom: 10px`
+     plus `left: 10px` / `right: 10px`, and `#panel-queue` sits at `bottom: 10px`; left, right and
+     bottom go to zero. Net effect: the same panel count as today with more room, which is where
+     the extra space comes from rather than from squeezing the map.
+     - *Consequence to decide deliberately, not discover:* these are `.float-panel`s carrying a
+       hard offset shadow from the 2026-08-22 flip, when the map became the canvas and panels
+       floated OVER it. Docked, the outer shadow has nothing to fall on — the inner edge facing
+       the map still does real work. That is a small intentional move from "floating" toward
+       "framing", and should read as a decision rather than a bug.
+   - **Open: Inspector's empty state.** `#panel-tile` hides today when nothing is selected, but an
+     always-open default panel needs something to say on first load — an empty line ("click a
+     holdfast or an army"), and probably an auto-selection of your seat at boot so the panel opens
+     on something real.
    - **Keep the verbs split**: *training a soldier* (Archer/Horseman cards) belongs in Population;
      **Raise an army** is hex-contextual and stays in Inspector, where the hex is. Population
      produces soldiers; Inspector commits them to a formation on specific ground. That split is

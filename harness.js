@@ -5934,7 +5934,8 @@ console.log("\n--- The pieces: discs, tiers, sockets, and who gets drawn ---");
       const id = "hx" + t;
       for (const [i, spread] of [[0, 0.55], [3, 0.45], [7, 0.5], [11, 0.42], [17, 0.3]]) {
         const ang = api.hash01(id + ":a" + i) * Math.PI * 2;
-        const d = (0.2 + 0.75 * api.hash01(id + ":d" + i)) * spread;
+        // Mirrors slot() exactly, HEX_SIZE factor included (geometry pass).
+        const d = (0.2 + 0.75 * api.hash01(id + ":d" + i)) * spread * api.HEX_SIZE;
         let dx = Math.cos(ang) * d, dz = Math.sin(ang) * d;
         for (let pass = 0; pass < 4; pass++) {
           let moved = false;
@@ -5955,6 +5956,100 @@ console.log("\n--- The pieces: discs, tiers, sockets, and who gets drawn ---");
       }
     }
     return true;
+  })());
+
+  // THE GEOMETRY BUDGET (2026-08-28, todo.md -> The Board Geometry Pass).
+  // Every number below is a relationship, not a value: the pass exists
+  // because three of these were silently violated at the old sizes, and a
+  // future retune should fail loudly here instead of interpenetrating on
+  // the board. hex3d.js is pure math, which is why the whole budget is
+  // checkable in node.
+  const sockDist = Math.max(...api.PIECE_SOCKETS.map((sk) => Math.hypot(sk.dx, sk.dz)));
+  const inradius = api.HEX_SIZE * Math.sqrt(3) / 2;
+
+  check("four sockets on the cross, all at one distance", (() => {
+    if (api.PIECE_SOCKETS.length !== 4) return false;
+    return api.PIECE_SOCKETS.every((sk) =>
+      Math.abs(Math.hypot(sk.dx, sk.dz) - sockDist) < 1e-9 &&
+      (sk.dx === 0 || sk.dz === 0));    // N/E/S/W, never a corner slot
+  })());
+
+  check("a disc on any socket stays inside its own hex",
+    sockDist + api.DISC_RADIUS <= inradius);
+
+  check("a disc's HOVER SILHOUETTE clears the ownership rim's inner edge", (() => {
+    // The rim band is 0.82-0.94 x HEX_SIZE (terrain3d) -- the old board
+    // failed this and discs overlapped the rim. The hull that matters is the
+    // hover/selection silhouette, the disc scaled x1.14 (pieces3d) -- the
+    // first 0.30 disc cleared bare but its silhouette crossed the rim, and
+    // the owner saw the intersection before the harness did. If pieces3d
+    // ever changes the rim scale, change the 1.14 here WITH it.
+    return sockDist + api.DISC_RADIUS * 1.14 <= 0.82 * api.HEX_SIZE;
+  })());
+
+  check("socket clearance covers the fattest prop HULL, not just its centre", (() => {
+    // The bug the pass was born from: clearance measured to a prop's centre,
+    // and the hut roof (cone r 0.21, jitter x1.1 = 0.23) reached inside the
+    // disc. If props3d ever grows a fatter prop, raise the 0.24 here WITH it.
+    const fattestHull = 0.24;
+    return api.SOCKET_CLEARANCE >= api.DISC_RADIUS + fattestHull;
+  })());
+
+  check("adjacent clearance circles never overlap, so the shove converges", (() => {
+    const [a, b] = [api.PIECE_SOCKETS[0], api.PIECE_SOCKETS[2]];   // N and E
+    return Math.hypot(a.dx - b.dx, a.dz - b.dz) >= 2 * api.SOCKET_CLEARANCE;
+  })());
+
+  check("the hub cap is exactly the room the ring leaves a building",
+    // The march-hold's outer wall stands here, flush against the slots
+    // ("sized to run up against the edges of its slot", owner) -- and the
+    // wall spokes to come stop here too.
+    Math.abs(api.HUB_CAP - (sockDist - api.DISC_RADIUS)) < 1e-9);
+
+  check("the courtyard holds one disc clear of the ring discs",
+    // Garrison disc at the centre (r = DISC_RADIUS), besieger's disc inner
+    // edge at sockDist - DISC_RADIUS: they must not touch through the wall.
+    sockDist - api.DISC_RADIUS >= api.DISC_RADIUS + 0.05);
+
+  check("the courtyard gives its disc visible AIR, not just fit", (() => {
+    // Owner, on the first build (0.20 walls): "the march-hold is definitely
+    // a little cramped" -- the disc filled 87% of the courtyard flat-to-flat
+    // and read as touching under perspective (a 0.42-tall disc against a
+    // 0.29 wall parallax-overlaps ~0.13 at the pitch clamp). The courtyard's
+    // INRADIUS must beat the disc by that margin.
+    const courtyardIn = (api.HUB_CAP - api.HUB_WALL) * Math.sqrt(3) / 2;
+    return courtyardIn >= api.DISC_RADIUS + 0.10;
+  })());
+
+  check("a diagonal wall spoke up to 0.30 wide costs no sockets", (() => {
+    // The owner's four-slot argument, as arithmetic: a spoke toward a
+    // diagonal edge passes sockDist * sin(30deg) from the N/S sockets, and
+    // that must clear half the spoke plus a whole disc.
+    const SPOKE_W = 0.30;
+    return sockDist * 0.5 >= SPOKE_W / 2 + api.DISC_RADIUS;
+  })());
+
+  check("the feed garrisons your army behind your own walls -- and never the besieger", (() => {
+    // The courtyard condition is wallsAt()'s owner test, applied by the feed:
+    // a fortifying structure on ground the army's owner holds. The enemy
+    // standing on the same hex keeps its ring socket.
+    const P4 = api.me(), R4 = api.rivals()[0];
+    const held = api.holdings(P4.id).find((h) => !api.armyAt(h, P4)) || api.holdings(P4.id)[0];
+    if (!held) return false;
+    S().map.built[held] = "marchHold";
+    const g = api.formArmy(held, { soldier: 4 }, "never", P4) || api.armyAt(held, P4);
+    if (!g) return false;
+    const foe = api.formArmy(api.holdings(R4.id)[0], { soldier: 3 }, "never", R4)
+      || api.armiesOf(R4).find((x) => !x.inBattle);
+    if (!foe) return false;
+    foe.at = held;                              // besieger on the same hex
+    const rows = api.piecesForBoard();
+    const mineRow = rows.find((x) => x.key === P4.id + ":" + g.uid);
+    const foeRow = rows.find((x) => x.key === R4.id + ":" + foe.uid);
+    const out = mineRow && mineRow.courtyard === true &&
+      foeRow && foeRow.courtyard === false;
+    delete S().map.built[held];                 // leave the fixture clean
+    return !!out;
   })());
 }
 

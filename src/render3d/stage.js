@@ -230,7 +230,13 @@ async function setupLighting() {
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.bias = -0.0005;
   sun.shadow.normalBias = 0.02;
-  const radius = 14;
+  // 32, up from 14 (geometry pass, 2026-08-28). The old half-extent never
+  // covered the board -- a 24-column continent half-spans ~21 hex units even
+  // at circumradius 1.0, so shadows were quietly dropping off past the edges
+  // before the hexes grew at all. Sized to the 1.5x board with margin; the
+  // 2048 map spread over the wider frustum is a touch softer per texel,
+  // which reads fine on dev art.
+  const radius = 32;
   sun.position.copy(new THREE.Vector3(-60, 90, 40).normalize().multiplyScalar(radius * 3));
   const cam = sun.shadow.camera;
   cam.left = -radius; cam.right = radius; cam.top = radius; cam.bottom = -radius;
@@ -468,7 +474,16 @@ function frameBoard(focus, all) {
   const near = spanOf(focus);
   const far = spanOf(all && all.length ? all : focus);
 
-  const dist = THREE.MathUtils.clamp(near * 2.1 + 5, 6, 38);
+  // 1.4, down from 2.1 -- THE CASH-IN (geometry pass, 2026-08-28). Hexes
+  // grew 1.5x while discs and props stayed absolute; an unchanged multiplier
+  // would pull the camera 1.5x back and land on the identical picture with
+  // smaller pieces, spending the whole change on nothing. 2.1 / 1.5 = 1.4
+  // keeps the opening at the same ABSOLUTE distance for the same known-hex
+  // count -- pieces the same size on screen, ~1/3 fewer hexes in frame, the
+  // padding visible. Affordable because the owner checked the ceiling first:
+  // "you can zoom out far enough to fit the ENTIRE MAP into your screen."
+  // The max clamp scales 38 -> 57 so a fully-known board still opens whole.
+  const dist = THREE.MathUtils.clamp(near * 1.4 + 5, 6, 57);
   controls.target.set(0, 0, 0);
   camera.position.set(0, dist * 0.72, dist * 0.66);
   controls.update();

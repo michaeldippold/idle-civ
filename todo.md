@@ -63,7 +63,31 @@ stock) and no resource ever ends a tick below zero (the "-1 food" float-residual
 
 ---
 
-## THE BOARD GEOMETRY PASS — ruled 2026-08-28, **NOT BUILT** *(the spec; nothing below has been coded)*
+## THE BOARD GEOMETRY PASS — ruled 2026-08-28; **GEOMETRY HALF BUILT AND TUNED same day**
+
+**What shipped** (live-playtested by the owner, two rounds of feedback folded in): `HEX_SIZE` 1.5,
+sockets at 0.90, clearance 0.55 sized to prop HULLS, the courtyard placement (a garrisoned disc
+stands at the hex centre; the besieger keeps its ring socket), the structure glyph YIELDING to a
+drawn courtyard disc (same grammar as "an army outranks the ground it stands on"; an empty hold
+keeps its square), the march-hold as a hub flush against the slots, the camera cash-in
+(`near * 1.4 + 5`, max 57), the shadow frustum at 32, and the whole budget as harness arithmetic
+in `hex3d.js` (which now owns `DISC_RADIUS`, `HUB_CAP`, `HUB_WALL` so node can check it).
+
+**Two numbers moved in playtest, and the spec below carries the originals:**
+- **March-hold wall 0.20 → 0.12** — owner: *"definitely a little cramped"*; the disc filled 87%
+  of the courtyard flat-to-flat. At 0.12 (proportionally a curtain wall, ~11% of the hold’s
+  width) the fill is comfortable and the harness holds an AIR line: courtyard inradius ≥ disc
+  + 0.10, the parallax margin a 0.42-tall disc needs at the pitch clamp.
+- **Disc radius 0.30 → 0.27** — owner: *"they already read as quite big"*, and the shrink fixed
+  the one overlap the first budget missed: the HOVER SILHOUETTE is the disc scaled 1.14, and at
+  0.30 its edge (1.242) crossed the ownership rim’s inner edge (1.23). The budget derives, so
+  the hub cap grew to 0.63 for free. The harness rim check now measures the silhouette, not the
+  bare disc — the owner saw the intersection before the harness did.
+
+**Still to build from this spec:** the fortification family itself (palisade, watchtower, wall
+spokes, the stub hub), building models with placeholders, scenery on built hexes, bigger glyphs.
+
+*(The spec as ruled, kept for the reasoning — numbers above supersede where they differ:)*
 
 **Owner's priority call:** *"Since this makes walls, watchtowers, disc-in-garrison, model-per-building,
 etc etc possible it's pretty fundamental to how the game looks and IMO should come sooner rather than
@@ -120,12 +144,12 @@ Two unrelated constraints converge on it, which is the main reason to trust it.
 
 | | Value |
 | --- | --- |
-| slot distance / disc radius | 0.90 / 0.30 |
+| slot distance / disc radius | 0.90 / 0.30 *(built: 0.27)* |
 | opposite-pair disc gap | **1.20** (today: n/a) |
 | adjacent-pair disc gap | **0.673** (today: 0.107) |
 | E/W slot outer edge vs inradius | 1.20 vs 1.299 — 0.10 margin |
 | building footprint cap | **0.60** |
-| march-hold | courtyard 0.40, walls 0.20 thick, ring outer 0.60 — exactly the cap |
+| march-hold | courtyard 0.40, walls 0.20 thick, ring outer 0.60 *(built: walls 0.12, outer 0.63)* |
 | spoke width that still leaves 4 slots on a diagonal | up to **0.30** |
 | hex area left free for scenery after 4 reserved zones | ~45% |
 

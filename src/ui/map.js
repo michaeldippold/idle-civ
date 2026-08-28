@@ -381,10 +381,23 @@ export function piecesForBoard() {
       const place = world.places[a.at];
       if (!place) continue;
       const n = armySize(a);
+      // THE COURTYARD (owner, 2026-08-28): an army standing on a fortifying
+      // structure on its OWN ground is garrisoned -- behind walls, by the
+      // term's ruled meaning -- and stands at the hex centre, inside the
+      // march-hold's ring. The owner test is the same one wallsAt() applies
+      // in the resolver: walls fight for you only when the ground is yours,
+      // so the disc stands inside them on exactly the same condition. An
+      // enemy on the hex fails the owner test and keeps its ring socket:
+      // the siege draws itself, defender in, besieger out. (Bot SEATS carry
+      // walls as a pool with no enclosure model yet -- their towers scatter
+      // across the centre -- so seat garrisons stay on the ring until the
+      // seat grows a real model.)
+      const garrisoned = !!(fortDefAt(a.at) && ownerOf(a.at) === pl.id);
       out.push({
         key: pl.id + ":" + a.uid, hex: a.at, q: place.q, r: place.r,
         color: (colorById(pl.color) || {}).ring || FOREIGN,
         count: n, tier: armyBand(n).tier, socket: pl.id % 4,
+        courtyard: garrisoned,
         marching: !!a.order, mine,
         selected: selectedArmy === pl.id + ":" + a.uid,
       });
@@ -409,6 +422,15 @@ function pathMarkFor(id) {
   return null;
 }
 
+// Is a fortifying structure standing on this hex? One test, three readers:
+// the courtyard placement (piecesForBoard), the glyph yield below, and any
+// panel that wants to say "Garrisoned".
+function fortDefAt(id) {
+  const sid = S.map && S.map.built && S.map.built[id];
+  const def = sid ? structureDef(sid) : null;
+  return def && def.fortifies ? def : null;
+}
+
 // What the 3D label layer reads: the base ladder, never the army override --
 // the discs carry the armies now, and a flag glyph under a disc would say the
 // same thing twice. The SVG debug board keeps markFor whole, flags included,
@@ -420,6 +442,19 @@ function stageMarkFor(p) {
   const path = pathMarkFor(p.id);
   if (path) return path;
   if (!isCharted(p.id)) return null;
+  // THE SQUARE YIELDS TO THE COURTYARD (owner, 2026-08-28): a garrisoned
+  // disc stands at the hex centre, which is exactly where the structure
+  // glyph projects -- and the square was sitting on the count. Same grammar
+  // as "an army outranks the ground it stands on": while a DRAWN disc holds
+  // the courtyard, the disc and its walls already say march-hold, and the
+  // count is the one thing only the disc can say. An EMPTY hold keeps its
+  // square -- it still needs identifying from altitude -- and the yield is
+  // gated on the disc actually being drawn, so a garrison you cannot see
+  // never blanks the mark. Applies to every fortifying structure, not one.
+  if (fortDefAt(p.id)) {
+    const own = playerById(ownerOf(p.id));
+    if (own && armyAt(p.id, own) && (own.id === S.me || canSeeArmyAt(p.id))) return null;
+  }
   return baseMarkFor(p);
 }
 

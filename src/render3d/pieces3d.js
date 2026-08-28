@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { axialToWorld, hash01, PIECE_SOCKETS } from "./hex3d.js";
+import { axialToWorld, DISC_RADIUS, hash01, PIECE_SOCKETS } from "./hex3d.js";
 
 // ---------- PIECES: the army discs ------------------------------------------
 // The board carries two vocabularies of 3D object with different visual laws
@@ -30,7 +30,11 @@ import { axialToWorld, hash01, PIECE_SOCKETS } from "./hex3d.js";
 // "holding this ground" and "about to move", and the answer to a dispatch
 // otherwise looking like nothing happened for twelve seconds.
 
-export const DISC_RADIUS = 0.30;
+// DISC_RADIUS moved to hex3d.js in the geometry pass (2026-08-28) so the
+// whole piece budget -- sockets, clearance, hub cap, disc -- is arithmetic
+// in one pure module the harness can import. Re-exported to keep this the
+// place you look for "how big is a disc".
+export { DISC_RADIUS };
 // Tier heights, 1.0 / ~1.35 / ~2.1. The smallest must clear the scenery
 // height cap (props3d shrank the trees under ~0.39) -- no army ever sinks
 // into the forest it is marching through.
@@ -136,7 +140,7 @@ function socketXZ(q, r, socket) {
 
 // The full list, every call -- pieces are few, so diffing by key and rebuilding
 // changed meshes is cheaper to reason about than clever mutation. `list` rows:
-// { key, hex, q, r, color, count, tier, socket, marching, selected }.
+// { key, hex, q, r, color, count, tier, socket, courtyard, marching, selected }.
 export function setPieces(list, elev) {
   if (!group) return;
   const seen = new Set();
@@ -144,7 +148,14 @@ export function setPieces(list, elev) {
     seen.add(it.key);
     const h = TIER_HEIGHTS[Math.min(it.tier, TIER_HEIGHTS.length - 1)];
     const baseY = (elev[it.hex] || 0) + h / 2;
-    const { x, z } = socketXZ(it.q, it.r, it.socket);
+    // THE COURTYARD (owner, 2026-08-28): a garrisoned army stands at the hex
+    // CENTRE, inside its own walls -- the term "garrison" (behind walls only,
+    // design.md) made visible. The besieger stays on the ring, so a siege
+    // draws itself: defender in, attacker out. The feed decides WHO is
+    // garrisoned (ui/map.js); this module only knows where that means.
+    const { x, z } = it.courtyard
+      ? axialToWorld(it.q, it.r)
+      : socketXZ(it.q, it.r, it.socket);
     let rec = meshes.get(it.key);
     const sig = [it.color, it.count, it.tier, it.selected ? 1 : 0].join("|");
     if (rec && rec.sig !== sig) {

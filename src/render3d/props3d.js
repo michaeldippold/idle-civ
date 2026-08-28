@@ -13,7 +13,7 @@
 // several-hundred-tile board free.
 
 import * as THREE from "three";
-import { axialToWorld, corner, hash01, HEX_SIZE, PIECE_SOCKETS, SOCKET_CLEARANCE } from "./hex3d.js";
+import { axialToWorld, corner, hash01, HEX_SIZE, HUB_CAP, HUB_WALL, PIECE_SOCKETS, SOCKET_CLEARANCE } from "./hex3d.js";
 
 const _m = new THREE.Matrix4();
 const _p = new THREE.Vector3();
@@ -137,7 +137,10 @@ export function setPropPhase(group, tiles, phaseOf) {
 
 function slot(id, i, spread = 0.5) {
   const a = hash01(id + ":a" + i) * Math.PI * 2;
-  const d = (0.2 + 0.75 * hash01(id + ":d" + i)) * spread;
+  // Scatter distance scales with the hex (geometry pass, 2026-08-28) so a
+  // bigger board keeps the same LOOK -- the spread arguments below stay the
+  // proportions they always were, and the harness sweep mirrors this factor.
+  const d = (0.2 + 0.75 * hash01(id + ":d" + i)) * spread * HEX_SIZE;
   let dx = Math.cos(a) * d, dz = Math.sin(a) * d;
   // SOCKET CLEARANCE (owner, 2026-08-26): the army discs stand at fixed ring
   // sockets, and a fixed disc diameter makes this trivial -- the reserved zone
@@ -196,19 +199,25 @@ export function buildProps(places, elev, homeId, isRevealedFn, builtOn) {
   const baleGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.24, 8);
   baleGeo.rotateZ(Math.PI / 2);
   const bale = new Part(baleGeo, hayMat);
-  // Inside the ownership rim (0.94/0.82) so the two never fight, and about as
-  // tall as the dev tower, which is the height the board already reads as "a
-  // building" at this camera.
-  // Smaller than the selection ring (0.94/0.82) so the two never fight, and
-  // thicker than the first attempt, which read as a fence.
-  //
   // HEIGHT HALVED 0.58 -> 0.29 (owner, 2026-08-25): at full height it competed
   // with the TERRAIN for read. Hills stand at 0.55 against plains at 0.12, so a
   // 0.58 wall was taller than the entire elevation range of the board and a
   // fortified lowland hex looked like high ground. A structure must read as
   // something standing ON the country, never as the country's own relief.
+  // THE MARCH-HOLD IS A HUB, NOT A HEX-RIM (geometry pass, 2026-08-28). The
+  // old ring filled the whole hex (0.63-0.80 x HEX_SIZE) and put every ring
+  // socket INSIDE the wall band -- the garrison disc stood in the masonry.
+  // Now the outer wall stands exactly at HUB_CAP, absolute units: flush
+  // against the ring slots' inner edge ("sized to run up against the edges
+  // of its slot", owner), which is also where the wall spokes will stop when
+  // fortifications connect. HUB_WALL thick (hex3d owns the number -- the
+  // courtyard is a budget line the harness checks). The COURTYARD this
+  // leaves holds exactly one disc WITH AIR, and pieces3d stands the
+  // garrison in it.
+  // Orientation comes from corner(), the parent hex's own corner function,
+  // which is the hexagonal-model law (map.md 3) satisfied by construction.
   const wall = new Part(
-    hexWallGeometry(0.80 * HEX_SIZE, 0.63 * HEX_SIZE, 0.29),
+    hexWallGeometry(HUB_CAP, HUB_CAP - HUB_WALL, 0.29),
     new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.9, flatShading: true }));
   const hutWall = new Part(new THREE.BoxGeometry(0.26, 0.16, 0.22), wallMat);
   const hutRoof = new Part(new THREE.ConeGeometry(0.21, 0.16, 4), roofMat);

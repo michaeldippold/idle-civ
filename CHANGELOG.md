@@ -11,6 +11,24 @@
 
 ---
 
+## 2026-08-28 (later) — The board grows into its spec, and the garrison takes the courtyard
+
+**The geometry half of the morning’s ruling, built and live-playtested the same day.** Hexes to
+circumradius 1.5, sockets to 0.90, clearance sized to prop hulls, the camera cash-in (same opening
+distance, fewer hexes, visible padding), the shadow frustum finally covering the board. The whole
+budget moved into `hex3d.js` as pure arithmetic and the harness now checks every relationship —
+including two found only by the owner’s eyes: the march-hold’s 0.20 wall read cramped (now 0.12,
+with a checked AIR line for the courtyard), and the 0.30 disc’s hover silhouette crossed the
+ownership rim (now 0.27, and the rim check measures the silhouette).
+
+**The courtyard shipped with it:** a garrisoned army’s disc stands at the hex centre inside the
+march-hold’s ring — the ruled meaning of "garrison" made visible, the siege drawing itself — and
+the floating structure square YIELDS while a drawn disc holds the courtyard, so the count stays
+readable. An empty hold keeps its square. Owner’s verdict on the live board: *"looks pretty good,
+for both visible discs."*
+
+---
+
 ## 2026-08-28 — A question about hex size turns into the architecture for every building
 
 **No code was written, on purpose** — the standing rule is consensus, document, commit, then code, and

@@ -58,7 +58,7 @@ export function setHexBuild(id, value) {
 // reads the terrain table while a structure carries its own flat number. That
 // asymmetry is the whole point of the farm: it is better than the ground it
 // stands on, which is why it is worth paying for.
-export function hexYield(id) {
+export function hexYield(id, civ) {
   const u = hexUse(id);
   if (u.kind === "structure") {
     const def = structureDef(u.id);
@@ -70,16 +70,19 @@ export function hexYield(id) {
   }
   // Bare ground works itself. One resource per terrain (2026-08-25): the hex
   // does not choose and cannot be pointed elsewhere.
-  return terrainYield(id);
+  return terrainYield(id, civ);
 }
 
 // What the GROUND under a hex gives, ignoring anything built on it. Kept
 // separate from hexYield so the interface can say "this forest would give
 // wood" about country you do not own, and so a structure's description can be
 // honest about what it is replacing.
-export function terrainYield(id) {
+// The rate table is the asking CIV's era's -- what a forest gives depends on
+// whose age is working it. Defaults to the viewer, like everything at this
+// layer (S1).
+export function terrainYield(id, civ) {
   const terrain = world && world.places[id] ? world.places[id].terrain : null;
-  const yields = (active().map && active().map.yields) || {};
+  const yields = (active(civ).map && active(civ).map.yields) || {};
   const y = terrain ? yields[terrain] : null;
   return y ? { res: y.res, rate: y.rate } : null;
 }
@@ -124,10 +127,10 @@ export function hexResource(id) {
 //
 // This is a RESOLUTION input, never a selection one: it cannot change whether
 // sickness happens or where it lands, only what happens when it arrives.
-export function healersNear(hexId) {
+export function healersNear(hexId, pid) {
   if (!S.map || !world || !world.places[hexId]) return 0;
   let n = 0;
-  for (const id of holdings()) {
+  for (const id of holdings(pid)) {
     const u = hexUse(id);
     if (u.kind !== "structure") continue;
     const def = structureDef(u.id);
@@ -141,19 +144,19 @@ export function healersNear(hexId) {
 // Every structure of this kind standing anywhere in the dominion, with its
 // def -- what a converter needs, and what a "do I own one at all?" reveal
 // predicate needs. The board is the source of truth: no counter to drift.
-export function builtCount(sid) {
+export function builtCount(sid, pid) {
   if (!S.map || !S.map.built) return 0;
   let n = 0;
-  for (const id of holdings()) if (S.map.built[id] === sid) n++;
+  for (const id of holdings(pid)) if (S.map.built[id] === sid) n++;
   return n;
 }
 
 // How many hexes already carry this structure -- the per-copy cost escalator,
 // derived rather than stored so it can never drift from the board.
-export function structureCount(sid) {
+export function structureCount(sid, pid) {
   if (!S.map || !S.map.built) return 0;
   let n = 0;
-  for (const id of holdings()) {
+  for (const id of holdings(pid)) {
     const u = hexUse(id);
     if (u.kind === "structure" && u.id === sid) n++;
   }

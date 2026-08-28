@@ -197,15 +197,16 @@ export function syncDominion() {
 // hold, counting parties already on the road. No cost curve can brake what
 // compounding production funds; the cap shuts the door outright, and the
 // tech tree may later sell administrative capacity against it.
-export function dominionCap() {
-  return (active().map && active().map.dominionCap) || Infinity;
+export function dominionCap(civ) {
+  return (active(civ).map && active(civ).map.dominionCap) || Infinity;
 }
-export function holdsUsed() {
+export function holdsUsed(civ) {
+  const who = civ || me();
   if (!S.map) return 0;
-  return holdCount() + me().buildQueue.filter((q) => q.kind === "settle").length;
+  return holdCount(who.id) + who.buildQueue.filter((q) => q.kind === "settle").length;
 }
-export function atDominionCap() {
-  return holdsUsed() >= dominionCap();
+export function atDominionCap(civ) {
+  return holdsUsed(civ) >= dominionCap(civ);
 }
 
 export function ownedTiles() { return holdings(); }
@@ -214,17 +215,18 @@ export function ownedTiles() { return holdings(); }
 
 // Capture: the tile becomes a holdfast of yours. One place, one rule --
 // campaigns (subdue) and the settle verb both end here.
-export function captureTile(id, viaSettle) {
-  if (!world || !S.map || isOwned(id)) return false;
-  claimTile(id);
+export function captureTile(id, viaSettle, civ) {
+  const who = civ || me();
+  if (!world || !S.map || ownerOf(id) != null) return false;
+  claimTile(id, who.id);
   delete S.map.minors[id];
   // New ground arrives BARE and starts working its own terrain at once --
   // no default to choose and nothing to forget to set.
-  ensurePop();               // the new holding enters the books with its party
-  syncPopMirror();           // me().pop is a MIRROR: recomputed here, never bumped
+  ensurePop(who.id);         // the new holding enters the books with its party
+  syncPopMirror(who);        // pop is a MIRROR: recomputed here, never bumped
                              // by hand (a stray += 1 lived on this line until
                              // 2026-08-25, dead but misleading).
-  syncCharted();              // taking ground shows you what borders it
+  syncCharted(who);           // taking ground shows you what borders it
   return true;
 }
 

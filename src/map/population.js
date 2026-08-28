@@ -1,23 +1,30 @@
 import { active } from "../content/compile.js";
-import { S, me } from "../core/state.js";
+import { S, me, playerById } from "../core/state.js";
 import { CONFIG } from "../core/config.js";
 import { rng } from "../core/rng.js";
 import { chronicle } from "../core/bus.js";
 import { world } from "./world.js";
-import { holdings, isOwned, releaseTile } from "./ownership.js";
+import { holdings, isOwned, ownerOf, releaseTile } from "./ownership.js";
 import { hexUse, hexYield, setHexBuild } from "./structures.js";
 import { adminDistance } from "./routes.js";
 
 // ---------- People live on the land, and the land can fail them ----------
-// me().pop is a MIRROR now (E3): the floored hex sum plus the standing army.
-// Everything legacy that still reads me().pop -- reveal gates, the levy cap,
-// event scaling, civilians() -- sees the real population, until E5 re-homes
-// the army and me().pop can retire outright.
-export function syncPopMirror() {
+// THE ACTING CIV IS A PARAMETER (S1, the antagonist spec). Every function here
+// used to read me() -- fine while exactly one civ had population books, wrong
+// the moment a bot or a second human does. The idiom is the military half's:
+// take the civ (or its pid), default to me() so the interface keeps its
+// convenience, and let sim callers say WHOSE books they mean. Until S2, only
+// keyless civs (humans) carry population books at all -- ensurePop guards it.
+
+// p.pop is a MIRROR (E3): the floored hex sum plus the standing army.
+// Everything legacy that still reads it -- reveal gates, the levy cap,
+// event scaling, civilians() -- sees the real population.
+export function syncPopMirror(p) {
+  const who = p || me();
   if (!S.map || !S.map.pop) return;
   let units = 0;
-  for (const k in me().units) units += me().units[k] || 0;
-  me().pop = hexPopSum() + units;
+  for (const k in who.units) units += who.units[k] || 0;
+  who.pop = hexPopSum(who.id) + units;
 }
 
 // ---------- Population lives on hexes (engine rework E1) ----------
@@ -28,9 +35,10 @@ export function syncPopMirror() {
 // exported to the UI, only to the world (growth here; plague/raids/starvation
 // write to it in later slices).
 
-// Carrying capacity of a hex: terrain x era. Missing terrain (water) is 0.
-export function capOf(id) {
-  const spec = active().map;
+// Carrying capacity of a hex: terrain x era -- the OWNER's era, since the cap
+// is a fact about how that civ's age works the land. Defaults to the viewer.
+export function capOf(id, civ) {
+  const spec = active(civ).map;
   if (!spec || !spec.popCaps || !world || !world.places[id]) return 0;
   return spec.popCaps[world.places[id].terrain] || 0;
 }
@@ -41,10 +49,10 @@ export function hexPop(id) {
 
 // The odometer: total population is the SUM of real per-hex numbers.
 
-export function hexPopSum() {
+export function hexPopSum(pid) {
   if (!S.map || !S.map.pop) return 0;
   let sum = 0;
-  for (const id of holdings()) sum += Math.floor(S.map.pop[id] || 0);
+  for (const id of holdings(pid)) sum += Math.floor(S.map.pop[id] || 0);
   return sum;
 }
 
@@ -52,15 +60,22 @@ export function hexPopSum() {
 // longer owned. Idempotent, like everything else at this layer. The seat
 // starts at startPop (the three survivors); any other hex enters the books at
 // 2 -- the party that claimed it.
-export function ensurePop() {
+//
+// KEYED CIVS HAVE NO POPULATION BOOKS YET: a bot's people arrive in S2 (the
+// per-player economy). Until then this is a no-op for them, so a caller can
+// honestly say ensurePop(atkP.id) for whoever just took ground and the guard
+// sorts out who actually keeps books.
+export function ensurePop(pid) {
   if (!S.map || !world) return;
+  const who = pid == null ? me() : playerById(pid);
+  if (!who || who.key !== null) return;
   if (!S.map.pop) S.map.pop = {};
   // Ground taken LATER arrives as a settling party and grows into the place:
   // that dip is what makes a claim an investment rather than a free upgrade.
-  for (const id of holdings()) {
+  for (const id of holdings(who.id)) {
     if (!(id in S.map.pop)) S.map.pop[id] = 2;
   }
-  for (const id in S.map.pop) if (!isOwned(id)) delete S.map.pop[id];
+  for (const id in S.map.pop) if (!isOwned(id, who.id)) delete S.map.pop[id];
 }
 
 // THE STARTING TRIO ARRIVES FULL (owner ruling, 2026-08-25). Your opening
@@ -78,9 +93,10 @@ export function ensurePop() {
 //
 // Wanderers still arrive. They arrive to fill ground you have just taken,
 // which is a 4X sentence rather than an idle one.
-export function fillStartingGround() {
+export function fillStartingGround(p) {
+  const who = p || me();
   if (!S.map || !S.map.pop || !world) return;
-  for (const id of holdings()) S.map.pop[id] = Math.max(2, capOf(id));
+  for (const id of holdings(who.id)) S.map.pop[id] = Math.max(2, capOf(id, who));
 }
 
 // Logistic growth toward each hex's cap: dP/dt = r * P * (1 - P/cap).
@@ -94,21 +110,22 @@ export function fillStartingGround() {
 // this is measured from the actual deduction, never re-derived.
 export let growthSpendRate = 0;
 
-export function growPopulation(dt) {
+export function growPopulation(dt, p) {
+  const who = p || me();
   growthSpendRate = 0;
   if (!S.map || !S.map.pop || !world) return;
   // No one is born during a famine: growth waits for the larder.
-  if (me().res.food <= 0) return;
+  if (who.res.food <= 0) return;
   const r = CONFIG.popGrowthRate;
-  const before = hexPopSum();
+  const before = hexPopSum(who.id);
   // What the larder can actually raise this tick. Growth is BOUGHT, not free
   // (CONFIG.growthFoodCost), so a thin surplus grows slowly and a full one
   // grows fast -- and a settlement that is only just feeding itself cannot
   // replace what a raid took.
-  const perHead = CONFIG.growthFoodCost * (1 + (me().pop || 0) / CONFIG.growthCostPopScale);
-  let budget = me().res.food / perHead;
-  for (const id of holdings()) {
-    const cap = capOf(id);
+  const perHead = CONFIG.growthFoodCost * (1 + (who.pop || 0) / CONFIG.growthCostPopScale);
+  let budget = who.res.food / perHead;
+  for (const id of holdings(who.id)) {
+    const cap = capOf(id, who);
     if (cap <= 0) continue;
     let p = S.map.pop[id] || 0;
     // No rekindling: an emptied hex is not yours to repopulate any more, it is
@@ -120,7 +137,7 @@ export function growPopulation(dt) {
     let gain = r * p * (1 - p / cap) * dt;
     if (gain > budget) gain = budget;             // grow only what you can feed
     budget -= gain;
-    me().res.food -= gain * perHead;
+    who.res.food -= gain * perHead;
     growthSpendRate += (gain * perHead) / dt;
     const next = p + gain;
     // The logistic APPROACHES its cap and never attains it; snap the last
@@ -128,20 +145,20 @@ export function growPopulation(dt) {
     // at 7 forever. (~7 minutes from the far side of the curve at r=0.015.)
     S.map.pop[id] = cap - next < 0.01 ? cap : next;
   }
-  const after = hexPopSum();
+  const after = hexPopSum(who.id);
   if (after !== before) {
-    syncPopMirror();
+    syncPopMirror(who);
     // Lifetime arrivals, for the game-over screen. Counted in WHOLE people
     // crossing an integer, so the stat matches what the Chronicle announced
-    // rather than the fractional curve underneath it. (me().bought was declared
+    // rather than the fractional curve underneath it. (p.bought was declared
     // in E1 and never incremented until 2026-08-25 -- the end screen read
     // "Arrivals welcomed: 0" for every run ever played.)
-    if (after > before) me().bought += Math.max(0, Math.floor(after) - Math.floor(before));
+    if (after > before) who.bought += Math.max(0, Math.floor(after) - Math.floor(before));
     // The Chronicle keeps its pulse: each whole arrival is told in the era's
     // own words -- but only while the settlement is SMALL. A hundred-soul
     // dominion gaining a person a second would drown the Chronicle in birth
     // announcements.
-    if (after > before && after <= 25) chronicle(active().arrivalLine, "good");
+    if (after > before && after <= 25) chronicle(active(who).arrivalLine, "good", who.id);
   }
 }
 
@@ -151,14 +168,15 @@ export function growPopulation(dt) {
 // sickness is person-weighted (every soul equally at risk, so dense hexes
 // host more fevers), raids are exposure-weighted (population x administrative
 // distance -- the frontier is where the torches come).
-export function strikeHex(kind) {
+export function strikeHex(kind, victim) {
+  const who = victim || me();
   if (!S.map || !S.map.pop || !world) return null;
   const weights = [];
   let total = 0;
-  for (const id of holdings()) {
+  for (const id of holdings(who.id)) {
     const p = Math.floor(S.map.pop[id] || 0);
     if (p < 1) continue;
-    const w = kind === "raid" ? p * (1 + adminDistance(id)) : p;
+    const w = kind === "raid" ? p * (1 + adminDistance(id, who)) : p;
     weights.push([id, w]);
     total += w;
   }
@@ -178,7 +196,8 @@ export function killAt(id, n) {
   const before = Math.floor(S.map.pop[id]);
   const killed = Math.min(before, Math.max(0, Math.floor(n)));
   S.map.pop[id] = Math.max(0, S.map.pop[id] - killed);
-  syncPopMirror();
+  // The mirror that changed is the hex OWNER's, not the viewer's.
+  syncPopMirror(playerById(ownerOf(id)) || undefined);
   // A raid or a plague that takes the last person takes the ground with it --
   // the same rule famine follows, because losing ground is a property of the
   // hex being empty rather than of what emptied it.
@@ -201,13 +220,14 @@ export function killAt(id, n) {
 //
 // The army is charged at par -- it lives with you, not out on the frontier --
 // and returns as a plain headcount so callers that only want mouths still work.
-export function upkeepMouths() {
+export function upkeepMouths(p) {
+  const who = p || me();
   if (!S.map || !S.map.pop || !world) return 0;
   let mouths = 0;
-  for (const id of holdings()) {
+  for (const id of holdings(who.id)) {
     const people = Math.floor(S.map.pop[id] || 0);
     if (people <= 0) continue;
-    const d = adminDistance(id);
+    const d = adminDistance(id, who);
     const far = Number.isFinite(d) ? d : 0;
     mouths += people * (1 + CONFIG.upkeepPerDistance * far);
   }
@@ -235,29 +255,35 @@ export function upkeepMouths() {
 // a raid -- because "you lose ground when nobody is left on it" is a property of
 // the ground being empty, not of what emptied it.
 export function loseHexIfEmpty(id) {
-  if (!S.map || !world || id === world.home) return false;   // the seat ends the run instead
-  if (!isOwned(id)) return false;
+  if (!S.map || !world) return false;
+  // WHOSE ground empties is read off the tile, never assumed to be the
+  // viewer's (S1): the owner's seat is the one hex this function refuses to
+  // touch, because a seat emptying ends that civ's run instead.
+  const own = ownerOf(id);
+  if (own == null) return false;
+  const civ = playerById(own) || me();
+  if (id === (civ.seat || world.home)) return false;   // the seat ends the run instead
   if ((S.map.pop[id] || 0) >= 1) return false;
 
   const built = hexUse(id);
   releaseTile(id);
   delete S.map.pop[id];
   setHexBuild(id, null);            // whatever stood here goes with the ground
-  const noun = (active().map && active().map.tileNoun.singular) || "holding";
+  const noun = (active(civ).map && active(civ).map.tileNoun.singular) || "holding";
   // A structure is destroyed with the hex, and there is no refund -- the same
   // trade the deliberate demolish carries (design.md, Building on a Hex).
   if (built.kind === "structure") {
-    chronicle(`The last of them leave the ${noun}. What they built there is abandoned to the weather.`, "bad");
+    chronicle(`The last of them leave the ${noun}. What they built there is abandoned to the weather.`, "bad", civ.id);
   } else {
-    chronicle(`The last of them leave the ${noun}. The ground is no longer yours.`, "bad");
+    chronicle(`The last of them leave the ${noun}. The ground is no longer yours.`, "bad", civ.id);
   }
   // syncDominion() stood here and was the one edge that would have made this
   // module import the hub back. What it does that matters after a release --
   // reconcile the books -- is exactly these two calls; its other two jobs
   // (claim the seat, prune builds off ground you do not hold) are already done
   // above, and the seat is the one hex this function refuses to touch.
-  ensurePop();
-  syncPopMirror();
+  ensurePop(civ.id);
+  syncPopMirror(civ);
   return true;
 }
 
@@ -267,32 +293,34 @@ export function loseHexIfEmpty(id) {
 // starves from its frontier inward, and dies only when the seat itself empties.
 // An emptied holding is LOST, not ghosted (see loseHexIfEmpty above).
 let famineAnnounced = false;
-export function starveTick(deficit, dt) {
+export function starveTick(deficit, dt, p) {
+  const who = p || me();
   if (!S.map || !S.map.pop || !world) return false;
   S.map.starve = (S.map.starve || 0) + deficit * dt;
   if (!famineAnnounced) {
     famineAnnounced = true;
-    chronicle("Famine. The stores are empty, and the frontier feels it first.", "bad");
+    chronicle("Famine. The stores are empty, and the frontier feels it first.", "bad", who.id);
   }
+  const seat = who.seat || world.home;
   while (S.map.starve >= CONFIG.starveCost) {
     S.map.starve -= CONFIG.starveCost;
     // The victim: the peopled hex with the greatest administrative distance,
     // ties broken by id so the order is deterministic.
     let victim = null, worst = -1;
-    for (const id of holdings()) {
+    for (const id of holdings(who.id)) {
       if ((S.map.pop[id] || 0) < 1) continue;
-      const d = adminDistance(id);
+      const d = adminDistance(id, who);
       if (d > worst || (d === worst && victim !== null && id > victim)) { worst = d; victim = id; }
     }
     if (!victim) return true;   // no one left anywhere: the caller ends the run
     S.map.pop[victim] = Math.max(0, S.map.pop[victim] - 1);
     if (S.map.pop[victim] < 1) {
       S.map.pop[victim] = 0;
-      if (victim === world.home) { syncPopMirror(); return true; }   // the seat is empty: the caller ends the run
+      if (victim === seat) { syncPopMirror(who); return true; }   // the seat is empty: the caller ends the run
       loseHexIfEmpty(victim);
     }
   }
-  syncPopMirror();
+  syncPopMirror(who);
   return false;
 }
 

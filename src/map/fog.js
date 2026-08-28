@@ -11,22 +11,23 @@ import { holdings } from "./ownership.js";
 // tile shows as unpainted board, and what it turns out to be is honest ground
 // that was always there.
 // Charting new ground can put new sea -- and new shores -- in view.
-export function syncCharted() {
+export function syncCharted(p) {
+  const who = p || me();
   if (!world || !S.map) return;
-  if (!me().revealed) me().revealed = [];
-  const seen = new Set(me().revealed);
-  for (const id of holdings()) {
+  if (!who.revealed) who.revealed = [];
+  const seen = new Set(who.revealed);
+  for (const id of holdings(who.id)) {
     seen.add(id);
-    const p = world.places[id];
-    if (p) for (const n of p.adj) seen.add(n);
+    const place = world.places[id];
+    if (place) for (const n of place.adj) seen.add(n);
   }
-  me().revealed = Array.from(seen);
-  const sightedLand = syncSighted();
+  who.revealed = Array.from(seen);
+  const sightedLand = syncSighted(who);
   if (sightedLand > 0 && S.seen.mapCharted) {
     chronicle(sightedLand === 1
       ? "From the shore, your people make out land across the water."
       : "From the shore, your people make out land across the water — more of it than they expected.",
-      "good");
+      "good", who.id);
   }
 }
 
@@ -38,19 +39,20 @@ export function syncCharted() {
 // column walked it, so the realm remembers it. The scouting slice will refine
 // this (stances, ranges); the basic emission is canon already.
 //
-// Additive and me-only, same as syncCharted -- and NOT a loop over armies,
-// because the map package must never import the sim. The marcher calls this
-// with the hex it just landed on.
-export function chartGround(ids) {
+// Additive, into the KNOWER's fog (S1: the marcher passes itself) -- and NOT
+// a loop over armies, because the map package must never import the sim. The
+// marcher calls this with the hex it just landed on.
+export function chartGround(ids, p) {
+  const who = p || me();
   if (!world || !S.map) return;
-  if (!me().revealed) me().revealed = [];
-  const seen = new Set(me().revealed);
+  if (!who.revealed) who.revealed = [];
+  const seen = new Set(who.revealed);
   for (const id of ids || []) {
     if (!world.places[id]) continue;
     seen.add(id);
     for (const n of world.places[id].adj) seen.add(n);
   }
-  me().revealed = Array.from(seen);
+  who.revealed = Array.from(seen);
 }
 
 // QA ONLY (owner request, 2026-08-24): show the whole board, on demand, so a
@@ -62,9 +64,10 @@ export function chartGround(ids) {
 export let revealAll = false;
 export function setRevealAll(v) { revealAll = v; }
 
-export function isCharted(id) {
+export function isCharted(id, p) {
   if (revealAll) return true;
-  return !!S.map && !!me().revealed && me().revealed.includes(id);
+  const who = p || me();
+  return !!S.map && !!who.revealed && who.revealed.includes(id);
 }
 
 // ---------- Sight across water (map.md 2.6, slice 4b) ----------
@@ -83,11 +86,12 @@ export function isCharted(id) {
 //
 // Sticky and additive, like charting. Returns how many new LAND hexes came
 // into view, so the Chronicle can mark the moment.
-export function syncSighted() {
+export function syncSighted(p) {
+  const who = p || me();
   if (!world || !S.map) return 0;
-  if (!me().sighted) me().sighted = [];
-  const wet = (p) => !p || p.ocean || p.terrain === "water";
-  const seen = new Set(me().sighted);
+  if (!who.sighted) who.sighted = [];
+  const wet = (x) => !x || x.ocean || x.terrain === "water";
+  const seen = new Set(who.sighted);
   let newLand = 0;
 
   // RAYS LEAVE FROM GROUND YOU STAND ON, not from ground you have merely
@@ -101,7 +105,7 @@ export function syncSighted() {
   // land showing FIVE steps from the nearest owned tile (a charted hex one
   // step out, plus three of open water, plus the far shore). Owner caught it
   // in play: "my starting revealed slices keep getting bigger and bigger."
-  for (const id of holdings()) {
+  for (const id of holdings(who.id)) {
     const from = world.places[id];
     if (!from || wet(from)) continue;          // rays leave dry, OWNED ground
     const dist = {};
@@ -117,7 +121,7 @@ export function syncSighted() {
         for (const n of world.places[w].adj) {
           const q = world.places[n];
           if (!wet(q)) {                        // land stops the ray
-            if (!seen.has(n) && !isCharted(n)) newLand += 1;
+            if (!seen.has(n) && !isCharted(n, who)) newLand += 1;
             seen.add(n);
             continue;
           }
@@ -131,17 +135,18 @@ export function syncSighted() {
     }
   }
 
-  me().sighted = Array.from(seen);
+  who.sighted = Array.from(seen);
   return newLand;
 }
 
 // Seen from afar but not charted: drawn, never touched.
-export function isSighted(id) {
+export function isSighted(id, p) {
   if (revealAll) return false;                  // the lens charts everything
-  return !!S.map && !!me().sighted && me().sighted.includes(id) && !isCharted(id);
+  const who = p || me();
+  return !!S.map && !!who.sighted && who.sighted.includes(id) && !isCharted(id, who);
 }
 
 // Drawn at all: charted ground, or ground the eye can reach.
-export function isVisible(id) {
-  return isCharted(id) || isSighted(id);
+export function isVisible(id, p) {
+  return isCharted(id, p) || isSighted(id, p);
 }

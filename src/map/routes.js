@@ -48,15 +48,16 @@ export function adminDistance(targetId, civ) {
 // water three -- slow crossings, never impossible, so an island seat can't
 // deadlock a run. Conquering or settling a line toward a rival is literally
 // building a road. Returns Infinity only when there is no map.
-export function routeCost(targetId) {
+export function routeCost(targetId, civ) {
+  const p = civ || me();
   if (!world || !S.map || !world.places[targetId]) return Infinity;
   const stepInto = (id) => {
-    if (isOwned(id)) return 0.5;
+    if (isOwned(id, p.id)) return 0.5;
     return world.places[id].terrain === "water" ? 3 : 1;
   };
   const dist = { };
   const queue = [];
-  for (const id of holdings()) { dist[id] = 0; queue.push(id); }
+  for (const id of holdings(p.id)) { dist[id] = 0; queue.push(id); }
   while (queue.length) {
     // Small worlds: a plain scan-for-min is simpler than a heap and fast
     // enough at a few hundred places.
@@ -138,8 +139,8 @@ export function pathBetween(fromId, toId, civ) {
   return path;
 }
 
-export function marchFactor(targetId) {
-  const r = routeCost(targetId);
+export function marchFactor(targetId, civ) {
+  const r = routeCost(targetId, civ);
   if (!Number.isFinite(r)) return 1;   // no map (harness fixtures): par
   return Math.min(2, Math.max(0.6, 0.5 + r / 6));
 }

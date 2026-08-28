@@ -910,23 +910,18 @@ export function rimFor(p) {
   // real ground now, and their country rims in their colour the same way yours
   // does. White-means-foreign survives only where nothing owns the ground --
   // a minor's steading, a seat not yet settled by its people.
-  // A rim is a COLOUR plus an opaque OWNER token. The token is what lets the
-  // renderer merge a realm into one perimeter without knowing what a player
-  // is: it only ever asks whether two tokens match.
   const owner = ownerOf(p.id);
-  if (owner === S.me) return { color: playerColor().ring, owner };
+  if (owner === S.me) return playerColor().ring;
   if (owner != null) {
     const pl = S.players[owner];
-    return { color: (colorById(pl && pl.color) || {}).ring || FOREIGN, owner };
+    return (colorById(pl && pl.color) || {}).ring || FOREIGN;
   }
   // The GROUND's mark, deliberately: an army standing on a foreign seat must
   // not stop that seat's rim from reading as foreign.
   const m = baseMarkFor(p);
   if (!m) return null;                       // uncharted, or empty country
-  // Marker rims with no territory behind them (an unsettled seat, a steading)
-  // stay full rings: there is no realm to merge them into.
-  if (m.cls === "seat") return { color: FOREIGN, owner: null };
-  if (m.cls === "minor") return { color: FOREIGN_MINOR, owner: null };
+  if (m.cls === "seat") return FOREIGN;
+  if (m.cls === "minor") return FOREIGN_MINOR;
   return null;
 }
 

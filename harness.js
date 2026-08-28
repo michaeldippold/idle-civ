@@ -2907,18 +2907,10 @@ console.log("\n--- Phase 10: the renderer port keeps the marks ---");
   // re-deriving ownership, so the rim and the glyph can never disagree about
   // who lives on a tile -- the drift that produced diamonds in the 2D stage.
   const pal = api.playerColor();
-  // A rim is { color, owner } since the merged perimeter (2026-08-26): the
-  // token is what lets the renderer join a realm into one border without
-  // knowing what a player is. `rc` reads the colour half.
-  const rc = (x) => { const r = api.rimFor(x); return r && r.color; };
-  check("your country wears your colour", rc(P(homeId)) === pal.ring);
-  check("...on every holding, not just the seat", rc(P(ownedId)) === pal.ring);
-  check("a power's ground wears the foreign rim", rc(seat) === api.FOREIGN);
-  check("a steading wears the quieter foreign rim", rc(minor) === api.FOREIGN_MINOR);
-  check("owned ground carries an owner TOKEN; a bare marker does not", (() => {
-    const own = api.rimFor(P(ownedId)), mk = api.rimFor(minor);
-    return own && own.owner === api.me().id && mk && mk.owner === null;
-  })());
+  check("your country wears your colour", api.rimFor(P(homeId)) === pal.ring);
+  check("...on every holding, not just the seat", api.rimFor(P(ownedId)) === pal.ring);
+  check("a power's ground wears the foreign rim", api.rimFor(seat) === api.FOREIGN);
+  check("a steading wears the quieter foreign rim", api.rimFor(minor) === api.FOREIGN_MINOR);
   check("empty country wears no rim at all", api.rimFor(wild) === null);
 
   // THE HONESTY RULE, and the reason this went through markFor. Sight reveals
@@ -2937,11 +2929,11 @@ console.log("\n--- Phase 10: the renderer port keeps the marks ---");
   // The two ladders agree by construction; this is the check that fails if
   // someone re-derives one of them locally again.
   const disagree = Object.values(api.world.places).filter((x) => {
-    const m = api.markFor(x), r = api.rimFor(x), c = r && r.color;
+    const m = api.markFor(x), r = api.rimFor(x);
     if (!m) return r !== null;                       // no mark -> no rim
-    if (api.isOwned(x.id)) return c !== pal.ring;
-    if (m.cls === "seat")  return c !== api.FOREIGN;
-    if (m.cls === "minor") return c !== api.FOREIGN_MINOR;
+    if (api.isOwned(x.id)) return r !== pal.ring;
+    if (m.cls === "seat")  return r !== api.FOREIGN;
+    if (m.cls === "minor") return r !== api.FOREIGN_MINOR;
     return false;
   });
   check("the rim and the mark never disagree about who lives on a tile", disagree.length === 0);

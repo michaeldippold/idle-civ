@@ -171,7 +171,7 @@ function jitterScale(id, tag) {
   return 0.9 + 0.2 * hash01(id + ":s" + tag); // ±10%
 }
 
-export function buildProps(places, elev, homeId, isRevealedFn, builtOn) {
+export function buildProps(places, elev, homeId, isRevealedFn, builtOn, playerRing) {
   const group = new THREE.Group();
 
   const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6b4a33, roughness: 0.95 });
@@ -219,6 +219,23 @@ export function buildProps(places, elev, homeId, isRevealedFn, builtOn) {
   const wall = new Part(
     hexWallGeometry(HUB_CAP, HUB_CAP - HUB_WALL, 0.29),
     new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.9, flatShading: true }));
+  // THE DEBT CUBE (owner ruling, 2026-08-28): "I insist every building have
+  // a model, and if they do not currently have one they get a big player
+  // color cube. Big enough to say 'you owe me a real model here' but not
+  // gigantic." A deliberate placeholder law with three jobs: buildings stop
+  // being invisible on the map TODAY, the art debt nags until paid, and the
+  // silhouette split holds -- a cube reads as a building precisely because
+  // the discs rejected the cube for reading that way. It knowingly bends the
+  // two-vocabularies law (saturated player colour was pieces-only); the
+  // loudness is the point, and every cube is a model owed. 0.55 wide fits
+  // the hub footprint (half-diagonal 0.39 < HUB_CAP); 0.45 tall stays under
+  // the hills' 0.55 relief so a built lowland never reads as high ground.
+  // Axis-aligned, no jitter: a building that wobbled would read as a prop
+  // rather than as works (the march-hold's own rule).
+  const cubeCol = new THREE.Color(playerRing || "#c3a3ff");
+  const cube = new Part(
+    new THREE.BoxGeometry(0.55, 0.45, 0.55),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 }));
   const hutWall = new Part(new THREE.BoxGeometry(0.26, 0.16, 0.22), wallMat);
   const hutRoof = new Part(new THREE.ConeGeometry(0.21, 0.16, 4), roofMat);
   const tower = new Part(new THREE.BoxGeometry(0.2, 0.44, 0.2), stoneMat);
@@ -253,15 +270,21 @@ export function buildProps(places, elev, homeId, isRevealedFn, builtOn) {
         // One wall, centred: the hex IS the building. No jitter and no slot --
         // a fortification that wobbled would read as a prop rather than as
         // works, and it is the one thing on this board that should look placed.
+        // The ONLY structure with a real model (2026-08-28) -- everything
+        // else below carries the debt cube until its model is paid.
         wall.add(cx, y, cz, 0, 1, null, id);
-      }
-      if (structure === "farm") {
-        // Three bales, deterministically placed like every other prop.
-        for (let i = 0; i < 3; i++) {
-          const { dx, dz } = slot(id, i + 3, 0.45);
-          const s = jitterScale(id, "b" + i);
-          bale.add(cx + dx, y + 0.115 * s, cz + dz,
-            hash01(id + ":br" + i) * Math.PI * 2, s, null, id);
+      } else {
+        cube.add(cx, y + 0.225, cz, 0, 1, cubeCol, id);
+        if (structure === "farm") {
+          // Three bales, deterministically placed like every other prop --
+          // dressing around the debt cube, not the model itself (the owner
+          // does not count them as one; the barn is still owed).
+          for (let i = 0; i < 3; i++) {
+            const { dx, dz } = slot(id, i + 3, 0.45);
+            const s = jitterScale(id, "b" + i);
+            bale.add(cx + dx, y + 0.115 * s, cz + dz,
+              hash01(id + ":br" + i) * Math.PI * 2, s, null, id);
+          }
         }
       }
       continue;   // nothing else stands on built ground
@@ -314,7 +337,7 @@ export function buildProps(places, elev, homeId, isRevealedFn, builtOn) {
     }
   }
 
-  for (const part of [trunk, canopy, rock, bale, wall, hutWall, hutRoof, tower, towerRoof]) {
+  for (const part of [trunk, canopy, rock, bale, wall, cube, hutWall, hutRoof, tower, towerRoof]) {
     group.add(part.build());
   }
   return group;

@@ -84,8 +84,23 @@ in `hex3d.js` (which now owns `DISC_RADIUS`, `HUB_CAP`, `HUB_WALL` so node can c
   the hub cap grew to 0.63 for free. The harness rim check now measures the silhouette, not the
   bare disc — the owner saw the intersection before the harness did.
 
+**Also shipped same day — THE DEBT CUBE** *(owner ruling)*: *"I insist every building have a
+model, and if they do not currently have one they get a big player color cube. Big enough to say
+'you owe me a real model here' but not gigantic."* Every built structure without a real model — all
+of them except the march-hold — now renders a 0.55 × 0.45 player-colour cube at the hex centre
+(axis-aligned, no jitter, under the hills' relief, inside the hub footprint). Three jobs at once:
+buildings stop being invisible TODAY, the art debt nags until paid, and the silhouette split holds —
+cylinder = army, cube = building, which is the discs' own cube-reads-as-building rejection used
+forwards. It knowingly bends the two-vocabularies law (saturated player colour was pieces-only);
+deliberate, transitional, loud on purpose. The farm keeps its bales as dressing around the cube —
+the owner does not count them as a model; the barn is still owed. Cubes sink and rise with redress
+like every prop, verified live. And **the march trail out of a march-hold starts under the
+garrison** — the courtyard test now picks the trail's origin too, so the road and the disc can
+never disagree.
+
 **Still to build from this spec:** the fortification family itself (palisade, watchtower, wall
-spokes, the stub hub), building models with placeholders, scenery on built hexes, bigger glyphs.
+spokes, the stub hub), REAL models per building (the cubes are the debt ledger), scenery on built
+hexes, bigger glyphs.
 
 *(The spec as ruled, kept for the reasoning — numbers above supersede where they differ:)*
 

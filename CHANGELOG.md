@@ -11,6 +11,21 @@
 
 ---
 
+## 2026-08-28 (later still) — Every building shows itself, or wears its debt
+
+**The debt cube** (owner: *"I insist every building have a model, and if they do not currently have
+one they get a big player color cube… big enough to say 'you owe me a real model here'"*). Every
+structure but the march-hold was invisible on the board — a floating square and nothing under it.
+Now each renders a player-colour cube at the hex centre: buildings legible today, art debt that
+nags until paid, and the silhouette split holding (cylinder = army, cube = building — the discs'
+own rejection of the cube, used forwards). Deliberately bends the pieces-only saturation law;
+transitional and loud on purpose. Cubes sink and rise with redress like every prop — the Part
+system records the tile per instance, so the rule needed no new code, only proof. Also fixed on
+owner sighting: the march trail out of a march-hold now starts under the garrisoned disc at the
+hex centre, not at an empty ring slot.
+
+---
+
 ## 2026-08-28 (later) — The board grows into its spec, and the garrison takes the courtyard
 
 **The geometry half of the morning’s ruling, built and live-playtested the same day.** Hexes to

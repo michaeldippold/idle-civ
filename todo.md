@@ -478,6 +478,26 @@ several tempting ideas later, and it should.
      only be in one place while raiders scout for soft ground and, later, bot armies press
      multiple fronts.
 
+   **THE SELECTED-TILE PANEL NEEDS TLC — "the biggest UX issue right now by far" (owner,
+   2026-08-26, iron-age playtest).** Two problems, one of them a real bug:
+
+   - **It is far too small for what it has become.** `#panel-tile { max-height: 40% }` was sized
+     when the panel held a terrain blurb and a Settle button. It now carries the army card
+     (roster, dice numbers, band, orders), the four-option stance picker, March / Sack / Disperse /
+     Halt, the sack progress line, army pointer rows, battle cards with Watch, the build list, the
+     market board, and the settle blurb — inside a 40% box that scrolls. The panel became the
+     game's primary control surface without ever being re-laid-out for the job.
+   - **The buttons are white-on-white, and it is a THEME BUG, not a taste call.** The
+     `--btn-*` tokens invert per era: light desks paint dark-on-light, and `body[data-era]`
+     bronze/iron flips to `--btn-bg: #f4f1e6` (near-white) with dark text. But the tile panel's
+     own surface is ALSO pale in those eras, so the inverted plate lands white-on-white and only
+     the letter-spacing saves it. Whatever the redesign does, buttons must contrast against the
+     PANEL they sit on, not against the era's chrome.
+   - Worth folding into the same pass: the panel is where the wide-modal idea was always headed
+     (the tech tree wants that shape too), and the battle panel's own design polish is queued
+     right beside it — one interface session could take both, since they share the army-roster
+     component and the dice presentation.
+
    **FORTIFICATION FAMILY + WALL VISUALS — LOGGED, NOT BUILT (owner, 2026-08-26, mid-playtest):**
 
    - **Palisade** (probably Bronze): `fortifies: true, slots: 0`, small pool (~8–10), wood-heavy,

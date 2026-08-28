@@ -13,6 +13,12 @@
 
 ## 2026-08-28 (night) — The ground goes level and the walls pick an age
 
+**The owner's verdict, three armies on the board** — one parked at home, two garrisoned in their
+march-holds at either end of a continuous stone wall: *"This looks quite good!! Honestly I feel
+like this is basically if Age of Empires had a love child with Settlers of Catan."* Which is about
+as precise a statement of the target as the design docs have ever managed: AoE's live war on
+Catan's legible board.
+
 Three owner rulings off the first fortified board. **Same type, same height**: the per-hex
 elevation jitter is gone — it had made wall lines stair-step across uniform ground, and "bothered
 me a little before the walls"; the per-type bases stay, so steps happen only where terrain

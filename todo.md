@@ -491,6 +491,24 @@ several tempting ideas later, and it should.
      the first sight-emitting structure. The fog canon already lists structures among the sight
      emitters; the watchtower is where that clause gets real (radius ~2 sighted, feeding
      `canSeeArmyAt` → earlier raid warnings, which is what warning time is for).
+   - **FORTIFICATIONS ARE IMPASSABLE (ruled)**: an enemy-owned fortified hex cannot be marched
+     through — to cross it, you attack it. One rule, and walls actually wall: lines channel
+     movement, chokepoints exist, valleys can be shut. "It quietly makes all fortifications walls
+     — strolling through a march-hold should definitely not be possible anyways." The strategic
+     frame, owner's words: *"It gives you more lines of play: fight hard, or turtle hard at the
+     beginning. Walls are great, unless they get to siege engines first"* — turtling is a real
+     opening and the siege engine is its clock, the era race as the counterweight rather than a
+     tuning nerf. Build notes: pathBetween treats enemy-fortified hexes as blocked (orders route
+     around; a walled-off region paths null → march honestly refused); ordering directly AT one is
+     the existing siege; raiders already turn aside; war armies besiege.
+   - **ORIENTATION IS DERIVED, NEVER CHOSEN (ruled)**: no rotation input at placement. A lone wall
+     gets a standalone look; the moment a fortified neighbour exists, the art reaches out and
+     meets it at the shared edge — walls meet march-holds, towers link too, so keep–wall–tower
+     chains simply happen from adjacency. Placement stays one click; the owner's "3 orientations"
+     resolve themselves from the map. (buildProps is already per-hex with neighbours readable;
+     adjacency-aware dressing is the territory-rim algorithm as 3D geometry.)
+   - **The defensive TECH LANE (owner)**: the fortification family gives deep defensive upgrades a
+     home — thicker pools, more firing slots, tower vision range — a whole tech-tree vector.
    - **Wall VISUALS**: the pool is omnidirectional, so the honest render is a full ring at the hex
      RIM — the march-hold already draws an enclosure, but at a radius that CLIPS the garrison disc
      standing at its socket (owner screenshot: "the clipping is just odd and confusing", though

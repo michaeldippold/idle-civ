@@ -478,6 +478,35 @@ several tempting ideas later, and it should.
      only be in one place while raiders scout for soft ground and, later, bot armies press
      multiple fronts.
 
+   **FORTIFICATION FAMILY + WALL VISUALS — LOGGED, NOT BUILT (owner, 2026-08-26, mid-playtest):**
+
+   - **Palisade** (probably Bronze): `fortifies: true, slots: 0`, small pool (~8–10), wood-heavy,
+     produces nothing. Zero new mechanics — the resolver already handles a garrison-less bare wall
+     ("walls are a TIMER") and a garrisoned one (everyone silent until the breach, which is the
+     owner's exact ask: "forces an engagement against the wall strength" with nobody shooting).
+     Fills the Bronze gap: fortification is Iron-only today while raids bite hardest in Bronze,
+     and it gives the march-hold a clean identity as the upgrade — thicker walls, and finally,
+     positions to shoot from.
+   - **Watchtower** (owner): `fortifies: true`, LESS wall, FEWER slots (2–4), **more VISION** —
+     the first sight-emitting structure. The fog canon already lists structures among the sight
+     emitters; the watchtower is where that clause gets real (radius ~2 sighted, feeding
+     `canSeeArmyAt` → earlier raid warnings, which is what warning time is for).
+   - **Wall VISUALS**: the pool is omnidirectional, so the honest render is a full ring at the hex
+     RIM — the march-hold already draws an enclosure, but at a radius that CLIPS the garrison disc
+     standing at its socket (owner screenshot: "the clipping is just odd and confusing", though
+     the battle behind the walls held correctly). Fix = coordination, not art: ring out at ~0.82,
+     outside the 0.5 piece sockets; consider the garrisoned disc stepping to the hex CENTRE when a
+     fortification stands — reads as "inside the walls", echoes the review's garrison-merges-into-
+     structure ruling. *(Someday-note: the owner's "which of 3 angles?" instinct points at
+     PER-EDGE walls — a real design, but a mechanics change wearing a visuals costume; the pool
+     would need a facing, and contact would need to know which side an attacker arrived from.)*
+
+   **GARRISON, THE TERM (ruled):** a garrison is a STATE, not an order — any army standing on
+   ground it defends. Standing is enough; no garrison verb exists or is needed. Proven live: the
+   owner marched an army onto his march-hold, left it, was attacked, and the walls held with the
+   garrison behind them. The bots' `intent: "garrison"` is only their do-not-wander flag, not a
+   different mechanic.
+
    *Found in browser verification of A4, both open:*
    - ~~Armies do not emit sight~~ — **closed 2026-08-26, the day the owner watched his own disc
      march off the edge of the drawn world.** Two halves, per the fog canon ("sight is emitted by

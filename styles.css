@@ -306,6 +306,16 @@ button { font-family: inherit; cursor: pointer; }
 }
 .build-opt .bo-desc { font-size: 12px; color: var(--text-2); margin-bottom: 7px; }
 .build-opt .bo-note { display: block; font-size: 11px; color: var(--text-3); margin-top: 5px; }
+
+/* WHAT STANDS ON THIS HEX, given the same weight a build option gets. It was
+   a sentence in body text under a blurb about empty ground -- technically
+   present, practically invisible. */
+.tile-structure {
+  margin: 9px 0 8px; padding: 8px 10px;
+  background: rgba(25, 23, 16, .05);
+  border-left: 3px solid var(--ink);
+}
+.tile-structure .bo-name { margin-bottom: 3px; }
 .tile-work { font: 700 13px var(--mono); fill: var(--ink); pointer-events: none; }
 .tile-mark.minor { font-size: 11px; }
 

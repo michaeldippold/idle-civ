@@ -602,7 +602,15 @@ export function detailHTML(p) {
       ? `<b>${esc(seatName())}.</b> Your seat — the ${noun} everything else is measured from.`
       : `<b>Your seat.</b> The ${noun} everything else is measured from.`);
   }
-  else if (mine) parts.push(`<b>Your ${noun}</b> — ${p.terrain}. ${TERRAIN_FLAVOR[p.terrain] || ""}`);
+  else if (mine) {
+    // The flavour describes BARE ground ("open ground, waiting"), which is a
+    // small lie on a hex with a building on it. Built hexes get the terrain
+    // named and nothing more; what stands there speaks for itself below.
+    const u0 = hexUse(p.id);
+    parts.push(u0 && u0.kind === "structure"
+      ? `<b>Your ${noun}</b> — ${p.terrain}.`
+      : `<b>Your ${noun}</b> — ${p.terrain}. ${TERRAIN_FLAVOR[p.terrain] || ""}`);
+  }
   // People live here (engine rework E1): every owned hex reports its
   // population against what the ground supports. Displayed floored, so this
   // string -- and therefore the content-diffed re-render -- moves only when a
@@ -617,10 +625,14 @@ export function detailHTML(p) {
     const def = structureDef(built.id);
     const y = hexYield(p.id);
     const ground = terrainYield(p.id);
-    parts.push(`<span class="tile-built"><b>${def ? def.name : built.id}.</b> ${
-      y ? `Yields ${y.res} at ${fmtRate(y.rate)}${ground && ground.res !== y.res
-            ? ` — this ground would give ${ground.res} on its own.` : "."}`
-        : `It produces nothing${ground ? `, and the ${ground.res} this ground would give stops with it` : ""}.`}</span>`);
+    parts.push(
+      `<div class="tile-structure">` +
+        `<div class="bo-name">${def ? def.name : built.id}</div>` +
+        `<span class="tile-built">${
+          y ? `Yields ${y.res} at ${fmtRate(y.rate)}${ground && ground.res !== y.res
+                ? ` — this ground would give ${ground.res} on its own.` : "."}`
+            : `It produces nothing${ground ? `, and the ${ground.res} this ground would give stops with it` : ""}.`}</span>` +
+      `</div>`);
     if (def && def.trades) parts.push(marketHTML());
     parts.push(`<div class="map-actions"><button class="map-act warn" data-act="demolish" data-tile="${p.id}">Pull it down</button></div>`);
     parts.push(`<span class="map-noworks">Pulling it down returns the hex to plain ground. Nothing is refunded.</span>`);
@@ -703,6 +715,17 @@ function titleFor(p) {
   if (p.adversary) {
     const adv = active().adversaries.find((a) => a.id === p.adversary);
     if (adv) return advName(adv);
+  }
+  // WHAT STANDS HERE IS THE TITLE. The structure's name used to appear only
+  // as a sentence mid-panel, in body weight, under a terrain blurb that said
+  // the ground was "waiting" -- present, but unfindable (owner: "it was just
+  // so well hidden I couldn't tell"). Information you cannot find is
+  // information you do not have.
+  const use = isOwned(p.id) ? hexUse(p.id) : null;
+  if (use && use.kind === "structure") {
+    const sd = structureDef(use.id);
+    const where = p.id === world.home ? seatName() : `Your ${capWord(spec().tileNoun.singular)}`;
+    return sd ? `${sd.name} — ${where}` : where;
   }
   if (p.id === world.home) return seatName();
   if (isOwned(p.id)) return `Your ${capWord(spec().tileNoun.singular)}`;

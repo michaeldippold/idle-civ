@@ -525,10 +525,21 @@ harness sections)*:
 
 **The socket campaign** *(promoted — this is the instrument)*:
 
-4. **M0 — N human-grade seats in the generator**: the floor guarantees for every human seat,
-   minimum-distance placement, authored frames validated for two. *No socket needed — testable
-   headless and on the start screen today, and it is the one Part II item with real design
-   risk in it.*
+4. ~~**M0 — N human-grade seats in the generator**~~ **SHIPPED 2026-08-28 (branch
+   `substrate`).** Every human seat carries the full floor guarantee (food ground, timber
+   ADJACENT, hills in reach, room for a trio), drawn from the same pool the solo seat always
+   was, spaced `HUMAN_SEAT_DISTANCE: 8` relaxing to a floor of 4 — **the distance relaxes
+   before the guarantee does**, since a close seat is a sharper game and a stranded one is a
+   broken run. Seat 0 remains the origin, and the first seat is drawn before any distance
+   question, so **a one-seat world draws exactly the dice it always drew** (pinned by check —
+   every recorded seed still reproduces its world). `world.homes` carries them all; adversary
+   seats and minors keep off every human's doorstep; `S.map.humanSeats` persists because a
+   load regenerates the world and must never move a capital. Each human opens with its own
+   seat, its own economy-broadening trio, worked to capacity. **The authored frames got their
+   two-seat verdict** (printed each run, not asserted — it is a content judgement): The Long
+   Reach mean 13.0, Broadwater 9.5, The Scatter 8.4 with a closest pair of 4, the archipelago
+   relaxing to the floor honestly. *Owner's call if The Scatter should be excluded from
+   two-seat games or left as the tight map.*
 5. **M1 — the table + transport + clock**: the join-code lobby on the start screen
    (guest-before-worldgen, colour exclusivity, host's Begin), the relay (hosting decided
    here), host-authoritative snapshots, the `min()` throttle at `{0, 1}`, host-only tab rule,

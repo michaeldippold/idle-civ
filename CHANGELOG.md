@@ -11,6 +11,19 @@
 
 ---
 
+## 2026-08-28 (night) — The ground goes level and the walls pick an age
+
+Three owner rulings off the first fortified board. **Same type, same height**: the per-hex
+elevation jitter is gone — it had made wall lines stair-step across uniform ground, and "bothered
+me a little before the walls"; the per-type bases stay, so steps happen only where terrain
+changes. **Wall material is an era**: Bronze works (wood cost — palisade, watchtower) wall in
+timber, Iron's march-hold in stone — "brown/grey becomes an era thing rather than a mixed-same-era
+thing". **The wall meets the keep flush**: the march-hold spoke stopped at the ring's circumradius
+while spokes always arrive at a flat face (both hexagons share the parent's orientation), and the
+0.084 gap was exactly circumradius minus inradius; the stop is the inradius now.
+
+---
+
 ## 2026-08-28 (evening) — Walls actually wall
 
 **The fortification family v1, same day as its spec.** The **Palisade** (Bronze+Iron: wallPool 9,

@@ -236,14 +236,16 @@ export function buildProps(places, elev, homeId, isRevealedFn, builtOn, playerRi
   // ---- HUB AND SPOKE (owner's model, 2026-08-28; design.md -> The
   // Fortification Family). The hex draws edge-midpoint -> hub for every
   // fortified neighbour; the hub model covers the rest, usually by letting
-  // the spoke run through its solid interior. TWO MATERIALS on purpose: a
-  // palisade's works are sharpened timber, a hold's are masonry, and each
-  // hex draws its own half-spoke -- so a timber wall meeting a stone keep
-  // changes material exactly at the shared edge, which is where two
-  // different walls would honestly meet. Spokes are unit boxes scaled per
-  // instance (Part.add takes {x,y,z}); the stub prism is the palisade's
-  // whole model, and with no fortified neighbours it stands alone as the
-  // hub waiting to be connected -- every wall line shows one at each end.
+  // the spoke run through its solid interior. TWO MATERIALS, split by ERA
+  // (owner ruling, same day): the Bronze fortifications -- palisade and
+  // watchtower, both wood-cost -- wall in TIMBER; the Iron march-hold walls
+  // in STONE. "Brown/grey becomes an era thing rather than a mixed-same-era
+  // thing": a bronze wall line reads as one timber work, and the seam where
+  // it meets a stone keep marks a real generation gap, not a texture
+  // accident. Spokes are unit boxes scaled per instance (Part.add takes
+  // {x,y,z}); the stub prism is the palisade's whole model, and with no
+  // fortified neighbours it stands alone as the hub waiting to be connected
+  // -- every wall line shows one at each end.
   const timberMat = new THREE.MeshStandardMaterial({ color: 0x8f6f4a, roughness: 0.95, flatShading: true });
   const stoneSpoke = new Part(new THREE.BoxGeometry(1, 0.29, SPOKE_WIDTH), fortMat);
   const timberSpoke = new Part(new THREE.BoxGeometry(1, 0.29, SPOKE_WIDTH), timberMat);
@@ -317,7 +319,7 @@ export function buildProps(places, elev, homeId, isRevealedFn, builtOn, playerRi
           const dl = Math.hypot(w.x, w.z) || 1;
           const ux = w.x / dl, uz = w.z / dl;
           const len = (HEX_SIZE * Math.sqrt(3)) / 2 - stop;
-          const sp = structure === "palisade" ? timberSpoke : stoneSpoke;
+          const sp = structure === "marchHold" ? stoneSpoke : timberSpoke;
           sp.add(cx + ux * (stop + len / 2), y + 0.145, cz + uz * (stop + len / 2),
             Math.atan2(-uz, ux), { x: len, y: 1, z: 1 }, null, id);
         }

@@ -80,12 +80,16 @@ export const RIM_Y = { owned: 0.03, hover: 0.045, select: 0.06 };
 const FALLBACK = { ring: "#8a5fd0", hover: "#9f76e3", focus: "#b48cf5" };
 function ringHex(pal, key) { return new THREE.Color((pal || FALLBACK)[key] || FALLBACK[key]); }
 
+// SAME TYPE, SAME HEIGHT (owner ruling, 2026-08-28). The per-hex elevation
+// jitter died the day the walls arrived: a wall crossing uniform ground
+// stair-stepped for no informational reason, and it had "bothered me a
+// little before the walls". The per-TYPE bases stay -- hills above forest
+// above plains is the texture the board keeps -- so steps now happen only
+// where the terrain actually changes, which is where a step means
+// something. (Tonal variation and prop scatter still jitter; only the
+// ground plane went flat.)
 export function elevationOf(place) {
-  const base = ELEV[place.terrain] != null ? ELEV[place.terrain] : 0.1;
-  const j = place.terrain === "water" ? 0
-    : place.terrain === "river" ? (hash01(place.id + ":e") - 0.5) * 0.02
-    : (hash01(place.id + ":e") - 0.5) * 0.08;
-  return base + j;
+  return ELEV[place.terrain] != null ? ELEV[place.terrain] : 0.1;
 }
 
 // `places` is the already-filtered list the stage wants drawn; `isOwnedFn` is

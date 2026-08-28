@@ -1367,6 +1367,16 @@ the era race is the counterweight, never a tuning nerf.
   what buys the earlier raid warning. The ladders run OPPOSITE ways, each building's identity:
   wall watchtower < palisade < march-hold; slots palisade < watchtower < march-hold.
 
+**Wall material is an ERA, not a building** *(owner, 2026-08-28)*: Bronze fortifications (wood
+cost — palisade, watchtower) wall in timber; Iron's march-hold walls in stone. *"Brown/grey
+becomes an era thing rather than a mixed-same-era thing"* — a bronze line reads as one work, and
+a timber-meets-stone seam marks a generation gap, never a texture accident.
+
+**Same type, same height** *(owner, 2026-08-28)*: the per-hex elevation jitter died the day the
+walls arrived — a wall crossing uniform ground stair-stepped for no informational reason. The
+per-TYPE bases stay (hills above forest above plains — the texture the board keeps), so a step
+now happens only where the terrain actually changes, which is where a step means something.
+
 **The defensive tech lane:** thicker pools, more firing slots, tower vision range — the family
 gives deep defensive upgrades a home when the tech tree arrives.
 

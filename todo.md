@@ -361,6 +361,25 @@ that 1.5 was 10% too much, after everything has been built against it.
 
 ---
 
+## THE BOT BRAIN — SPECCED 2026-08-28, NOT BUILT; the promoted "bots that WAGE WAR"
+
+**The spec is [`2026-08-28-bot-brain-spec.md`](2026-08-28-bot-brain-spec.md) — read it whole
+before touching bot code; it contains the audit, the architecture, and the build order.** The
+short of it: an audit found the bots are four clockwork loops and zero decisions — they cannot
+win, two of three never attack, their aggression is triggered by the HUMAN's population, and
+they neither produce nor build. Owner: *"a game you functionally cannot lose is super not
+fun."* The approved design is a board-game **Automa with a posture machine**, four layers, each
+shippable alone: **B1** an honest-enough ledger (income from territory by the player's own
+formula, units and structures PAID for — `botMint` dies), **B2** bots BUILD (mines, farms,
+fortifications on their ground — independently shippable and cures the buildings frustration),
+**B3** postures (build / fortify / press / war; disposition becomes a weight table, so
+"peaceful" is a high threshold, not a constant), **B4** war conduct (power-gated attacks that
+HOLD ground and continue, relief forces, reprisals with memory), **B5** the capital strike —
+the loss condition, on by default, telegraphed twice. Sequenced BEFORE the tech tree: a tree
+balanced against toothless bots is balanced against nothing.
+
+---
+
 ## THE 8/25 REVIEW AND ITS QUEUE *(added 2026-08-25, evening)*
 
 A full-repo architecture review ran against the settled direction, and the design conversation

@@ -3,7 +3,8 @@ import { CONFIG } from "../core/config.js";
 import { makeRng, rng } from "../core/rng.js";
 import { chronicle, emit, runEnded } from "../core/bus.js";
 import { S, me, playerById } from "../core/state.js";
-import { armiesOf, armyAt, armySize, marchArmies } from "./armies.js";
+import { armiesOf, armyAt, armyById, armySize, marchArmies, marchRefusal, orderMarch } from "./armies.js";
+import { record } from "../core/journal.js";
 import { resolveBattle } from "./battle.js";
 import { disbandReturned, pillageAt, repelledByWalls, tickRaiders, turnHome } from "./raiders.js";
 import { seatCivAt } from "./bots.js";
@@ -367,6 +368,47 @@ function conclude(b, script) {
       }
     }
   }
+}
+
+// ---- The two dispatch VERBS (S3, the antagonist spec) ----------------------
+// A plain march and a sack order, as first-class verbs: validated here,
+// journaled here (human seats only -- see the journaling note in armies.js),
+// callable with no UI in the room. The sack order used to live only inside a
+// DOM click handler in ui/map.js -- `army.intent = "sack"` on a board click --
+// which is the exact defect the action layer exists to forbid: a verb no bot
+// can call, no journal can record, and no peer can replay. orderMarch stays
+// the bare MECHANISM underneath both (and under every sim-driven re-order,
+// which must never journal).
+
+export function orderMove(uid, toId, who) {
+  const army = armyById(uid, who);
+  if (!army || army.inBattle) return false;
+  if (marchRefusal(uid, toId, who)) return false;
+  // A plain move clears any standing sack intent: the player re-aimed.
+  army.intent = null;
+  army.sackTarget = null;
+  orderMarch(uid, toId, who);
+  if (who.key == null) record("march", { uid, to: toId }, S.tick, who.id);
+  return true;
+}
+
+export function orderSack(uid, toId, who) {
+  const army = armyById(uid, who);
+  if (!army || army.inBattle) return false;
+  // Already standing on the target: the sack begins without a march.
+  if (army.at === toId && ownerOf(toId) != null && ownerOf(toId) !== who.id) {
+    army.intent = "sack";
+    army.sackTarget = toId;
+    if (who.key == null) record("orderSack", { uid, to: toId }, S.tick, who.id);
+    beginSack(army, who);
+    return true;
+  }
+  if (marchRefusal(uid, toId, who)) return false;
+  army.intent = "sack";
+  army.sackTarget = toId;
+  orderMarch(uid, toId, who);
+  if (who.key == null) record("orderSack", { uid, to: toId }, S.tick, who.id);
+  return true;
 }
 
 // ---- THE SACK (owner ruling, 2026-08-26) -----------------------------------

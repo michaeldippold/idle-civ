@@ -5,10 +5,10 @@ import { availableUnits, canAfford, caps, capWord, seatIsNamed, seatName } from 
 import { save } from "../core/persist.js";
 import { canBuildOn, demolishStructure, hasMarket, launchSettle, launchStructure, pendingBuild, pendingSettle, settlePlan, structureFits, structurePlan, structureUnlocked, trade, tradeRate } from "../core/actions.js";
 import { atDominionCap, capOf, dominionCap, hexPop, hexResource, hexUse, hexYield, holdings, holdsUsed, isCharted, isOwned, isSighted, isVisible, ownerOf, structureDef, terrainYield, workStamp, world } from "../map/map.js";
-import { armyAt, armyBand, armyById, armyRoster, armySize, canSeeArmyAt, disbandArmy, disbandRefusal, haltArmy, marchRefusal, marchingTo, orderMarch, setStance } from "../sim/armies.js";
+import { armyAt, armyBand, armyById, armyRoster, armySize, canSeeArmyAt, disbandArmy, disbandRefusal, haltArmy, marchingTo, setStance } from "../sim/armies.js";
 import { STANCES, stanceById, unitHit, unitRole } from "../sim/battle.js";
 import { seatCivAt } from "../sim/bots.js";
-import { battleAt, beginSack } from "../sim/contact.js";
+import { battleAt, orderMove, orderSack } from "../sim/contact.js";
 import { colorById, FOREIGN, FOREIGN_MINOR, playerColor } from "../core/palette.js";
 import { hexDistance, hexPoints, toPixel } from "../map/model.js";
 import { campaignPlan, expeditionOut, musterBuilt, standingWord } from "../sim/expeditions.js";
@@ -1153,21 +1153,11 @@ export function selectTile(id) {
     const uid = sending;
     const sack = sendingSack;
     sending = null; sendingSack = false;
-    const army = armyById(uid, me());
-    if (sack && army && army.at === id && ownerOf(id) != null && ownerOf(id) !== S.me) {
-      // Already standing on the target: the sack begins without a march.
-      army.intent = "sack";
-      beginSack(army, me());
-      lastDetail = "";
-      renderTileDetail();
-      return;
-    }
-    if (!marchRefusal(uid, id)) {
-      if (army) {
-        army.intent = sack ? "sack" : null;
-        army.sackTarget = sack ? id : null;
-      }
-      orderMarch(uid, id);
+    // THE ORDER IS A VERB NOW (S3): validated, journaled and issued in
+    // sim/contact.js, where a bot or a replay can call the same thing this
+    // click calls. The panel work below is the only UI business left here.
+    const issued = sack ? orderSack(uid, id, me()) : orderMove(uid, id, me());
+    if (issued) {
       lastDetail = "";
       renderMapStage();
       renderTileDetail();

@@ -4,6 +4,21 @@ import { CONFIG } from "../core/config.js";
 import { chartGround, isOwned, isSighted, ownerOf, pathBetween, structureDef, world } from "../map/map.js";
 import { hexDistance } from "../map/model.js";
 import { S, me, playerById } from "../core/state.js";
+import { record } from "../core/journal.js";
+
+// WHAT JOURNALS HERE, AND WHAT DOES NOT (S3, the antagonist spec): a verb
+// records itself when a HUMAN seat issued it -- a human's decisions live
+// outside the simulation, so the journal is the only record of them, and
+// (seed + tick + journal) is the whole game. A KEYED civ's calls do NOT
+// journal: today's clockwork decides everything from the seed and the tick,
+// so its calls are already implied by the replay re-running the sim -- and
+// recording them would double-issue every bot order on playback. When the
+// brain lands (Part III) its decisions are seed-drawn too, and the same rule
+// holds. Mechanism calls (a raider turning home, a repelled party re-aimed)
+// go through the same functions and are covered by the same gate.
+function journal(who, verb, args) {
+  if (who.key == null) record(verb, args, S.tick, who.id);
+}
 
 // ---------- ARMIES ------------------------------------------
 // The board's answer to "where are my soldiers". Until now a unit was a number
@@ -121,6 +136,7 @@ export function formArmy(hexId, counts, stance, p) {
     order: null,
   };
   armiesOf(who).push(army);
+  journal(who, "formArmy", { hex: hexId, counts: Object.assign({}, roster), stance: army.stance });
   return army;
 }
 
@@ -155,6 +171,7 @@ export function disbandArmy(uid, p) {
   // Nothing to hand back: p.units already counts them. The army simply stops
   // spoken-for, which is the whole of what disbanding is.
   list.splice(i, 1);
+  journal(who, "disbandArmy", { uid });
   return true;
 }
 
@@ -165,6 +182,7 @@ export function setStance(uid, stance, p) {
   // order right up until it becomes a battle input.
   if (!army || army.inBattle) return false;
   army.stance = stanceById(stance).id;
+  journal(who, "setStance", { uid, stance: army.stance });
   return true;
 }
 
@@ -266,9 +284,11 @@ export function orderMarch(uid, toId, p) {
 }
 
 export function haltArmy(uid, p) {
-  const army = armyById(uid, p || me());
+  const who = p || me();
+  const army = armyById(uid, who);
   if (!army || army.inBattle) return false;
   army.order = null; army.path = null; army.step = 0; army.progress = 0;
+  journal(who, "haltArmy", { uid });
   return true;
 }
 

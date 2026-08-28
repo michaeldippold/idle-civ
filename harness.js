@@ -50,6 +50,7 @@ import * as mMapCore from "./src/map/map.js";
 import * as mMapUi from "./src/ui/map.js";
 import * as mPalette from "./src/core/palette.js";
 import * as mJournal from "./src/core/journal.js";
+import * as mReplay from "./src/core/replay.js";
 import * as mBus from "./src/core/bus.js";
 import * as mEraClock from "./src/sim/eraclock.js";
 import fs from "node:fs";
@@ -60,7 +61,7 @@ const MODS = [mConfig, mRng, mLib, mStone, mBronze, mIron, mCompile, mIcons, mSt
   mContinents,
   mDerived, mCombat, mBattle, mArmies, mContact, mRaiders, mBots, mHex3d, mEvents, mExped, mStep, mActions, mEra, mLog, mDom,
   mPLedger, mPPeople, mPHold, mPBuy, mExpedUi, mBattleUi, mModal, mChrome, mPersist,
-  mMapModel, mMapGen, mMapCore, mMapUi, mPalette, mJournal, mBus, mEraClock];
+  mMapModel, mMapGen, mMapCore, mMapUi, mPalette, mJournal, mReplay, mBus, mEraClock];
 
 function fakeEl() {
   const el = {
@@ -6563,6 +6564,7 @@ console.log("\n--- S1: the viewer ratchet, and a second human-shaped seat ---");
     // the 2 S.me are the converter gate and the death gate, both flagged
     // in-file as M2's business.
     "src/core/step.js":       { sme: 2, me: 1 },
+    "src/core/replay.js":     { sme: 0, me: 0 },
     "src/core/actions.js":    { sme: 0, me: 22 },
     "src/core/derived.js":    { sme: 0, me: 21 },
   };
@@ -6651,6 +6653,53 @@ console.log("\n--- S1: the viewer ratchet, and a second human-shaped seat ---");
       api.claimTile(lost, clans.id); api.S.map.pop[lost] = popHere;   // put it back
     }
   }
+}
+
+// ---- S3: seed + tick + journal is the whole game ----
+console.log("\n--- S3: the journal replays, bit for bit ---");
+{
+  // The claim rng.js and step.js have made since phase 2, finally falsifiable:
+  // boot the same world twice, hand the second boot nothing but the first
+  // sitting's tape, and demand the END STATES be JSON-identical. Every bot
+  // decision re-runs from the seed; every human verb re-issues from the tape;
+  // anything viewer-dependent left in the sim would diverge the copies.
+  const SEED = 20260828;
+  const boot = () => {
+    reset(); S().seed = SEED; S().rngState = SEED; S().map = null; S().seen = {};
+    api.initAdversaries(); api.ensureMap();
+    api.me().res.food = 300; api.me().res.wood = 200; api.me().res.stone = 100;
+    api.me().units.soldier = 4; api.syncPopMirror();
+    api.clearJournal();
+  };
+  boot();
+  // A scripted sitting, spanning the verb families: construction, structure,
+  // settle, army formation, a march. Bots settle, expand and raid around it
+  // on the world's own dice.
+  run(3);
+  api.build(api.defById("barracks"));
+  run(8);
+  const spot = api.holdings().find((id) => id !== api.world.home);
+  api.launchStructure(spot, "infirmary");
+  run(6);
+  const freeHex = Object.values(api.world.places).find((p) =>
+    p.terrain !== "water" && !p.adversary && !p.minor && api.ownerOf(p.id) == null);
+  api.launchSettle(freeHex.id);
+  run(5);
+  const host = api.formArmy(api.world.home, { soldier: 3 }, "half");
+  run(2);
+  const marchTo = api.holdings().find((id) => id !== api.world.home);
+  api.orderMove(host.uid, marchTo, api.me());
+  run(45);
+  const tape = api.journal();
+  const endTick = S().tick;
+  const want = JSON.stringify(S());
+
+  boot();
+  api.replayTo(tape, endTick);
+  check("the tape carried every human verb, and only human verbs",
+    tape.length === 5 && tape.every((e) => e.pid === 0));
+  check("S3: seed + tick + journal replays the whole game BIT-IDENTICAL",
+    JSON.stringify(S()) === want);
 }
 
 console.log(`\n${fails === 0 ? "ALL CHECKS PASSED" : fails + " CHECK(S) FAILED"}`);

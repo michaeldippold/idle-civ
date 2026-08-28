@@ -4560,6 +4560,28 @@ console.log("\n--- The action layer: one seam for every player verb ---");
     return better < rate && better >= api.CONFIG.tradeFloorRate;
   })());
 
+check("gold is the market's premium good -- never the commodity rate, never sold back", (() => {
+  // Owner playtest: with major campaigns dead and caravans strangled by war,
+  // gold LOOKED unobtainable -- while actually sitting on the market board at
+  // 4:1 like turnips. Now: buy at rate x goldTradeMult, never give gold.
+  reset(); api.ensureMap();
+  api.me().era = "iron";
+  putStructures("market", 1);
+  const rate = api.tradeRate();
+  api.me().res.wood = rate * api.CONFIG.goldTradeMult + 5;
+  api.me().res.gold = 3;
+  const woodBefore = api.me().res.wood;
+  check("...the commodity price is refused for gold", (() => {
+    api.me().res.wood = rate + 1;                      // enough for turnips, not treasury
+    return api.trade("wood", "gold", 1) === false;
+  })());
+  api.me().res.wood = rate * api.CONFIG.goldTradeMult + 5;
+  check("...the premium price buys it",
+    api.trade("wood", "gold", 1) === true && api.me().res.gold === 4);
+  check("...and the treasury is never a wallet", api.trade("gold", "wood", 1) === false);
+  return true;
+})());
+
   // The journal: accepted verbs record themselves with the tick they ran on.
   const j = api.journal();
   check("accepted verbs are journalled", j.length > 0);

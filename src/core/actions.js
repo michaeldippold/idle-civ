@@ -265,9 +265,15 @@ export function tradeRate() {
 // UI would refuse, because the UI is not the only caller.
 export function trade(giveRes, getRes, batches) {
   if (S.dead) return false;
-  const rate = tradeRate();
+  let rate = tradeRate();
   if (rate == null) return false;
   if (giveRes === getRes) return false;
+  // GOLD IS BOUGHT, NEVER SOLD, AND NEVER AT THE COMMODITY RATE. It sat on
+  // the market board at 4:1 like a sack of turnips (owner playtest) -- the
+  // premium multiplier makes it the treasury metal, and refusing it as a
+  // GIVE keeps the treasury from becoming a wallet.
+  if (giveRes === "gold") return false;
+  if (getRes === "gold") rate = rate * CONFIG.goldTradeMult;
   const live = active().resources;
   if (!live.some((r) => r.id === giveRes) || !live.some((r) => r.id === getRes)) return false;
   const n = Math.max(1, Math.floor(batches || 1));

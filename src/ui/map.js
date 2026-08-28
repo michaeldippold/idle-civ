@@ -256,13 +256,17 @@ function marketHTML() {
   const c = caps();
   const rows = [];
   for (const get of live) {
-    const affordable = live.filter((g) => g.id !== get.id && (me().res[g.id] || 0) >= rate);
+    // Gold trades on its own row below, at its own price -- and is never a
+    // thing the market accepts in payment.
+    const isGold = get.id === "gold";
+    const price = isGold ? rate * CONFIG.goldTradeMult : rate;
+    const affordable = live.filter((g) => g.id !== get.id && g.id !== "gold" && (me().res[g.id] || 0) >= price);
     if (!affordable.length) continue;
     const full = c[get.id] != null && (me().res[get.id] || 0) + 1 > c[get.id];
     const btns = affordable.map((g) =>
       `<button class="map-act trade" data-act="trade" data-give="${g.id}" data-get="${get.id}"${
-        full ? " disabled" : ""}>${rate} ${g.id}</button>`).join("");
-    rows.push(`<div class="trade-row"><span class="trade-for">1 ${capWord(get.id)} for</span>${btns}</div>`);
+        full ? " disabled" : ""}>${price} ${g.id}</button>`).join("");
+    rows.push(`<div class="trade-row${isGold ? " gold" : ""}"><span class="trade-for">1 ${capWord(get.id)} for</span>${btns}</div>`);
   }
   if (!rows.length) {
     return `<span class="map-noworks">The traders are here, but you have nothing they want yet — you need ${rate} of something to spare.</span>`;

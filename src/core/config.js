@@ -66,6 +66,14 @@ export const CONFIG = {
   tradeBaseRate: 4,
   tradeRateStep: 0.5,
   tradeFloorRate: 2,
+  // GOLD IS THE MARKET'S PREMIUM GOOD (owner bug report, 2026-08-26: with the
+  // major March dead and caravans strangled by a warlike playthrough, the
+  // iron gold sink looked unobtainable -- while in fact gold sat on the
+  // market board at the COMMODITY rate, one gold for four wood). Gold is
+  // bought at the commodity rate times this, and never sold back: it is the
+  // treasury, not a crop. The always-available trickle; caravans and sacked
+  // hoards stay the fast paths.
+  goldTradeMult: 8,
   startFood: 12,          // small buffer so you have time to assign a forager
   // (baseHousing and settlerIntervalSeconds died here in E3, with housing and
   // the free-settler timer. Growth is local to hexes and paid for by claiming;

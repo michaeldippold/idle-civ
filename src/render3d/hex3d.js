@@ -92,10 +92,19 @@ export const SPOKE_WIDTH = 0.15;
 // to the centre; the model occludes you" (the owner's rule -- a solid hub's
 // interior is not viewable space). The march-hold is the one exception that
 // earns the number: its courtyard is OPEN and holds the garrison disc, so
-// its spokes stop at the ring wall. The renderer and the socket veto both
-// read this table; content defs are not consulted (the renderer must not
-// learn what a palisade IS).
-export const FORT_SPOKE_STOP = { marchHold: HUB_CAP, watchtower: 0, palisade: 0 };
+// its spokes stop at the ring wall. The stop is the ring's INRADIUS, not its
+// circumradius: hub and parent share one orientation (the hexagonal-model
+// law), so a spoke -- which arrives along an edge-midpoint direction --
+// always meets a FLAT face of the ring, and the flat sits at cos30 times
+// the corner distance. Stopping at HUB_CAP itself left a 0.084 gap the
+// owner saw immediately ("the wall segments do not quite touch the model").
+// The renderer and the socket veto both read this table; content defs are
+// not consulted (the renderer must not learn what a palisade IS).
+export const FORT_SPOKE_STOP = {
+  marchHold: HUB_CAP * Math.sqrt(3) / 2,
+  watchtower: 0,
+  palisade: 0,
+};
 
 // THE SOCKET VETO. A spoke crossing the hex may run through a piece socket
 // (an E/W spoke passes dead through the E/W sockets); a disc must never

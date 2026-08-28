@@ -269,9 +269,43 @@ button { font-family: inherit; cursor: pointer; }
   padding: 4px 10px 3px; cursor: pointer;
 }
 .map-act:hover { background: var(--btn-hover-bg); color: var(--btn-hover-fg); }
+/* PANEL BUTTONS ANSWER TO THE PANEL (owner, 2026-08-26: "in Iron I am still
+   seeing white buttons on white background"). The --btn-* tokens invert per
+   era so chrome buttons read against the dark bronze/iron chrome -- but the
+   panels stay PAPER in every age, so the inverted plate landed near-white on
+   near-white and only the letter-spacing saved it. Inside a panel the button
+   takes ink-on-paper, always, whatever the age is doing to the chrome. */
+.block .map-act {
+  background: var(--ink); color: var(--ink-light); border-color: var(--ink);
+}
+.block .map-act:hover { background: #2f2b20; color: #ffffff; }
+.block .map-act:disabled {
+  background: transparent; color: var(--text-3); border-color: var(--hair-soft);
+}
+.block .map-act.warn { background: var(--danger-deep); border-color: var(--danger-deep); color: #f6e7e2; }
+.block .map-act.warn:hover { background: var(--danger); }
 .map-act:disabled { border-color: var(--hair-soft); color: var(--text-3); cursor: default; background: var(--btn-bg); }
 .map-act.alloc.active { border-width: 2px; border-color: var(--ink); }
 .map-noworks { color: var(--text-3); font-size: 12px; }
+
+/* A BUILD OPTION IS A CARD (owner's layout, 2026-08-26): name, then the costs
+   row, then what it does, then the button that does it. The old shape led with
+   the button and buried the price underneath it, which read as "commit first,
+   find out after". */
+.build-opt {
+  margin: 10px 0 12px; padding-bottom: 11px;
+  border-bottom: 1px solid var(--hair-soft);
+}
+.build-opt:last-child { border-bottom: 0; }
+.build-opt .bo-name {
+  font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+}
+.build-opt .bo-cost {
+  font-family: var(--mono); font-size: 11px; color: var(--text-2);
+  margin: 3px 0 5px;
+}
+.build-opt .bo-desc { font-size: 12px; color: var(--text-2); margin-bottom: 7px; }
+.build-opt .bo-note { display: block; font-size: 11px; color: var(--text-3); margin-top: 5px; }
 .tile-work { font: 700 13px var(--mono); fill: var(--ink); pointer-events: none; }
 .tile-mark.minor { font-size: 11px; }
 
@@ -388,14 +422,14 @@ button { font-family: inherit; cursor: pointer; }
   display: flex; flex-direction: column; gap: 0;
   z-index: 2;
 }
-#floatLeft  { left: 0;  width: 318px; flex-direction: row; }
+#floatLeft  { left: 0;  width: 366px; flex-direction: row; }
 #floatRight { right: 0; width: 306px; }
 #floatLeft .block, #floatRight .block { min-height: 0; }
 
 /* The rail: three icons, one always active. It hugs the ledger above and runs
    the full height beside whichever panel is open. */
 #navRail {
-  flex: 0 0 auto; width: 56px;
+  flex: 0 0 auto; width: 62px;   /* "INSPECT" was clipping at 56 */
   display: flex; flex-direction: column; gap: 2px;
   padding: 6px 4px; background: var(--ink); border-right: 1px solid var(--hair);
 }
@@ -438,7 +472,7 @@ button { font-family: inherit; cursor: pointer; }
 
 /* Underway docks to the bottom edge, between the two columns. */
 #panel-queue {
-  position: absolute; left: 318px; right: 306px;
+  position: absolute; left: 366px; right: 306px;
   bottom: 0; max-height: 132px; z-index: 2;
 }
 #panel-queue .queue-list { display: flex; flex-direction: row; gap: 8px; overflow-x: auto; }

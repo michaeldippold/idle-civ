@@ -645,13 +645,20 @@ export function detailHTML(p) {
       anyBuild = true;
       const queued = pendingBuild(p.id);
       const broke = !canAfford(plan.cost);
-      parts.push(`<div class="map-actions"><button class="map-act" data-act="build" data-tile="${p.id}" data-struct="${def.id}"${
-        queued || broke ? " disabled" : ""}>Build ${def.name}</button></div>`);
       const replaces = def.yield && ground && def.yield.res !== ground.res
         ? ` Instead of ${ground.res}.` : def.yield ? "" : ` The ${ground ? ground.res : "yield"} stops.`;
-      parts.push(`<span class="map-noworks">${
-        queued ? "Work is already under way on this hex."
-        : `${costLine(plan.cost)} · ${plan.time}s. ${def.desc}${replaces}${cappedNote(plan.cost)}`}</span>`);
+      // NAME, COSTS, WHAT IT DOES, THEN THE BUTTON -- the owner's order. You
+      // read the price before you meet the thing that spends it.
+      parts.push(
+        `<div class="build-opt">` +
+          `<div class="bo-name">${def.name}</div>` +
+          `<div class="bo-cost">${costLine(plan.cost)} · ${plan.time}s</div>` +
+          `<div class="bo-desc">${def.desc}${replaces}</div>` +
+          `<div class="map-actions"><button class="map-act" data-act="build" data-tile="${p.id}" data-struct="${def.id}"${
+            queued || broke ? " disabled" : ""}>Build</button></div>` +
+          (queued ? `<span class="bo-note">Work is already under way on this hex.</span>` : "") +
+          (cappedNote(plan.cost) ? `<span class="bo-note">${cappedNote(plan.cost)}</span>` : "") +
+        `</div>`);
     }
     if (!anyBuild && canBuildOn(p.id)) {
       parts.push(`<span class="map-noworks">Nothing this age knows how to build belongs on ${p.terrain === "river" ? "a river" : `${p.terrain}`}.</span>`);

@@ -6612,7 +6612,8 @@ console.log("\n--- S1: the viewer ratchet, and a second human-shaped seat ---");
     "src/map/continents.js":  { sme: 0, me: 0 },
     "src/map/fog.js":         { sme: 0, me: 6 },
     "src/map/generate.js":    { sme: 0, me: 0 },
-    "src/map/map.js":         { sme: 1, me: 6 },
+    // M0 dropped two more: the trio and the seat claim ask humans(), not me().
+    "src/map/map.js":         { sme: 1, me: 4 },
     "src/map/model.js":       { sme: 0, me: 0 },
     "src/map/ownership.js":   { sme: 4, me: 0 },
     "src/map/population.js":  { sme: 0, me: 12 },
@@ -6764,6 +6765,116 @@ console.log("\n--- S3: the journal replays, bit for bit ---");
   // missing key (a stone people's `stone`) was NaN within a minute of play.
   check("no civ's ledger holds a non-number after a lived-in world",
     S().players.every((p) => Object.values(p.res).every((v) => Number.isFinite(v))));
+}
+
+// ---- M0: N human-grade seats ----
+console.log("\n--- M0: the world can seat two humans, both of them fairly ---");
+{
+  // THE GUARANTEE IS THE POINT. A second human seat that lacked adjacent
+  // timber would deadlock exactly as a bad solo start would (the floor
+  // guarantee's whole reason), so every seat is asked the same questions the
+  // generator asked of the first -- across many seeds and every continent,
+  // because this is a CONTENT check on the frames as much as a code one.
+  const spec = {
+    tileNoun: { singular: "clearing", plural: "clearings" },
+    terrains: ["plains", "forest", "hills", "river", "water"],
+    seats: [],
+  };
+  const near = (w, id, rings, terrain) => {
+    const a = w.places[id];
+    for (const q of Object.values(w.places)) {
+      if (q.ocean || q.terrain !== terrain) continue;
+      const d = (Math.abs(a.q - q.q) + Math.abs(a.r - q.r) + Math.abs((a.q + a.r) - (q.q + q.r))) / 2;
+      if (d <= rings) return true;
+    }
+    return false;
+  };
+  const adjacentHas = (w, id, terrain) =>
+    w.places[id].adj.some((n) => w.places[n] && !w.places[n].ocean && w.places[n].terrain === terrain);
+
+  let worstGap = 99, seatsOK = true, foodOK = true, timberOK = true, hillsOK = true, roomOK = true;
+  let checked = 0, gapSeed = null;
+  const perFrame = {};
+  for (const cont of api.CONTINENTS) {
+    perFrame[cont.id] = { worst: 99, sum: 0, n: 0 };
+    for (let seed = 1; seed <= 20; seed++) {
+      const w = api.generateMap(seed, spec, cont.id, 2);
+      checked += 1;
+      if (!w.homes || w.homes.length !== 2 || w.homes[0] !== "0,0") { seatsOK = false; continue; }
+      const [a, b] = w.homes;
+      if (a === b) { seatsOK = false; continue; }
+      for (const id of w.homes) {
+        const p = w.places[id];
+        if (!p || p.ocean) { seatsOK = false; continue; }
+        // Food terrain, timber ADJACENT, hills in reach, room for a trio --
+        // the same floor the solo seat has answered to since the hex economy.
+        if (p.terrain !== "plains" && p.terrain !== "river") foodOK = false;
+        if (!adjacentHas(w, id, "forest")) timberOK = false;
+        if (!near(w, id, 3, "hills")) hillsOK = false;
+        const room = p.adj.filter((n) => w.places[n] && !w.places[n].ocean && w.places[n].terrain !== "water").length;
+        if (room < 3) roomOK = false;
+      }
+      const pa = w.places[a], pb = w.places[b];
+      const gap = (Math.abs(pa.q - pb.q) + Math.abs(pa.r - pb.r) + Math.abs((pa.q + pa.r) - (pb.q + pb.r))) / 2;
+      if (gap < worstGap) { worstGap = gap; gapSeed = `${cont.id}#${seed}`; }
+      const f = perFrame[cont.id];
+      f.worst = Math.min(f.worst, gap); f.sum += gap; f.n += 1;
+    }
+  }
+  console.log(`  ${checked} two-seat worlds generated; closest pair ${worstGap} hexes (${gapSeed})`);
+  // PER-FRAME SUITABILITY, printed rather than asserted: which authored
+  // continents actually have room for two humans is a CONTENT verdict for the
+  // owner's eye (a crowded frame relaxes to the floor honestly), and the
+  // numbers are what that verdict gets made from.
+  for (const [id, f] of Object.entries(perFrame)) {
+    console.log(`    ${id.padEnd(12)} closest ${f.worst}, mean ${(f.sum / f.n).toFixed(1)}`);
+  }
+  check("two seats exist, distinct, with seat 0 still at the origin", seatsOK);
+  check("...every human seat is food ground", foodOK);
+  check("...every human seat has TIMBER ADJACENT (the deadlock guarantee)", timberOK);
+  check("...every human seat has hills within reach", hillsOK);
+  check("...every human seat has room for its trio", roomOK);
+  check("...and no two humans start closer than the relaxation floor",
+    worstGap >= api.HUMAN_SEAT_DISTANCE_MIN);
+
+  // A ONE-SEAT WORLD IS UNTOUCHED, and this is the check that protects every
+  // recorded seed: the first seat is drawn before any distance question, so
+  // asking for one seat draws exactly the dice it always drew.
+  let identical = true;
+  for (let seed = 1; seed <= 30; seed++) {
+    const one = api.generateMap(seed, spec, "broadwater");
+    const also = api.generateMap(seed, spec, "broadwater", 1);
+    const two = api.generateMap(seed, spec, "broadwater", 2);
+    if (one.home !== also.home || one.home !== two.home) identical = false;
+    if (JSON.stringify(Object.keys(one.places)) !== JSON.stringify(Object.keys(two.places))) identical = false;
+  }
+  check("a one-seat world is unchanged, and seat 0 does not move when a second is added",
+    identical);
+
+  // THE SECOND SEAT IS GENUINELY PLAYABLE: seated, trio claimed, ground
+  // worked to capacity, its own books -- the same opening the first human
+  // gets, which is what "human-grade" has to mean.
+  reset();
+  const guest = api.freshPlayer(api.S.players.length, { color: "teal", seatName: "Guestholm" });
+  api.S.players.push(guest);
+  api.initAdversaries();
+  api.S.map = null; api.S.seen = {};
+  api.ensureMap();
+  const hostSeat = api.seatFor(api.me()), guestSeat = api.seatFor(guest);
+  check("M0: two humans, two different seats, each holding its own",
+    hostSeat && guestSeat && hostSeat !== guestSeat &&
+    api.ownerOf(hostSeat) === api.me().id && api.ownerOf(guestSeat) === guest.id);
+  check("M0: the guest opens with a trio of its own", api.holdCount(guest.id) === 3);
+  check("M0: ...worked to capacity from the first frame, like the host's",
+    api.hexPopSum(guest.id) > 0 && guest.pop > 0);
+  check("M0: neither human's ground overlaps the other's",
+    api.holdings(guest.id).every((id) => !api.holdings(api.me().id).includes(id)));
+  check("M0: the world remembers it was cut for two", api.S.map.humanSeats === 2);
+  // And it survives the regeneration a load performs -- the reason the count
+  // is persisted at all.
+  api.ensureMap();
+  check("M0: a regenerated world seats the guest on the SAME ground",
+    api.seatFor(guest) === guestSeat && api.ownerOf(guestSeat) === guest.id);
 }
 
 console.log(`\n${fails === 0 ? "ALL CHECKS PASSED" : fails + " CHECK(S) FAILED"}`);

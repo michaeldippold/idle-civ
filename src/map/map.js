@@ -66,6 +66,24 @@ function forcedContinent() {
   } catch (e) { return null; }
 }
 
+// EVERY CIV WHOSE DECISION-MAKER IS A PERSON. Keyless by construction (the
+// three neighbours are content and carry a manifest key), so this is the one
+// question "how many guaranteed seats does this world owe?" has to ask.
+export function humans() { return S.players.filter((p) => p.key == null); }
+function humanSeatCount() { return Math.max(1, humans().length); }
+
+// WHICH GUARANTEED SEAT IS THIS HUMAN'S. Their own record wins (set once and
+// never moved); otherwise the generator's list, by seat order -- so the first
+// human is the origin and the second is the far seat. A human beyond the
+// seats the world was cut for falls back to the origin rather than to
+// nowhere, which cannot happen through the lobby and is not worth a crash.
+export function seatFor(p) {
+  if (p.seat) return p.seat;
+  const list = (world && world.homes) || [];
+  const i = humans().indexOf(p);
+  return list[i] || (world && world.home) || null;
+}
+
 export function ensureMap() {
   const spec = active().map;
   if (!spec) { setWorld(null); return; }   // an era without a map (Stone)
@@ -91,6 +109,11 @@ export function ensureMap() {
       // read seat-then-neighbours. (This was `owned: ["0,0"]` -- an array on
       // the one player -- until 2026-08-26.)
       owner: { "0,0": S.me },
+      // HOW MANY HUMAN-GRADE SEATS this world was cut for (M0). Persisted,
+      // because the world is REGENERATED from the seed at every load: a
+      // two-seat world that came back as a one-seat world would move the
+      // guest's capital out from under them. One for a solo run.
+      humanSeats: humanSeatCount(),
     };
     if (firstChart && !S.seen.mapCharted) {
       S.seen.needsStartingTrio = true;   // granted below, once the world exists
@@ -100,7 +123,7 @@ export function ensureMap() {
       chronicle("Your people mark the ground they stand on. The world is wider than this.", "good");
     }
   }
-  setWorld(generateMap(S.map.seed, spec, S.map.continent));
+  setWorld(generateMap(S.map.seed, spec, S.map.continent, S.map.humanSeats || 1));
   // THE 3-HEX START (owner ruling, 2026-08-23, ratifying the E2 bridge's
   // accident): a fresh run opens with the seat plus two adjacent land hexes.
   //
@@ -114,26 +137,35 @@ export function ensureMap() {
   // stable order so a seed still reproduces exactly.
   if (S.seen.needsStartingTrio) {
     delete S.seen.needsStartingTrio;
-    const neighbours = world.places[world.home].adj
-      .map((id) => world.places[id])
-      .filter((p) => p.terrain !== "water" && !p.adversary && !p.minor)
-      .sort((a, b) => (a.r - b.r) || (a.q - b.q));
-    const seatRes = (terrainYield(world.home) || {}).res;
-    const taken = new Set([seatRes]);
-    const chosen = [];
-    // First pass: anything that broadens the economy. Second: fill from what
-    // is left, in the same stable order.
-    for (const p of neighbours) {
-      if (chosen.length >= 2) break;
-      const res = (terrainYield(p.id) || {}).res;
-      if (res && !taken.has(res)) { taken.add(res); chosen.push(p); }
-    }
-    for (const p of neighbours) {
-      if (chosen.length >= 2) break;
-      if (!chosen.includes(p)) chosen.push(p);
-    }
-    for (const p of chosen) {
-      if (!isOwned(p.id)) claimTile(p.id);
+    // EVERY HUMAN OPENS THE SAME WAY (M0): each takes its own guaranteed
+    // seat plus two neighbours chosen to broaden what it produces. Seat 0 is
+    // the origin; a second human's seat is homes[1], and the arithmetic below
+    // never knew which hex it was working from anyway.
+    for (const p of humans()) {
+      const seat = seatFor(p);
+      if (!seat || !world.places[seat]) continue;
+      if (ownerOf(seat) == null) claimTile(seat, p.id);
+      const neighbours = world.places[seat].adj
+        .map((id) => world.places[id])
+        .filter((q) => q.terrain !== "water" && !q.adversary && !q.minor && ownerOf(q.id) == null)
+        .sort((a, b) => (a.r - b.r) || (a.q - b.q));
+      const seatRes = (terrainYield(seat, p) || {}).res;
+      const taken = new Set([seatRes]);
+      const chosen = [];
+      // First pass: anything that broadens the economy. Second: fill from what
+      // is left, in the same stable order.
+      for (const q of neighbours) {
+        if (chosen.length >= 2) break;
+        const res = (terrainYield(q.id, p) || {}).res;
+        if (res && !taken.has(res)) { taken.add(res); chosen.push(q); }
+      }
+      for (const q of neighbours) {
+        if (chosen.length >= 2) break;
+        if (!chosen.includes(q)) chosen.push(q);
+      }
+      for (const q of chosen) {
+        if (ownerOf(q.id) == null) claimTile(q.id, p.id);
+      }
     }
     S.seen.fillStartingGround = true;   // granted below, once pop exists
   }
@@ -164,8 +196,9 @@ export function ensureMap() {
   ensurePop();
   if (S.seen.fillStartingGround) {
     delete S.seen.fillStartingGround;
-    fillStartingGround();
-    syncPopMirror();
+    // Every human's opening ground arrives worked to capacity, not just the
+    // viewer's (M0 + the starting-trio-arrives-full ruling).
+    for (const p of humans()) { fillStartingGround(p); syncPopMirror(p); }
   }
   syncCharted();
   // (A `S.seen.needsDefaultWork` gate stood here reading a flag NOTHING ever
@@ -184,10 +217,15 @@ export function ensureMap() {
 // is simply no machinery left that could shrink it.
 export function syncDominion() {
   if (!world || !S.map) return;
-  if (!isOwned(world.home)) claimTile(world.home);
-  // The human sits where the generator translated the frame to. Every other
-  // civ will be seated at the place the generator already gave it.
-  if (!me().seat) me().seat = world.home;
+  // EVERY HUMAN HOLDS ITS OWN SEAT (M0). Seat 0 is the origin the frame was
+  // translated to; the rest are the generator's other guaranteed seats. Each
+  // is claimed and recorded once, so a reload cannot move anyone's capital.
+  for (const p of humans()) {
+    const seat = seatFor(p);
+    if (!seat || !world.places[seat]) continue;
+    if (ownerOf(seat) == null) claimTile(seat, p.id);
+    if (!p.seat) p.seat = seat;
+  }
   for (const tid in S.map.built) if (!isOwned(tid)) setHexBuild(tid, null);
   ensurePop();
   syncPopMirror();

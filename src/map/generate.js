@@ -38,15 +38,29 @@ export function pickContinent(seed) {
   return CONTINENTS[i].id;
 }
 
-export function generateMap(seed, spec, continentId) {
+// HOW FAR APART TWO HUMAN SEATS MUST SIT (M0, the antagonist spec). Fairness
+// by GEOGRAPHY, not by rules -- the same idiom as rebirthMinDistance: nothing
+// forbids an early rush, the map simply does not start anyone next door.
+// Relaxes rather than fails, tier by tier, exactly like the floor guarantee:
+// a crowded frame gives closer seats, never no seat.
+export const HUMAN_SEAT_DISTANCE = 8;
+export const HUMAN_SEAT_DISTANCE_MIN = 4;
+
+export function generateMap(seed, spec, continentId, humanSeats) {
   const cont = continentById(continentId || pickContinent(seed));
   const frame = parseFrame(cont.rows);
+  // How many HUMAN-grade seats this world needs. One for a solo run; two for
+  // the brother game (M1's lobby passes it). Every one of them carries the
+  // full floor guarantee -- the guarantee is what makes a seat playable, so
+  // it is the last thing relaxed.
+  const seatCount = Math.max(1, humanSeats || 1);
   const world = {
     kind: "hex",
     tileNoun: spec.tileNoun.singular,
     continent: cont.id,
     continentName: cont.name,
     home: null,
+    homes: [],
     places: {},
   };
 
@@ -180,11 +194,58 @@ export function generateMap(seed, spec, continentId) {
     ? candidates[Math.floor(sRng() * candidates.length)]
     : landIds[0];
 
-  // ---- Translate so the start sits at the origin -------------------------
+  // ---- The OTHER human seats (M0) ----------------------------------------
+  // Every additional human gets a seat drawn from the SAME guaranteed pool --
+  // timber adjacent, hills in reach, room for a trio -- and standing at least
+  // HUMAN_SEAT_DISTANCE from every seat already placed. The distance relaxes
+  // before the guarantee does: a close seat is a sharper game, a stranded one
+  // is a broken run.
+  //
+  // The first seat is drawn ABOVE, outside this loop and before any distance
+  // question, which is why a one-seat world draws exactly the dice it always
+  // drew: every recorded seed still reproduces its world, and only asking for
+  // a SECOND seat costs a second draw.
+  const startIds = [startId];
+  for (let n = 1; n < seatCount; n++) {
+    let pickedId = null;
+    for (let want = HUMAN_SEAT_DISTANCE; want >= HUMAN_SEAT_DISTANCE_MIN && !pickedId; want--) {
+      const far = candidates.filter((id) => {
+        if (startIds.includes(id)) return false;
+        const p = world.places[id];
+        return startIds.every((s) => hexDist(p, world.places[s].q, world.places[s].r) >= want);
+      });
+      if (far.length) pickedId = far[Math.floor(sRng() * far.length)];
+    }
+    // A frame too crowded for the threshold takes the farthest seat it has --
+    // the guarantee held, the spacing did what it could.
+    if (!pickedId) {
+      let best = null, bestD = -1;
+      for (const id of candidates) {
+        if (startIds.includes(id)) continue;
+        const p = world.places[id];
+        let d = Infinity;
+        for (const s of startIds) d = Math.min(d, hexDist(p, world.places[s].q, world.places[s].r));
+        if (d > bestD) { bestD = d; best = id; }
+      }
+      pickedId = best;
+    }
+    if (!pickedId) break;             // nowhere left: fewer seats, never a bad one
+    startIds.push(pickedId);
+  }
+
+  // ---- Translate so the FIRST seat sits at the origin ---------------------
   // Everything downstream (the owner map, adminDistance, the camera) already
   // assumes home is "0,0"; moving the FRAME is cheaper than teaching them all
-  // that home moved.
+  // that home moved. With several human seats only ONE of them can be the
+  // origin -- seat 0 is it, and `world.homes` carries them all.
   const origin = world.places[startId];
+  // Read the human seats' coordinates while the OLD table is still the live
+  // one, then re-key them after the shift: seat 0 lands on the origin by
+  // construction, and the rest travel with the frame.
+  const homeCoords = startIds.map((id) => {
+    const p = world.places[id];
+    return [p.q - origin.q, p.r - origin.r];
+  });
   const shifted = {};
   const shiftOrder = [];
   for (const [q, r] of localOrder) {
@@ -196,6 +257,11 @@ export function generateMap(seed, spec, continentId) {
   }
   world.places = shifted;
   world.home = pid(0, 0);
+  // EVERY human seat, in seat order, translated with the frame. `home` is
+  // homes[0] and stays the origin, so every existing read keeps working; a
+  // second human is homes[1], and it is an ordinary hex of the board that
+  // happens to carry a guarantee.
+  world.homes = homeCoords.map(([q, r]) => pid(q, r));
   linkNeighbours(world, shiftOrder);
 
   const order = shiftOrder.filter(([q, r]) => !world.places[pid(q, r)].ocean);
@@ -215,11 +281,17 @@ export function generateMap(seed, spec, continentId) {
     for (const onHomeGround of want ? [true, false] : [false]) {
       for (let minPair = 4; minPair >= 1 && !cands.length; minPair--) {
         for (let minHome = 3; minHome >= 1 && !cands.length; minHome--) {
+          // OFF EVERY HUMAN'S DOORSTEP (M0), not merely the origin's: with a
+          // second human seat on the board, "away from home" is a question
+          // with two answers and a rival must satisfy both.
           cands = order
             .map(([q, r]) => world.places[pid(q, r)])
-            .filter((p) => p.terrain !== "water" && !p.adversary && p.id !== world.home)
+            .filter((p) => p.terrain !== "water" && !p.adversary && !world.homes.includes(p.id))
             .filter((p) => !onHomeGround || p.terrain === want)
-            .filter((p) => hexDist(p, 0, 0) >= minHome)
+            .filter((p) => world.homes.every((h) => {
+              const hp = world.places[h];
+              return hexDist(p, hp.q, hp.r) >= minHome;
+            }))
             .filter((p) => placed.every((s) => hexDist(p, s.q, s.r) >= minPair));
         }
       }
@@ -252,7 +324,12 @@ export function generateMap(seed, spec, continentId) {
       if (seated >= pool.length) break;          // never seat a nameless people
       const p = world.places[pid(q, r)];
       if (p.terrain === "water" || p.adversary || p.minor) continue;
-      if (p.id === world.home || hexDist(p, 0, 0) < 2) continue;
+      // No steading on anyone's doorstep -- every human seat's, not just the
+      // origin's (M0).
+      if (world.homes.some((h) => {
+        const hp = world.places[h];
+        return p.id === h || hexDist(p, hp.q, hp.r) < 2;
+      })) continue;
       // Two steadings never share a border: they read as one settlement.
       if (p.adj.some((n) => world.places[n] && world.places[n].minor)) continue;
       if (hash01(seed + ":minor:" + p.id) >= mn.density) continue;

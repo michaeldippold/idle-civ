@@ -216,7 +216,12 @@ export function tickRaiders() {
       // sighted ground, your own territory's eyes, or an army of yours beside
       // it -- the Chronicle says so, once. This is the payoff of raids taking
       // time to arrive, and the thing scouting will buy more of.
-      if (!army.sightedByMe && canSeeArmyAt(army.at)) {
+      // AN ARMY AT HOME IS SCENERY; AN ARMY OFF ITS OWN GROUND IS NEWS (owner
+      // playtest, 2026-08-26: the seat garrison was being announced as an
+      // ominous sighting, and the real raider was announced while still
+      // walking its own ring). The disc still draws either way -- you can SEE
+      // their home guard -- but the Chronicle's alarm waits for the border.
+      if (!army.sightedByMe && !isOwned(army.at, civ.id) && canSeeArmyAt(army.at)) {
         army.sightedByMe = true;
         const named = nameGate(civ);
         const band = armyBand(armySize(army)).name;

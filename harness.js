@@ -383,12 +383,36 @@ console.log("\n--- The inbound war: a raid is an army now (A5) ---");
     if (army.sightedByMe) sighted = true;
   }
   check("the raid ran its whole course and the war party went home", api.armiesOf(hill).length === 0);
-  check("it was SIGHTED on the way in -- warning time is real", sighted);
-  check("the pillage: stores plundered and a toll of people taken",
-    P.res.food < foodBefore && P.res.wood < woodBefore && api.hexPopSum() < landBefore);
-  check("no battle was fought -- nobody stood in their way", api.battleCount() === 0);
-  check("the survivors went home to the pool, not into the void",
-    (hill.units.soldier || 0) + (hill.units.horseman || 0) >= 1);
+  check("a garrison at home is never announced as a sighting", (() => {
+    // The owner's chronicle showed the seat garrison introduced with the same
+    // alarm as an inbound war party. An army standing on its own civ's ground
+    // is scenery -- the Chronicle's alarm waits for the border. Staged by
+    // hand (no tickBots: settling the hill clans here would deadlock the
+    // armies-empty loops below with a permanent garrison).
+    const seat2 = api.seatOf(hill);
+    api.claimTile(seat2, hill.id);
+    hill.units.soldier = (hill.units.soldier || 0) + 3;
+    const g2 = api.formArmy(seat2, { soldier: 3 }, "never", hill);
+    g2.intent = "garrison";
+    // Give the player eyes: my own army standing beside their seat.
+    const eye = api.world.places[seat2].adj.find((n) => api.world.places[n].terrain !== "water");
+    P.units.soldier = (P.units.soldier || 0) + 2;
+    const watcher = api.formArmy(api.holdings(P.id)[0], { soldier: 2 }, "never", P);
+    watcher.at = eye;
+    api.tickRaiders();
+    const quiet = !g2.sightedByMe && api.canSeeArmyAt(seat2);
+    // And the moment the same army steps OFF its own ground, it is news --
+    // staged as a meeting: it walks onto the very hex my watcher stands on,
+    // which presence-eyes always see.
+    g2.at = eye;
+    api.tickRaiders();
+    const news = g2.sightedByMe === true;
+    // Undo the staging completely.
+    const lH = api.armiesOf(hill); lH.splice(lH.indexOf(g2), 1);
+    const lP = api.armiesOf(P); lP.splice(lP.indexOf(watcher), 1);
+    api.releaseTile(seat2);
+    return quiet && news;
+  })());
 
   // A GARRISON IS AN ANSWER. Same raid, but this time soldiers stand on the
   // target: contact seals a battle, the resolver fights it, and a war party

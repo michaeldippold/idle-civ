@@ -186,7 +186,7 @@ function jitterScale(id, tag) {
   return 0.9 + 0.2 * hash01(id + ":s" + tag); // ±10%
 }
 
-export function buildProps(places, elev, homeId, isRevealedFn, builtOn, playerRing) {
+export function buildProps(places, elev, homeId, isRevealedFn, builtOn, playerRing, era) {
   const group = new THREE.Group();
 
   const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6b4a33, roughness: 0.95 });
@@ -231,25 +231,26 @@ export function buildProps(places, elev, homeId, isRevealedFn, builtOn, playerRi
   // garrison in it.
   // Orientation comes from corner(), the parent hex's own corner function,
   // which is the hexagonal-model law (map.md 3) satisfied by construction.
-  const fortMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.9, flatShading: true });
-  const wall = new Part(hexWallGeometry(HUB_CAP, HUB_CAP - HUB_WALL, 0.29), fortMat);
   // ---- HUB AND SPOKE (owner's model, 2026-08-28; design.md -> The
   // Fortification Family). The hex draws edge-midpoint -> hub for every
   // fortified neighbour; the hub model covers the rest, usually by letting
-  // the spoke run through its solid interior. TWO MATERIALS, split by ERA
-  // (owner ruling, same day): the Bronze fortifications -- palisade and
-  // watchtower, both wood-cost -- wall in TIMBER; the Iron march-hold walls
-  // in STONE. "Brown/grey becomes an era thing rather than a mixed-same-era
-  // thing": a bronze wall line reads as one timber work, and the seam where
-  // it meets a stone keep marks a real generation gap, not a texture
-  // accident. Spokes are unit boxes scaled per instance (Part.add takes
-  // {x,y,z}); the stub prism is the palisade's whole model, and with no
-  // fortified neighbours it stands alone as the hub waiting to be connected
-  // -- every wall line shows one at each end.
-  const timberMat = new THREE.MeshStandardMaterial({ color: 0x8f6f4a, roughness: 0.95, flatShading: true });
-  const stoneSpoke = new Part(new THREE.BoxGeometry(1, 0.29, SPOKE_WIDTH), fortMat);
-  const timberSpoke = new Part(new THREE.BoxGeometry(1, 0.29, SPOKE_WIDTH), timberMat);
-  const stub = new Part(hexPrismGeometry(0.16, 0.29), timberMat);
+  // the spoke run through its solid interior. ONE WALL MATERIAL PER ERA
+  // (owner, corrected same day -- a first cut split by building and mixed
+  // brown against grey inside one age): timber through Stone and Bronze,
+  // stone from Iron on. The real model is GENERATIONAL -- wood walls and
+  // stone walls will one day be separate buildings, upgraded or torn down
+  // and rebuilt -- and until that mechanic exists, "unless we do tear down
+  // and rebuild, there shouldn't be mixed in the same era." Spokes are unit
+  // boxes scaled per instance (Part.add takes {x,y,z}); the stub prism is
+  // the palisade's whole model, and with no fortified neighbours it stands
+  // alone as the hub waiting to be connected -- every wall line shows one
+  // at each end.
+  const fortWallMat = (era === "stone" || era === "bronze")
+    ? new THREE.MeshStandardMaterial({ color: 0x8f6f4a, roughness: 0.95, flatShading: true })
+    : new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.9, flatShading: true });
+  const wall = new Part(hexWallGeometry(HUB_CAP, HUB_CAP - HUB_WALL, 0.29), fortWallMat);
+  const spoke = new Part(new THREE.BoxGeometry(1, 0.29, SPOKE_WIDTH), fortWallMat);
+  const stub = new Part(hexPrismGeometry(0.16, 0.29), fortWallMat);
   // THE DEBT CUBE (owner ruling, 2026-08-28): "I insist every building have
   // a model, and if they do not currently have one they get a big player
   // color cube. Big enough to say 'you owe me a real model here' but not
@@ -318,10 +319,26 @@ export function buildProps(places, elev, homeId, isRevealedFn, builtOn, playerRi
           const w = axialToWorld(n.q - p.q, n.r - p.r);
           const dl = Math.hypot(w.x, w.z) || 1;
           const ux = w.x / dl, uz = w.z / dl;
-          const len = (HEX_SIZE * Math.sqrt(3)) / 2 - stop;
-          const sp = structure === "marchHold" ? stoneSpoke : timberSpoke;
-          sp.add(cx + ux * (stop + len / 2), y + 0.145, cz + uz * (stop + len / 2),
-            Math.atan2(-uz, ux), { x: len, y: 1, z: 1 }, null, id);
+          let len = (HEX_SIZE * Math.sqrt(3)) / 2 - stop;
+          // THE CLIFF OVERHANG (owner's side-slice, 2026-08-28): when this
+          // hex stands HIGHER than its fortified neighbour, its spoke does
+          // not cut off at the edge -- it reaches a little past the cliff
+          // plane and stretches DOWN by the height difference, so the wall
+          // reads as descending the cliff face onto the lower wall's top
+          // rather than stopping dead in the air. Top edge stays put; only
+          // the underside drops (the buried part inside our own slab is
+          // invisible -- hexes are solid). The lower hex draws its half
+          // unchanged and the overhang lands on it.
+          const drop = Math.max(0, y - (elev[nid] != null ? elev[nid] : y));
+          let sy = 1, cy = y + 0.145;
+          if (drop > 1e-6) {
+            len += 0.09;
+            const hgt = 0.29 + drop;
+            sy = hgt / 0.29;
+            cy = y + 0.29 - hgt / 2;
+          }
+          spoke.add(cx + ux * (stop + len / 2), cy, cz + uz * (stop + len / 2),
+            Math.atan2(-uz, ux), { x: len, y: sy, z: 1 }, null, id);
         }
       }
       if (structure === "marchHold") {
@@ -403,7 +420,7 @@ export function buildProps(places, elev, homeId, isRevealedFn, builtOn, playerRi
     }
   }
 
-  for (const part of [trunk, canopy, rock, bale, wall, cube, stoneSpoke, timberSpoke, stub, hutWall, hutRoof, tower, towerRoof]) {
+  for (const part of [trunk, canopy, rock, bale, wall, cube, spoke, stub, hutWall, hutRoof, tower, towerRoof]) {
     group.add(part.build());
   }
   return group;

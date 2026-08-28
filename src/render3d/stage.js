@@ -322,7 +322,7 @@ function applyWorld(list, opts) {
   elev = built.elev;
   worldGroup.add(built.landMesh, built.wetMesh, built.ringMesh);
   worldGroup.add(buildProps(list, elev, o.homeId, isCharted, hooks.builtOn,
-    (hooks.palette || {}).ring));
+    (hooks.palette || {}).ring, o.era));
   scene.add(worldGroup);
 
   // The camera frames what the player KNOWS, not the whole board -- so Stone

@@ -2256,6 +2256,31 @@ exactly what the docs pass was for — and the third is proof the sweep was wort
 
 ---
 
+## The map frame editor — wished for 2026-08-28, not built; ~an hour when wanted
+
+**The ask (owner, end of the fortification night):** *"I would like to make more hexes land on
+each fixed rectangular map. And instead of having you do this... a map frame editor? A new map
+could load the whole rectangular map as just a grey frame and I could click on hexes to designate
+them as 'put land here' and anything else gets ocean."*
+
+**Why it is small:** a continent is already ASCII art — `continents.js` frames are rows of `#`
+(land) and `~` (ocean) in odd-r offset, parsed by `parseFrame(rows)`. The editor is a TEXT-ART
+PAINTER, not a map tool: draw the W×H grid as flat SVG (`map/model.js` → `toPixel` is the pointy-
+top math, already written), click to toggle, drag to paint, and the entire output is the
+`rows: [...]` block in a textarea to paste back into `continents.js`. Load any existing continent
+as a starting point. Standalone dev page, no sim involvement, ~200 lines.
+
+**Two data-shaped gotchas the tool must surface:**
+1. **The generator has guarantees to feed** — seat placement (human + adversaries + minors, the
+   seat-floor guarantee) needs enough usable land. Show a live land-hex count; a starved frame
+   fails placement or degrades starts.
+2. **Editing an EXISTING continent's rows reshapes every save that used it** — geometry
+   regenerates from the seed at load, so a mid-run save wakes up on different ground. New frames
+   get new ids; edits to shipped frames are save-breaking and must be done knowingly.
+
+(The immediate want — MORE LAND per fixed rectangle — is then the owner's own five minutes in the
+tool, which is the whole point of building it.)
+
 ## Known rough edges
 
 - [ ] **Armies walk on the ocean** *(owner, 2026-08-28, from the night's last screenshot — a march

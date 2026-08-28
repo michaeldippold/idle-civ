@@ -493,6 +493,34 @@ several tempting ideas later, and it should.
      own surface is ALSO pale in those eras, so the inverted plate lands white-on-white and only
      the letter-spacing saves it. Whatever the redesign does, buttons must contrast against the
      PANEL they sit on, not against the era's chrome.
+   **THE FIRST-PASS LAYOUT (owner's sketch, 2026-08-26) — a nav rail and three full-height
+   panels.** Deliberately not a whole redesign; a re-parenting that gives every surface the room
+   it now needs:
+   - **Left: a vertical icon rail** hugging the ledger, with ONE panel beside it showing whatever
+     the rail last selected — full height, the whole left column. Three icons:
+     1. **Population** — today's People roster and Training cards merged into one panel.
+     2. **Tech Tree** — for now literally the Upgrades panel interior, unchanged. (The name is the
+        point: this is the seat the real tree will grow into.)
+     3. **Inspector** — the selected-hex / selected-army panel (today's cramped `#panel-tile`).
+   - **Right: the Chronicle, full height.** Well-timed — it is a notification feed now, not
+     flavour prose.
+   - **Bottom: the build queue, permanently docked** (today it floats center-bottom). It will not
+     collide with the battle panel, which mounts center-top.
+   - **THE LOAD-BEARING RULE: clicking the board auto-switches the rail to Inspector.** Otherwise
+     you click a hex while Tech is up and nothing visibly happens — the map silently stops
+     answering its primary interaction. Same for clicking a disc. Inspector's close should return
+     to the previously-open panel, so dismissing a hex never dumps you on a blank surface.
+   - **Suggested: clicking the active icon collapses to the bare rail**, giving the whole left
+     column back to the map — three full-height panels squeeze the board, and you want to watch a
+     march or a siege.
+   - **Keep the verbs split**: *training a soldier* (Archer/Horseman cards) belongs in Population;
+     **Raise an army** is hex-contextual and stays in Inspector, where the hex is. Population
+     produces soldiers; Inspector commits them to a formation on specific ground. That split is
+     what stops "raise" from needing a hex-picker of its own.
+   - Structure favours it: every panel is already an independent `<section class="block
+     float-panel">` with its own id, so this is re-parenting + a rail + show/hide, plus retiring
+     the `#panel-tile { max-height: 40% }` and column-percentage rules in styles.css.
+
    - Worth folding into the same pass: the panel is where the wide-modal idea was always headed
      (the tech tree wants that shape too), and the battle panel's own design polish is queued
      right beside it — one interface session could take both, since they share the army-roster

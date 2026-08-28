@@ -1,5 +1,5 @@
 import { DEF_INDEX, active } from "../content/compile.js";
-import { builtCount, growthSpendRate, hexPopSum, hexYield, holdCount, holdings, upkeepMouths, world } from "../map/map.js";
+import { builtCount, growthSpendOf, hexPopSum, hexYield, holdCount, holdings, upkeepMouths, world } from "../map/map.js";
 import { CONFIG, TICK_SECONDS } from "./config.js";
 import { S, me } from "./state.js";
 import { freeUnits } from "../sim/armies.js";
@@ -243,7 +243,7 @@ export function ledgerRates(p) {
   // "+0.22/s" over a falling stock (owner, 2026-08-25). The engine's own
   // rates().foodNet stays growth-free on purpose: step() applies growth
   // separately, and folding it in would spend the food twice.
-  r.foodNet = r.food - r.upkeep - growthSpendRate;
+  r.foodNet = r.food - r.upkeep - growthSpendOf(p);
   return r;
 }
 

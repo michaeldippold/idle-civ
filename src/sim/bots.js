@@ -5,7 +5,7 @@ import { S, me, rivals } from "../core/state.js";
 import { chronicle } from "../core/bus.js";
 import { initAdversaries } from "../core/persist.js";
 import { armiesOf, armyAt, formArmy, freeUnits } from "./armies.js";
-import { claimTile, holdings, ownerOf, world } from "../map/map.js";
+import { claimTile, ensurePop, fillStartingGround, holdings, ownerOf, world } from "../map/map.js";
 
 // ---------- BOTS: a neighbour becomes a country -----------------------------
 // Until this module, a rival was a spawn point with a name: a seat marker on
@@ -116,6 +116,16 @@ function settle(civ) {
       if (claimable(n, civ)) { claimTile(n, civ.id); taken++; }
     }
   }
+  // THE COUNTRY HAS PEOPLE (S2, the per-player economy). A bot's home ground
+  // arrives WORKED TO CAPACITY, the same opening rule the human trio follows
+  // ("the starting trio arrives full") -- their income starts real rather
+  // than trickling up from a settling party. Once, lazily, and flagged on the
+  // record so a loaded save from before the books heals itself here too.
+  if (!civ.booksSeeded && ownerOf(seat) === civ.id) {
+    ensurePop(civ.id);
+    fillStartingGround(civ);
+    civ.booksSeeded = true;
+  }
   // THE GARRISON. A capital with nobody home is an invitation, so the seat
   // keeps a standing army -- fight-to-the-last, because it is the capital.
   // If it dies in a war, a new one musters after a decent interval: a people
@@ -162,6 +172,9 @@ function expand(civ, dt) {
   if (!frontier.length) { civ.claimT = 0; return; }
   civ.claimT -= CONFIG.botClaimSeconds;
   claimTile(frontier[Math.floor(rng() * frontier.length)], civ.id);
+  // The new ground enters the books at 2 -- a settling party that grows into
+  // the place, exactly the human's claim arithmetic (S2).
+  ensurePop(civ.id);
 }
 
 // ---- Rebirth: a people rises again (owner ruling, 2026-08-26) --------------
@@ -218,7 +231,15 @@ function tickRebirth(civ, dt) {
   civ.rebirthT = 0;
   civ.rebirthIn = null;
   civ.seenEra = null;
-  initAdversaries();                          // restock NOW: the newborn larder is era-baseline
+  civ.booksSeeded = false;                    // the new ground seeds full at settle (S2)
+  // RESTOCK THE NEWBORN LARDER to its era's authored baseline. This is the
+  // one restock that survived S2 (income replaced the per-era one): a fairly
+  // reset people starts with a fresh start's stores, per the rebirth ruling.
+  {
+    const own = (active(civ).adversaries || []).find((a) => a.id === civ.key);
+    if (own) civ.res = Object.assign({}, own.stock);
+  }
+  initAdversaries();                          // reseat bookkeeping (walls, colours)
   civ.everGarrisoned = true;                  // the regarrison DELAY applies: born undefended
   civ.regarrisonT = 0;
   civ.claimT = 0;

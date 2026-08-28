@@ -433,6 +433,7 @@ function breakNation(victim, sacker, hexId) {
   victim.rebirthIn = victim.key == null ? null
     : Math.round(CONFIG.rebirthSeconds * (1 + (rng() * 2 - 1) * CONFIG.rebirthJitter));
   for (const id of holdings(victim.id)) releaseTile(id);
+  ensurePop(victim.id);   // the released ground's people go with it (S2 books)
   for (const a of armiesOf(victim).slice()) {
     const list = armiesOf(victim);
     list.splice(list.indexOf(a), 1);

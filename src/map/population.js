@@ -57,25 +57,27 @@ export function hexPopSum(pid) {
 }
 
 // Seed population for owned hexes that have none, prune entries for hexes no
-// longer owned. Idempotent, like everything else at this layer. The seat
-// starts at startPop (the three survivors); any other hex enters the books at
-// 2 -- the party that claimed it.
+// longer owned BY ANYONE. Idempotent, like everything else at this layer. The
+// seat starts at startPop (the three survivors); any other hex enters the
+// books at 2 -- the party that claimed it.
 //
-// KEYED CIVS HAVE NO POPULATION BOOKS YET: a bot's people arrive in S2 (the
-// per-player economy). Until then this is a no-op for them, so a caller can
-// honestly say ensurePop(atkP.id) for whoever just took ground and the guard
-// sorts out who actually keeps books.
+// EVERY CIV KEEPS BOOKS NOW (S2, the per-player economy): a bot's hexes carry
+// real people. The prune therefore asks the TILE, not the caller -- an entry
+// dies only when its ground belongs to nobody, which is also what makes
+// conquest inherit the standing population (Conquest Growth: you take a
+// neighbour, and the people are the prize).
 export function ensurePop(pid) {
   if (!S.map || !world) return;
   const who = pid == null ? me() : playerById(pid);
-  if (!who || who.key !== null) return;
   if (!S.map.pop) S.map.pop = {};
   // Ground taken LATER arrives as a settling party and grows into the place:
   // that dip is what makes a claim an investment rather than a free upgrade.
-  for (const id of holdings(who.id)) {
-    if (!(id in S.map.pop)) S.map.pop[id] = 2;
+  if (who) {
+    for (const id of holdings(who.id)) {
+      if (!(id in S.map.pop)) S.map.pop[id] = 2;
+    }
   }
-  for (const id in S.map.pop) if (!isOwned(id, who.id)) delete S.map.pop[id];
+  for (const id in S.map.pop) if (ownerOf(id) == null) delete S.map.pop[id];
 }
 
 // THE STARTING TRIO ARRIVES FULL (owner ruling, 2026-08-25). Your opening
@@ -103,16 +105,18 @@ export function fillStartingGround(p) {
 // Fractional population is stored; every reader floors for display. Growth
 // only -- this function never lowers a number (loss belongs to the world's
 // events, in later slices), so a hex above a shrunken cap simply holds.
-// What the larder spent on growth LAST TICK, per second -- display only.
-// Published by growPopulation so the ledger can show the TRUE food line
-// (owner bug report, 2026-08-25 late: "+0.22/s" printed while the stock fell,
-// because growth's spending was invisible to the rate). One source of truth:
-// this is measured from the actual deduction, never re-derived.
-export let growthSpendRate = 0;
+// What each civ's larder spent on growth LAST TICK, per second -- display
+// only, keyed by pid since the economy went per-player (S2). Published by
+// growPopulation so the ledger can show the TRUE food line (owner bug report,
+// 2026-08-25 late: "+0.22/s" printed while the stock fell). One source of
+// truth: measured from the actual deduction, never re-derived. Deliberately
+// NOT in the save -- it is a display rate, rebuilt within one tick.
+const growthSpend = {};
+export function growthSpendOf(p) { return growthSpend[(p || me()).id] || 0; }
 
 export function growPopulation(dt, p) {
   const who = p || me();
-  growthSpendRate = 0;
+  growthSpend[who.id] = 0;
   if (!S.map || !S.map.pop || !world) return;
   // No one is born during a famine: growth waits for the larder.
   if (who.res.food <= 0) return;
@@ -138,7 +142,7 @@ export function growPopulation(dt, p) {
     if (gain > budget) gain = budget;             // grow only what you can feed
     budget -= gain;
     who.res.food -= gain * perHead;
-    growthSpendRate += (gain * perHead) / dt;
+    growthSpend[who.id] += (gain * perHead) / dt;
     const next = p + gain;
     // The logistic APPROACHES its cap and never attains it; snap the last
     // hundredth so a full hex eventually reads "8 of 8" instead of hovering
@@ -292,18 +296,26 @@ export function loseHexIfEmpty(id) {
 // it kills one person at the peopled hex FURTHEST from the seat -- the empire
 // starves from its frontier inward, and dies only when the seat itself empties.
 // An emptied holding is LOST, not ghosted (see loseHexIfEmpty above).
-let famineAnnounced = false;
+// Famine is per-civ now (S2): each civ carries its own unpaid-upkeep
+// accumulator in S.map.starve (an object keyed by pid -- old saves carried a
+// single number, healed below) and its own announcement latch.
+const famineAnnounced = {};
+function starveBook() {
+  if (!S.map.starve || typeof S.map.starve !== "object") S.map.starve = {};
+  return S.map.starve;
+}
 export function starveTick(deficit, dt, p) {
   const who = p || me();
   if (!S.map || !S.map.pop || !world) return false;
-  S.map.starve = (S.map.starve || 0) + deficit * dt;
-  if (!famineAnnounced) {
-    famineAnnounced = true;
+  const book = starveBook();
+  book[who.id] = (book[who.id] || 0) + deficit * dt;
+  if (!famineAnnounced[who.id]) {
+    famineAnnounced[who.id] = true;
     chronicle("Famine. The stores are empty, and the frontier feels it first.", "bad", who.id);
   }
   const seat = who.seat || world.home;
-  while (S.map.starve >= CONFIG.starveCost) {
-    S.map.starve -= CONFIG.starveCost;
+  while (book[who.id] >= CONFIG.starveCost) {
+    book[who.id] -= CONFIG.starveCost;
     // The victim: the peopled hex with the greatest administrative distance,
     // ties broken by id so the order is deterministic.
     let victim = null, worst = -1;
@@ -325,4 +337,8 @@ export function starveTick(deficit, dt, p) {
 }
 
 // Famine ends the moment the books balance again; the next one announces anew.
-export function endFamine() { famineAnnounced = false; if (S.map) S.map.starve = 0; }
+export function endFamine(p) {
+  const who = p || me();
+  famineAnnounced[who.id] = false;
+  if (S.map) delete starveBook()[who.id];
+}

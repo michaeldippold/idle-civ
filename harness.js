@@ -1166,8 +1166,8 @@ reset(); api.ensureMap();
   for (const id of api.holdings()) S().map.pop[id] = 3;
   api.syncPopMirror();
   api.me().res.food = 100;
-  api.step();                              // prime growthSpendRate from a real tick
-  check("growth visibly spends the larder", api.growthSpendRate > 0);
+  api.step();                              // prime the growth-spend gauge from a real tick
+  check("growth visibly spends the larder", api.growthSpendOf(api.me()) > 0);
   const predicted = api.ledgerRates().foodNet;
   const before = api.me().res.food;
   api.step();
@@ -2154,25 +2154,35 @@ console.log("\n--- C2: larders refill per age, grudges do not ---");
   check("...and a breached wall stays breached",
     river().walls === 0 && steading().walls === 0);
 
+  // THE LARDER RESTOCK RETIRED (S2, the antagonist spec): an age turning no
+  // longer refills a plundered larder -- their own territory's INCOME earns
+  // it back, so what you burned stays burned until their ground pays for it.
+  // Minors are not players and keep their per-age reconcile; walls are not
+  // economy and still rebuild taller.
   api.me().era = "bronze";
   advanceRivalsTo(api.me().era);
   api.initAdversaries(); api.ensureMap();
-  check("an age turns and the larder refills, larger than it was",
-    river().res.food > stoneFood && steading().stock.food > 0);
-  check("...and the walls come back taller than they were",
-    river().walls > 0 && steading().walls >= 0);
+  check("an age turns and the larder does NOT refill -- income replaced the restock",
+    river().res.food === 1 && stoneFood >= 0);
+  check("...while a minor steading still reconciles per age", steading().stock.food > 0);
+  check("...and the walls still come back taller", river().walls > 0);
   check("but the grudge outlives the granary -- standing is never re-seeded",
     river().standing === -4);
 
   api.me().era = "iron";
   advanceRivalsTo(api.me().era);
   api.initAdversaries(); api.ensureMap();
-  check("a people that survives to Iron is richer again, and remembers still",
-    Object.values(river().res).reduce((a, b) => a + b, 0) > 400 &&
-    river().walls === 26 && river().standing === -4);
-  // Gold is the one that broke: seeding-once left every Iron major with a
-  // stone-age larder, so caravans read "traded dry" the instant they launched.
-  check("and has the gold that makes trade possible at all",
+  check("a people that survives to Iron rebuilds its walls, remembers its grudge, and keeps its plundered larder",
+    river().walls === 26 && river().standing === -4 && river().res.food === 1);
+  // Income is what refills a larder now. Let the world turn: their ground
+  // earns food, and the treasury regenerates toward its authored baseline
+  // (the bounded stand-in for their market until the brain trades), so a
+  // caravan partner can never be traded dry FOREVER.
+  river().res.gold = 0;
+  run(90);
+  check("their territory EARNS: the plundered larder grows back from income, not from a birthday",
+    river().res.food > 1);
+  check("and the treasury regenerates toward its authored baseline, so trade recovers",
     (river().res.gold || 0) > 0);
 }
 
@@ -5026,10 +5036,10 @@ console.log("\n--- Neighbours are civilizations, not a side table ---");
     api.initAdversaries();
     return clans.res.food === 3;
   })());
-  check("...their own advance does", (() => {
+  check("...and neither does their own -- income replaced the restock (S2)", (() => {
     advanceRivalsTo(api.me().era);
     api.initAdversaries();
-    return api.playerByKey("hillClans").res.food > 3 &&
+    return api.playerByKey("hillClans").res.food === 3 &&
       api.playerByKey("hillClans").era === "iron";
   })());
   check("a grudge outlives the granary -- standing is never re-seeded", (() => {
@@ -6545,11 +6555,14 @@ console.log("\n--- S1: the viewer ratchet, and a second human-shaped seat ---");
     "src/map/map.js":         { sme: 1, me: 6 },
     "src/map/model.js":       { sme: 0, me: 0 },
     "src/map/ownership.js":   { sme: 4, me: 0 },
-    "src/map/population.js":  { sme: 0, me: 10 },
+    "src/map/population.js":  { sme: 0, me: 12 },
     "src/map/routes.js":      { sme: 0, me: 3 },
     "src/map/structures.js":  { sme: 0, me: 0 },
     "src/map/world.js":       { sme: 0, me: 0 },
-    "src/core/step.js":       { sme: 0, me: 14 },
+    // S2 collapsed step.js's viewer reads from 14 to 1 (the per-player loop);
+    // the 2 S.me are the converter gate and the death gate, both flagged
+    // in-file as M2's business.
+    "src/core/step.js":       { sme: 2, me: 1 },
     "src/core/actions.js":    { sme: 0, me: 22 },
     "src/core/derived.js":    { sme: 0, me: 21 },
   };
@@ -6571,7 +6584,7 @@ console.log("\n--- S1: the viewer ratchet, and a second human-shaped seat ---");
   // record (a human is a player whose decision-maker is a mouse; this one's is
   // a harness) claims ground, spends its own stores through the real verbs,
   // and the journal records ITS pid. The viewer's books never move.
-  reset(); api.ensureMap();
+  reset(); api.initAdversaries(); api.ensureMap();
   const guest = api.freshPlayer(api.S.players.length, { color: "teal", seatName: "Guestholm" });
   api.S.players.push(guest);
   const freeHex = Object.values(api.world.places).find((p) =>
@@ -6602,14 +6615,42 @@ console.log("\n--- S1: the viewer ratchet, and a second human-shaped seat ---");
       api.journal().some((e) => e.verb === "settle" && e.pid === guest.id));
   }
 
-  // THE HONEST BOUNDARY, pinned so S2 must consciously flip it: the world
-  // tick still runs ONE economy. The guest's queue does not tick, its hexes
-  // do not gather, its people do not grow -- that is S2's whole job, and the
-  // day it lands this check inverts.
+  // THE BOUNDARY, FLIPPED (S2 landed): the world tick runs EVERY living
+  // civ's economy. The guest's queue ticks, its ground gathers into its own
+  // stores, and its people grow -- the second seat is economically real.
   const guestRemaining = guest.buildQueue[0].remaining;
+  const guestFood = guest.res.food;
   run(10);
-  check("S2 BOUNDARY (flip me when the economy goes per-player): the guest's queue does not tick yet",
-    guest.buildQueue[0].remaining === guestRemaining);
+  check("S2: the guest's queue ticks on the world clock",
+    guest.buildQueue.length === 0 || guest.buildQueue[0].remaining < guestRemaining);
+  check("S2: the guest's ground gathers into the guest's own stores",
+    guest.res.food !== guestFood);
+
+  // AND THE BOTS ARE ECONOMICALLY REAL: their home ground arrived worked to
+  // capacity (the human trio's own opening rule), their hexes produce into
+  // their own larder, and losing ground measurably slows the earning.
+  const clans = api.playerByKey("hillClans");
+  check("S2: a bot's country has people on its ground",
+    api.hexPopSum(clans.id) > 0 && clans.booksSeeded === true);
+  const earnBefore = api.rates(clans);
+  const totalBefore = Object.keys(earnBefore).filter((k) => k !== "upkeep" && k !== "foodNet")
+    .reduce((s, k) => s + earnBefore[k], 0);
+  check("S2: a bot's territory produces into its own books", totalBefore > 0);
+  {
+    // Sack the arithmetic: take one producing hex off their ledger and the
+    // income drops -- economic warfare is bidirectional now.
+    const lost = api.holdings(clans.id).find((id) => id !== api.seatOf(clans) && api.hexPop(id) > 0);
+    if (lost) {
+      const popHere = api.S.map.pop[lost];
+      api.releaseTile(lost);
+      api.ensurePop(clans.id);
+      const earnAfter = api.rates(clans);
+      const totalAfter = Object.keys(earnAfter).filter((k) => k !== "upkeep" && k !== "foodNet")
+        .reduce((s, k) => s + earnAfter[k], 0);
+      check("S2: taking a bot's ground measurably slows its earning", totalAfter < totalBefore);
+      api.claimTile(lost, clans.id); api.S.map.pop[lost] = popHere;   // put it back
+    }
+  }
 }
 
 console.log(`\n${fails === 0 ? "ALL CHECKS PASSED" : fails + " CHECK(S) FAILED"}`);

@@ -179,13 +179,17 @@ export function initAdversaries() {
     }
     if (p.era !== p.seenEra) {
       // FROM THEIR OWN AGE, not the viewer's (fixed 2026-08-26, caught by the
-      // capital-siege check): `adv` above is the human manifest's def, so a
-      // bronze kingdom was restocking STONE walls -- exactly the defect the
-      // header comment says raidSender already fixed. Who they have become is
-      // what refills the larder and rebuilds the walls.
+      // capital-siege check): `adv` above is the human manifest's def. Who
+      // they have become is what rebuilds the walls.
+      //
+      // THE LARDER RESTOCK IS RETIRED (S2, the antagonist spec): a civ's
+      // stores come from its own territory's income now, so surviving to a
+      // birthday no longer refills a plundered larder -- what you burned
+      // stays burned until their ground earns it back. Walls are not economy
+      // and still rebuild taller across an age. (Rebirth keeps its one
+      // baseline restock, in sim/bots.js, per the fairly-reset ruling.)
       const own = (active(p).adversaries || []).find((a) => a.id === adv.id) || adv;
-      p.res = Object.assign({}, own.stock);   // a new age, a full larder
-      p.walls = own.walls || 0;               // and the walls rebuilt taller
+      p.walls = own.walls || 0;               // a new age, the walls rebuilt taller
     }
     // `seenEra` is the age this record was last stocked for. Kept beside the
     // era rather than compared against it directly, so that ADVANCING is what

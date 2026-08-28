@@ -198,6 +198,18 @@ export const CONFIG = {
   // stays player-side until deliberately flipped on.
   botWarChance: 0.3,        // chance a flush muster escalates the trigger to war
   botWarMinFree: 8,         // how many free units "flush" means
+  // THE FAMINE SAFETY VALVE (S2, the antagonist spec): keyed civs run the
+  // real per-player economy but are exempt from the famine drain while this
+  // holds -- a bot brain that starves its own people to death is a bug
+  // generator until the BUILD card's food self-care rules exist. Retired the
+  // session the cards prove they keep a realm fed (open question 6).
+  botFamineExempt: true,
+  // A keyed civ's gold regenerates toward its era's authored baseline (S2):
+  // no terrain yields gold, so without this a plundered or traded-dry
+  // treasury would never recover and the caravan loop would starve. Bounded
+  // by the authored stock -- it tops up, it never compounds. Dies when the
+  // brain sells at its own markets.
+  botGoldRegen: 0.05,
   rebirthMinDistance: 5,    // a newborn nation seats at least this far from every holding:
                             // safe by GEOGRAPHY, not by rules -- no spawn to camp
   armyPerHex: 2,          // the army cap (E5): each held hex supports this many standing

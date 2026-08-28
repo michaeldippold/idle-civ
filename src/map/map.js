@@ -42,7 +42,7 @@ export {
   setHexBuild, structureCount, structureDef, terrainYield, workStamp,
 } from "./structures.js";
 export {
-  capOf, endFamine, ensurePop, fillStartingGround, growPopulation, growthSpendRate,
+  capOf, endFamine, ensurePop, fillStartingGround, growPopulation, growthSpendOf,
   hexPop, hexPopSum, killAt, loseHexIfEmpty, starveTick, strikeHex, syncPopMirror,
   upkeepMouths,
 } from "./population.js";

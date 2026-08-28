@@ -85,8 +85,11 @@ function economyTick(p, dt) {
   const r = rates(p);
 
   // Gather + eat. Food is a net line so upkeep can drive it negative -> death.
+  // The `|| 0` is load-bearing: a keyed civ's res was seeded from its authored
+  // stock, which only names the resources that people HAS -- accruing onto a
+  // missing key is NaN, found in the first live boot of S2.
   for (const res of active(p).resources) {
-    p.res[res.id] += (res.id === "food" ? r.foodNet : r[res.id]) * dt;
+    p.res[res.id] = (p.res[res.id] || 0) + (res.id === "food" ? r.foodNet : r[res.id]) * dt;
   }
 
   // Converters count structures off the viewer's board; bots build nothing

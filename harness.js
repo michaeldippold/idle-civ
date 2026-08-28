@@ -6700,6 +6700,11 @@ console.log("\n--- S3: the journal replays, bit for bit ---");
     tape.length === 5 && tape.every((e) => e.pid === 0));
   check("S3: seed + tick + journal replays the whole game BIT-IDENTICAL",
     JSON.stringify(S()) === want);
+  // EVERY LEDGER KEY STAYS A NUMBER. Found in the first live boot of S2:
+  // authored stocks name only what a people has, so accruing income onto a
+  // missing key (a stone people's `stone`) was NaN within a minute of play.
+  check("no civ's ledger holds a non-number after a lived-in world",
+    S().players.every((p) => Object.values(p.res).every((v) => Number.isFinite(v))));
 }
 
 console.log(`\n${fails === 0 ? "ALL CHECKS PASSED" : fails + " CHECK(S) FAILED"}`);

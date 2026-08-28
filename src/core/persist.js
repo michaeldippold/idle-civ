@@ -195,5 +195,11 @@ export function initAdversaries() {
     // era rather than compared against it directly, so that ADVANCING is what
     // triggers a restock rather than merely existing in an age.
     p.seenEra = p.era;
+    // EVERY LEDGER KEY IS A NUMBER (S2). Authored stocks name only what a
+    // people has, and a save written during the NaN window carries nulls --
+    // both heal here, at the one place adversary records are reconciled.
+    for (const r of active(p).resources) {
+      if (!Number.isFinite(p.res[r.id])) p.res[r.id] = 0;
+    }
   }
 }

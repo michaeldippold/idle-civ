@@ -527,10 +527,20 @@ several tempting ideas later, and it should.
        floated OVER it. Docked, the outer shadow has nothing to fall on — the inner edge facing
        the map still does real work. That is a small intentional move from "floating" toward
        "framing", and should read as a decision rather than a bug.
-   - **Open: Inspector's empty state.** `#panel-tile` hides today when nothing is selected, but an
-     always-open default panel needs something to say on first load — an empty line ("click a
-     holdfast or an army"), and probably an auto-selection of your seat at boot so the panel opens
-     on something real.
+   - **SELECTION IS STICKY — a focus, not a mode (ruled).** The game opens focused on your home
+     hex; after that you never have *nothing* selected, you only ever move the focus. *"There is
+     no gameplay benefit to unselecting, when next time you want to select something you just
+     redirect."* Consequences: the panel's × disappears, `selectTile(null)` loses its only caller,
+     and the "nothing selected" render path stops existing — the empty line ("click a holdfast or
+     an army") survives only as the pre-first-click state the home default already covers. The
+     board always carries a selection ring, which is a feature: you can always see where your
+     attention is parked.
+   - **When the focus DIES, fall back to the ground.** Hexes are permanent; armies are not. If a
+     selected army is destroyed (or disperses, or merges away), the focus should land on **the hex
+     it was standing on** — you were already looking at that place and something just happened
+     there. Falling back to the seat would yank the view across the map at exactly the moment the
+     player wants the aftermath. (`selectedArmyObj()` already detects the vanished case and nulls
+     out; it needs to hand off instead of clearing.)
    - **Keep the verbs split**: *training a soldier* (Archer/Horseman cards) belongs in Population;
      **Raise an army** is hex-contextual and stays in Inspector, where the hex is. Population
      produces soldiers; Inspector commits them to a formation on specific ground. That split is

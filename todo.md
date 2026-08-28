@@ -497,15 +497,25 @@ several tempting ideas later, and it should.
      the battle behind the walls held correctly). Fix = coordination, not art: ring out at ~0.82,
      outside the 0.5 piece sockets; consider the garrisoned disc stepping to the hex CENTRE when a
      fortification stands — reads as "inside the walls", echoes the review's garrison-merges-into-
-     structure ruling. *(Someday-note: the owner's "which of 3 angles?" instinct points at
-     PER-EDGE walls — a real design, but a mechanics change wearing a visuals costume; the pool
-     would need a facing, and contact would need to know which side an attacker arrived from.)*
+     structure ruling. **The real art direction (owner, corrected same day — the "3 angles" question was
+     about ART, not mechanics): EDGE-SEGMENT WALLS WITH CONTINUITY.** Wall pieces run along hex
+     edges and CONNECT at shared edges between adjacent friendly fortified hexes, so a line of
+     forts reads as one long wall and a cluster reads as a walled REGION — "a long line of hex
+     circles reads as a line of march-holds, not a wall." Mechanics stay omnidirectional per hex;
+     only the geometry is directional. Implementation is the territory-rim algorithm as 3D
+     geometry: draw wall segments on every edge whose neighbour is NOT a friendly fortified hex,
+     skip shared interior edges, and adjacent forts merge automatically into one continuous
+     perimeter around their union. A lone march-hold stays a keep; three in a line become a
+     frontier wall; a ring around the capital becomes a city wall — pure art-layer work.*
 
-   **GARRISON, THE TERM (ruled):** a garrison is a STATE, not an order — any army standing on
-   ground it defends. Standing is enough; no garrison verb exists or is needed. Proven live: the
-   owner marched an army onto his march-hold, left it, was attacked, and the walls held with the
-   garrison behind them. The bots' `intent: "garrison"` is only their do-not-wander flag, not a
-   different mechanic.
+   **GARRISON, THE TERM (ruled, corrected same day):** "garrison" applies ONLY to units behind
+   literal fortifications — walls, march-holds, towers. An army standing in a field is a **parked
+   army**, not a garrison ("garrison traditionally means defending fortifications, not standing in
+   a field" — owner). The word now tracks the actual rules boundary: garrisoned troops are the
+   ones the fortification mechanics apply to (silent melee, firing slots, the breach). Still a
+   STATE, never an order — standing on a fortified hex is enough. UI should follow suit: the army
+   panel says "Garrisoned" only behind walls. The bots' `intent: "garrison"` field wants renaming
+   to `"hold"` when next touched, since their seat may be an open camp.
 
    *Found in browser verification of A4, both open:*
    - ~~Armies do not emit sight~~ — **closed 2026-08-26, the day the owner watched his own disc

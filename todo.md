@@ -361,22 +361,28 @@ that 1.5 was 10% too much, after everything has been built against it.
 
 ---
 
-## THE BOT BRAIN — SPECCED 2026-08-28, NOT BUILT; the promoted "bots that WAGE WAR"
+## THE ANTAGONIST SPEC — SPECCED 2026-08-28, NOT BUILT; bots + the second human, one substrate
 
-**The spec is [`2026-08-28-bot-brain-spec.md`](2026-08-28-bot-brain-spec.md) — read it whole
-before touching bot code; it contains the audit, the architecture, and the build order.** The
-short of it: an audit found the bots are four clockwork loops and zero decisions — they cannot
-win, two of three never attack, their aggression is triggered by the HUMAN's population, and
-they neither produce nor build. Owner: *"a game you functionally cannot lose is super not
-fun."* The approved design is a board-game **Automa with a posture machine**, four layers, each
-shippable alone: **B1** an honest-enough ledger (income from territory by the player's own
-formula, units and structures PAID for — `botMint` dies), **B2** bots BUILD (mines, farms,
-fortifications on their ground — independently shippable and cures the buildings frustration),
-**B3** postures (build / fortify / press / war; disposition becomes a weight table, so
-"peaceful" is a high threshold, not a constant), **B4** war conduct (power-gated attacks that
-HOLD ground and continue, relief forces, reprisals with memory), **B5** the capital strike —
-the loss condition, on by default, telegraphed twice. Sequenced BEFORE the tech tree: a tree
-balanced against toothless bots is balanced against nothing.
+**The spec is [`2026-08-28-antagonist-spec.md`](2026-08-28-antagonist-spec.md) — read it whole
+before touching bot code OR multiplayer; it contains both audits, the merged architecture, and
+the build order.** It supersedes the bot-brain spec written earlier the same day (same file,
+see git history): the owner merged the two on the observation that *"the primary player needs
+antagonists, either run by a bot or by another player"* — and because the bot spec's proxy
+economy and multiplayer's need for the real one were about to fight. **The honest version won.**
+
+The shape: one substrate, two decision-makers. **Part I, the substrate** (shared): **S1** the
+`me()` sweep — ~77 call sites; the sim may never read `S.me`, harness-enforced; the fix is the
+military half's existing take-a-civ-parameter idiom, not a new global. **S2** the economy goes
+per-player — real hex pop for bots, `botMint` and the era restock die, everything is paid for.
+**S3** every decision-maker calls the same journaled verbs (the journal's own promise, finally
+consumed). **Part II, the brain**: a board-game Automa — postures (build / fortify / press /
+war; disposition is a weight table, so "peaceful" is a high threshold, not a constant),
+priority cards, power-gated wars that HOLD ground, relief, reprisals with memory, and the
+capital strike — the loss condition, on by default, telegraphed twice. **Part III, the
+socket**: the brother-test-game — host-authoritative snapshots over a tiny relay, shared
+speed/pause (either player can pause; tab-hide becomes host-only), per-viewer Chronicle.
+Unscheduled by design: kept cheap, not kept soon. Parts I–II come BEFORE the tech tree: a tree
+balanced against toothless antagonists is balanced against nothing.
 
 ---
 

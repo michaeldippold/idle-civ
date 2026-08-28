@@ -9,17 +9,26 @@
 > *"They both are kinda the same thing — the primary player needs antagonists, either run by a
 > bot or by another player."*
 >
-> The specific fight this merge resolves: the bot spec's Layer 0 recommended a **proxy** economy
-> for bots (flat per-era income, no real population), while the multiplayer audit found that a
-> second human needs the **real** per-player economy — making the proxy throwaway work and the
-> two specs contradictory. **Ruling: the honest version wins.** One substrate serves both.
+> The specific fight the merge resolved: the bot spec's Layer 0 recommended a **proxy** economy
+> for bots, while a second human needs the **real** per-player economy — making the proxy
+> throwaway work. **Ruling: the honest version wins.** One substrate serves both.
+>
+> **RE-SORTED the same night (owner ruling): THE SECOND HUMAN COMES BEFORE THE BOT BRAIN.**
+> Human-vs-human is the best design instrument this project can own — *"player vs player is by
+> far the best feedback I will get, and it can tell me things that no bot can no matter how
+> good they are. Things like, 'is the game fun?'"* — and the bot brain is then **authored from
+> observed play** rather than from intuition. The full reasoning is in Part II's preamble; the
+> build order in §7 reflects it. The owner's underlying realization, stated once here because
+> it governs everything: **in a competitive 4X against bots, the bots are the content** —
+> *"gameplay feel is highly dependent on how good the bot sim is."*
 >
 > Written to be picked up cold by a session that has read
 > [`2026-08-25-design-brief.md`](2026-08-25-design-brief.md) first. The design brief's pillar 1
 > is the sentence this whole file implements: *"a 'player' is a data structure plus a
-> decision-maker, and the human is just the player whose decision-maker is a mouse."* A bot is a
-> player whose decision-maker is a priority card. A remote human is a player whose
-> decision-maker is a socket. Everything below is one substrate and two decision-makers.
+> decision-maker, and the human is just the player whose decision-maker is a mouse."* A remote
+> human is a player whose decision-maker is a socket. A bot is a player whose decision-maker is
+> a priority card. Everything below is one substrate and two decision-makers — built in that
+> order.
 
 ---
 
@@ -86,11 +95,13 @@ is maximally forgiving: 5 ticks/s, ~120 hexes, no APM — bandwidth and latency 
   failure; a toothless one produces nothing to diagnose.
 - **Structural answers, not micromanagement** — for the player's counterplay against everything
   the brain does.
-- **Multiplayer is a subtraction, not a rewrite** (design brief) — and this spec is where the
-  subtraction gets cheap: 1.0 remains single-human vs. bots; the second human is a test-game
-  option bought almost entirely with work the bots need anyway.
+- **1.0 is single-human; the second human is an INSTRUMENT, not a feature.** The design brief's
+  fence stands. Multiplayer is promoted in this spec's build order because it is the best
+  playtest apparatus the project can own — it exists to make the single-human 1.0 good, which
+  is also why promoting it does not violate the no-features-before-the-core-settles rule: it IS
+  the instrument that settles the core.
 
-## 3. Prior art (one line each)
+## 3. Prior art (one line each — plus the one that settles the ordering)
 
 **AoE2**: priority rules + attack waves on timers produce 90% of the felt opponent at 5% of the
 complexity (difficulty-via-cheats rejected, everything else adopted). **Civ V/VI**: personality
@@ -98,17 +109,22 @@ is a weight table; legible *agendas* make bots read as characters — `dispositi
 **Paradox**: the budget (income visibly allocated) and power-ratio gating (only pick fights that
 clear a threshold). **Board-game Automas** (Scythe, Wingspan, Root's clockwork): the bot is a
 **priority card** — "do the first legal thing on this list" — deterministic, zero look-ahead,
-readable enough to play around. That is the fit for the digital tabletop, and the brain below
-is an Automa with a posture. None of these search, plan, or learn.
+readable enough to play around. None of these search, plan, or learn.
+
+**And the methodology precedent that settles human-before-bot:** board games are playtested
+**human-vs-human first**, and the Automa is authored **afterward, to imitate observed human
+play** — Scythe's and Wingspan's Automas were designed after their games were finished, by
+watching what human opponents actually do and writing cards that fake it. A solo bot for a game
+nobody has played against a human is an imitation of an opponent nobody has ever seen. For a
+digital tabletop, human-first is not a detour from the methodology; it IS the methodology.
 
 ---
 
-## PART I — THE SUBSTRATE (shared by bots and the second human)
+## PART I — THE SUBSTRATE (shared; built first)
 
-Three campaigns. Each is independently valuable, each is prerequisite to both halves of Part II
-and Part III, and together they are most of the total cost. **This is the shared spine that
-keeps the two specs from fighting: everything here is built once and used by both
-decision-makers.**
+Three campaigns. Each is independently valuable, each is prerequisite to both Part II and
+Part III, and together they are most of the total cost. **This is the shared spine that keeps
+the two halves from fighting: everything here is built once and used by both decision-makers.**
 
 ### S1 — the `me()` sweep: the sim stops knowing who "the" player is
 
@@ -151,12 +167,12 @@ substrate is already per-hex and owner-agnostic.
   civ record already carries `buildSeq`; the queue field generalizes with it), pay `popCost`
   from their own hexes, and build structures through the same verb the human uses. **`botMint`
   dies whole.** No unit exists that was not paid for, on either side of the table.
+- **What it buys the multiplayer half**: player 2 exists. This is the single largest work item
+  on the second-human path, and it is shared work.
 - **What it buys the bot half**: economic warfare becomes bidirectional — sacking their mine
   slows their army, taking their hills shrinks their levy *and* their income, raiding their
   hexes kills real people. Their board position becomes readable intel: "four hills and two
   mines" is a sentence about the army they can field.
-- **What it buys the multiplayer half**: player 2 exists. This is the single largest work item
-  on the multiplayer path, and it ships as bot work.
 - **Authored `stock` becomes the STARTING larder only.** `initAdversaries` seeds `res` at
   worldgen and rebirth; the per-era restock on advance is retired — income replaces it, and a
   people that lost its ground no longer gets a free refill for surviving to a birthday.
@@ -165,9 +181,9 @@ substrate is already per-hex and owner-agnostic.
   dead and stays dead):
   - `botFamineExempt: true` at first — a bot brain that starves its own people to death is a
     bug generator while the cards are young. The BUILD card carries food self-care rules (see
-    Part II); the exemption is removed the session the cards prove they keep a realm fed.
+    Part III); the exemption is removed the session the cards prove they keep a realm fed.
   - **Bots skip the narrative event slate v1** (sickness, windfalls) — events are authored as
-    the watched seat's story. Whether rivals share the hazards is an open question (§8); the
+    the watched seat's story. Whether rivals share the hazards is an open question (§6); the
     seam is a per-civ flag, so turning it on later is authoring.
 
 ### S3 — one action API: every decision-maker calls verbs
@@ -179,118 +195,38 @@ shared). A remote human is a socket that delivers verbs into the same funnel.
 
 What this buys, in the journal's own words: a bot is *"indistinguishable at this seam from a
 human clicking"* — so a bot's whole game is replayable from seed + journal, a bug in bot
-behavior is a bug report you can re-run, and the harness can drive a bot through the same API a
-future netcode uses. This is the design brief's "one action API that all players (human, bot,
+behavior is a bug report you can re-run, and the harness can drive a bot through the same API
+the netcode uses. This is the design brief's "one action API that all players (human, bot,
 someday remote human) issue commands through," made literal.
 
 ---
 
-## PART II — THE BOT BRAIN (decision-maker: a priority card)
+## PART II — THE SECOND HUMAN (decision-maker: a socket; built SECOND, on purpose)
 
-Everything here rides on Part I and only issues S3 verbs. Architecture: an **Automa with a
-posture** — four pieces.
+**Why this part was promoted ahead of the brain** *(owner ruling, 2026-08-28, the night the
+spec was written)*: human-vs-human is the highest-grade design instrument this project can own,
+and it answers the questions no bot can at any quality level — **"is the game fun?"** first
+among them. Two human brains on the identical game state, every observed behavior with a mind
+behind it (no more "is this boring, or is the bot just dumb?" confound), and a debrief after
+each game. The findings feed the game's tuning directly, and they feed Part III structurally:
+*"My opponent did something wacky but it worked — can we open that strategy up for the bots?"*
+is exactly how Automa cards get authored (see §3's methodology precedent). The brain becomes
+**transcription of observed play** rather than speculative design.
 
-### The posture machine *(one word of state per civ)*
+Honest cautions that come with the promotion: human-vs-human sessions need two synchronous
+humans, so they are the **milestone** instrument while solo-vs-bots stays the daily one — plan
+the debrief as part of each session, since that is where the card material comes from. The
+first game will indict the pacing hard (two humans at peace, at literal 1×, cannot fast-forward
+the lull — that is the strictest test of the re-pacing work, and running it early is the
+point). And **discount 1v1 balance findings**: zero-sum duels reward rush and all-in harder
+than the 1.0 vs-bots game will; findings about *verbs and feel* transfer cleanly, findings
+about *numbers* need a haircut.
 
-`civ.posture ∈ { build, fortify, press, war }`, re-evaluated on a decision tick
-(`botDecideSeconds: 45`, jittered per civ, accrued in sim time — pause-safe). Decisions roll on
-the game dice (`rng()`), like `expand()` always has: they are part of the simulation and belong
-to the seed.
+**Scope fence, restated: 1.0 is single-human.** This part is an instrument. Not matchmaking,
+not accounts, not anti-cheat (both clients hold full state; a friendly game does not care), not
+reconnect-hardening beyond what save/load already gives.
 
-Transitions read only **legible facts** — things the Chronicle could say out loud:
-
-| To | Enter when (any, weighted by disposition) | Leave when |
-|---|---|---|
-| **build** | default; goal achieved; threat passed | — |
-| **fortify** | lost a hex/battle recently; era deficit ≥ 1; hostile border with a stronger neighbour | threat passed (timer) |
-| **press** | era lead ≥ 1; levy headroom ≥ ~50%; victim visibly weak on the shared border | lead gone; bloodied (lost a war army) |
-| **war** | grudge ≤ −4; era lead ≥ 2; PRESS succeeded repeatedly (took ≥ 2 hexes, held them) | war goal met or army broken |
-
-**Disposition becomes the weight table over transitions, not a permanent fence.** Warlike civs
-reach PRESS easily and WAR readily; peaceful civs live in BUILD/FORTIFY and cross only at the
-extreme thresholds. **"Peaceful" is a high threshold, not a constant** — this cures audit
-finding 2, and is the Empire Earth fantasy: the River Kingdom that traded with you for an hour
-declares war because you fell two ages behind. A reborn civ re-enters at BUILD.
-
-**The `conflict` event's trigger dies here** (finding 3): raid cadence moves onto the sender's
-own decision tick, so aggression finally reads the aggressor's situation. Remove the event from
-the era slates when posture raids ship; `hostilityMultiplier`/`riskAdversary` survive only for
-caravan ambush until caravans rework. **The era-clock wire survives intact**
-(`rollRaidSize`/`rollRaidType`, the era-gap ramp): it still decides what force an age can
-field; the posture decides when and why.
-
-### The priority cards *(the Automa proper)*
-
-Per posture, a short ordered list; each decision tick, the civ does the **first affordable,
-legal** item and stops. Target ~15 rules total. Provisional cards:
-
-- **BUILD**: *food income below upkeep line → build farm / claim food ground* (the self-care
-  rule that lets `botFamineExempt` retire) · garrison below spec → train toward it · best
-  unmined hills held → build mine · below dominion cap → claim the **best-scored** frontier hex ·
-  era capstone affordable → advance · else train toward levy headroom.
-- **FORTIFY**: border hex facing the threat unfortified → palisade (bronze+) / watchtower for
-  eyes · garrison below 1.5× spec → train · fall through to BUILD.
-- **PRESS**: no raid out → raid the victim's soft ground (existing `strikeHex` draw, existing
-  cowardice) · flush muster → war army at a scored border hex (holds what it takes, then
-  FORTIFY behavior on the new ground) · reprisal pending → target the remembered hex.
-- **WAR**: army below levy → train and mass · goal reachable and force clears the gate → march ·
-  goal is the capital → the capital strike (below) · goal met → garrison, fortify behind it,
-  fall to PRESS.
-
-**Claim scoring replaces the random frontier draw**: weight frontier hexes by terrain value to
-this civ, adjacency, and — deliberately — proximity to *contested* frontier, so bots race the
-human (and each other) for the good ridge. Opposition before a sword is drawn, for the cost of
-one scoring function.
-
-**Cards are authorable content, not engine** — they live beside the adversary defs (or one
-shared set weighted by disposition), so a new people or era is authoring. The info modal may
-eventually *show* a people's card, Root-style; nothing in a card is a secret the design needs.
-
-### War conduct *(what fixes "drive-by sackings")*
-
-- **Power gating, honestly scoped**: before any attack march, compare own force to the **target
-  hex's visible defense** (garrison size + wall pool standing there) — the read `hardened()`
-  already does, narratable as "their scouts." `botAttackRatio: 1.5` provisional. Internal
-  arithmetic; never printed.
-- **Wars hold and continue**: a WAR army that takes its goal re-evaluates next decision tick —
-  goal met → garrison + fortify; not met → next target. Ground changes color and stays changed.
-  (The current war-army-garrisons-forever dead end dies; conquest garrisons are re-orderable.)
-- **Relief**: seat besieged or garrison destroyed → the card's top rule becomes
-  muster-all-free-and-march-home. The sack timer becomes the race it was designed to be, on
-  both sides of the wall.
-- **Reprisal**: when a bot loses a hex or a structure to a player, record
-  `civ.lastWound = { hex, tick }`, spike the grudge; PRESS/WAR target the wound first. The
-  Chronicle names it: *"The Hill Clans have not forgotten the mine."* Grudges get verbs.
-- **THE CAPITAL STRIKE — the loss condition arrives. On by default**, owner-approved, gated
-  three ways so a loss is always a story the player watched: (1) only from WAR, with a real
-  army (host-tier or clearing the gate ratio against the seat's visible defense); (2)
-  **telegraphed twice** — at muster (*"The Hill Clans gather under one banner. This is no
-  raid."* — fires even at Stone contact, anonymized: warning time is the fairness mechanism and
-  this army never arrives unannounced) and at sighting; (3) the existing siege → sack pipeline
-  unmodified (`sackCapitalSeconds: 150` is the relief window; double-speed home marching is the
-  counterplay). Re-verdict the gates after the owner has actually lost a run to it.
-
-### The Chronicle contract
-
-Every posture change and aggressive act is narratable, gated by the same `contact` fog as today
-(`nameGate`): named from Bronze, anonymous at Stone. Required lines (voice written at build
-time, per the render-and-read lesson): posture tells (a palisade rising on the ridge facing
-your country; watchtower eyes; probes), the WAR muster (mandatory, twice), reprisal
-attribution, peaceful-civ threshold crossings (the heart-sink line: a friend turning). The
-board itself is the first surface — postures should be **diagnosable from the table alone**
-before the Chronicle says a word. That is the Automa promise.
-
----
-
-## PART III — THE SECOND HUMAN (decision-maker: a socket)
-
-**Scope fence, restated from the design brief: 1.0 is single-human.** This part exists so the
-brother-test-game is a cheap flip once Part I lands, and so nothing in Part II accidentally
-closes the door. Not matchmaking, not accounts, not anti-cheat (both clients hold full state; a
-friendly game does not care), not reconnect-hardening beyond what save/load already gives.
-
-### The table — how two humans end up in one game *(added same day; the owner asked and the
-first draft had hand-waved it in six words)*
+### The table — how two humans end up in one game
 
 The flow rides the existing start screen (World / Colour / Seat name, fixed for the run) and
 the existing every-new-run-reboots rule. **The ordering constraint that shapes everything: the
@@ -326,11 +262,14 @@ holding still for a missing player is the game's own contract applied to multipl
 override ("continue without them": the guest civ stands idle — economy runs, armies hold, no
 decisions) exists so a test game is never hostage, but the pause is the default.
 
+### Transport, clock, presentation
+
 - **Sync model, recommended: host-authoritative snapshots.** One browser runs the sim; the
   guest client sends S3 verbs over a socket and receives the save-state (small by design, exact
   by law) a few times a second. Dodges float-determinism entirely, and disconnect/rejoin is
-  "load the snapshot" — machinery that already exists. A tiny WebSocket relay; roughly a day of
-  plumbing once Part I exists.
+  "load the snapshot" — machinery that already exists. A tiny WebSocket relay — or WebRTC with
+  copy-paste signaling and no server at all — roughly a day of plumbing once Part I exists.
+  The relay is this project's first server-side component; decide the hosting at M1, not now.
 - **Lockstep is the someday-upgrade, and the journal was built for it** — exchange verbs,
   replay on both sims, verify with state checksums (cheap: the serializer exists). One recorded
   hazard: `Math.pow` in event-chance math is not guaranteed bit-identical across JS engines;
@@ -356,17 +295,124 @@ decisions) exists so a test game is never hostage, but the pause is the default.
   working, identically available to both. The 1× cap also deletes the latency-amplification
   concern outright. Pausing modals pause the table (the tabletop norm: anyone can say "hold
   on"). The infinite-pause griefer is out of scope for the friendly game (social contract; the
-  someday-competitive answer is pause budgets, chess-clock shaped). One real edit to today's code: the tab-hidden pause becomes
-  **host-only** — the sim runs on the host, so the host's hidden tab stops the world (reading
-  as pause for the whole table). A guest's hidden tab stops only their rendering, never the
-  world: their throttle is what they SET, and walking away from a running world without
-  turning your throttle to 0 is a choice — the 2026-08-25 ruling ("if you are not paying
-  attention, pause the game") applied to the guest seat verbatim.
+  someday-competitive answer is pause budgets, chess-clock shaped). One real edit to today's
+  code: the tab-hidden pause becomes **host-only** — the sim runs on the host, so the host's
+  hidden tab stops the world (reading as pause for the whole table). A guest's hidden tab
+  stops only their rendering, never the world: their throttle is what they SET, and walking
+  away from a running world without turning your throttle to 0 is a choice — the 2026-08-25
+  ruling ("if you are not paying attention, pause the game") applied to the guest seat
+  verbatim.
 - **Per-viewer presentation**: the Chronicle's `=== S.me` branches become "is this the viewer"
   (each client filters by its own `S.me` — which is precisely why the sim itself must never
   read it, per S1); fog data is already per-civ; the start screen asks seat/colour for two.
 - **Ending**: `runEnded` generalizes to "this human's run is over" — the loser's client shows
   the death screen; the winner's world keeps turning.
+
+---
+
+## PART III — THE BOT BRAIN (decision-maker: a priority card; AUTHORED FROM OBSERVED PLAY)
+
+Everything here rides on Part I and only issues S3 verbs — and, per the re-sort, it is written
+**after the human-vs-human playtest era begins**, so the cards are transcription of strategies
+two humans actually used, not speculation. The architecture below is the approved frame those
+observations get written into: an **Automa with a posture** — four pieces. (One escape hatch:
+**B1, bots BUILD, may land any time after S3** if the bare bot boards grate before the
+playtest era arrives — it is posture-locked, card-of-one, and independently cures the
+buildings frustration.)
+
+### The posture machine *(one word of state per civ)*
+
+`civ.posture ∈ { build, fortify, press, war }`, re-evaluated on a decision tick
+(`botDecideSeconds: 45`, jittered per civ, accrued in sim time — pause-safe). Decisions roll on
+the game dice (`rng()`), like `expand()` always has: they are part of the simulation and belong
+to the seed.
+
+Transitions read only **legible facts** — things the Chronicle could say out loud:
+
+| To | Enter when (any, weighted by disposition) | Leave when |
+|---|---|---|
+| **build** | default; goal achieved; threat passed | — |
+| **fortify** | lost a hex/battle recently; era deficit ≥ 1; hostile border with a stronger neighbour | threat passed (timer) |
+| **press** | era lead ≥ 1; levy headroom ≥ ~50%; victim visibly weak on the shared border | lead gone; bloodied (lost a war army) |
+| **war** | grudge ≤ −4; era lead ≥ 2; PRESS succeeded repeatedly (took ≥ 2 hexes, held them) | war goal met or army broken |
+
+**Disposition becomes the weight table over transitions, not a permanent fence.** Warlike civs
+reach PRESS easily and WAR readily; peaceful civs live in BUILD/FORTIFY and cross only at the
+extreme thresholds. **"Peaceful" is a high threshold, not a constant** — this cures audit
+finding 2, and is the Empire Earth fantasy: the River Kingdom that traded with you for an hour
+declares war because you fell two ages behind. A reborn civ re-enters at BUILD.
+
+**The `conflict` event's trigger dies here** (finding 3): raid cadence moves onto the sender's
+own decision tick, so aggression finally reads the aggressor's situation. Remove the event from
+the era slates when posture raids ship; `hostilityMultiplier`/`riskAdversary` survive only for
+caravan ambush until caravans rework. **The era-clock wire survives intact**
+(`rollRaidSize`/`rollRaidType`, the era-gap ramp): it still decides what force an age can
+field; the posture decides when and why.
+
+### The priority cards *(the Automa proper)*
+
+Per posture, a short ordered list; each decision tick, the civ does the **first affordable,
+legal** item and stops. Target ~15 rules total. Provisional cards — expect the playtest era to
+rewrite these, which is the point:
+
+- **BUILD**: *food income below upkeep line → build farm / claim food ground* (the self-care
+  rule that lets `botFamineExempt` retire) · garrison below spec → train toward it · best
+  unmined hills held → build mine · below dominion cap → claim the **best-scored** frontier hex ·
+  era capstone affordable → advance · else train toward levy headroom.
+- **FORTIFY**: border hex facing the threat unfortified → palisade (bronze+) / watchtower for
+  eyes · garrison below 1.5× spec → train · fall through to BUILD.
+- **PRESS**: no raid out → raid the victim's soft ground (existing `strikeHex` draw, existing
+  cowardice) · flush muster → war army at a scored border hex (holds what it takes, then
+  FORTIFY behavior on the new ground) · reprisal pending → target the remembered hex.
+- **WAR**: army below levy → train and mass · goal reachable and force clears the gate → march ·
+  goal is the capital → the capital strike (below) · goal met → garrison, fortify behind it,
+  fall to PRESS.
+
+**Claim scoring replaces the random frontier draw**: weight frontier hexes by terrain value to
+this civ, adjacency, and — deliberately — proximity to *contested* frontier, so bots race the
+human (and each other) for the good ridge. Opposition before a sword is drawn, for the cost of
+one scoring function.
+
+**Cards are authorable content, not engine** — they live beside the adversary defs (or one
+shared set weighted by disposition), so a new people or era is authoring — and so a strategy
+observed in Tuesday's human game becomes a card rule on Wednesday. The info modal may
+eventually *show* a people's card, Root-style; nothing in a card is a secret the design needs.
+
+### War conduct *(what fixes "drive-by sackings")*
+
+- **Power gating, honestly scoped**: before any attack march, compare own force to the **target
+  hex's visible defense** (garrison size + wall pool standing there) — the read `hardened()`
+  already does, narratable as "their scouts." `botAttackRatio: 1.5` provisional. Internal
+  arithmetic; never printed.
+- **Wars hold and continue**: a WAR army that takes its goal re-evaluates next decision tick —
+  goal met → garrison + fortify; not met → next target. Ground changes color and stays changed.
+  (The current war-army-garrisons-forever dead end dies; conquest garrisons are re-orderable.)
+- **Relief**: seat besieged or garrison destroyed → the card's top rule becomes
+  muster-all-free-and-march-home. The sack timer becomes the race it was designed to be, on
+  both sides of the wall.
+- **Reprisal**: when a bot loses a hex or a structure to a player, record
+  `civ.lastWound = { hex, tick }`, spike the grudge; PRESS/WAR target the wound first. The
+  Chronicle names it: *"The Hill Clans have not forgotten the mine."* Grudges get verbs.
+- **THE CAPITAL STRIKE — the loss condition arrives. On by default**, owner-approved, gated
+  three ways so a loss is always a story the player watched: (1) only from WAR, with a real
+  army (host-tier or clearing the gate ratio against the seat's visible defense); (2)
+  **telegraphed twice** — at muster (*"The Hill Clans gather under one banner. This is no
+  raid."* — fires even at Stone contact, anonymized: warning time is the fairness mechanism and
+  this army never arrives unannounced) and at sighting; (3) the existing siege → sack pipeline
+  unmodified (`sackCapitalSeconds: 150` is the relief window; double-speed home marching is the
+  counterplay). Re-verdict the gates after the owner has actually lost a run to it. *(Note: the
+  human-vs-human era validates the loss condition itself first — two humans can already end
+  each other — so by the time this ships, only the gates are unproven, not the death.)*
+
+### The Chronicle contract
+
+Every posture change and aggressive act is narratable, gated by the same `contact` fog as today
+(`nameGate`): named from Bronze, anonymous at Stone. Required lines (voice written at build
+time, per the render-and-read lesson): posture tells (a palisade rising on the ridge facing
+your country; watchtower eyes; probes), the WAR muster (mandatory, twice), reprisal
+attribution, peaceful-civ threshold crossings (the heart-sink line: a friend turning). The
+board itself is the first surface — postures should be **diagnosable from the table alone**
+before the Chronicle says a word. That is the Automa promise.
 
 ---
 
@@ -376,11 +422,11 @@ decisions) exists so a test game is never hostage, but the pause is the default.
 |---|---|
 | `botMint` (units from nothing) | real training through S3 verbs at authored cost/time (S2) |
 | The bot income **proxy** (previous revision of this spec) | the honest per-player economy (S2) — the merge's ruling |
-| `expand()`'s uniform-random claim | scored claim (Part II cards) |
-| The `conflict` event trigger + its slate entries | posture-tick raid cadence (Part II) |
+| `expand()`'s uniform-random claim | scored claim (Part III cards) |
+| The `conflict` event trigger + its slate entries | posture-tick raid cadence (Part III) |
 | `botWarChance` / `botWarMinFree` escalation roll | PRESS/WAR postures |
 | Per-era stock restock in `initAdversaries` | income; stock = starting larder only (S2) |
-| War-army-garrisons-forever dead end | re-orderable conquest garrisons (Part II) |
+| War-army-garrisons-forever dead end | re-orderable conquest garrisons (Part III) |
 | `S.me` reads inside the sim (incl. `breakNation`'s `runEnded` branch, `conquer`'s human-only cap, `chartGround`'s gate) | acting-player parameters + viewer-keyed presentation (S1) |
 | The stale comment at `era.js:33` | delete on touch |
 
@@ -417,7 +463,7 @@ tables live with the adversary defs (authoring, not CONFIG).
    per-civ fog honesty is priced when scouting (slice 6) settles what fog even is.
 4. **Difficulty presets** — pace + weights + thresholds are already per-civ numbers; a
    world-level picker is a start-screen question for after the brain proves out.
-5. **Capital strike default** — approved ON with the Part II gates; confirm after the first
+5. **Capital strike default** — approved ON with the Part III gates; confirm after the first
    real loss, per the tuning law.
 6. **When `botFamineExempt` retires** — the session the BUILD card demonstrably keeps a realm
    fed through a raid and a bad map.
@@ -426,7 +472,7 @@ tables live with the adversary defs (authoring, not CONFIG).
    real test game; the alternative (guest civ handed to a bot card) is tempting and should
    wait until the cards exist and have proven manners.
 
-## 7. Build order *(merged; each slice lands with mutation-tested harness checks and a playtest gate)*
+## 7. Build order *(re-sorted 2026-08-28: substrate → socket → playtest era → brain; each slice lands with mutation-tested harness checks and a playtest gate)*
 
 **The substrate campaign** *(the per-player-refactor shape: one branch, commits with their own
 harness sections)*:
@@ -437,37 +483,45 @@ harness sections)*:
 2. **S2 — the per-player economy**: step loop over living civs, real bot hex pop, restock
    retirement, safety valves. Check: a bot's `res` grows from its territory; a sacked mine
    measurably slows it; no unit exists that was not paid for; famine exemption flag works.
-3. **S3 — verbs all the way down**: bots call verbs, journal complete. Check: seed + journal
-   replays a bot's whole game bit-identically.
+3. **S3 — verbs all the way down**: every decision-maker calls verbs, journal complete. Check:
+   seed + journal replays a whole game bit-identically.
 
-**The brain campaign** *(each independently shippable)*:
+**The socket campaign** *(promoted — this is the instrument)*:
 
-4. **B1 — bots BUILD**: BUILD card only, posture locked. Mines, farms on correct terrain, era
+4. **M0 — N human-grade seats in the generator**: the floor guarantees for every human seat,
+   minimum-distance placement, authored frames validated for two. *No socket needed — testable
+   headless and on the start screen today, and it is the one Part II item with real design
+   risk in it.*
+5. **M1 — the table + transport + clock**: the join-code lobby on the start screen
+   (guest-before-worldgen, colour exclusivity, host's Begin), the relay (hosting decided
+   here), host-authoritative snapshots, the `min()` throttle at `{0, 1}`, host-only tab rule,
+   the absent-guest pause.
+6. **M2 — per-viewer presentation**: viewer-keyed Chronicle, per-client fog render, loser's
+   ending.
+
+**THE HUMAN-VS-HUMAN PLAYTEST ERA** *(not a code slice; the whole point)*: milestone games
+against a second human, debrief after each, findings recorded — verbs-and-feel findings feed
+the game directly, observed strategies feed Part III's cards, 1v1 balance numbers get the
+haircut. The first game's known deliverable is a pacing verdict at literal 1×.
+
+**The brain campaign** *(authored from the playtest era's observations; each slice
+independently shippable)*:
+
+7. **B1 — bots BUILD**: BUILD card only, posture locked. Mines, farms on correct terrain, era
    gates, board shows them (debt cubes already handle visuals). *Independently cures the
-   buildings frustration.*
-5. **B2 — the posture machine**: transitions, FORTIFY, claim scoring, conflict-event
+   buildings frustration — MAY be pulled forward to any point after S3 if bare bot boards
+   grate.*
+8. **B2 — the posture machine**: transitions, FORTIFY, claim scoring, conflict-event
    retirement. Check: a wounded civ fortifies its facing border; a peaceful civ never enters
    PRESS below threshold.
-6. **B3 — war conduct**: power gating, holds-and-continues, relief, reprisal. Check: a WAR army
+9. **B3 — war conduct**: power gating, holds-and-continues, relief, reprisal. Check: a WAR army
    with an unmet goal re-targets; a besieged seat musters relief; the wound is targeted next.
-7. **B4 — the capital strike**: gates + telegraphs. Acceptance test, written honestly: **the
-   owner loses a run.**
+10. **B4 — the capital strike**: gates + telegraphs. Acceptance test, written honestly: **the
+    owner loses a run.**
 
-**The socket campaign** *(any time after S3; independent of B1–B4)*:
-
-8. **M0 — N human-grade seats in the generator**: the floor guarantees for every human seat,
-   minimum-distance placement, authored frames validated for two. *No socket needed — testable
-   headless and on the start screen today, and it is the one Part III item with real design
-   risk in it.*
-9. **M1 — the table + transport + clock**: the join-code lobby on the start screen
-   (guest-before-worldgen, colour exclusivity, host's Begin), WebSocket relay,
-   host-authoritative snapshots, shared speed/pause, host-only tab rule, the absent-guest
-   pause.
-10. **M2 — per-viewer presentation**: viewer-keyed Chronicle, per-client fog render, loser's
-    ending.
-
-**Sequencing vs. the standing queue**: Parts I–II come **before the tech tree** (a tree
+**Sequencing vs. the standing queue**: Parts I–III all come **before the tech tree** (a tree
 balanced against toothless antagonists is balanced against nothing) and can interleave with the
 interface redesign. No dependency on scouting (slice 6); scouting later deepens the
-warning-time economy this spec leans on. Part III is unscheduled by design — it is kept cheap,
-not kept soon.
+warning-time economy this spec leans on. The promotion of Part II does not breach the
+no-new-features-before-the-core-settles rule: the second human is the instrument that settles
+the core, and 1.0 remains single-human.

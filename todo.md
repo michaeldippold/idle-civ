@@ -370,19 +370,29 @@ see git history): the owner merged the two on the observation that *"the primary
 antagonists, either run by a bot or by another player"* — and because the bot spec's proxy
 economy and multiplayer's need for the real one were about to fight. **The honest version won.**
 
-The shape: one substrate, two decision-makers. **Part I, the substrate** (shared): **S1** the
-`me()` sweep — ~77 call sites; the sim may never read `S.me`, harness-enforced; the fix is the
-military half's existing take-a-civ-parameter idiom, not a new global. **S2** the economy goes
-per-player — real hex pop for bots, `botMint` and the era restock die, everything is paid for.
-**S3** every decision-maker calls the same journaled verbs (the journal's own promise, finally
-consumed). **Part II, the brain**: a board-game Automa — postures (build / fortify / press /
-war; disposition is a weight table, so "peaceful" is a high threshold, not a constant),
-priority cards, power-gated wars that HOLD ground, relief, reprisals with memory, and the
-capital strike — the loss condition, on by default, telegraphed twice. **Part III, the
-socket**: the brother-test-game — host-authoritative snapshots over a tiny relay, shared
-speed/pause (either player can pause; tab-hide becomes host-only), per-viewer Chronicle.
-Unscheduled by design: kept cheap, not kept soon. Parts I–II come BEFORE the tech tree: a tree
-balanced against toothless antagonists is balanced against nothing.
+The shape: one substrate, two decision-makers — **built in a deliberate order, RE-SORTED
+2026-08-28 (owner ruling): the second human comes BEFORE the bot brain.** *"Player vs player is
+by far the best feedback I will get, and it can tell me things that no bot can no matter how
+good they are. Things like, 'is the game fun?'"* Board-game methodology backs it: Automas are
+authored AFTER human playtesting, to imitate observed play — so the bot cards become
+transcription of real strategies, not speculation.
+
+**Part I, the substrate** (shared, first): **S1** the `me()` sweep — ~77 call sites; the sim
+may never read `S.me`, harness-enforced; the fix is the military half's existing
+take-a-civ-parameter idiom, not a new global. **S2** the economy goes per-player — real hex pop
+for bots, `botMint` and the era restock die, everything is paid for. **S3** every
+decision-maker calls the same journaled verbs (the journal's own promise, finally consumed).
+**Part II, the second human** (promoted — the INSTRUMENT; 1.0 stays single-human): M0 N
+human-grade seats in the generator (the one item with real design risk), M1 the join-code
+lobby + relay + host-authoritative snapshots + the 1×-or-pause clock (see design.md → The
+speed cap), M2 per-viewer presentation — then the HUMAN-VS-HUMAN PLAYTEST ERA, whose first
+deliverable is a pacing verdict at literal 1×. **Part III, the brain** (authored from observed
+play): a board-game Automa — postures (build / fortify / press / war; disposition is a weight
+table, so "peaceful" is a high threshold, not a constant), priority cards, power-gated wars
+that HOLD ground, relief, reprisals with memory, and the capital strike — the loss condition,
+on by default, telegraphed twice. B1 (bots BUILD) may pull forward any time after S3 if bare
+bot boards grate. All of it BEFORE the tech tree: a tree balanced against toothless
+antagonists is balanced against nothing.
 
 ---
 

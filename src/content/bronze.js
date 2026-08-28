@@ -291,6 +291,36 @@ export const BRONZE_DELTA = {
       base: { wood: 55, stone: 30 }, scale: 1.4, buildTime: 40,
       desc: "Break the ground and work it properly. Feeds far better than bare land — and the hex gives up everything else it could have produced.",
     },
+    // THE FORTIFICATION FAMILY ARRIVES IN BRONZE (owner ruling, built
+    // 2026-08-28). Raids bite hardest in Bronze while fortification was
+    // Iron-only -- the gap the palisade fills. Both defs are pure data to the
+    // resolver: `fortifies` seals the battle against the walls, `wallPool`
+    // is the hits an attacker grinds through, `slots` is how many ranged
+    // units can fire from inside (sim/battle.js). Zero new combat mechanics.
+    {
+      id: "palisade", name: "Palisade",
+      fortifies: true,
+      // ZERO slots is the identity: nobody fights from a palisade. It stands
+      // between your people and whatever comes, and buys the time walls buy
+      // -- the resolver already plays the bare-wall case ("walls are a
+      // TIMER") and the garrisoned one (everyone silent until the breach).
+      wallPool: 9, slots: 0,
+      base: { wood: 80 }, scale: 1.3, buildTime: 30,
+      desc: "A ring of sharpened timber. Nobody fights from it — it stands between your people and whatever comes, and buys time. Produces nothing.",
+    },
+    {
+      id: "watchtower", name: "Watchtower",
+      fortifies: true,
+      // THE FIRST SIGHT-EMITTING STRUCTURE: the fog canon has listed
+      // structures among the sight emitters since the 8/25 review, and this
+      // is where the clause gets real. `vision` is hexes of eyes -- charted
+      // on completion, and canSeeArmyAt() reads it live, which is what buys
+      // earlier raid warnings. Less wall than a hold, fewer positions.
+      vision: 2,
+      wallPool: 6, slots: 2,
+      base: { wood: 50, stone: 45 }, scale: 1.3, buildTime: 35,
+      desc: "More eye than wall. Two archers can man it, and its watchers see the country two hexes out. Produces nothing.",
+    },
   ],
 
   // A BRONZE PEOPLE FIGHTS DIFFERENTLY. Massed charges are the age's shape --

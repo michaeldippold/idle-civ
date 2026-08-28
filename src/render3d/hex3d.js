@@ -77,6 +77,51 @@ export const PIECE_SOCKETS = [
   { dx: -SOCKET_DIST, dz:  0 },
 ];
 export const SOCKET_CLEARANCE = 0.55;   // scenery keeps this far off a socket
+
+// ---- THE WALL SPOKES (hub-and-spoke, owner's model, 2026-08-28) ----
+// A wall runs from an edge midpoint INWARD to the building's hub -- never
+// along the edge, never across a boundary, so it lives on one hex's flat top
+// and the cliff problem that killed the merged border cannot arise. One
+// width for every spoke, here rather than with the mesh because the veto
+// below prices it: at 0.15 both diagonals pass 0.45 from the N/S sockets
+// (>= 0.075 + DISC_RADIUS = 0.345), so ONLY the E/W spokes cost sockets --
+// the four-slot cross's designed behaviour.
+export const SPOKE_WIDTH = 0.15;
+
+// Which fortifications spoke, and where the spoke STOPS. Stop 0 means "run
+// to the centre; the model occludes you" (the owner's rule -- a solid hub's
+// interior is not viewable space). The march-hold is the one exception that
+// earns the number: its courtyard is OPEN and holds the garrison disc, so
+// its spokes stop at the ring wall. The renderer and the socket veto both
+// read this table; content defs are not consulted (the renderer must not
+// learn what a palisade IS).
+export const FORT_SPOKE_STOP = { marchHold: HUB_CAP, watchtower: 0, palisade: 0 };
+
+// THE SOCKET VETO. A spoke crossing the hex may run through a piece socket
+// (an E/W spoke passes dead through the E/W sockets); a disc must never
+// stand in masonry, so the feed asks which sockets survive, given the
+// directions (as axial deltas) of the fortified neighbours. Pure math, and
+// the harness sweeps it: every configuration of spokes must leave at least
+// two sockets standing, which is what the cross was chosen for.
+export function allowedSockets(neighbourDeltas) {
+  const veto = SPOKE_WIDTH / 2 + DISC_RADIUS;
+  const out = [];
+  for (let k = 0; k < PIECE_SOCKETS.length; k++) {
+    const s = PIECE_SOCKETS[k];
+    let ok = true;
+    for (const [dq, dr] of neighbourDeltas) {
+      const w = axialToWorld(dq, dr);
+      const len = Math.hypot(w.x, w.z) || 1;
+      const perp = Math.abs((s.dx * w.z - s.dz * w.x) / len);
+      // Behind the hub the spoke does not exist, but every socket sits
+      // outside every hub, so radial extent never saves a socket here.
+      const along = (s.dx * w.x + s.dz * w.z) / len;
+      if (along > 0 && perp < veto) { ok = false; break; }
+    }
+    if (ok) out.push(k);
+  }
+  return out;
+}
 const SQRT3 = Math.sqrt(3);
 
 export function axialToWorld(q, r) {

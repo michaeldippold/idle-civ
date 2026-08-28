@@ -124,6 +124,13 @@ load-bearing rather than theoretical. What exists:
   armies stand in the march-hold’s courtyard (`pieces3d` places, `ui/map.js` decides via the same
   owner test as `wallsAt()`), and the structure glyph yields to a drawn courtyard disc. Treat these
   constants as one budget: retune them together or the harness fails loudly, which is the point.
+  **The fortification family rides the same module** (2026-08-28): `FORT_SPOKE_STOP` names which
+  structures spoke and where the spoke stops, `SPOKE_WIDTH` prices the veto, and
+  `allowedSockets(deltas)` is the socket veto both the feed and the renderer read — one geometry,
+  two consumers, zero disagreement. Impassability lives in `map/routes.js` (`pathBetween` skips
+  enemy-fortified waypoints, destination legal = siege); watchtower vision lives in
+  `sim/armies.js` (`canSeeArmyAt` reads `def.vision`) plus a completion chart in
+  `core/actions.js`.
 
 - **`vendor/`** — three@0.160.0, postprocessing@6.35.3, n8ao@2.0.1, pinned and served from the
   repo. No CDN at runtime. One non-obvious entry: n8ao imports

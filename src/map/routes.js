@@ -1,6 +1,7 @@
 import { S, me } from "../core/state.js";
 import { world } from "./world.js";
-import { holdings, isOwned } from "./ownership.js";
+import { holdings, isOwned, ownerOf } from "./ownership.js";
+import { structureDef } from "./structures.js";
 
 // ---------- Routes: two distances, and never the same one -------
 // ---------- Administrative distance & the famine drain (E4) ----------
@@ -92,6 +93,22 @@ export function pathBetween(fromId, toId, civ) {
   if (!world || !S.map || !world.places[fromId] || !world.places[toId]) return null;
   if (fromId === toId) return [];
   const p = civ || me();
+  // FORTIFICATIONS ARE IMPASSABLE (owner ruling 2026-08-26, built 2026-08-28):
+  // an enemy-owned fortified hex cannot be marched THROUGH -- to cross it,
+  // you attack it. It may be the DESTINATION (that is the existing siege:
+  // the march arrives and the battle seals against the walls), never a
+  // waypoint. One rule, and walls actually wall: lines channel movement,
+  // chokepoints exist, valleys can be shut -- and a fully walled-off region
+  // paths to null, so the march is honestly refused rather than quietly
+  // rerouted through masonry.
+  const walled = (id) => {
+    if (id === toId) return false;
+    const sid = S.map.built && S.map.built[id];
+    const def = sid ? structureDef(sid) : null;
+    if (!def || !def.fortifies) return false;
+    const o = ownerOf(id);
+    return o != null && o !== p.id;
+  };
   const stepInto = (id) => {
     if (isOwned(id, p.id)) return 0.5;
     return world.places[id].terrain === "water" ? 3 : 1;
@@ -104,6 +121,7 @@ export function pathBetween(fromId, toId, civ) {
     const id = queue.splice(bi, 1)[0];
     if (id === toId) break;
     for (const n of world.places[id].adj) {
+      if (walled(n)) continue;             // never even considered, not merely priced
       const d = dist[id] + stepInto(n);
       if (dist[n] === undefined || d < dist[n]) {
         if (dist[n] === undefined) queue.push(n);

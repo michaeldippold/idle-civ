@@ -11,6 +11,32 @@
 
 ---
 
+## 2026-08-28 (evening) — Walls actually wall
+
+**The fortification family v1, same day as its spec.** The **Palisade** (Bronze+Iron: wallPool 9,
+slots 0 — nobody fights from a fence) and the **Watchtower** (wallPool 6, slots 2, vision 2 — the
+first sight-emitting structure: completion charts its ring-2, and `canSeeArmyAt` reads the vision
+live for earlier raid warnings). The ladders run opposite ways and the harness pins them: wall
+twr < pal < hold, slots pal < twr < hold.
+
+**FORTIFICATIONS ARE IMPASSABLE, built:** `pathBetween` skips enemy-fortified hexes as waypoints
+entirely — caught in review: an Infinity step cost still produced an "Infinity-cost path" straight
+through the masonry, so the guard skips the hex rather than pricing it. The fortified hex stays a
+legal destination, which is the siege; a walled-off region paths null and the march is honestly
+refused.
+
+**HUB AND SPOKE, on the board:** each fortified hex draws its half-spoke from edge midpoint inward
+to `FORT_SPOKE_STOP` — the march-hold's stops at its courtyard ring, the rest run to centre under
+their models. Timber for palisades, stone for the rest, so a timber wall meets a stone keep with
+the material changing exactly at the shared edge. The palisade's model IS the stub hub. A staged
+keep–wall–tower chain read as one continuous wall on the live board, from adjacency alone.
+
+**THE SOCKET VETO:** an E/W spoke passes dead through the E/W piece sockets, so
+`allowedSockets()` (hex3d, pure math, harness-swept) reseats a besieging disc onto a surviving
+socket. The garrisoned owner never needs it — it stands in the courtyard.
+
+---
+
 ## 2026-08-28 (later still) — Every building shows itself, or wears its debt
 
 **The debt cube** (owner: *"I insist every building have a model, and if they do not currently have

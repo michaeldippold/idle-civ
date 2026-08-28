@@ -13,7 +13,7 @@
 // several-hundred-tile board free.
 
 import * as THREE from "three";
-import { axialToWorld, corner, hash01, HEX_SIZE, HUB_CAP, HUB_WALL, PIECE_SOCKETS, SOCKET_CLEARANCE } from "./hex3d.js";
+import { axialToWorld, corner, FORT_SPOKE_STOP, hash01, HEX_SIZE, HUB_CAP, HUB_WALL, PIECE_SOCKETS, SOCKET_CLEARANCE, SPOKE_WIDTH } from "./hex3d.js";
 
 const _m = new THREE.Matrix4();
 const _p = new THREE.Vector3();
@@ -86,6 +86,21 @@ function hexWallGeometry(outer, inner, height) {
   // Shapes are authored in XY and extruded along +Z; the board is XZ with
   // height in +Y. One rotation puts the wall upright with its base at y = 0,
   // which is where Part.add() expects to place it.
+  geo.rotateX(-Math.PI / 2);
+  geo.computeVertexNormals();
+  geo.computeBoundingSphere();
+  return geo;
+}
+
+// A SOLID hex prism -- the palisade's stub hub. Hex-shaped because it can
+// take six neighbours (owner, after AoE's lone-wall answer), and built from
+// corner() so it shares the parent hex's orientation, which is the
+// hexagonal-model law (map.md 3): rotate it 30 degrees and every arriving
+// spoke butts into a corner instead of a flat face.
+function hexPrismGeometry(r, height) {
+  const pts = [];
+  for (let k = 0; k < 6; k++) { const c = corner(k, r); pts.push(new THREE.Vector2(c.x, c.z)); }
+  const geo = new THREE.ExtrudeGeometry(new THREE.Shape(pts), { depth: height, bevelEnabled: false, curveSegments: 1 });
   geo.rotateX(-Math.PI / 2);
   geo.computeVertexNormals();
   geo.computeBoundingSphere();
@@ -216,9 +231,23 @@ export function buildProps(places, elev, homeId, isRevealedFn, builtOn, playerRi
   // garrison in it.
   // Orientation comes from corner(), the parent hex's own corner function,
   // which is the hexagonal-model law (map.md 3) satisfied by construction.
-  const wall = new Part(
-    hexWallGeometry(HUB_CAP, HUB_CAP - HUB_WALL, 0.29),
-    new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.9, flatShading: true }));
+  const fortMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.9, flatShading: true });
+  const wall = new Part(hexWallGeometry(HUB_CAP, HUB_CAP - HUB_WALL, 0.29), fortMat);
+  // ---- HUB AND SPOKE (owner's model, 2026-08-28; design.md -> The
+  // Fortification Family). The hex draws edge-midpoint -> hub for every
+  // fortified neighbour; the hub model covers the rest, usually by letting
+  // the spoke run through its solid interior. TWO MATERIALS on purpose: a
+  // palisade's works are sharpened timber, a hold's are masonry, and each
+  // hex draws its own half-spoke -- so a timber wall meeting a stone keep
+  // changes material exactly at the shared edge, which is where two
+  // different walls would honestly meet. Spokes are unit boxes scaled per
+  // instance (Part.add takes {x,y,z}); the stub prism is the palisade's
+  // whole model, and with no fortified neighbours it stands alone as the
+  // hub waiting to be connected -- every wall line shows one at each end.
+  const timberMat = new THREE.MeshStandardMaterial({ color: 0x8f6f4a, roughness: 0.95, flatShading: true });
+  const stoneSpoke = new Part(new THREE.BoxGeometry(1, 0.29, SPOKE_WIDTH), fortMat);
+  const timberSpoke = new Part(new THREE.BoxGeometry(1, 0.29, SPOKE_WIDTH), timberMat);
+  const stub = new Part(hexPrismGeometry(0.16, 0.29), timberMat);
   // THE DEBT CUBE (owner ruling, 2026-08-28): "I insist every building have
   // a model, and if they do not currently have one they get a big player
   // color cube. Big enough to say 'you owe me a real model here' but not
@@ -253,6 +282,10 @@ export function buildProps(places, elev, homeId, isRevealedFn, builtOn, playerRi
   };
 
   const shown = isRevealedFn || (() => true);
+  // Neighbour lookup for the wall spokes: a spoke needs its neighbour's
+  // axial delta, and adj carries only ids.
+  const byId = {};
+  for (const p of places) byId[p.id] = p;
   for (const p of places) {
     const id = p.id;
     // Unrevealed board carries nothing. A tree poking out of the fog would
@@ -266,13 +299,44 @@ export function buildProps(places, elev, homeId, isRevealedFn, builtOn, playerRi
     // sink-and-rise read correctly: the old growth goes down, the works come up.
     const structure = builtOn ? builtOn(p.id) : null;
     if (structure) {
+      // THE SPOKES: one bar per fortified neighbour, from the edge midpoint
+      // (the inradius, where the neighbour is) inward to this fort's own
+      // stop. Each hex draws only its half, on its own flat top at its own
+      // height -- adjacent forts on different terrain meet in a STEP at the
+      // cliff plane, which is what a wall climbing a hill does. Ownership is
+      // not consulted: only the human builds structures today, so adjacency
+      // means friendship; when bots build, this needs the owner check the
+      // sim's wallsAt() already applies.
+      const stop = FORT_SPOKE_STOP[structure];
+      if (stop !== undefined) {
+        for (const nid of p.adj || []) {
+          if (FORT_SPOKE_STOP[builtOn(nid)] === undefined) continue;
+          const n = byId[nid];
+          if (!n) continue;
+          const w = axialToWorld(n.q - p.q, n.r - p.r);
+          const dl = Math.hypot(w.x, w.z) || 1;
+          const ux = w.x / dl, uz = w.z / dl;
+          const len = (HEX_SIZE * Math.sqrt(3)) / 2 - stop;
+          const sp = structure === "palisade" ? timberSpoke : stoneSpoke;
+          sp.add(cx + ux * (stop + len / 2), y + 0.145, cz + uz * (stop + len / 2),
+            Math.atan2(-uz, ux), { x: len, y: 1, z: 1 }, null, id);
+        }
+      }
       if (structure === "marchHold") {
         // One wall, centred: the hex IS the building. No jitter and no slot --
         // a fortification that wobbled would read as a prop rather than as
         // works, and it is the one thing on this board that should look placed.
-        // The ONLY structure with a real model (2026-08-28) -- everything
-        // else below carries the debt cube until its model is paid.
         wall.add(cx, y, cz, 0, 1, null, id);
+      } else if (structure === "watchtower") {
+        // The tower the adversary seats already read as "a tower", centred
+        // and axis-aligned: a placed building, not a scattered prop. More
+        // eye than wall, so the model is mostly height.
+        tower.add(cx, y + 0.22 * 1.3, cz, 0, 1.3, null, id);
+        roofCol.setHex(0x4a3f3a);
+        towerRoof.add(cx, y + (0.44 + 0.1) * 1.3, cz, Math.PI / 4, 1.3, roofCol.clone(), id);
+      } else if (structure === "palisade") {
+        // The stub hub: the palisade's whole model, waiting to be connected.
+        stub.add(cx, y, cz, 0, 1, null, id);
       } else {
         cube.add(cx, y + 0.225, cz, 0, 1, cubeCol, id);
         if (structure === "farm") {
@@ -337,7 +401,7 @@ export function buildProps(places, elev, homeId, isRevealedFn, builtOn, playerRi
     }
   }
 
-  for (const part of [trunk, canopy, rock, bale, wall, cube, hutWall, hutRoof, tower, towerRoof]) {
+  for (const part of [trunk, canopy, rock, bale, wall, cube, stoneSpoke, timberSpoke, stub, hutWall, hutRoof, tower, towerRoof]) {
     group.add(part.build());
   }
   return group;

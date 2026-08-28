@@ -1341,7 +1341,7 @@ And it rhymes with the era clock on purpose: both come from the same law — **t
 wait for you.** Other civilizations advance on clocks you cannot read, and their armies move on
 roads you did not approve.
 
-### The Fortification Family *(ruled 2026-08-26 and 2026-08-28, not yet built — the build list lives in todo.md)*
+### The Fortification Family *(ruled 2026-08-26 and 2026-08-28; v1 BUILT 2026-08-28 — palisade, watchtower, impassability, hub-and-spoke walls, the socket veto)*
 
 **Garrison, the term (ruled):** "garrison" applies ONLY to units behind literal fortifications —
 walls, march-holds, towers. An army standing in a field is a **parked army**. The word tracks the
@@ -1357,14 +1357,15 @@ gives you more lines of play: fight hard, or turtle hard at the beginning. Walls
 they get to siege engines first."* Turtling is a real opening and the siege engine is its clock —
 the era race is the counterweight, never a tuning nerf.
 
-**The family:**
-- **Palisade** (likely Bronze): a bare wall — `fortifies`, ZERO firing slots, small pool, wood-
-  heavy, yields nothing. Nobody shoots from it; it forces the engagement against the wall
+**The family (all built 2026-08-28):**
+- **Palisade** (Bronze + Iron): a bare wall — `fortifies`, ZERO firing slots, wallPool 9, wood-
+  only, yields nothing. Nobody shoots from it; it forces the engagement against the wall
   strength and buys time. Zero new mechanics: the resolver already plays both of its cases.
-- **March-hold** (Iron, built): thick walls and six positions — the upgrade identity.
-- **Watchtower** (owner): less wall, fewer slots (2–4), **more vision** — the first sight-emitting
-  structure, making the fog canon's structures-emit-sight clause real, and feeding earlier raid
-  warnings.
+- **March-hold** (Iron): thick walls (24) and six positions — the upgrade identity.
+- **Watchtower** (Bronze + Iron): wallPool 6, slots 2, **vision 2** — the first sight-emitting
+  structure. Completion charts its ring-2, sticky; `canSeeArmyAt` reads the vision live, which is
+  what buys the earlier raid warning. The ladders run OPPOSITE ways, each building's identity:
+  wall watchtower < palisade < march-hold; slots palisade < watchtower < march-hold.
 
 **The defensive tech lane:** thicker pools, more firing slots, tower vision range — the family
 gives deep defensive upgrades a home when the tech tree arrives.

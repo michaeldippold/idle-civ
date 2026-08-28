@@ -320,22 +320,41 @@ export const IRON_DELTA = {
       id: "marchHold", name: "March-hold",
       requires: "fortification",
       fortifies: true,
-      // TWO NUMBERS FOR A SYSTEM THAT IS NOT WIRED YET. `wallPool` and `slots`
-      // are what the resolver in sim/battle.js will read: a pool of hits an
-      // attacker has to grind through, and how many archers can stand on the
-      // wall. Both are INERT today -- the live raid path still goes through
-      // fortStrength() and repelChance, and this hex still fortifies its
-      // neighbours through CONFIG.fortRange.
-      //
-      // Range dies when contact does (todo.md, slice A4), because the panel law
-      // forbids it: everything that fires in a battle is standing on the hex,
-      // since the panel can only show what it can line up on screen. Until then
-      // the description below has to describe the game that is actually
-      // running -- a desc was briefly written for the destination instead, on
-      // 2026-08-26, and for a few commits this building lied about what it did.
+      // LIVE since contact shipped (A4): `wallPool` is the hits an attacker
+      // grinds through and `slots` is how many ranged units fire from inside
+      // -- both read by wallsAt() into the resolver. (They sat inert for two
+      // days while the old fortStrength path still ran; that path is dead,
+      // and the desc below describes the game that actually runs.)
       wallPool: 24, slots: 6,
       base: { wood: 120, stone: 200, iron: 40 }, scale: 1.35, buildTime: 75,
       desc: "Walls, a gate, and people who watch the road. Produces nothing at all — it holds this ground and the ground beside it, and raids that come here break on it instead of on your people.",
+    },
+    // The Bronze fortifications carry forward unchanged: the cheap wall and
+    // the eye both stay useful beside the march-hold, which is the upgrade
+    // identity -- thicker walls, and positions to shoot from.
+    {
+      id: "palisade", name: "Palisade",
+      fortifies: true,
+      // ZERO slots is the identity: nobody fights from a palisade. It stands
+      // between your people and whatever comes, and buys the time walls buy
+      // -- the resolver already plays the bare-wall case ("walls are a
+      // TIMER") and the garrisoned one (everyone silent until the breach).
+      wallPool: 9, slots: 0,
+      base: { wood: 80 }, scale: 1.3, buildTime: 30,
+      desc: "A ring of sharpened timber. Nobody fights from it — it stands between your people and whatever comes, and buys time. Produces nothing.",
+    },
+    {
+      id: "watchtower", name: "Watchtower",
+      fortifies: true,
+      // THE FIRST SIGHT-EMITTING STRUCTURE: the fog canon has listed
+      // structures among the sight emitters since the 8/25 review, and this
+      // is where the clause gets real. `vision` is hexes of eyes -- charted
+      // on completion, and canSeeArmyAt() reads it live, which is what buys
+      // earlier raid warnings. Less wall than a hold, fewer positions.
+      vision: 2,
+      wallPool: 6, slots: 2,
+      base: { wood: 50, stone: 45 }, scale: 1.3, buildTime: 35,
+      desc: "More eye than wall. Two archers can man it, and its watchers see the country two hexes out. Produces nothing.",
     },
   ],
 

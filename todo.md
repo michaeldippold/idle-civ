@@ -98,9 +98,36 @@ like every prop, verified live. And **the march trail out of a march-hold starts
 garrison** — the courtyard test now picks the trail's origin too, so the road and the disc can
 never disagree.
 
-**Still to build from this spec:** the fortification family itself (palisade, watchtower, wall
-spokes, the stub hub), REAL models per building (the cubes are the debt ledger), scenery on built
-hexes, bigger glyphs.
+**THE FORTIFICATION FAMILY v1 SHIPPED same day (2026-08-28, evening):**
+- **Palisade** (Bronze + Iron): `fortifies`, wallPool 9, **slots 0** — nobody fights from a fence;
+  wood-only cost. **Watchtower** (Bronze + Iron): wallPool 6, slots 2, **vision 2** — the first
+  sight-emitting structure. Completion charts its ring-2 (sticky); `canSeeArmyAt` reads
+  `def.vision` live, which is the earlier raid warning. The ladders run opposite ways and the
+  harness pins them: wall twr < pal < hold, slots pal < twr < hold.
+- **FORTIFICATIONS ARE IMPASSABLE, built**: `pathBetween` skips enemy-owned fortified hexes as
+  waypoints entirely (never merely priced — an Infinity cost still produced a "path"); the
+  destination stays legal, which is the siege. A walled-off region paths null → march honestly
+  refused.
+- **HUB AND SPOKE, built**: each fortified hex draws a bar from the edge midpoint inward to its
+  `FORT_SPOKE_STOP` (hex3d's table — march-hold stops at the courtyard ring, tower and palisade
+  run to centre and let the model occlude). **Timber spokes for the palisade, stone for the rest**,
+  each hex drawing its own half — so a timber wall meets a stone keep with the material changing
+  exactly at the shared edge. The palisade's model IS the stub hub (hex prism, parent orientation
+  per the law); a keep–wall–tower chain reads as one continuous wall from adjacency alone,
+  verified on the live board.
+- **THE SOCKET VETO, built**: `allowedSockets(deltas)` in hex3d — an E/W spoke passes dead through
+  the E/W sockets, so the feed reseats a besieger onto a surviving socket (the garrisoned owner is
+  in the courtyard and never needs it). Feed and renderer share the one geometry, so they cannot
+  disagree about where the walls are.
+
+**Still open on the family:** bots never build fortifications (spoke linking skips the owner check
+until they do — noted in props3d); walled bot SEATS are still passable as waypoints (the
+impassability rule reads structures only — decide whether an Iron seat's authored walls should
+block); the defensive tech lane awaits the tech tree; watchtower/palisade dev-art is serviceable
+but unpolished.
+
+**Still to build from the geometry spec:** REAL models per building (the cubes are the debt
+ledger), scenery on built hexes, bigger glyphs.
 
 *(The spec as ruled, kept for the reasoning — numbers above supersede where they differ:)*
 

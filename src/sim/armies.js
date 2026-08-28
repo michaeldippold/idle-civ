@@ -1,7 +1,8 @@
 import { active } from "../content/compile.js";
 import { DEFAULT_STANCE, stanceById } from "./battle.js";
 import { CONFIG } from "../core/config.js";
-import { chartGround, isOwned, isSighted, pathBetween, world } from "../map/map.js";
+import { chartGround, isOwned, isSighted, ownerOf, pathBetween, structureDef, world } from "../map/map.js";
+import { hexDistance } from "../map/model.js";
 import { S, me, playerById } from "../core/state.js";
 
 // ---------- ARMIES ------------------------------------------
@@ -183,6 +184,19 @@ export function canSeeArmyAt(hexId) {
   if (place) {
     for (const n of place.adj) {
       if (isOwned(n) || armyAt(n, me())) return true;
+    }
+    // A WATCHTOWER IS EYES (2026-08-28, the first sight-emitting structure --
+    // the fog canon's structures clause made real). Any structure the player
+    // owns that carries `vision` sees armies that far out, which is what buys
+    // the earlier raid warning a watchtower exists for. Stateless like every
+    // other eye here: demolish the tower and the country goes dark again.
+    if (S.map && S.map.built) {
+      for (const [id, sid] of Object.entries(S.map.built)) {
+        const def = structureDef(sid);
+        if (!def || !def.vision || ownerOf(id) !== S.me) continue;
+        const at = world.places[id];
+        if (at && hexDistance(at.q, at.r, place.q, place.r) <= def.vision) return true;
+      }
     }
   }
   return false;

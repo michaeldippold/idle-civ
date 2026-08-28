@@ -12,6 +12,7 @@ import { battleAt, beginSack } from "../sim/contact.js";
 import { colorById, FOREIGN, FOREIGN_MINOR, playerColor } from "../core/palette.js";
 import { hexDistance, hexPoints, toPixel } from "../map/model.js";
 import { campaignPlan, expeditionOut, musterBuilt, standingWord } from "../sim/expeditions.js";
+import { allowedSockets } from "../render3d/hex3d.js";
 import { attachTip, esc, tipHide, tipMove, tipShow } from "./dom.js";
 import { openCampaignModal, openCaravanModal, openRaiseModal, stockLine } from "./expeditions.js";
 import { watchBattle } from "./battle.js";
@@ -393,10 +394,29 @@ export function piecesForBoard() {
       // across the centre -- so seat garrisons stay on the ring until the
       // seat grows a real model.)
       const garrisoned = !!(fortDefAt(a.at) && ownerOf(a.at) === pl.id);
+      // THE SOCKET VETO (2026-08-28): on a fortified hex, wall spokes may
+      // run through ring sockets (an E/W spoke passes dead through the E/W
+      // sockets), and a disc must never stand in masonry. The geometry is
+      // hex3d's (allowedSockets), so the feed and the renderer can never
+      // disagree about where the walls are. Only a besieger needs this --
+      // the garrisoned owner is in the courtyard.
+      let socket = pl.id % 4;
+      if (!garrisoned && fortDefAt(a.at)) {
+        const deltas = [];
+        for (const nid of place.adj || []) {
+          if (!fortDefAt(nid)) continue;
+          const np = world.places[nid];
+          if (np) deltas.push([np.q - place.q, np.r - place.r]);
+        }
+        if (deltas.length) {
+          const ok = allowedSockets(deltas);
+          if (ok.length && !ok.includes(socket)) socket = ok[pl.id % ok.length];
+        }
+      }
       out.push({
         key: pl.id + ":" + a.uid, hex: a.at, q: place.q, r: place.r,
         color: (colorById(pl.color) || {}).ring || FOREIGN,
-        count: n, tier: armyBand(n).tier, socket: pl.id % 4,
+        count: n, tier: armyBand(n).tier, socket,
         courtyard: garrisoned,
         marching: !!a.order, mine,
         selected: selectedArmy === pl.id + ":" + a.uid,

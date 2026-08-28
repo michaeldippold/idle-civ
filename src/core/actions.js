@@ -1,7 +1,7 @@
 import { buildCost, canAfford, caps, civilians, defById, fmtTime, isCapped, levyCap, levyUsed, pendingCount, playtime, reserved } from "./derived.js";
 import { active } from "../content/compile.js";
 import { CONFIG } from "./config.js";
-import { atDominionCap, captureTile, hexUse, holdCount, holdings, isOwned, marchFactor, ownerOf, routeCost, setHexBuild, structureCount, structureDef, syncPopMirror, world } from "../map/map.js";
+import { atDominionCap, captureTile, chartGround, hexUse, holdCount, holdings, isOwned, marchFactor, ownerOf, routeCost, setHexBuild, structureCount, structureDef, syncPopMirror, world } from "../map/map.js";
 import { S, me } from "./state.js";
 import { record } from "./journal.js";
 import { save } from "./persist.js";
@@ -317,6 +317,15 @@ export function completeConstruction(site) {
     }
     const def = structureDef(site.id);
     setHexBuild(site.tile, site.id);
+    // A sight-emitting structure CHARTS its country the day it stands
+    // (2026-08-28): chartGround charts each id plus its ring, so the tile and
+    // its neighbours together chart out to def.vision = 2. Sticky, like all
+    // charting -- the watchers walked that ground to know it. The LIVE eye
+    // (seeing armies move out there) is canSeeArmyAt reading def.vision.
+    if (def && def.vision) {
+      const p0 = world && world.places[site.tile];
+      if (p0) chartGround([site.tile].concat(p0.adj));
+    }
     chronicle(`${def ? def.name : "The works"} stands finished. The hex answers to it now.`, "good");
     return;
   }

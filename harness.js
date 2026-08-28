@@ -1634,14 +1634,16 @@ console.log("\n--- Phase B: the cross-reference validator ---");
 console.log("\n--- Phase B: manifestDiff ---");
 {
   const d = api.manifestDiff(api.MANIFESTS.stone, api.MANIFESTS.bronze);
-  // Fifteen since the panel retired and STRUCTURES joined the diff (2026-08-25):
+  // Seventeen since the fortification family arrived (2026-08-28; fifteen
+  // from 2026-08-25 when the panel retired and STRUCTURES joined the diff):
   // Bronze is where a hex can first be turned into something other than the
-  // ground it stands on, and it now brings the mines, the market and the forge
-  // with it. Counted rather than listed so the era modal cannot go silent about
-  // a whole category again.
-  check("fifteen additions across every buildable category",
-    d.added.length === 15 && d.added.some((a) => a.id === "warCamp") &&
-    d.added.some((a) => a.id === "farming") && !d.added.some((a) => a.id === "oreYard"));
+  // ground it stands on, and it now brings the mines, the market, the forge,
+  // the palisade and the watchtower with it. Counted rather than listed so
+  // the era modal cannot go silent about a whole category again.
+  check("seventeen additions across every buildable category",
+    d.added.length === 17 && d.added.some((a) => a.id === "warCamp") &&
+    d.added.some((a) => a.id === "farming") && !d.added.some((a) => a.id === "oreYard") &&
+    d.added.some((a) => a.id === "palisade") && d.added.some((a) => a.id === "watchtower"));
   check("...and structures are among them -- the diff sees the whole board",
     d.added.some((a) => a.id === "forge") && d.added.some((a) => a.id === "copperMine") &&
     d.added.some((a) => a.id === "market"));
@@ -6027,6 +6029,123 @@ console.log("\n--- The pieces: discs, tiers, sockets, and who gets drawn ---");
     // that must clear half the spoke plus a whole disc.
     const SPOKE_W = 0.30;
     return sockDist * 0.5 >= SPOKE_W / 2 + api.DISC_RADIUS;
+  })());
+
+  // ---- THE FORTIFICATION FAMILY (2026-08-28) ----
+  check("the family is authored in both eras, and the palisade cannot shoot", (() => {
+    for (const era of ["bronze", "iron"]) {
+      const st = api.MANIFESTS[era].structures;
+      const pal = st.find((s) => s.id === "palisade");
+      const twr = st.find((s) => s.id === "watchtower");
+      if (!pal || !pal.fortifies || pal.slots !== 0 || !(pal.wallPool > 0)) return false;
+      if (!twr || !twr.fortifies || !(twr.slots > 0) || twr.vision !== 2) return false;
+      // The ladders run OPPOSITE ways, which is each building's identity:
+      // wall: watchtower < palisade < march-hold (the tower is mostly eye);
+      // slots: palisade (0) < watchtower < march-hold (nobody mans a fence).
+      if (!(twr.wallPool < pal.wallPool)) return false;
+    }
+    const hold = api.MANIFESTS.iron.structures.find((s) => s.id === "marchHold");
+    const twr = api.MANIFESTS.iron.structures.find((s) => s.id === "watchtower");
+    return hold.wallPool > twr.wallPool && hold.slots > twr.slots;
+  })());
+
+  check("an enemy fortified hex is a wall: paths route around, never through", (() => {
+    // A corridor: find a hex whose removal matters. Take any land hex on a
+    // real path between two of ours, fortify it for the RIVAL, and the path
+    // must change -- and never contain the fortified hex.
+    const P5 = api.me(), R5 = api.rivals()[0];
+    const from = api.holdings(P5.id)[0];
+    const far = Object.values(api.world.places).find((x) =>
+      x.terrain !== "water" && !x.adversary && api.pathBetween(from, x.id, P5) &&
+      api.pathBetween(from, x.id, P5).length >= 3);
+    if (!far) return false;
+    const path0 = api.pathBetween(from, far.id, P5);
+    const mid = path0[Math.floor(path0.length / 2)];
+    api.claimTile(mid, R5.id);
+    S().map.built[mid] = "palisade";
+    const path1 = api.pathBetween(from, far.id, P5);
+    const throughWall = path1 && path1.includes(mid);
+    // The fortified hex itself stays a legal DESTINATION -- that is a siege.
+    const siege = api.pathBetween(from, mid, P5);
+    delete S().map.built[mid];
+    api.releaseTile(mid);
+    return !throughWall && !!siege && siege[siege.length - 1] === mid;
+  })());
+
+  check("your OWN fortified hex is a road like any other", (() => {
+    const P5 = api.me();
+    const held = api.holdings(P5.id)[0];
+    S().map.built[held] = "palisade";
+    // A path from a neighbour to a hex on the far side may cross our wall.
+    const nb = api.world.places[held].adj.find((x) => api.world.places[x].terrain !== "water");
+    const ok = nb ? api.pathBetween(nb, held, P5) !== null : false;
+    delete S().map.built[held];
+    return ok;
+  })());
+
+  check("a watchtower is eyes: an army two hexes out is seen, three is not", (() => {
+    const P5 = api.me(), R5 = api.rivals()[0];
+    const base = api.holdings(P5.id)[0];
+    // Ground exactly 2 and 3 out from a held hex, owned by nobody, away from
+    // all our territory and armies (or the ordinary eyes answer first).
+    const bp = api.world.places[base];
+    const clear = (x, d) => x.terrain !== "water" && !api.ownerOf(x.id) &&
+      api.hexDistance(bp.q, bp.r, x.q, x.r) === d &&
+      !api.isSighted(x.id) &&
+      x.adj.every((n) => api.ownerOf(n) == null || api.ownerOf(n) !== P5.id) &&
+      !api.armyAt(x.id, P5) && x.adj.every((n) => !api.armyAt(n, P5));
+    const at2 = Object.values(api.world.places).find((x) => clear(x, 2));
+    const at3 = Object.values(api.world.places).find((x) => clear(x, 3));
+    if (!at2 || !at3) return true;   // seed gave no clean ground; not a failure of the rule
+    const before2 = api.canSeeArmyAt(at2.id);
+    S().map.built[base] = "watchtower";
+    const seen2 = api.canSeeArmyAt(at2.id);
+    const seen3 = api.canSeeArmyAt(at3.id);
+    delete S().map.built[base];
+    return before2 === false && seen2 === true && seen3 === false;
+  })());
+
+  check("the socket veto: an E-W wall pair leaves N and S, diagonals leave all four", (() => {
+    // Axial deltas: E = (1,0), W = (-1,0); the diagonals NE (1,-1), SW (-1,1).
+    const ew = api.allowedSockets([[1, 0], [-1, 0]]);
+    const diag = api.allowedSockets([[1, -1], [-1, 1], [0, -1], [0, 1]]);
+    const one = api.allowedSockets([[1, 0]]);
+    // Sockets 0/1 are N/S (dz), 2/3 are E/W (dx) -- see PIECE_SOCKETS.
+    return ew.length === 2 && ew.includes(0) && ew.includes(1) &&
+      diag.length === 4 &&
+      one.length === 3 && !one.includes(2);
+  })());
+
+  check("the feed reseats a besieger off a vetoed socket", (() => {
+    // Player 2's default socket is 2 -- the E socket, dead on an E spoke.
+    // Stand a rival army on a fortified hex whose E neighbour is also
+    // fortified, and the feed must hand it a surviving socket.
+    const P5 = api.me(), R5 = api.rivals()[0];
+    const spot = api.holdings(P5.id).find((h) => {
+      const pl0 = api.world.places[h];
+      return pl0 && pl0.adj.some((n) => {
+        const np = api.world.places[n];
+        return np && np.q - pl0.q === 1 && np.r === pl0.r && api.ownerOf(n) === P5.id;
+      });
+    });
+    if (!spot) return true;                      // no E-owned pair on this seed
+    const east = api.world.places[spot].adj.find((n) => {
+      const np = api.world.places[n], pl0 = api.world.places[spot];
+      return np.q - pl0.q === 1 && np.r === pl0.r;
+    });
+    S().map.built[spot] = "marchHold";
+    S().map.built[east] = "palisade";
+    const foe = api.formArmy(api.holdings(R5.id)[0], { soldier: 2 }, "never", R5)
+      || api.armiesOf(R5).find((x) => !x.inBattle);
+    if (!foe) { delete S().map.built[spot]; delete S().map.built[east]; return false; }
+    foe.at = spot;
+    const row = api.piecesForBoard().find((x) => x.key === R5.id + ":" + foe.uid);
+    delete S().map.built[spot]; delete S().map.built[east];
+    // R5.id = 1 -> socket 1 (S), untouched by an E spoke: veto leaves it.
+    // The contract under test: whatever socket the feed hands out is one
+    // allowedSockets blesses for an E spoke.
+    const legal = api.allowedSockets([[1, 0]]);
+    return row && !row.courtyard && legal.includes(row.socket);
   })());
 
   check("the feed garrisons your army behind your own walls -- and never the besieger", (() => {

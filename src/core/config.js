@@ -180,6 +180,16 @@ export const CONFIG = {
   // slot, never an upkeep.
   rebirthSeconds: 480,      // the base wait
   rebirthJitter: 0.5,       // +/- half again, drawn from the game dice at break
+  // WAR PARTIES ESCALATE TO WAR (owner playtest, 2026-08-26: "they wander
+  // over, stomp a couple people, and then wander home... they should behave a
+  // bit more aggressively"). When a warlike neighbour's muster is flush, a
+  // trigger that would have sent a raid sends a WAR ARMY instead: bigger,
+  // braver, it does not scout for soft targets, and when it takes your ground
+  // it STAYS -- their border grows into yours, and taking it back is your
+  // war to wage. War armies never target capitals (v1): run-ending aggression
+  // stays player-side until deliberately flipped on.
+  botWarChance: 0.3,        // chance a flush muster escalates the trigger to war
+  botWarMinFree: 8,         // how many free units "flush" means
   rebirthMinDistance: 5,    // a newborn nation seats at least this far from every holding:
                             // safe by GEOGRAPHY, not by rules -- no spawn to camp
   armyPerHex: 2,          // the army cap (E5): each held hex supports this many standing

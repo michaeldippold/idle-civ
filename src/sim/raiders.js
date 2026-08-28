@@ -3,9 +3,9 @@ import { CONFIG } from "../core/config.js";
 import { rng } from "../core/rng.js";
 import { chronicle } from "../core/bus.js";
 import { S, me, rivals } from "../core/state.js";
-import { armiesOf, armyAt, armyBand, armySize, canSeeArmyAt, orderMarch } from "./armies.js";
+import { armiesOf, armyAt, armyBand, armySize, canSeeArmyAt, freeUnits, orderMarch } from "./armies.js";
 import { raidSender } from "./expeditions.js";
-import { seatOf } from "./bots.js";
+import { botMint, seatOf } from "./bots.js";
 import { raidGround, reconcileReservations, rollRaidSize, rollRaidType, stealResources } from "./combat.js";
 import { hexPop, isOwned, killAt, ownerOf, strikeHex, structureDef, world } from "../map/map.js";
 
@@ -66,6 +66,42 @@ function hardened(hexId) {
   return !!(def && def.fortifies);
 }
 
+// What a war army marches at: your ground, drawn by the same frontier
+// weighting, hardened or not -- it wants the fight -- but NEVER your home
+// hex. Losing the run to bot aggression is a switch to flip deliberately,
+// not a side effect of an escalation roll.
+function warTarget() {
+  let pick = strikeHex("raid");
+  if (pick && world && pick === world.home) {
+    // Early game the home hex dominates the weights (most people, zero
+    // administrative distance), so reject-sampling it starves war of targets
+    // entirely. One redraw, then ANY other holding of the victim's -- war
+    // wants a fight, not a particular field.
+    const second = strikeHex("raid");
+    if (second && second !== world.home) return second;
+    const owner = pick;
+    const alt = holdingsOfOwner(owner);
+    return alt;
+  }
+  return pick;
+}
+
+function holdingsOfOwner(homeHex) {
+  const pid = ownerOf(homeHex);
+  if (pid == null || !world) return null;
+  for (const id in world.places) {
+    if (id !== homeHex && ownerOf(id) === pid && world.places[id].terrain !== "water") return id;
+  }
+  return null;
+}
+
+// The type a raid WOULD roll, for sizing the flush check without spending the
+// real type roll out of order.
+function rollableType(civ) {
+  const types = active(civ).raidTypes || [];
+  return types[0] || null;
+}
+
 function raidTarget() {
   let pick = strikeHex("raid");
   if (pick && hardened(pick)) {
@@ -88,7 +124,7 @@ function nameGate(civ) {
 // cadence and lost its arithmetic. Returns the army, or null when no raid
 // could form -- no warlike sender, no seat on the map, one already out, or
 // nowhere to strike.
-export function spawnRaid() {
+export function spawnRaid(opts) {
   const sender = raidSender();
   if (!sender || !sender.civ) return null;
   const civ = sender.civ;
@@ -101,24 +137,32 @@ export function spawnRaid() {
   if (armiesOf(civ).some((a) => a.intent === "raid" || a.intent === "returning")) return null;
   const seat = seatOf(civ);
   if (!seat || (ownerOf(seat) != null && ownerOf(seat) !== civ.id)) return null;
-  const target = raidTarget();
+  // THE ESCALATION: a flush muster sometimes goes to WAR instead of raiding.
+  // A war army is bigger, does not scout for soft ground (it wants the
+  // fight), and holds what it takes. Never the capital, in v1.
+  const free = Math.max(0, freeUnits(unitFor(rollableType(civ), civ), civ));
+  const war = (opts && opts.war === true) ||
+    (!(opts && opts.war === false) && free >= CONFIG.botWarMinFree && rng() < CONFIG.botWarChance);
+  const target = war ? warTarget() : raidTarget();
   if (!target) return null;
-  const size = Math.max(1, Math.round(rollRaidSize(sender)));
+  const rolled = Math.max(1, Math.round(rollRaidSize(sender)));
   const raid = rollRaidType(sender);
   const uid = unitFor(raid, civ);
-  // The units are MUSTERED, not conjured from a levy we do not simulate:
-  // granted into the civ's pool and committed to the army in the same breath,
-  // so casualties in battle deduct from a real roster and survivors genuinely
-  // return home to it.
-  civ.units[uid] = (civ.units[uid] || 0) + size;
+  // MUSTERED UNDER THE LEVY (owner playtest, 2026-08-26): free units first,
+  // minted shortfall only up to territory x armyPerHex -- the same law that
+  // caps the human. The old unconditional grant minted a war machine from
+  // nothing, every raid, forever.
+  const size = botMint(civ, uid, rolled);
+  if (size < 1) return null;                  // a people at its levy raids with what it has
   const army = {
     uid: ++civ.buildSeq,
     at: seat,
     roster: { [uid]: size },
-    // Withdraw at a quarter lost: cowardice as doctrine. See the header.
-    stance: "quarter",
+    // Raiders withdraw at a quarter lost: cowardice as doctrine. A WAR army
+    // fights to half -- it came for the ground, not the stores.
+    stance: war ? "half" : "quarter",
     order: null,
-    intent: "raid",
+    intent: war ? "war" : "raid",
     home: seat,
   };
   armiesOf(civ).push(army);
@@ -140,6 +184,15 @@ export function turnHome(army, civ) {
   if (army.at === army.home) { despawn(civ, army); return; }
   orderMarch(army.uid, army.home, civ);
   if (!army.order) despawn(civ, army);   // cut off entirely: they scatter
+}
+
+// Contact calls this the moment a homebound raider steps onto its own seat:
+// the column DISBANDS into the pool there, instead of walking one more step
+// into arrive() and MERGING into the garrison disc -- which is how a bronze
+// garrison of seven banked its way to seventeen, one raid's survivors at a
+// time.
+export function disbandReturned(army, civ) {
+  despawn(civ, army);
 }
 
 function despawn(civ, army) {
@@ -238,6 +291,14 @@ export function tickRaiders() {
       // Doctrine is simple: anything that survives heads home; anything home
       // disperses. (Arrival at the TARGET never reaches here -- contact's
       // arrived hook pillages or turns them before the order clears.)
+      if (army.intent === "war") {
+        // A war army that took ground STAYS on it -- their border grew into
+        // yours, and taking it back is your war to wage. One with nothing
+        // left to hold walks home like anyone else.
+        if (ownerOf(army.at) === civ.id) { army.intent = "garrison"; continue; }
+        turnHome(army, civ);
+        continue;
+      }
       if (army.intent === "raid") turnHome(army, civ);
       else if (army.intent === "returning") {
         if (army.at === army.home) despawn(civ, army);

@@ -407,9 +407,12 @@ console.log("\n--- The inbound war: a raid is an army now (A5) ---");
     g2.at = eye;
     api.tickRaiders();
     const news = g2.sightedByMe === true;
-    // Undo the staging completely.
+    // Undo the staging completely -- INCLUDING the hand-minted grant, which
+    // exists outside botMint and would otherwise fail the levy-law check
+    // below with units this fixture conjured itself.
     const lH = api.armiesOf(hill); lH.splice(lH.indexOf(g2), 1);
     const lP = api.armiesOf(P); lP.splice(lP.indexOf(watcher), 1);
+    hill.units.soldier = Math.max(0, (hill.units.soldier || 0) - 3);
     api.releaseTile(seat2);
     return quiet && news;
   })());
@@ -467,6 +470,58 @@ console.log("\n--- The inbound war: a raid is an army now (A5) ---");
     api.armiesOf(hill).length === 0 && P.res.food === foodAllWalled &&
     api.hexPopSum() === landAllWalled && api.battleCount() === 0);
   for (const id of api.holdings(P.id)) delete S().map.built[id];
+
+  // ---- The levy binds everyone (owner playtest: a garrison of SEVENTEEN) ----
+  check("the levy binds everyone -- bot units never exceed territory x armyPerHex",
+    api.botTotalUnits(hill) <= api.botLevyCap(hill));
+
+  check("a returning column disbands at the seat -- never banks into the garrison", (() => {
+    const seat3 = api.seatOf(hill);
+    api.claimTile(seat3, hill.id);
+    hill.units.soldier = (hill.units.soldier || 0) + 6;
+    const gar = api.formArmy(seat3, { soldier: 4 }, "never", hill);
+    gar.intent = "garrison";
+    const gSize = api.armySize(gar);
+    const eye2 = api.world.places[seat3].adj.find((n) => api.world.places[n].terrain !== "water");
+    const homer = api.formArmy(seat3, { soldier: 2 }, "never", hill) ? null : (() => {
+      // one army per hex: stage the homer adjacent instead
+      const h2 = { uid: ++hill.buildSeq, at: eye2, roster: { soldier: 2 }, stance: "quarter",
+                   order: null, intent: "returning", home: seat3 };
+      api.armiesOf(hill).push(h2);
+      return h2;
+    })();
+    api.orderMarch(homer.uid, seat3, hill);
+    let g5 = 0;
+    while (api.armyById(homer.uid, hill) && g5++ < 200) api.tickMilitary(2);
+    const ok = api.armyById(homer.uid, hill) == null &&      // the homer retired
+      api.armySize(gar) === gSize &&                          // the garrison did NOT grow
+      api.freeUnits("soldier", hill) >= 2;                    // the pool did
+    const lG = api.armiesOf(hill); lG.splice(lG.indexOf(gar), 1);
+    api.releaseTile(seat3);
+    return ok;
+  })());
+
+  // ---- The escalation: war armies take and HOLD ground ----
+  check("a war army takes your ground and STAYS on it", (() => {
+    hill.units.soldier = (hill.units.soldier || 0) + 10;
+    const war = api.spawnRaid({ war: true });
+    if (!war) return false;
+    if (!(war.intent === "war" && war.stance === "half")) return false;
+    if (war.order && war.order.to === api.world.home) return false;   // never the capital
+    // Force it at a known undefended ordinary hex of mine for determinism.
+    const prize = api.holdings(P.id).find((id) => id !== api.world.home && !api.armyAt(id, P));
+    api.orderMarch(war.uid, prize, hill);
+    let g6 = 0;
+    while (api.armyById(war.uid, hill) && api.ownerOf(prize) === P.id && g6++ < 600) api.tickMilitary(2);
+    const took = api.ownerOf(prize) === hill.id;
+    api.tickMilitary(2);                                     // the shepherd converts it
+    const stayed = api.armyAt(prize, hill) && api.armyAt(prize, hill).intent === "garrison";
+    // undo: hand the hex back, disperse the squatter
+    const sq = api.armyAt(prize, hill);
+    if (sq) { const lW = api.armiesOf(hill); lW.splice(lW.indexOf(sq), 1); }
+    api.releaseTile(prize); api.claimTile(prize, P.id);
+    return took && !!stayed;
+  })());
 }
 
 // ---- E5: deaths land on hexes ----

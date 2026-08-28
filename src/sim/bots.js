@@ -4,7 +4,7 @@ import { rng } from "../core/rng.js";
 import { S, me, rivals } from "../core/state.js";
 import { chronicle } from "../core/bus.js";
 import { initAdversaries } from "../core/persist.js";
-import { armiesOf, armyAt, formArmy } from "./armies.js";
+import { armiesOf, armyAt, formArmy, freeUnits } from "./armies.js";
 import { claimTile, holdings, ownerOf, world } from "../map/map.js";
 
 // ---------- BOTS: a neighbour becomes a country -----------------------------
@@ -46,6 +46,33 @@ export function seatCivAt(hexId) {
     if (seatOf(civ) === hexId) return civ;
   }
   return null;
+}
+
+// THE LEVY BINDS EVERYONE (owner playtest, 2026-08-26: a bronze garrison of
+// SEVENTEEN against an authored seven, because raids minted units from
+// nothing and every regarrison minted a fresh set on top). The human's law --
+// territory times armyPerHex is the ceiling -- now caps the bots too, floored
+// at their authored strength so a small people always fields its core. Their
+// territory IS their war machine: sack their hexes and the armies they can
+// field shrink with the ground.
+export function botLevyCap(civ) {
+  const def = (active(civ).adversaries || []).find((a) => a.id === civ.key);
+  const core = Math.max(2, (def && def.strength) || 4);
+  return Math.max(core, holdings(civ.id).length * CONFIG.armyPerHex);
+}
+export function botTotalUnits(civ) {
+  let n = 0;
+  for (const k in civ.units) n += civ.units[k] || 0;
+  return n;
+}
+// Mint only the shortfall, and only up to the levy: existing free units
+// muster first, because a pool that never drains is how seventeen happened.
+export function botMint(civ, uid, wanted) {
+  const free = Math.max(0, freeUnits(uid, civ));
+  const room = Math.max(0, botLevyCap(civ) - botTotalUnits(civ));
+  const mint = Math.min(Math.max(0, wanted - free), room);
+  if (mint > 0) civ.units[uid] = (civ.units[uid] || 0) + mint;
+  return Math.min(wanted, free + mint);
 }
 
 // The standing garrison a seat deserves, read from the civ's OWN era: the
@@ -99,8 +126,14 @@ function settle(civ) {
   } else {
     if (civ.everGarrisoned && (civ.regarrisonT || 0) < CONFIG.botRegarrisonSeconds) return;
     const counts = garrisonCounts(civ);
-    for (const uid in counts) civ.units[uid] = (civ.units[uid] || 0) + counts[uid];
-    const army = formArmy(seat, counts, "never", civ);
+    // Muster from the pool first, mint only the shortfall, respect the levy.
+    const mustered = {};
+    for (const uid in counts) {
+      const got = botMint(civ, uid, counts[uid]);
+      if (got > 0) mustered[uid] = got;
+    }
+    if (!Object.keys(mustered).length) return;
+    const army = formArmy(seat, mustered, "never", civ);
     if (army) {
       army.intent = "garrison";
       civ.everGarrisoned = true;

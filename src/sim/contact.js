@@ -5,7 +5,7 @@ import { chronicle, emit, runEnded } from "../core/bus.js";
 import { S, me, playerById } from "../core/state.js";
 import { armiesOf, armyAt, armySize, marchArmies } from "./armies.js";
 import { resolveBattle } from "./battle.js";
-import { pillageAt, repelledByWalls, tickRaiders, turnHome } from "./raiders.js";
+import { disbandReturned, pillageAt, repelledByWalls, tickRaiders, turnHome } from "./raiders.js";
 import { seatCivAt } from "./bots.js";
 import {
   atDominionCap, chartGround, claimTile, ensurePop, holdings, isOwned,
@@ -500,6 +500,12 @@ const HOOKS = {
   // STEPPING ONTO AN ENEMY SEALS A BATTLE, transit or destination alike. The
   // mover is the attacker: they walked in.
   entered: (army, who, hexId) => {
+    // A homebound raider that reaches its seat is DONE: disbanded into the
+    // pool on the step, before arrive() could merge it into the garrison.
+    if (army.intent === "returning" && hexId === army.home) {
+      disbandReturned(army, who);
+      return "halt";
+    }
     for (const other of S.players) {
       if (other.id === who.id) continue;
       const standing = armyAt(hexId, other);

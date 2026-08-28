@@ -541,6 +541,15 @@ several tempting ideas later, and it should.
      there. Falling back to the seat would yank the view across the map at exactly the moment the
      player wants the aftermath. (`selectedArmyObj()` already detects the vanished case and nulls
      out; it needs to hand off instead of clearing.)
+     - **And the fallback is itself a signal** (owner): *"it kinda hints what happened if you
+       weren't watching — there was an army on that hex, now an empty hex selected where the army
+       was."* It pairs with the Chronicle rather than repeating it — the Chronicle says WHAT
+       happened, the selection says WHERE — so the panel should add no words to it; the emptiness
+       is already legible.
+     - **Death and absorption are different endings.** A selected army that MERGES into another of
+       yours loses its uid the same way, but nothing was lost — the soldiers are standing there
+       under a different id, and falling to the ground would read as "where did they go?". Merged
+       → follow the host army; destroyed → fall to the ground.
    - **Keep the verbs split**: *training a soldier* (Archer/Horseman cards) belongs in Population;
      **Raise an army** is hex-contextual and stays in Inspector, where the hex is. Population
      produces soldiers; Inspector commits them to a formation on specific ground. That split is

@@ -246,6 +246,44 @@ outcomes because one clicked quicker. If something catches you off guard, you pa
 available information freely, like a Civ game — the owner's line for why 4X is the perfect bridge
 between the two poles. The APM ceiling stays a few orders per minute, all optional — TI4, not AoE.
 
+### The speed cap *(owner ruling, 2026-08-28)*
+
+**Speeds become 1× / 2× / 4×; 8× and 12× die.** They were idle-era escape valves — *"speed just
+speeds up your idle simulation. You get cookies faster"* (owner) — and in the competitive game
+they manufacture the exact failure mode the standing law above bans: at 12× an eight-hex march
+resolves in ~8 wall-seconds, so every order effectively requires fast hands or constant pausing.
+Warning time is denominated in wall-clock seconds a human can react within (a raid sighted three
+hexes out gives ~36s at 1×, ~9–15s at 4×, ~3s at 12×), and the telegraph economy is meaningful
+only under a cap. The precedent was already on the books: *a new age begins at 1×* exists because
+a 12× border starved a run before its modal closed. AoE2's speeds cap at 2.0 for the same
+reason — in a competitive real-time game, the clock IS the difficulty.
+
+- **Auto-slow** *(direction, to confirm in play)*: sighting a hostile army or a battle sealing
+  snaps the speed to 1× — the era-border speed reset generalized, Stellaris's auto-pause idiom.
+  4× gets a clean identity: it is for **peace**, crossing the quiet stretch of an era; the moment
+  the world produces news, the game hands back your reading speed. Warning time becomes
+  guaranteed in wall-clock terms at any legal speed.
+- **Build times re-balance against the cap.** Rule 6's "fast-forward as the escape valve" clause
+  retires with the valve; the re-pacing checklist: build times, the mid-era growth/cap-fill lull,
+  the sack windows (`sackSeconds`/`sackCapitalSeconds` are now experienced at ≤4×), bot claim
+  cadence, capstone waits. A dev-only 12× may survive behind the dashed-border dev-tool
+  convention for QA passes.
+- **TRUE MULTIPLAYER IS 1× OR PAUSE** *(owner ruling, same conversation, and the reasoning is
+  the load-bearing part)*: in a game whose scarce resource is attention, the speed control in
+  adversarial hands is an **attention weapon** — speed up while your march is unseen, drop to 1×
+  to issue precise orders, speed back up; or change the pace while the other player sits reading
+  the tech tree, tricking them into idling through a stretch they thought was slow. So versus
+  play has exactly two states: **the world moves at the one speed you know, or it does not
+  move.** The "I didn't realize the speed changed" failure is unrepresentable. Pause stays for
+  both seats — it is load-bearing (anything time-critical must be issuable from pause) and
+  symmetric: nothing moves, so nobody can be tricked. Pause-spamming to issue orders is not an
+  exploit; it is the design working, identically available to both. Mechanism unchanged from the
+  antagonist spec: per-player throttles, the world at `min()` — the ruling only restricts the
+  legal set per mode, `{0, 1, 2, 4}` at a bot table, `{0, 1}` versus humans. Consequence flagged
+  honestly: multiplayer is the strictest consumer of the re-pacing work, since two humans at
+  peace can never fast-forward the lull — the mid-era must be engaging at literal 1×, which the
+  tabletop identity supports (board games have no fast-forward).
+
 ## Design Philosophy
 
 **Unravel the contents, not the board.** The board is **whole from the first frame**: every panel the

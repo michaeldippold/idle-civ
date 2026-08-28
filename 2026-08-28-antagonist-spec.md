@@ -340,19 +340,23 @@ decisions) exists so a test game is never hostage, but the pause is the default.
   mechanism for no-faster-hands; strip pause from multiplayer and two humans fighting becomes
   an execution contest, betraying the identity outright. So multiplayer generalizes pause
   rather than dropping it. **The one rule for both pause and speed** *(ruled in conversation,
-  2026-08-28)*: **every player has a throttle; the world runs at the minimum.** Each player
-  sets their own max speed (0 through 12×); effective speed = `min()` across the table; pause
-  is a throttle at 0 under the same rule, not a second mechanism. This preserves the exact
-  single-player contract, generalized: *no one can force time to pass on you* — you can always
-  stop the world to think; what you can no longer do is speed it past someone else's comfort.
-  **What dies is PRIVATE time** — one player at 8× while the other sits at 1× is impossible,
-  because there is one world clock. Speed becomes consensus; the design brief's "the
-  adjustable clock gets negotiated away" made automatic, because `min()` IS the negotiation.
-  Pausing modals pause the table (the tabletop norm: anyone can say "hold on"). Footnotes:
-  the infinite-pause griefer is out of scope for the friendly game (social contract; the
-  someday-competitive answer is pause budgets, chess-clock shaped); and latency amplifies in
-  world-time at high speed (~100ms is ~1.2 world-seconds at 12×), one more reason `min()`
-  beats host-dictates. One real edit to today's code: the tab-hidden pause becomes
+  2026-08-28)*: **every player has a throttle; the world runs at the minimum.** Effective
+  speed = `min()` across the table; pause is a throttle at 0 under the same rule, not a second
+  mechanism. This preserves the exact single-player contract, generalized: *no one can force
+  time to pass on you*. **And the legal throttle set is per mode** *(owner ruling, same day —
+  full reasoning in design.md → The speed cap, which also killed 8× and 12× game-wide)*:
+  **`{0, 1, 2, 4}` at a bot table; `{0, 1}` versus humans — true multiplayer is 1× or pause.**
+  Speed in adversarial hands is an attention weapon: oscillate — march unseen at 4×, drop to
+  1× to issue precise orders, speed back up — or change the pace while the other player sits
+  reading the tech tree and trick them into idling. So versus play has exactly two states:
+  **the world moves at the one speed you know, or it does not move** — the "I didn't realize
+  the speed changed" failure is unrepresentable. Pause stays for both seats: load-bearing
+  (anything time-critical must be issuable from pause) and symmetric — nothing moves, so
+  nobody can be tricked; pause-spamming to issue orders is not an exploit, it is the design
+  working, identically available to both. The 1× cap also deletes the latency-amplification
+  concern outright. Pausing modals pause the table (the tabletop norm: anyone can say "hold
+  on"). The infinite-pause griefer is out of scope for the friendly game (social contract; the
+  someday-competitive answer is pause budgets, chess-clock shaped). One real edit to today's code: the tab-hidden pause becomes
   **host-only** — the sim runs on the host, so the host's hidden tab stops the world (reading
   as pause for the whole table). A guest's hidden tab stops only their rendering, never the
   world: their throttle is what they SET, and walking away from a running world without

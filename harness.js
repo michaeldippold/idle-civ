@@ -4499,7 +4499,11 @@ console.log("\n--- The action layer: one seam for every player verb ---");
 
   // TERRAIN GATING lives in the verb, not in the panel that used to be its only
   // caller: a bot calling this cannot do what a player could not.
-  const hill = Object.values(api.world.places).find((p) => p.terrain === "hills" && !p.adversary && !p.minor);
+  // UNOWNED BY ANYONE: captureTile refuses ground held by any civ now (S1) --
+  // the old fixture happily stole a hills hex out of the Hill Clans' home
+  // ring, which is the exact theft the settle fix closed for players.
+  const hill = Object.values(api.world.places).find((p) =>
+    p.terrain === "hills" && !p.adversary && !p.minor && api.ownerOf(p.id) == null);
   if (hill && !api.isOwned(hill.id)) api.captureTile(hill.id);
   if (hill) {
     const q = api.me().buildQueue.length;

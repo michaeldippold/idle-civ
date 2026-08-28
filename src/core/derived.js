@@ -45,8 +45,8 @@ export function fmtTime(totalSec) {
 //
 // Derived, never stored (rule 2): it cannot drift from the truth, it
 // re-denominates automatically at a border, and it needs no save field.
-export function soulsPerPerson() { return active().soulsPerPerson || 1; }
-export function souls() { return me().pop * soulsPerPerson(); }
+export function soulsPerPerson(p) { return active(p).soulsPerPerson || 1; }
+export function souls(p) { const who = p || me(); return who.pop * soulsPerPerson(who); }
 
 // The ONE place the small-numbers pillar is deliberately suspended (design.md:
 // "one formatter for one display, not the pillar being abandoned"). Grouped
@@ -70,18 +70,18 @@ export function fmtSouls(n) {
   return n.toLocaleString("en-US");
 }
 
-export function seatName() {
-  const n = (me().seatName || "").trim();
+export function seatName(p) {
+  const n = ((p || me()).seatName || "").trim();
   return n || "Your Seat";
 }
-export function seatIsNamed() { return !!(me().seatName || "").trim(); }
+export function seatIsNamed(p) { return !!((p || me()).seatName || "").trim(); }
 
-export function totalUnits() { return Object.values(me().units).reduce((a, b) => a + b, 0); }
+export function totalUnits(p) { return Object.values((p || me()).units).reduce((a, b) => a + b, 0); }
 // Under a levy (Iron onward) population SUPPORTS the army instead of
 // containing it: every holdfast stays in the assignable pool, and the war
 // bands stand apart. Stone/Bronze keep the old fiction -- a person who
 // becomes a soldier leaves the fields for good.
-export function civilians() { return me().pop - totalUnits(); }   // the levy died in E5
+export function civilians(p) { const who = p || me(); return who.pop - totalUnits(who); }   // the levy died in E5
 
 // Army capacity under a levy: holdfasts x rate. Queued training counts
 // against it the moment it's queued, same instant-reservation rule popCost
@@ -89,23 +89,26 @@ export function civilians() { return me().pop - totalUnits(); }   // the levy di
 // The army cap (E5): each held hex supports armyPerHex standing units, in
 // every era -- the levy re-homed to the land. Territory is what lets you
 // fight. (No map -- harness fixtures -- means no cap.)
-export function levyCap() {
-  return S.map ? holdCount() * CONFIG.armyPerHex : Infinity;
+export function levyCap(p) {
+  const who = p || me();
+  return S.map ? holdCount(who.id) * CONFIG.armyPerHex : Infinity;
 }
-export function levyUsed() {
-  return totalUnits() + me().buildQueue.filter((q) => q.kind === "unit").length;
+export function levyUsed(p) {
+  const who = p || me();
+  return totalUnits(who) + who.buildQueue.filter((q) => q.kind === "unit").length;
 }
 // jobsUsed() and releaseOrder() died here in E2 with the jobs system they
 // served: people are not assigned, they LIVE somewhere (design.md,
 // Population Lives Somewhere).
 // Anyone currently reserved by an in-progress (or still-waiting) unit order --
 // consumed the instant it's queued, not when it completes.
-export function reserved() {
+export function reserved(p) {
   // (The `levy` era-fact escape hatch was removed 2026-08-25: the levy died
   // in E5 and no manifest has declared one since -- the compiler asserts the
   // field is gone. Every era's recruits consume a real person.)
-  return me().buildQueue.reduce((sum, q) => {
-    const def = defById(q.id);
+  const who = p || me();
+  return who.buildQueue.reduce((sum, q) => {
+    const def = defById(q.id, who);
     return sum + (def && def.popCost ? def.popCost : 0);
   }, 0);
 }
@@ -115,34 +118,35 @@ export function reserved() {
 // still count toward pop) but they are NOT HOME: they don't defend, and home
 // casualties can't take them. Deployment is derived from me().expeditions rather
 // than tracked separately, so it can never desync.
-export function deployedCount(unitId) {
-  return me().expeditions.reduce((sum, ex) => sum + ((ex.units && ex.units[unitId]) || 0), 0);
+export function deployedCount(unitId, p) {
+  return (p || me()).expeditions.reduce((sum, ex) => sum + ((ex.units && ex.units[unitId]) || 0), 0);
 }
 // EVERYTHING COMMITTED IS SPOKEN FOR -- to an expedition still counting down,
 // or (since armies took the field) to an army standing somewhere on the board.
 // The arithmetic lives in sim/armies.js rather than here: two answers to "how
 // many can I give an order to" is how a roster starts lying.
-export function availableUnits(unitId) { return freeUnits(unitId, me()); }
+export function availableUnits(unitId, p) { return freeUnits(unitId, p || me()); }
 
 // Tool upgrades lift every gather rate (including the ores -- better tools cut
 // ore too); boost buildings lift one resource each.
-export function mults() {
-  const tools = (me().upgrades.stoneTools  ? CONFIG.stoneToolsBonus  : 0)
-              + (me().upgrades.bronzeTools ? CONFIG.bronzeToolsBonus : 0)
-              + (me().upgrades.ironTools   ? CONFIG.ironToolsBonus   : 0);
+export function mults(p) {
+  const who = p || me();
+  const tools = (who.upgrades.stoneTools  ? CONFIG.stoneToolsBonus  : 0)
+              + (who.upgrades.bronzeTools ? CONFIG.bronzeToolsBonus : 0)
+              + (who.upgrades.ironTools   ? CONFIG.ironToolsBonus   : 0);
   const out = {};
   // TECH ONLY (2026-08-25). Tool upgrades lift every gather rate, including
   // the ores -- better tools cut ore too. The per-resource BUILDING boost that
   // also lived here is gone: those buildings became structures standing on the
   // ground they improve, so improving a resource is now a thing you do to a
   // HEX, at that hex's rate, where a rival can see it and take it.
-  for (const r of active().resources) out[r.id] = 1 + tools;
+  for (const r of active(who).resources) out[r.id] = 1 + tools;
   return out;
 }
 
-export function caps() {
+export function caps(p) {
   const out = {};
-  for (const r of active().resources) {
+  for (const r of active(p).resources) {
     // FLAT AND ERA-AUTHORED (4c, 2026-08-25): the manifest is the whole
     // answer. Nothing a player builds moves a ceiling any more -- the era is
     // the budget -- and legacy storage counts in old saves are inert.
@@ -157,17 +161,18 @@ export function caps() {
 // dig up, EXCLUDING converters -- step() applies those separately via
 // runConverters. The ledger displays ledgerRates() (below), which folds the
 // converter flows back in for an honest what's-happening-to-the-pile view.
-export function rates() {
-  const m = mults();
+export function rates(p) {
+  const who = p || me();
+  const m = mults(who);
   const prod = {};
-  for (const r of active().resources) prod[r.id] = 0;
+  for (const r of active(who).resources) prod[r.id] = 0;
   // ONE formula, from the first minute to the last (engine rework E2):
   // output = people x per-capita rate x terrain. The hex's FLOORED population
   // works the land -- the same whole people the tile detail shows -- so what
   // you read is what you earn. A tile the rebuilt world doesn't know (a
   // harness fixture, a mid-migration save) works at par rather than silently
   // at zero.
-  const owned = holdings();
+  const owned = holdings(who.id);
   const pops = (S.map && S.map.pop) || {};
   // EVERY OWNED HEX PRODUCES (2026-08-25). This used to walk the allocation
   // map, so a hex nobody had pointed at anything sat idle -- which is what
@@ -177,7 +182,7 @@ export function rates() {
     // Ask the seam for the resource AND its rate. Bare ground reads its
     // terrain; a structure carries its own flat number; a March-hold answers
     // null and yields nothing. None of that is this loop's business.
-    const y = hexYield(tid);
+    const y = hexYield(tid, who);
     if (!y || !(y.res in prod)) continue;
     const people = Math.floor(pops[tid] || 0);
     if (people <= 0) continue;
@@ -193,9 +198,9 @@ export function rates() {
   // lives from the seat; the army is charged at par, since it musters with you
   // rather than sitting out on the frontier. Harness fixtures with no map fall
   // back to the plain headcount so nothing off-board changes behaviour.
-  const held = S.map && world ? upkeepMouths() : hexPopSum();
-  const mouths = held + totalUnits();
-  const upkeep = mouths * CONFIG.upkeep * (me().upgrades.fireMastery ? 0.85 : 1);
+  const held = S.map && world ? upkeepMouths(who) : hexPopSum(who.id);
+  const mouths = held + totalUnits(who);
+  const upkeep = mouths * CONFIG.upkeep * (who.upgrades.fireMastery ? 0.85 : 1);
   return Object.assign(prod, { upkeep, foodNet: prod.food - upkeep });
 }
 
@@ -205,17 +210,18 @@ export function rates() {
 // Forge fed at exactly its consumption rate -- the designed equilibrium --
 // reads as running steadily instead of flickering with the stock's float
 // remainder.
-export function converterFlows(prod) {
-  const c = caps();
+export function converterFlows(prod, p) {
+  const who = p || me();
+  const c = caps(who);
   const flows = {};
-  for (const def of (active().structures || [])) {
+  for (const def of (active(who).structures || [])) {
     if (!def.converts) continue;
-    const owned = builtCount(def.id);
+    const owned = builtCount(def.id, who.id);
     if (owned <= 0) continue;
     const spec = def.converts;
     let batches = owned * spec.rate;
-    for (const k in spec.in)  batches = Math.min(batches, ((me().res[k] || 0) + (prod[k] || 0)) / spec.in[k]);
-    for (const k in spec.out) batches = Math.min(batches, ((c[k] || 0) - (me().res[k] || 0)) / spec.out[k]);
+    for (const k in spec.in)  batches = Math.min(batches, ((who.res[k] || 0) + (prod[k] || 0)) / spec.in[k]);
+    for (const k in spec.out) batches = Math.min(batches, ((c[k] || 0) - (who.res[k] || 0)) / spec.out[k]);
     if (!(batches > 0)) continue;
     for (const k in spec.in)  flows[k] = (flows[k] || 0) - spec.in[k] * batches;
     for (const k in spec.out) flows[k] = (flows[k] || 0) + spec.out[k] * batches;
@@ -228,9 +234,9 @@ export function converterFlows(prod) {
 // simulation deliberately does NOT use this: step() applies production and
 // runConverters separately, and folding flows into rates() would convert
 // everything twice.
-export function ledgerRates() {
-  const r = rates();
-  const flows = converterFlows(r);
+export function ledgerRates(p) {
+  const r = rates(p);
+  const flows = converterFlows(r, p);
   for (const k in flows) r[k] += flows[k];
   // ...and net of what the larder is spending on GROWTH, which the engine
   // deducts inside growPopulation. Without this term the ledger printed
@@ -287,29 +293,32 @@ export function pluralize(name) { return name.endsWith("man") ? name.slice(0, -3
 // How many of this building/upgrade/unit are already owned or waiting in the
 // queue -- keeps escalating prices (and one-time/capped limits) honest even
 // when you queue several at once.
-export function pendingCount(id) { return me().buildQueue.filter((q) => q.id === id).length; }
+export function pendingCount(id, p) { return (p || me()).buildQueue.filter((q) => q.id === id).length; }
 
-export function buildCost(def) {
+export function buildCost(def, p) {
+  const who = p || me();
   if (def.kind !== "building") return { ...def.base };  // upgrades & units: flat, never scale
-  const n = (me().builds[def.id] || 0) + pendingCount(def.id);
+  const n = (who.builds[def.id] || 0) + pendingCount(def.id, who);
   const out = {};
   for (const k in def.base) out[k] = Math.ceil(def.base[k] * Math.pow(def.scale, n));
   return out;
 }
-export function canAfford(cost) {
-  for (const k in cost) if (me().res[k] < cost[k]) return false;
+export function canAfford(cost, p) {
+  const who = p || me();
+  for (const k in cost) if (who.res[k] < cost[k]) return false;
   return true;
 }
-export function isCapped(def) {
+export function isCapped(def, p) {
+  const who = p || me();
   return def.kind === "building" && def.cap != null &&
-    (me().builds[def.id] || 0) + pendingCount(def.id) >= def.cap;
+    (who.builds[def.id] || 0) + pendingCount(def.id, who) >= def.cap;
 }
 // Resolve a buildable id to its def. The active manifest wins -- that's what
 // gives a log line or a queue card its era-correct name -- with DEF_INDEX as
 // the fallback for ids that have left the manifest but can still be referred
 // to (a capstone finishing at the very moment it retires itself).
-export function defById(id) {
-  const m = active();
+export function defById(id, civ) {
+  const m = active(civ);
   // Structures are searched here too since 2026-08-25. They were the one def
   // kind outside this lookup, which was fine while the only structure was the
   // farm and wrong the moment the Forge and the Medicine Tent moved onto the

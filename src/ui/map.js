@@ -575,7 +575,7 @@ function armyDetailHTML(pl, a) {
     // denial. Take greys out when the age can hold no more ground.
     const scopeFull = atDominionCap();
     parts.push(`<div class="map-actions">` +
-      `<button class="map-act" data-act="send" data-army="${a.uid}">${sending === a.uid && sendingIntent === "move" ? "Pick a hex…" : "Move"}</button>` +
+      `<button class="map-act" data-act="send" data-army="${a.uid}">${sending === a.uid && sendingIntent === "move" ? "Pick a hex…" : "March"}</button>` +
       `<button class="map-act warn" data-act="conquer" data-army="${a.uid}"${scopeFull ? " disabled" : ""}>${sending === a.uid && sendingIntent === "conquer" ? "Pick their hex…" : "Conquer"}</button>` +
       `<button class="map-act warn" data-act="sack" data-army="${a.uid}">${sending === a.uid && sendingIntent === "sack" ? "Pick their hex…" : "Sack"}</button>` +
       (dest ? `<button class="map-act" data-act="halt" data-army="${a.uid}">Halt</button>` : "") +

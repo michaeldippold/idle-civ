@@ -540,10 +540,31 @@ harness sections)*:
    Reach mean 13.0, Broadwater 9.5, The Scatter 8.4 with a closest pair of 4, the archipelago
    relaxing to the floor honestly. *Owner's call if The Scatter should be excluded from
    two-seat games or left as the tight map.*
-5. **M1 — the table + transport + clock**: the join-code lobby on the start screen
-   (guest-before-worldgen, colour exclusivity, host's Begin), the relay (hosting decided
-   here), host-authoritative snapshots, the `min()` throttle at `{0, 1}`, host-only tab rule,
-   the absent-guest pause.
+5. ~~**M1 — the table + transport + clock**~~ **SHIPPED 2026-08-28 (branch `substrate`).**
+   Built on a **transport seam** (send/onMessage/onClose/close) so the entire protocol is
+   harness-tested over an in-memory loopback — no server, no browser — which is why the relay
+   could stay dumb. **`relay/server.js`**: dependency-free, ~200 lines, understands exactly two
+   messages (open/join) and forwards everything else unread; stores nothing, needs no database,
+   because the host's browser holds all state. Its own integration check (`npm run test:relay`)
+   drives real sockets: pairing, forwarding both ways, a 200KB payload through extended frame
+   lengths, refusals, `bye` on a dropped socket, and rejoin. **The lobby is the start screen**
+   (guest-before-worldgen), colour exclusivity enforced at the host, Begin cuts the world for
+   two. **A guest never ticks** — it renders and sends verbs via the journal listener; the host
+   applies them through the replay dispatcher. **The clock**: every seat publishes a throttle
+   from the game loop so no control path can forget it, the world runs at the `min()`, speed
+   caps at 1× versus a human, tab-hide is host-only, an absent guest pauses the table.
+   *Measured: a snapshot is **3.7KB**, ~15KB/s at 4Hz — map geometry regenerates from the seed
+   rather than riding in the save, so bandwidth is a non-issue.*
+   **Verified live through the real relay, two tabs**: seated five hexes apart on guaranteed
+   ground, the host simulating the guest's economy and streaming it back, and a build the guest
+   clicked landing on the host's books. *Two bugs the live test caught, both fixed and pinned:
+   a colour collision with a bot, and a **phantom seat** — the guest's record persisting into
+   the host's save, which booted three humans with two sharing a hex. A table is not resumable
+   in M1, so it is never saved, and a save carrying a remote seat heals on load.*
+   **Deployment (owner's call, 2026-08-28): the always-on relay.** `npm run relay` locally;
+   the relay URL is one constant in `src/net/table.js`, overridable per-run with `?relay=`
+   and remembered in localStorage. The game itself stays on static hosting — only the relay
+   moves.
 6. **M2 — per-viewer presentation**: viewer-keyed Chronicle, per-client fog render, loser's
    ending.
 

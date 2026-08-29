@@ -363,11 +363,18 @@ that 1.5 was 10% too much, after everything has been built against it.
 
 ## THE ANTAGONIST SPEC — 2026-08-28; **PART I (THE SUBSTRATE) SHIPPED on branch `substrate`**
 
-**S1 + S2 + S3 are BUILT** — see the spec's build order for the shipped records and the
-CHANGELOG's substrate entry. The sim no longer reads the viewer (ratchet-enforced), every
-living civ runs the real economy, and (seed + tick + journal) provably replays bit-identical.
-Next on the branch: **M0, N human-grade seats in the generator.** The branch holds until the
-socket campaign is far enough to playtest; merge ruling is the owner's.
+**S1 + S2 + S3 + M0 + M1 are BUILT** — see the spec's build order for the shipped records and
+the CHANGELOG. The sim no longer reads the viewer (ratchet-enforced), every living civ runs the
+real economy, (seed + tick + journal) provably replays bit-identical, the world can seat two
+humans on guaranteed ground, and **the brother game runs end to end through a real relay.**
+
+**To play together:** `npm run relay` (or deploy `relay/server.js` anywhere that runs node —
+it stores nothing and needs no database), then Open a table on the start screen and share the
+code. The relay URL is one constant in `src/net/table.js`, overridable with `?relay=`.
+
+Next on the branch: **M2, per-viewer presentation** (viewer-keyed Chronicle, per-client fog
+render, the loser's ending) — then the HUMAN-VS-HUMAN PLAYTEST ERA, whose first deliverable is
+a pacing verdict at literal 1×. The branch holds until then; merge ruling is the owner's.
 
 **The spec is [`2026-08-28-antagonist-spec.md`](2026-08-28-antagonist-spec.md) — read it whole
 before touching bot code OR multiplayer; it contains both audits, the merged architecture, and

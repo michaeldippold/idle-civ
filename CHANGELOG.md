@@ -11,6 +11,42 @@
 
 ---
 
+## 2026-08-28 (night) — Two humans, one world
+
+**M0 + M1: the brother game runs.** A second person can sit down at your table, on their own
+guaranteed ground, and play.
+
+**M0 — N human-grade seats.** Every human seat carries the full floor guarantee (food ground,
+timber *adjacent*, hills in reach, room for a trio), spaced 8 hexes apart relaxing to a floor of
+4 — **the distance relaxes before the guarantee does**, because a close seat is a sharper game
+and a stranded one is a broken run. The first seat is drawn before any distance question, so a
+one-seat world draws exactly the dice it always drew and **every recorded seed still reproduces
+its world**. The frames got their two-seat verdict, printed each run: Long Reach 13.0 mean,
+Broadwater 9.5, The Scatter 8.4.
+
+**M1 — the table.** Built on a transport seam, so the whole protocol was harness-tested over an
+in-memory loopback before a socket existed — which is why the relay could stay dumb.
+`relay/server.js` is dependency-free, understands two messages (open/join), forwards everything
+else unread, and **stores nothing: there is no database, because the host's browser holds all
+state.** The lobby is the start screen (seats are placed during worldgen, so the guest must be
+seated before the world exists), a five-character code is the whole invitation, and Begin cuts
+the world for two. A guest never ticks — it renders and sends verbs; the host applies them
+through the same dispatcher a replay uses. The clock obeys the table: throttles published from
+the loop, the world at the minimum, 1× versus a human, tab-hide host-only, an absent guest
+pauses.
+
+*A snapshot is 3.7KB — map geometry regenerates from the seed rather than riding in the save —
+so bandwidth was never a question.*
+
+**Verified live through the real relay, two tabs**: seated five hexes apart, the host simulating
+the guest's economy and streaming it back, a build the guest clicked landing on the host's
+books, and a cheated local larder correctly refused by the host. **Two bugs the live test found
+that no check had**: the guest took a colour a bot was already wearing, and the guest's record
+persisted into the host's save — so a host reload booted *three* human seats with two sharing a
+hex. Both fixed at the authoritative end and pinned.
+
+---
+
 ## 2026-08-28 (later still) — March, Conquer, Sack: to move is not to attack
 
 **The three army verbs, ruled from live play and built the same hour.** The owner's army

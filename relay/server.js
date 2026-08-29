@@ -192,6 +192,39 @@ setInterval(() => {
   }
 }, 60000).unref();
 
+// A RELAY GETS RESTARTED A LOT, so its failures should read like sentences
+// rather than stack traces. The common one by far is starting a second copy
+// on top of the first -- an unhandled 'error' event answers that with fifteen
+// lines of node internals, which tells you nothing you needed.
+server.on("error", (err) => {
+  if (err && err.code === "EADDRINUSE") {
+    console.error(`[relay] port ${PORT} is already in use -- a relay is probably already running.`);
+    console.error(`[relay] use it as it is, stop the old one, or pick another port: PORT=8788 npm run relay`);
+    process.exit(1);
+  }
+  if (err && err.code === "EACCES") {
+    console.error(`[relay] not allowed to listen on port ${PORT}. Pick one above 1024: PORT=8788 npm run relay`);
+    process.exit(1);
+  }
+  console.error(`[relay] could not start: ${err && err.message ? err.message : err}`);
+  process.exit(1);
+});
+
 server.listen(PORT, () => {
   console.log(`[relay] listening on :${PORT} -- it moves messages and stores nothing`);
+  // ASCII only in here: this prints to a Windows console among others, where
+  // a middle dot arrives as mojibake and reads as a bug in the thing you just
+  // started.
+  console.log(`[relay] health: http://localhost:${PORT}/health  --  stop with Ctrl+C`);
 });
+
+// Ctrl+C should close the door quietly rather than leaving the port in a
+// half-shut state the next start has to wait out.
+for (const sig of ["SIGINT", "SIGTERM"]) {
+  process.on(sig, () => {
+    console.log("\n[relay] closing. Any open tables end here.");
+    server.close(() => process.exit(0));
+    // Sockets that will not close on their own must not hold the process open.
+    setTimeout(() => process.exit(0), 500).unref();
+  });
+}

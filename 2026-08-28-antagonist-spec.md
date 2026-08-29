@@ -573,6 +573,23 @@ against a second human, debrief after each, findings recorded — verbs-and-feel
 the game directly, observed strategies feed Part III's cards, 1v1 balance numbers get the
 haircut. The first game's known deliverable is a pacing verdict at literal 1×.
 
+> **PLAY THESE WITH AN EMPTY WORLD** *(owner ruling, 2026-08-28; shipped)*. `S.bots = 0` —
+> the **Rivals: None** pick on the start screen — removes every rival people AND every minor
+> steading, leaving the two players and the ground. The reason is experimental design, not
+> difficulty: *"they add more variables than we need to establish a baseline of 'does it play
+> bad?'"* Three peoples advancing on their own era clocks answer "is this fun?" before the
+> players get a chance to. **Establish the baseline first; add rivals back as a deliberate
+> second variable.**
+>
+> It is authored as a **count, not a switch** (All / 1 / 2 / None), because the owner named the
+> future use in the same breath: world density as a tunable, and a difficulty axis that costs
+> no new systems. A cap of 1 leaves the warlike people, which is the right single opponent.
+>
+> *Consequence worth watching in the first game:* with no bots claiming ground, two players
+> have a whole continent (~141 land hexes on Broadwater) between them. That is a lot of room,
+> and it interacts with the owner's separate wish to **expand the land per frame** — the
+> playtest should report whether the map felt empty or generous before that work is scoped.
+
 **The brain campaign** *(authored from the playtest era's observations; each slice
 independently shippable)*:
 

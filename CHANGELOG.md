@@ -11,6 +11,31 @@
 
 ---
 
+## 2026-08-28 (night, later) — An empty world
+
+**`S.bots`: how many rival peoples this world holds.** `null` (the default, and every save ever
+written) means all of them; a number caps the roster; **0 empties the world entirely — no rival
+peoples, no minor steadings, just the players and the ground.** Picked on the start screen
+beside World and Colour, fixed for the run like both.
+
+The reason is experimental design rather than difficulty, and it came out of watching the first
+two-tab test: *"they add more variables than we need to establish a baseline of 'does it play
+bad?'"* Three peoples advancing on their own era clocks answer "is this fun?" before the players
+get to. So the human-vs-human playtests start empty, and rivals come back as a deliberate second
+variable.
+
+Authored as a **count rather than a switch**, because the same control is the world-density dial
+afterwards — a difficulty axis that costs no new systems. One accessor, `roster()`, so the
+player records, the adversary seats and the steading tier can never disagree about how many
+neighbours exist.
+
+*Two of my own checks were wrong before they were right, both caught by re-running rather than
+by reasoning: "population grows" is false when sickness lands (the hazard slate is the player's
+story, not the rivals'), and "wood and stone grow" is false when the opening trio has no hills —
+the floor guarantees timber ADJACENT but hills only IN REACH. Wood alone is the real invariant.*
+
+---
+
 ## 2026-08-28 (night) — Two humans, one world
 
 **M0 + M1: the brother game runs.** A second person can sit down at your table, on their own

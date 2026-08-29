@@ -1,5 +1,5 @@
 import { S, freshPlayer, setS } from "../core/state.js";
-import { PLAYER_COLORS } from "../core/palette.js";
+import { freeColor } from "../core/palette.js";
 import { onRecord } from "../core/journal.js";
 import { issueEntry } from "../core/replay.js";
 import { ensureMap, world } from "../map/map.js";
@@ -104,14 +104,17 @@ export function hostSession(transport, opts = {}) {
     seatGuest(color, name) {
       if (this.started) return null;
       let p = this.guestSeat != null ? S.players[this.guestSeat] : null;
-      const takenBy = (c) => S.players.some((x) => x !== p && x.color === c);
-      let use = color;
-      if (takenBy(use)) {
-        const free = PLAYER_COLORS.find((c) => !takenBy(c.id));
-        use = free ? free.id : use;
-      }
+      const taken = S.players.filter((x) => x !== p).map((x) => x.color);
+      const use = freeColor(color, taken);
       if (!p) {
         p = freshPlayer(S.players.length, { color: use, seatName: name });
+        // WHAT THEY ASKED FOR, kept beside what they got. The roster they
+        // collided with is the host's PRE-RUN one; a table cut with fewer
+        // rivals frees colours up, and begin re-tries the original request
+        // rather than leaving someone stuck with a substitute they never
+        // chose. (Found live: asked for blue against three bots, got green,
+        // and stayed green in a world with no bots at all.)
+        p.colorWanted = color;
         // A REMOTE SEAT IS NOT PART OF THIS SAVE. A table is not resumable in
         // M1 -- the socket dies with the page and the relay forgets the room --
         // so persisting the guest would leave a PHANTOM human in the host's
@@ -124,6 +127,7 @@ export function hostSession(transport, opts = {}) {
         this.guestSeat = p.id;
       } else {
         p.color = use;
+        p.colorWanted = color;
         p.seatName = name;
       }
       this.guestReady = true;

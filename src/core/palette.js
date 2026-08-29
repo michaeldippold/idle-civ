@@ -65,6 +65,20 @@ export const PLAYER_COLORS = [
 // now." A default is a preference until there is somebody to negotiate with.
 export const DEFAULT_COLOR = "purple";
 
+// THE COLOUR YOU ASKED FOR, IF IT IS FREE (2026-08-28). Two civilizations may
+// never fly the same flag -- the board tells players apart by colour and
+// nothing else -- so a request that collides falls to the first unworn colour.
+// `taken` is the list already in use; the WANTED colour wins whenever it can,
+// which is what lets a request be re-tried later against a different roster
+// (a guest who asked for blue against three bots should get blue back once
+// the table is cut with none).
+export function freeColor(wanted, taken) {
+  const used = new Set(taken || []);
+  if (wanted && !used.has(wanted)) return wanted;
+  const open = PLAYER_COLORS.find((c) => !used.has(c.id));
+  return open ? open.id : (wanted || DEFAULT_COLOR);
+}
+
 // THEIRS. A power and a steading are the same kind of thing at different
 // sizes, exactly as they were when both were red -- the size grading in
 // styles.css carries that, not the hue.

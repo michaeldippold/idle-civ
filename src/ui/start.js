@@ -286,7 +286,9 @@ function initTable() {
     paintTable();
   });
 
-  if (begin) begin.addEventListener("click", () => { beginHostedRun(); });
+  // The host's own picks travel with the order: hosting does not reload, so
+  // nothing else would ever apply them.
+  if (begin) begin.addEventListener("click", () => { beginHostedRun(choice); });
   if (leave) leave.addEventListener("click", () => { leaveTable(); paintTable(); });
   paintTable();
 }

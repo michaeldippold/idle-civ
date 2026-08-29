@@ -7009,6 +7009,17 @@ console.log("\n--- M1a: two humans at one table (loopback transport) ---");
   check("M1a: a colour already worn at the table is replaced, never duplicated",
     seated.color !== botColor &&
     S().players.filter((p) => p.color === seated.color).length === 1);
+  // ...but WHAT THEY ASKED FOR is remembered, so a table cut with fewer rivals
+  // can give it back rather than leaving them wearing a substitute forever.
+  // (Found live: asked for blue against three bots, got green, stayed green in
+  // a world that ended up having no bots at all.)
+  check("M1a: ...and the colour they asked for is remembered for the re-try",
+    seated.colorWanted === botColor);
+  check("M1a: ...which a freed palette honours", (() => {
+    const taken = S().players.filter((p) => p !== seated).map((p) => p.color)
+      .filter((c) => c !== botColor);                    // that rival is gone from this run
+    return api.freeColor(seated.colorWanted, taken) === botColor;
+  })());
   guest.choose("teal", "Guestholm");
 
   // WORLDGEN HAPPENS AFTER THE GUEST IS SEATED -- the ordering constraint the

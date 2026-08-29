@@ -1,7 +1,7 @@
 import { S, freshPlayer, freshState, me, setS } from "../core/state.js";
-import { applyPlayerColor } from "../core/palette.js";
+import { applyPlayerColor, freeColor } from "../core/palette.js";
 import { initAdversaries } from "../core/persist.js";
-import { ensureMap, seatFor, world } from "../map/map.js";
+import { ensureMap, seatFor, setPickedContinent, world } from "../map/map.js";
 import { guestSession, hostSession, SNAPSHOT_HZ, tableSpeed } from "./session.js";
 import { joinTable as relayJoin, onPaired, openTable as relayOpen } from "./transport.js";
 
@@ -112,22 +112,39 @@ export async function hostTable(hooks = {}) {
 // army. Sitting down at a table starts a game; what survives from the lobby is
 // only what was chosen there: each seat's colour and name, and how many rivals
 // the world holds.
-export function beginHostedRun() {
+// `setup` is the start screen's own picks -- {continent, color, name, bots}.
+// They have to be passed IN rather than read from S, because the solo path
+// applies them across a page reload (that is what `pendingChoices` is for) and
+// hosting deliberately does not reload -- the socket would die with the page.
+// Without this the host's world ignored its own Rivals and Seat choices, which
+// is how a table asked for "no rivals" and got three.
+export function beginHostedRun(setup = {}) {
   if (!isHost() || !table.session) return false;
   const hostP = me();
   const guestP = S.players[table.session.guestSeat] || null;
   const keep = {
-    host: { color: hostP.color, seatName: hostP.seatName },
-    guest: guestP ? { color: guestP.color, seatName: guestP.seatName } : null,
-    bots: S.bots,
+    host: {
+      color: setup.color || hostP.color,
+      seatName: typeof setup.name === "string" ? setup.name.trim().slice(0, 24) : hostP.seatName,
+    },
+    // The colour they ASKED for, re-tried against this run's roster: a table
+    // cut with fewer rivals frees colours the lobby had to substitute.
+    guest: guestP ? { wanted: guestP.colorWanted || guestP.color, seatName: guestP.seatName } : null,
+    bots: setup.bots === null || typeof setup.bots === "number" ? setup.bots : S.bots,
   };
+  setPickedContinent(setup.continent);
   setS(freshState());
   S.bots = keep.bots;
   S.players[0].color = keep.host.color;
   S.players[0].seatName = keep.host.seatName;
   initAdversaries();            // this run's rivals, however many were asked for
   if (keep.guest) {
-    const g = freshPlayer(S.players.length, keep.guest);
+    const taken = S.players.map((x) => x.color);
+    const g = freshPlayer(S.players.length, {
+      color: freeColor(keep.guest.wanted, taken),
+      seatName: keep.guest.seatName,
+    });
+    g.colorWanted = keep.guest.wanted;
     g.remote = true;            // still never written into the host's own save
     S.players.push(g);
     table.session.guestSeat = g.id;

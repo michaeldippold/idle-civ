@@ -34,17 +34,46 @@ import { joinTable as relayJoin, onPaired, openTable as relayOpen } from "./tran
 // and the relay's buffers are unbounded.
 const RELAY_PORT = 8787;
 
+// THE DEPLOYED RELAY, once there is one. Empty means "there is no public
+// relay", and that is the DEFAULT ON PURPOSE: the hosted page then offers
+// single-player only and says so, which is the correct state until the
+// hardening pass is done (todo.md → SECURITY: THE HARDENING PASS). Fill this
+// in with a `wss://` address after deploying -- an https page may not open an
+// insecure socket, so `ws://` here would fail on the hosted site and work
+// only on localhost, which is the most confusing possible bug.
+//   e.g. const PRODUCTION_RELAY = "wss://idle-civ-relay.fly.dev";
+const PRODUCTION_RELAY = "";
+
+// Is this page being served from the machine the relay would be on? Localhost
+// and a LAN address both mean "somebody is running this themselves", which is
+// exactly when deriving the relay from the page's own host is right.
+function isLocalHosting(host) {
+  return host === "localhost" || host === "127.0.0.1" || host === "[::1]" ||
+    /^192\.168\./.test(host) || /^10\./.test(host) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(host) || /\.local$/.test(host);
+}
+
 function derivedRelay() {
   try {
     const host = location.hostname || "localhost";
-    // wss from https, ws from http: a browser blocks the insecure one on a
-    // secure page, and getting this wrong looks like the relay being down.
-    const scheme = location.protocol === "https:" ? "wss" : "ws";
-    return `${scheme}://${host}:${RELAY_PORT}`;
+    if (isLocalHosting(host)) {
+      // Zero-configuration local and LAN play: the page came from the host's
+      // machine, and that is where the relay is.
+      const scheme = location.protocol === "https:" ? "wss" : "ws";
+      return `${scheme}://${host}:${RELAY_PORT}`;
+    }
+    // A hosted page: the relay is wherever it was deployed, which is a
+    // different machine from the one serving these files.
+    return PRODUCTION_RELAY || null;
   } catch (e) {
     return `ws://localhost:${RELAY_PORT}`;
   }
 }
+
+// Is there a relay to talk to at all? The lobby asks before offering to open
+// a table, so a public visitor gets an honest sentence instead of a spinner
+// and a timeout.
+export function relayConfigured() { return !!relayUrl(); }
 
 export function relayUrl() {
   try {

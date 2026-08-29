@@ -8,7 +8,7 @@ import { DEFAULT_COLOR, PLAYER_COLORS } from "../core/palette.js";
 import { fmtTime, renderAll, setPreGame } from "./chrome.js";
 import {
   beginHostedRun, chooseSeat, hostTable, isGuest, isHost, joinTable,
-  leaveTable, mySeatHex, relayUrl, tableState,
+  leaveTable, mySeatHex, relayConfigured, relayUrl, tableState,
 } from "../net/table.js";
 import { selectTile } from "./map.js";
 
@@ -261,6 +261,16 @@ function initTable() {
   const leave = document.getElementById("startLeave");
   const note = document.getElementById("startTableNote");
   const say = (m) => { if (note) note.textContent = m; };
+
+  // NO RELAY, NO TABLE -- said plainly rather than discovered by a timeout.
+  // The hosted page has no relay configured until one is deployed, so a
+  // visitor gets a straight sentence and a game they can still play alone.
+  if (!relayConfigured()) {
+    const idle = document.getElementById("startTableIdle");
+    if (idle) idle.classList.add("hidden");
+    say("Playing together needs a relay, and this copy has none configured. Single player works as it always has.");
+    return;
+  }
 
   const hooks = {
     onChange: paintTable,

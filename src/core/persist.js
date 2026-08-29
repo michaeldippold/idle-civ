@@ -19,6 +19,11 @@ export function suppressSaves() { suppressed = true; }
 
 export function save() {
   if (S.dead || suppressed) return;
+  // A TABLE IS NOT RESUMABLE (M1). While a second human holds a seat, this
+  // world exists only for as long as the socket does -- so it is never
+  // written over the host's own save. What survives is the solo run they had
+  // before the table opened, which is exactly what they would want back.
+  if (S.players && S.players.some((p) => p.remote)) return;
   try { localStorage.setItem(CONFIG.saveKey, JSON.stringify(S)); } catch (e) {}
 }
 
@@ -37,6 +42,17 @@ export function load() {
   S.players = Array.isArray(data.players) && data.players.length
     ? data.players.map((p, i) => Object.assign(freshPlayer(i), p, { id: i }))
     : [freshPlayer(0)];
+  // AND HEAL A SAVE THAT SOMEHOW CARRIES ONE. A solo save has exactly one
+  // keyless civ; any others are remote seats a crash left behind, and they
+  // would each claim one of the world's guaranteed starts. Trailing-only, so
+  // nobody else's id (which is their index, and keys the ownership table)
+  // moves underneath them.
+  while (S.players.length > 1) {
+    const last = S.players[S.players.length - 1];
+    if (last.key == null && (last.remote || S.players.filter((p) => p.key == null).length > 1)) {
+      S.players.pop();
+    } else break;
+  }
   S.me = typeof data.me === "number" && S.players[data.me] ? data.me : 0;
   const src = (Array.isArray(data.players) && data.players[S.me]) || data;
   const blank = freshPlayer(S.me);

@@ -13,6 +13,7 @@ import { closeModal, modalIsOpen, openInfoPanel, openResetModal } from "./ui/mod
 import { setUpgradeTab } from "./ui/panels-buy.js";
 import { initStartScreen, pendingAutostart, pendingChoices } from "./ui/start.js";
 import { wireInterface } from "./ui/wire.js";
+import { effectiveSpeed, isGuest, isHost, isNetworked, pumpNetwork, setMyThrottle } from "./net/table.js";
 
 
 // `?era=iron` jumps the run's era before the world is built. It exists for one
@@ -132,8 +133,10 @@ export function boot() {
     // The number row sets speed directly: 1..5 land on CONFIG.speeds.
     // Transport controls deserve keys now that watching the game IS playing.
     if (e.key >= "1" && e.key <= "5") {
+      // Versus a human the legal set is pause or 1x: the speed keys still
+      // work, they simply cannot ask for more than the table allows.
       const notch = CONFIG.speeds[Number(e.key) - 1];
-      if (notch) setSpeed(notch);
+      if (notch) setSpeed(isNetworked() ? Math.min(notch, 1) : notch);
       return;
     }
     if (e.code !== "Space" && e.key !== " ") return;
@@ -147,9 +150,38 @@ export function boot() {
   // therefore bends the game's pace a hair rather than its math -- a slow
   // frame means the world briefly runs slightly slower than 1x, never that
   // a bigger slice of time gets simulated in one gulp.
+  // WHAT THIS SEAT IS ASKING THE CLOCK FOR, published whenever it changes.
+  // Computed in the loop rather than in the pause and speed handlers on
+  // purpose: every path that can change either -- a button, a key, a modal
+  // hold, the tab going away -- is caught here, and none of them can forget.
+  let lastThrottle = null;
+  const publishThrottle = () => {
+    if (!isNetworked()) return;
+    // A HIDDEN HOST STOPS THE WORLD (the tab-hide rule, host-only: the sim
+    // runs here, so the table reads it as a pause). A hidden GUEST stops only
+    // its own rendering -- walking away from a running world without
+    // throttling to 0 is a choice, per the 2026-08-25 ruling.
+    const stopped = paused || modalHold || (isHost() && hidden) || S.dead;
+    const want = stopped ? 0 : Math.min(speed, 1);
+    if (want === lastThrottle) return;
+    lastThrottle = want;
+    setMyThrottle(want);
+  };
+
   const newLoopId = setInterval(() => {
+    publishThrottle();
+    // A GUEST NEVER TICKS THE WORLD (M1). There is exactly one simulation at a
+    // table and it is the host's; the guest's state arrives as snapshots, and
+    // a guest that also stepped would be running a second, divergent world.
+    // It still renders -- watching is what it does between orders.
+    if (isGuest()) { checkReveals(); renderAll(); return; }
     if (S.dead || preGame || paused || hidden || modalHold) return;
-    for (let i = 0; i < speed; i++) step();
+    // THE TABLE'S CLOCK: the world runs at the minimum throttle across the
+    // seats, and versus a human the legal set is pause or 1x (design.md → The
+    // speed cap). Solo play is untouched.
+    const rate = effectiveSpeed(speed);
+    for (let i = 0; i < rate; i++) step();
+    pumpNetwork(Date.now());
     checkReveals();
     renderAll();
   }, CONFIG.tickMs);

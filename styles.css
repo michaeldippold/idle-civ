@@ -1044,6 +1044,36 @@ body.dead #mainArea .block { filter: saturate(.25); }
 }
 .start-choices { display: flex; flex-wrap: wrap; gap: 6px; }
 
+/* THE TABLE (M1c). Below the actions, hairline-separated like the setup rows
+   above it, because it is the same kind of thing: a choice about the run you
+   are about to start. Quiet by default -- most runs are solo -- and it grows
+   into a lobby only once a table is actually open. */
+#startTable {
+  border-top: 1px solid var(--hair);
+  padding-top: 16px;
+  margin-top: 20px;
+  text-align: left;
+}
+.start-table-head {
+  font-family: var(--ui);
+  font-size: 10.5px; font-weight: 700; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--text-faint);
+  margin: 0 0 10px;
+}
+/* The code is the one thing on this screen that gets read ALOUD, so it is set
+   in the mono face at a size that survives being squinted at across a room. */
+.start-table-code {
+  font-family: var(--mono, monospace);
+  font-size: 20px; font-weight: 700; letter-spacing: .18em;
+  color: var(--text); margin: 0 0 6px;
+}
+.start-table-who { margin: 0 0 12px; color: var(--text-2); font-size: 13px; }
+.start-table-note { margin: 10px 0 0; color: var(--text-faint); font-size: 12px; min-height: 1em; }
+#startCode {
+  width: 92px; text-transform: uppercase;
+  font-family: var(--mono, monospace); letter-spacing: .16em;
+}
+
 /* Selection is border WEIGHT plus fill, never opacity -- an unchosen option is
    fully readable, because reading it is how you choose. Bureau's first law
    outlives Bureau and applies here too. */

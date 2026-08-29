@@ -6915,10 +6915,23 @@ console.log("\n--- M1a: two humans at one table (loopback transport) ---");
   guest.choose("teal", "Guestholm");
   const guestRecord = S().players[host.guestSeat];
   check("M1a: choosing a seat creates the guest's player record ON THE HOST",
-    !!guestRecord && guestRecord.key === null && guestRecord.color === "teal" &&
-    guestRecord.seatName === "Guestholm");
+    !!guestRecord && guestRecord.key === null && guestRecord.seatName === "Guestholm" &&
+    !!guestRecord.color &&
+    S().players.filter((p) => p.color === guestRecord.color).length === 1);
   check("M1a: ...and the guest is a HUMAN seat, so the world owes it a guarantee",
     api.humans().length === 2);
+
+  // COLOUR EXCLUSIVITY IS ENFORCED, not requested. The guest's screen cannot
+  // know what the bots are wearing -- that is the host's knowledge -- so a
+  // colour already taken is replaced and reported back. (Found in the first
+  // live two-tab test: the guest picked teal and the Salt Nomads had it.)
+  const botColor = S().players.find((p) => p.key !== null).color;
+  guest.choose(botColor, "Guestholm");
+  const seated = S().players[host.guestSeat];
+  check("M1a: a colour already worn at the table is replaced, never duplicated",
+    seated.color !== botColor &&
+    S().players.filter((p) => p.color === seated.color).length === 1);
+  guest.choose("teal", "Guestholm");
 
   // WORLDGEN HAPPENS AFTER THE GUEST IS SEATED -- the ordering constraint the
   // whole lobby design hangs off, since seats are placed during generation.
@@ -6989,6 +7002,27 @@ console.log("\n--- M1a: two humans at one table (loopback transport) ---");
   guest.sendThrottle(0);
   check("M1a: a throttle crosses the wire, so either seat can stop the world",
     host.peerThrottle === 0);
+
+  // A TABLE IS NOT SAVED, and a save that somehow carries a remote seat heals
+  // on load. Both halves matter: found live, a host reload produced THREE
+  // human seats -- the guest's record had been persisted, so the world owed a
+  // guarantee to a player nobody was driving, and two seats shared a hex.
+  check("M1a: a live table is never written over the host's own save", (() => {
+    const key = api.CONFIG.saveKey;
+    try { localStorage.removeItem(key); } catch (e) {}
+    api.save();
+    return localStorage.getItem(key) === null;
+  })());
+  check("M1a: ...and a save carrying a phantom human seat heals on load", (() => {
+    const key = api.CONFIG.saveKey;
+    const sick = JSON.parse(JSON.stringify(S()));
+    sick.players = sick.players.map((p) => Object.assign({}, p, { remote: false }));
+    try { localStorage.setItem(key, JSON.stringify(sick)); } catch (e) {}
+    api.load();
+    const ok = S().players.filter((p) => p.key == null).length === 1;
+    try { localStorage.removeItem(key); } catch (e) {}
+    return ok;
+  })());
 
   // A SEAT LEAVING is a fact the other end hears, which is what lets the
   // absent-guest pause exist at all.

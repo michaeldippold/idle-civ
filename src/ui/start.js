@@ -6,6 +6,10 @@ import { S, me } from "../core/state.js";
 import { CONTINENTS } from "../map/continents.js";
 import { DEFAULT_COLOR, PLAYER_COLORS } from "../core/palette.js";
 import { fmtTime, renderAll, setPreGame } from "./chrome.js";
+import {
+  beginHostedRun, chooseSeat, hostTable, isGuest, isHost, joinTable,
+  leaveTable, relayUrl, tableState,
+} from "../net/table.js";
 
 
 // The pre-game screen (phase 10, slice 1). Two jobs, both small and both
@@ -152,12 +156,119 @@ function initChoices() {
   if (colors) {
     buildChoiceButtons(colors, PLAYER_COLORS.map((c) => ({
       value: c.id, label: c.name, swatch: c.ring,
-    })), () => choice.color, (v) => { choice.color = v; });
+    })), () => choice.color, (v) => { choice.color = v; pushSeatChoice(); });
   }
   if (name) {
     name.value = "";
-    name.addEventListener("input", () => { choice.name = name.value; });
+    name.addEventListener("input", () => { choice.name = name.value; pushSeatChoice(); });
   }
+}
+
+// ---------- The table (M1c) -------------------------------------------------
+// The lobby IS this screen, and that is a constraint rather than a layout
+// choice: seats are placed during worldgen (M0), so the guest has to be at the
+// table before the world exists. Everything here is therefore pre-run by
+// construction -- there is no "invite someone into a game already underway",
+// and the design is better for it.
+//
+// The colour and seat-name rows above are reused rather than duplicated: a
+// guest picks its piece from the same three rows the host does, and the host
+// simply refuses a colour already worn.
+
+let enterGame = null;   // set by initStartScreen; how a run actually begins
+
+function tableEls() {
+  return {
+    idle: document.getElementById("startTableIdle"),
+    lobby: document.getElementById("startTableLobby"),
+    code: document.getElementById("startTableCode"),
+    who: document.getElementById("startTableWho"),
+    begin: document.getElementById("startBegin"),
+    note: document.getElementById("startTableNote"),
+    actions: document.getElementById("startActions"),
+    setupFor: document.getElementById("startSetupFor"),
+  };
+}
+
+function paintTable() {
+  const t = tableState();
+  const el = tableEls();
+  if (!el.idle || !el.lobby) return;
+  const live = t.mode !== "solo";
+  el.idle.classList.toggle("hidden", live);
+  el.lobby.classList.toggle("hidden", !live);
+  // The solo buttons step aside while a table is open: "New Game" mid-lobby
+  // would silently strand the other person.
+  if (el.actions) el.actions.classList.toggle("hidden", live);
+  if (!live) { if (el.note) el.note.textContent = ""; return; }
+
+  if (el.code) {
+    el.code.textContent = isHost()
+      ? `Your table: ${t.code}`
+      : `At table ${t.code}`;
+  }
+  if (el.who) {
+    el.who.textContent = isHost()
+      ? (t.peerReady ? "They have taken their seat." :
+         t.peerHere ? "Someone is here, choosing their colour…" :
+         "Waiting for someone to join with the code.")
+      : (t.started ? "The world is being handed over…" :
+         "Seated. Waiting for the host to begin.");
+  }
+  if (el.begin) {
+    // Only the host begins, and only once the other seat is chosen -- the
+    // world cannot be cut for two until it knows there are two.
+    el.begin.classList.toggle("hidden", !isHost() || !t.peerReady);
+  }
+  if (el.note) {
+    el.note.textContent = isGuest()
+      ? "Your colour and seat name above are yours; the world is the host's."
+      : "Share the code. The world is cut once you both sit down.";
+  }
+}
+
+function initTable() {
+  const host = document.getElementById("startHost");
+  const join = document.getElementById("startJoin");
+  const code = document.getElementById("startCode");
+  const begin = document.getElementById("startBegin");
+  const leave = document.getElementById("startLeave");
+  const note = document.getElementById("startTableNote");
+  const say = (m) => { if (note) note.textContent = m; };
+
+  const hooks = {
+    onChange: paintTable,
+    onEnterGame: () => { if (enterGame) enterGame(); },
+  };
+
+  if (host) host.addEventListener("click", async () => {
+    say("Opening a table…");
+    try { await hostTable(hooks); }
+    catch (e) { say(`No relay at ${relayUrl()} — is it running?`); return; }
+    paintTable();
+  });
+
+  if (join) join.addEventListener("click", async () => {
+    const c = (code && code.value || "").trim();
+    if (!c) { say("Enter the host's code."); return; }
+    say("Joining…");
+    try { await joinTable(c, hooks); }
+    catch (e) { say(e && e.message ? e.message[0].toUpperCase() + e.message.slice(1) + "." : "Could not join."); return; }
+    // The guest's colour and name are sent as chosen, and re-sent whenever
+    // they change: the host is the one who knows what is already taken.
+    chooseSeat(choice.color, choice.name);
+    paintTable();
+  });
+
+  if (begin) begin.addEventListener("click", () => { beginHostedRun(); });
+  if (leave) leave.addEventListener("click", () => { leaveTable(); paintTable(); });
+  paintTable();
+}
+
+// A guest changing its colour or name after sitting down tells the host, so
+// the two ends never disagree about who is wearing what.
+function pushSeatChoice() {
+  if (isGuest()) chooseSeat(choice.color, choice.name);
 }
 
 // `had` is load()'s answer: whether a run was actually restored.
@@ -209,6 +320,12 @@ export function initStartScreen(had) {
     if (forNew) forNew.classList.toggle("hidden", !had);
     initChoices();
   }
+
+  // THE TABLE. `beginRun` is how a run starts for either seat: the host has
+  // just cut the world for two, the guest has just been handed one, and from
+  // here the two clients are the same page looking through different seats.
+  enterGame = beginRun;
+  initTable();
 
   screen.classList.remove("hidden");
 }

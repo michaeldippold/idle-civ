@@ -1,4 +1,5 @@
 import { S, freshPlayer, setS } from "../core/state.js";
+import { PLAYER_COLORS } from "../core/palette.js";
 import { onRecord } from "../core/journal.js";
 import { issueEntry } from "../core/replay.js";
 import { ensureMap, world } from "../map/map.js";
@@ -92,15 +93,37 @@ export function hostSession(transport, opts = {}) {
     // The guest picked. Their record is created HERE, on the host, because the
     // host owns the player list -- and it must exist before worldgen, since
     // the generator counts human seats.
+    //
+    // COLOUR EXCLUSIVITY IS ENFORCED HERE, not asked for politely. The guest's
+    // screen cannot know what is taken (the bots' colours are the host's
+    // business), so a requested colour already worn is REPLACED with the first
+    // free one and reported back in the next lobby. Found in the first live
+    // two-tab test: the guest picked teal and the Salt Nomads were already
+    // wearing it -- two civs, one flag, which is exactly the collision
+    // initAdversaries has always healed for the human's own pick.
     seatGuest(color, name) {
       if (this.started) return null;
       let p = this.guestSeat != null ? S.players[this.guestSeat] : null;
+      const takenBy = (c) => S.players.some((x) => x !== p && x.color === c);
+      let use = color;
+      if (takenBy(use)) {
+        const free = PLAYER_COLORS.find((c) => !takenBy(c.id));
+        use = free ? free.id : use;
+      }
       if (!p) {
-        p = freshPlayer(S.players.length, { color, seatName: name });
+        p = freshPlayer(S.players.length, { color: use, seatName: name });
+        // A REMOTE SEAT IS NOT PART OF THIS SAVE. A table is not resumable in
+        // M1 -- the socket dies with the page and the relay forgets the room --
+        // so persisting the guest would leave a PHANTOM human in the host's
+        // solo game: a seat that eats one of the world's guarantees, holds
+        // ground nobody drives, and appears on the board. Found in the first
+        // live two-tab test, where a host reload produced three human seats
+        // and two of them shared a hex.
+        p.remote = true;
         S.players.push(p);
         this.guestSeat = p.id;
       } else {
-        p.color = color;
+        p.color = use;
         p.seatName = name;
       }
       this.guestReady = true;

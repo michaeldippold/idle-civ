@@ -206,6 +206,28 @@
         <button id="startContinue" class="chrome-btn primary hidden">Continue</button>
         <button id="startNew" class="chrome-btn">New Game</button>
       </div>
+
+      <!-- THE TABLE (M1c). Two humans, one world: the lobby is this screen,
+           because seats are placed during worldgen and the guest must be
+           seated before the world exists. -->
+      <div id="startTable">
+        <p class="start-table-head">Play together</p>
+        <div id="startTableIdle" class="start-row">
+          <button id="startHost" class="chrome-btn">Open a table</button>
+          <input id="startCode" type="text" maxlength="5" autocomplete="off"
+                 spellcheck="false" placeholder="CODE">
+          <button id="startJoin" class="chrome-btn">Join</button>
+        </div>
+        <div id="startTableLobby" class="hidden">
+          <p id="startTableCode" class="start-table-code"></p>
+          <p id="startTableWho" class="start-table-who"></p>
+          <div class="start-row">
+            <button id="startBegin" class="chrome-btn primary hidden">Begin together</button>
+            <button id="startLeave" class="chrome-btn">Leave</button>
+          </div>
+        </div>
+        <p id="startTableNote" class="start-table-note"></p>
+      </div>
       <p id="startSeed"></p>
     </section>
   </div>

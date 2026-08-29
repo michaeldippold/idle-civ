@@ -14,6 +14,14 @@ import { joinTable as relayJoin, onPaired, openTable as relayOpen } from "./tran
 // WHERE THE RELAY LIVES. One line to change when it is deployed, overridable
 // per-run with ?relay=ws://... so a local server can be tested against the
 // hosted page and vice versa. No build step, no config file, no secret.
+//
+// LOCALHOST IS THE DEFAULT ON PURPOSE, AND IT IS A SAFETY PROPERTY (2026-08-28).
+// The page is publicly hosted; this default means a stranger who clicks "Open a
+// table" reaches their OWN machine, fails, and is told so -- multiplayer is
+// inert for the public until somebody deliberately points it somewhere. Do not
+// change this to a public relay until the hardening pass is done (todo.md →
+// SECURITY: THE HARDENING PASS): the host currently trusts the shape of every
+// message a guest sends, and the relay's buffers are unbounded.
 const DEFAULT_RELAY = "ws://localhost:8787";
 
 export function relayUrl() {

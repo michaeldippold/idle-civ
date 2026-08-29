@@ -361,6 +361,61 @@ that 1.5 was 10% too much, after everything has been built against it.
 
 ---
 
+## SECURITY: THE HARDENING PASS — owed BEFORE the relay is public *(logged 2026-08-28)*
+
+**The trigger (owner):** the site is public, it now does browser-to-browser communication, and
+it has a text input. This is the note that says a dedicated session is owed, and what it must
+cover. **Nothing here is known-exploited today** — see *what is safe right now* — but every item
+becomes live the moment a public relay exists, so the pass comes BEFORE that deployment.
+
+**What is safe right now, and why (do not lose these properties by accident):**
+- The static site has no server, no database, no accounts, no secrets, and no user data. A
+  stranger who loads it plays a game in their own browser and touches nothing of yours.
+- **`DEFAULT_RELAY` points at `ws://localhost:8787`** (`src/net/table.js`). A stranger clicking
+  "Open a table" tries to reach *their own* machine, fails, and is told so. **Multiplayer is
+  therefore inert for the public today** — that is currently an accident of the default, and the
+  hardening pass should make it a deliberate, commented decision.
+- A guest may only act as its own seat (`e.pid !== session.guestSeat` is refused), and the host
+  is authoritative: a guest that edits its local larder is simply refused — verified live.
+
+**The ranked list for the session:**
+
+1. **The host trusts the guest's message SHAPE.** `issueEntry()` dispatches network-supplied
+   `verb`/`args` straight into game verbs, so a malformed entry can throw inside the socket
+   handler (e.g. `build(defById("nonsense"))` → `def.kind` on undefined). A hostile or buggy
+   guest can crash or wedge the host's tab. **Validate at the boundary**: known verb, arg types,
+   id exists, tile exists. This is the highest-value item.
+2. **A remote party now sets a string that renders in your page.** The guest's `seatName` is
+   sanitized only by `.slice(0, 24)`. It reaches no innerHTML path *today* (nothing renders
+   another player's name yet), but `titleFor()` feeds an unescaped template at
+   `ui/map.js:598` — **so this becomes a real remote XSS the moment M2 renders "Brotherhold"
+   anywhere.** Fix before M2 ships, not after: escape at every render, and consider a
+   character allowlist at intake.
+3. **The relay's memory is unbounded.** `state.buf = Buffer.concat(...)` grows without limit, and
+   rooms are created without rate limiting — either is a trivial DoS on a box with no
+   supervision. Cap frame size, cap rooms per IP, cap total rooms, drop clients that exceed.
+4. **Join codes are guessable at scale.** 31⁵ ≈ 28.6M is fine against a human and weak against a
+   script with no rate limit; the prize is joining a stranger's game (low harm, real annoyance).
+   Rate-limit joins per connection, and expire rooms faster once paired.
+5. **No origin check on the relay.** Any page anywhere can open a socket to it. Check `Origin`
+   against an allowlist once the deploy URL is known.
+6. **The guest applies a host-supplied snapshot wholesale** (`setS(snap)`). A malicious *host*
+   is mostly attacking a consenting guest, so this is lower priority — but the snapshot should
+   still be shape-checked rather than trusted, and `__proto__`-shaped keys rejected.
+7. **`wss://`, not `ws://`,** once deployed: a page served over HTTPS cannot open an insecure
+   socket anyway, so this is forced — note it so the deploy does not surprise anyone.
+
+**On password-protecting the site (owner's question, answered 2026-08-28): recommended NO, for
+security reasons — it is the wrong lever.** GitHub Pages has no native password support, so it
+means moving hosting or fronting with Cloudflare Access; and it would protect the part that is
+already safe (a static game with no data) while doing nothing about the part that is not (the
+relay and the message handling). **The cheap, correct mitigation is already in place: do not
+deploy a public relay until items 1–5 are done.** A gate is still perfectly reasonable for a
+*different* reason — "I do not want people seeing unfinished work" is a product judgement, not a
+security one, and if that is the motivation a password is fine.
+
+---
+
 ## THE ANTAGONIST SPEC — 2026-08-28; **PART I (THE SUBSTRATE) SHIPPED on branch `substrate`**
 
 **S1 + S2 + S3 + M0 + M1 are BUILT** — see the spec's build order for the shipped records and

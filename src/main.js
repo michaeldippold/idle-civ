@@ -52,6 +52,10 @@ export function boot() {
   if (chose) {
     if (typeof chose.color === "string") me().color = chose.color;
     if (typeof chose.name === "string") me().seatName = chose.name.trim().slice(0, 24);
+    // How many rival peoples this world holds -- read BEFORE initAdversaries,
+    // which builds the roster from it, and before ensureMap, which places
+    // their seats. Fixed for the run thereafter.
+    if (chose.bots === null || typeof chose.bots === "number") S.bots = chose.bots;
     setPickedContinent(chose.continent);
   }
 

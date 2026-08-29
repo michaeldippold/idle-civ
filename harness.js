@@ -4713,8 +4713,11 @@ console.log("\n--- The player split: a civilization is a record, not the world -
   reset();
   // battles/battleSeq joined 2026-08-26 (contact, A4): a battle is WORLD state
   // by definition -- it has two sides, so it cannot live in one player's record.
+  // `bots` joined 2026-08-28: how many rival peoples this world holds is a
+  // fact about the WORLD (it decides the roster, the seats and the steadings),
+  // fixed for the run like the continent -- not something any civ owns.
   const WORLD_ONLY = ["seed", "rngState", "players", "me", "adversaries", "map", "tick", "seen", "dead",
-    "battles", "battleSeq"];
+    "battles", "battleSeq", "bots"];
   check("S carries world and run state only",
     Object.keys(S()).every((k) => WORLD_ONLY.includes(k)));
   check("...and nothing a civilization owns", (() => {
@@ -6878,6 +6881,66 @@ console.log("\n--- M0: the world can seat two humans, both of them fairly ---");
   api.ensureMap();
   check("M0: a regenerated world seats the guest on the SAME ground",
     api.seatFor(guest) === guestSeat && api.ownerOf(guestSeat) === guest.id);
+}
+
+// ---- The empty world: no rivals, major or minor ----
+console.log("\n--- An empty world (S.bots = 0): just the players and the ground ---");
+{
+  // OWNER RULING, 2026-08-28, for the human-vs-human playtests: "they add more
+  // variables than we need to establish a baseline of 'does it play bad?'"
+  // One switch has to empty the world completely -- roster, seats and
+  // steadings -- or the baseline is not a baseline.
+  reset();
+  S().bots = 0;
+  S().map = null; S().seen = {};
+  api.initAdversaries();
+  api.ensureMap();
+  check("no rival peoples exist at all", api.rivals().length === 0 && api.humans().length === 1);
+  check("...no adversary seats stand on the board",
+    Object.values(api.world.places).every((p) => !p.adversary));
+  check("...and no minor steadings either",
+    Object.values(api.world.places).every((p) => !p.minor));
+  check("the player still opens on guaranteed ground, trio and all",
+    api.holdCount() === 3 && api.hexPopSum() > 0);
+
+  // AND THE WORLD STILL RUNS. Every system that reaches for a rival has to
+  // cope with there being none -- the era clock, raid selection, the bots'
+  // tick, contact. A quiet world is not a crashing one.
+  const woodBefore = api.me().res.wood, stoneBefore = api.me().res.stone;
+  run(120);
+  check("an empty world simulates cleanly for two minutes", !S().dead && api.me().pop > 0);
+  check("...the era clock finds nobody to advance", api.rivals().length === 0);
+  check("...no raid can be sent, and nothing throws trying",
+    api.spawnRaid() === null && api.battleCount() === 0);
+  // GATHERING, not population: an empty world still has SICKNESS in it (the
+  // hazard slate is the player's own story, not the rivals'), so a headcount
+  // can legitimately fall over two minutes -- this check was first written as
+  // "population grows" and was flaky about one run in three because of it.
+  //
+  // And WOOD, not wood-and-stone: the floor guarantee puts timber ADJACENT to
+  // every seat but only puts hills IN REACH, so an opening trio can honestly
+  // produce no stone at all. The second draft failed on those seeds, which is
+  // the guarantee being read too generously rather than the economy being
+  // broken. Wood only accumulates while nobody spends it, and timber adjacency
+  // is a law -- so this is the invariant that actually says "it is running".
+  check("...and the economy is still gathering", api.me().res.wood > woodBefore);
+
+  // A CAP, NOT A SWITCH: the same control is the world-density dial later.
+  reset();
+  S().bots = 1;
+  S().map = null; S().seen = {};
+  api.initAdversaries(); api.ensureMap();
+  check("a cap of 1 leaves exactly one rival people -- the warlike one",
+    api.rivals().length === 1 && api.rivals()[0].key === "hillClans");
+  check("...with exactly one seat on the board",
+    Object.values(api.world.places).filter((p) => p.adversary).length === 1);
+
+  // The default is untouched: every save written before this field carried
+  // `null`, and null means what the game has always done.
+  reset();
+  api.initAdversaries(); api.ensureMap();
+  check("the default is unchanged: every people the age authors",
+    S().bots === null && api.rivals().length === api.active().adversaries.length);
 }
 
 // ---- M1a: the table, over a wire that is not a socket ----

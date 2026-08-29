@@ -46,7 +46,10 @@ export function pickContinent(seed) {
 export const HUMAN_SEAT_DISTANCE = 8;
 export const HUMAN_SEAT_DISTANCE_MIN = 4;
 
-export function generateMap(seed, spec, continentId, humanSeats) {
+// `rivals` caps how many rival peoples this world holds: undefined/null means
+// every seat the era authors (the default), and 0 means an EMPTY WORLD -- no
+// adversary seats and no minor steadings, only the players. See S.bots.
+export function generateMap(seed, spec, continentId, humanSeats, rivals) {
   const cont = continentById(continentId || pickContinent(seed));
   const frame = parseFrame(cont.rows);
   // How many HUMAN-grade seats this world needs. One for a solo run; two for
@@ -272,7 +275,12 @@ export function generateMap(seed, spec, continentId, humanSeats) {
   // of them says so in its own description. Preference, not demand: the
   // constraint relaxes to any land rather than leaving a people homeless.
   const aRng = makeRng(hashStr(seed + ":seats"));
-  const seats = spec.seats || [];
+  // AN EMPTY WORLD IS A LEGAL WORLD (2026-08-28). At `rivals: 0` no seats are
+  // placed and no steadings are rolled -- the board is the two players and the
+  // ground between them, which is the baseline a human-vs-human playtest needs
+  // in order to ask "is this fun?" without three AI schedules answering first.
+  const rivalCap = typeof rivals === "number" ? Math.max(0, rivals) : null;
+  const seats = rivalCap == null ? (spec.seats || []) : (spec.seats || []).slice(0, rivalCap);
   const placed = [];
   const seatTerrain = spec.seatTerrain || {};
   for (const advId of seats) {
@@ -310,7 +318,10 @@ export function generateMap(seed, spec, continentId, humanSeats) {
   // must not change who exists -- while NAMES and stats still come from the
   // hand-authored pool, drawn without replacement. Identity is authored;
   // placement is procedural, exactly as the adversary law has always said.
-  if (spec.minors) {
+  // The minor tier follows the same switch: an empty world is empty of
+  // steadings too (the owner asked for "no bots major or minor"). Splitting
+  // them into two dials later is a one-line change here.
+  if (spec.minors && rivalCap !== 0) {
     const mRng = makeRng(hashStr(seed + ":minors"));
     const mn = spec.minors;
     const pool = mn.names.slice();

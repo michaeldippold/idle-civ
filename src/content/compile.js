@@ -273,6 +273,16 @@ export function active(civ) {
 // turn it is but not the record.
 export function activeFor(pid) { return active(playerById(pid)); }
 
+// THE RIVAL PEOPLES THIS RUN ACTUALLY HAS (2026-08-28). The era authors a
+// roster; `S.bots` may cap it, and 0 empties the world entirely. One accessor,
+// so the roster, the seats and the minor tier can never disagree about how
+// many neighbours exist. Reads the era of whoever is asking, like active().
+export function roster(civ) {
+  const all = active(civ).adversaries || [];
+  const cap = S && typeof S.bots === "number" ? Math.max(0, S.bots) : null;
+  return cap == null ? all : all.slice(0, cap);
+}
+
 // (BOOST_BUILDING died here 2026-08-25 with the hex economy. It mapped a
 // resource to the panel building that lifted its rate kingdom-wide -- food to
 // the Drying Racks, wood to the Lumber Camp, stone to the Stone Pit. All three

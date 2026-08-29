@@ -46,7 +46,10 @@ const CHOICES = "idleciv.newrun";
 // the DEFAULT and is not a special case anywhere downstream -- Random is the
 // absence of a pick, so the continent falls to the run seed, which is what lets
 // a bare seed number reproduce a random run exactly.
-let choice = { continent: null, color: DEFAULT_COLOR, name: "" };
+// `bots: null` means every rival the era authors, which is the default and
+// what the game has always done. A number caps them, and 0 is an EMPTY WORLD --
+// no rival peoples, no minor steadings, just the players and the ground.
+let choice = { continent: null, color: DEFAULT_COLOR, name: "", bots: null };
 
 export function stashChoices() {
   try { sessionStorage.setItem(CHOICES, JSON.stringify(choice)); } catch (e) {}
@@ -161,6 +164,22 @@ function initChoices() {
   if (name) {
     name.value = "";
     name.addEventListener("input", () => { choice.name = name.value; pushSeatChoice(); });
+  }
+  const bots = document.getElementById("startBots");
+  if (bots) {
+    // A COUNT, not a switch (owner, 2026-08-28). None is what a
+    // human-vs-human playtest wants -- a baseline needs one variable, and
+    // three rival peoples on their own clocks answer "is this fun?" before
+    // the players get to -- but the same control is the world-density dial
+    // afterwards, so it is authored as one from the start. The values are
+    // strings because the buttons carry them in a dataset.
+    buildChoiceButtons(bots, [
+      { value: "all", label: "All", title: "Every people this age knows — the full world." },
+      { value: "1", label: "1", title: "One rival people, and the warlike one at that." },
+      { value: "2", label: "2", title: "Two rival peoples." },
+      { value: "0", label: "None", title: "An empty world: no rival peoples, no steadings. Just the players and the ground." },
+    ], () => (choice.bots == null ? "all" : String(choice.bots)),
+       (v) => { choice.bots = v === "all" ? null : Number(v); });
   }
 }
 

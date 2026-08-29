@@ -123,7 +123,7 @@ export function ensureMap() {
       chronicle("Your people mark the ground they stand on. The world is wider than this.", "good");
     }
   }
-  setWorld(generateMap(S.map.seed, spec, S.map.continent, S.map.humanSeats || 1));
+  setWorld(generateMap(S.map.seed, spec, S.map.continent, S.map.humanSeats || 1, S.bots));
   // THE 3-HEX START (owner ruling, 2026-08-23, ratifying the E2 bridge's
   // accident): a fresh run opens with the seat plus two adjacent land hexes.
   //

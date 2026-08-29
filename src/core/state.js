@@ -131,6 +131,23 @@ export function freshState() {
     players: [freshPlayer(0)],
     me: 0,
 
+    // HOW MANY RIVAL PEOPLES THIS WORLD HAS (owner ruling, 2026-08-28, for the
+    // human-vs-human playtests). `null` means "every one the era authors",
+    // which is the default and what every save before this field carried; a
+    // NUMBER caps the roster, and **0 means an empty world -- no majors, no
+    // minor steadings, nothing but the players.**
+    //
+    // The reason is experimental design rather than difficulty: bots move on
+    // their own schedules, and while they do, "does this play badly?" cannot
+    // be asked cleanly. A baseline needs one variable. (Owner: *"they add more
+    // variables than we need to establish a baseline of 'does it play bad?'"*)
+    // It is a genuine tunable afterwards -- world density, chosen per run --
+    // which is why it is a count and not a switch.
+    //
+    // Fixed for the run, like the continent and the colour: the roster is read
+    // at boot and the seats are placed during generation.
+    bots: null,
+
     // The living remnants of the world's adversaries: { [id]: { stock, standing } }.
     // The manifest entry is the template; this is what actually depletes.
     // (These become entries in `players` as the bots grow real economies --

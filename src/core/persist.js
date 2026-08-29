@@ -1,4 +1,4 @@
-import { active } from "../content/compile.js";
+import { active, roster } from "../content/compile.js";
 import { CONFIG, TICK_SECONDS } from "./config.js";
 import { PLAYER_COLORS } from "./palette.js";
 import { S, freshPlayer, freshState, me, playerByKey, setS } from "./state.js";
@@ -161,7 +161,11 @@ export function load() {
 // manifest; nothing advances them yet, and when something does, this line
 // already means the right thing.
 export function initAdversaries() {
-  for (const adv of active().adversaries) {
+  // THE ROSTER, CAPPED BY THE RUN (2026-08-28). `S.bots` decides how many
+  // rival peoples exist at all; at 0 this loop does nothing and the world has
+  // only its players. The generator reads the same accessor for seats and
+  // steadings, so the three can never disagree.
+  for (const adv of roster()) {
     let p = playerByKey(adv.id);
     if (!p) {
       // The colour is AUTHORED (each people wears its own in every age), but

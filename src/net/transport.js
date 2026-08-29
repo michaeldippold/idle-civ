@@ -72,6 +72,56 @@ function makeEnd() {
   return end;
 }
 
+// ---- The relay handshake ---------------------------------------------------
+// The relay understands exactly two messages (open / join) and forwards
+// everything else unread. These two helpers own that conversation, so a
+// SESSION never sees it: by the time a session exists, the transport is
+// already a private wire to one other person. That separation is why the
+// whole protocol above could be tested with no server at all.
+//
+// Both resolve to a transport whose messages are the peer's, because the
+// relay's own replies are consumed here and never passed along.
+
+export function openTable(url) {
+  return handshake(url, { t: "open" }, "opened");
+}
+export function joinTable(url, code) {
+  return handshake(url, { t: "join", code: String(code || "").toUpperCase().trim() }, "paired");
+}
+
+function handshake(url, hello, wantType) {
+  return new Promise((resolve, reject) => {
+    const wire = wsTransport(url);
+    let settled = false;
+    let code = null;
+    const off = wire.onMessage((msg) => {
+      if (!msg || typeof msg.t !== "string") return;
+      if (msg.t === "nosuch") { settled = true; off(); wire.close(); reject(new Error("no such table")); return; }
+      if (msg.t === "full") { settled = true; off(); wire.close(); reject(new Error("that table is full")); return; }
+      if (msg.t === "opened") {
+        // The host has a code to share, but nobody is at the far end yet: the
+        // wire resolves now so the lobby can show the code, and `paired` is
+        // reported through the callback below.
+        code = msg.code;
+        if (!settled) { settled = true; off(); resolve({ wire, code, paired: false }); }
+        return;
+      }
+      if (msg.t === wantType) {
+        if (!settled) { settled = true; off(); resolve({ wire, code: msg.code || code, paired: true }); }
+        return;
+      }
+    });
+    wire.onClose(() => { if (!settled) { settled = true; reject(new Error("the relay is not answering")); } });
+    wire.send(hello);
+  });
+}
+
+// WAIT FOR THE OTHER SEAT. The host resolves its handshake immediately (it
+// needs the code to show), so this is how it learns somebody arrived.
+export function onPaired(wire, fn) {
+  return wire.onMessage((msg) => { if (msg && msg.t === "paired") fn(msg); });
+}
+
 // THE REAL WIRE. A thin wrapper over WebSocket with the same four methods --
 // deliberately dumb, because everything interesting is above it and therefore
 // already tested. Buffers sends made before the socket opens, so a session

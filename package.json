@@ -2,5 +2,9 @@
   "name": "idle-civ",
   "private": true,
   "type": "module",
-  "scripts": { "test": "node harness.js" }
+  "scripts": {
+    "test": "node harness.js",
+    "test:relay": "node relay/check.js",
+    "relay": "node relay/server.js"
+  }
 }

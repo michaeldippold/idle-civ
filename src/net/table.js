@@ -1,5 +1,6 @@
-import { S, me, setS } from "../core/state.js";
+import { S, freshPlayer, freshState, me, setS } from "../core/state.js";
 import { applyPlayerColor } from "../core/palette.js";
+import { initAdversaries } from "../core/persist.js";
 import { ensureMap, seatFor, world } from "../map/map.js";
 import { guestSession, hostSession, SNAPSHOT_HZ, tableSpeed } from "./session.js";
 import { joinTable as relayJoin, onPaired, openTable as relayOpen } from "./transport.js";
@@ -101,14 +102,37 @@ export async function hostTable(hooks = {}) {
   return code;
 }
 
-// THE HOST BEGINS. The world is regenerated HERE, with both seats counted --
-// this is the one moment the guest's existence changes the map, and it is why
-// the lobby has to happen before the run rather than during it.
+// THE HOST BEGINS, AND A TABLE IS A NEW RUN (fixed 2026-08-28, found in the
+// first real two-machine game: the table inherited the host's Bronze Age save,
+// so the guest was dropped into somebody else's half-played empire with a
+// stone-age seat).
+//
+// Recutting the world was never enough -- the WORLD was fresh but the
+// CIVILIZATIONS were not, still carrying the host's era, stores, upgrades and
+// army. Sitting down at a table starts a game; what survives from the lobby is
+// only what was chosen there: each seat's colour and name, and how many rivals
+// the world holds.
 export function beginHostedRun() {
   if (!isHost() || !table.session) return false;
-  S.map = null;                 // recut the world for two guaranteed seats (M0)
-  S.seen = {};
-  ensureMap();
+  const hostP = me();
+  const guestP = S.players[table.session.guestSeat] || null;
+  const keep = {
+    host: { color: hostP.color, seatName: hostP.seatName },
+    guest: guestP ? { color: guestP.color, seatName: guestP.seatName } : null,
+    bots: S.bots,
+  };
+  setS(freshState());
+  S.bots = keep.bots;
+  S.players[0].color = keep.host.color;
+  S.players[0].seatName = keep.host.seatName;
+  initAdversaries();            // this run's rivals, however many were asked for
+  if (keep.guest) {
+    const g = freshPlayer(S.players.length, keep.guest);
+    g.remote = true;            // still never written into the host's own save
+    S.players.push(g);
+    table.session.guestSeat = g.id;
+  }
+  ensureMap();                  // cut for two guaranteed seats (M0)
   table.session.begin();
   table.started = true;
   applyPlayerColor();

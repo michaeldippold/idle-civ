@@ -8,8 +8,9 @@ import { DEFAULT_COLOR, PLAYER_COLORS } from "../core/palette.js";
 import { fmtTime, renderAll, setPreGame } from "./chrome.js";
 import {
   beginHostedRun, chooseSeat, hostTable, isGuest, isHost, joinTable,
-  leaveTable, relayUrl, tableState,
+  leaveTable, mySeatHex, relayUrl, tableState,
 } from "../net/table.js";
+import { selectTile } from "./map.js";
 
 
 // The pre-game screen (phase 10, slice 1). Two jobs, both small and both
@@ -87,6 +88,12 @@ function beginRun() {
   const screen = document.getElementById("startScreen");
   if (screen) screen.classList.add("hidden");
   setPreGame(false);
+  // THE FOCUS OPENS ON YOUR OWN SEAT, whichever seat that is. Boot does this
+  // for a solo run using the world origin, which is player 0's capital -- a
+  // guest arriving at a table has to be pointed at THEIRS instead, or the
+  // game opens looking at somebody else's country.
+  const mine = mySeatHex();
+  if (mine) selectTile(mine);
   renderAll();
 }
 

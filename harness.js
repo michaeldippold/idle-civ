@@ -6876,6 +6876,21 @@ console.log("\n--- M0: the world can seat two humans, both of them fairly ---");
   check("M0: neither human's ground overlaps the other's",
     api.holdings(guest.id).every((id) => !api.holdings(api.me().id).includes(id)));
   check("M0: the world remembers it was cut for two", api.S.map.humanSeats === 2);
+
+  // FOG IS KNOWLEDGE, AND KNOWLEDGE BELONGS TO THE KNOWER. Found in the first
+  // real two-machine game: ensureMap charted for the VIEWER only, so the guest
+  // was handed a world it had never seen -- a black screen with a single hex
+  // outline on it. Each human charts its own ground, around its own seat.
+  check("M0: every human seat charts its OWN country, not the host's", (() => {
+    const hostSeen = api.me().revealed || [];
+    const guestSeen = guest.revealed || [];
+    if (!guestSeen.length) return false;                       // the actual bug
+    if (!guestSeen.includes(guestSeat)) return false;          // ...around their own seat
+    if (guestSeen.includes(hostSeat)) return false;            // ...and not the host's
+    return hostSeen.includes(hostSeat) && !hostSeen.includes(guestSeat);
+  })());
+  check("M0: ...and each seat's books are seeded, not just the viewer's",
+    api.hexPopSum(api.me().id) > 0 && api.hexPopSum(guest.id) > 0);
   // And it survives the regeneration a load performs -- the reason the count
   // is persisted at all.
   api.ensureMap();

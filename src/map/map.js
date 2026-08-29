@@ -193,14 +193,18 @@ export function ensureMap() {
     }
   }
   syncDominion();
-  ensurePop();
   if (S.seen.fillStartingGround) {
     delete S.seen.fillStartingGround;
     // Every human's opening ground arrives worked to capacity, not just the
     // viewer's (M0 + the starting-trio-arrives-full ruling).
     for (const p of humans()) { fillStartingGround(p); syncPopMirror(p); }
   }
-  syncCharted();
+  // EVERY HUMAN'S BOOKS AND EVERY HUMAN'S FOG (fixed 2026-08-28, found in the
+  // first real two-machine game). These defaulted to the VIEWER, which on the
+  // host means the host -- so a guest was handed a world it had never charted
+  // and saw a black screen with one hex outline on it. Fog is knowledge, and
+  // knowledge belongs to the knower: each seat charts its own ground.
+  for (const p of humans()) { ensurePop(p.id); syncCharted(p); }
   // (A `S.seen.needsDefaultWork` gate stood here reading a flag NOTHING ever
   // set -- the border bread-default that set it died in E5. Removed
   // 2026-08-25; defaultAssignments() survives as a callable verb, since new
@@ -226,9 +230,12 @@ export function syncDominion() {
     if (ownerOf(seat) == null) claimTile(seat, p.id);
     if (!p.seat) p.seat = seat;
   }
-  for (const tid in S.map.built) if (!isOwned(tid)) setHexBuild(tid, null);
-  ensurePop();
-  syncPopMirror();
+  // A structure standing on ground NOBODY holds is rubble -- but ground held
+  // by ANOTHER seat keeps what is built on it. This read `!isOwned(tid)`,
+  // which asks "is it the viewer's?", and would have quietly demolished every
+  // structure a second human owned.
+  for (const tid in S.map.built) if (ownerOf(tid) == null) setHexBuild(tid, null);
+  for (const p of humans()) { ensurePop(p.id); syncPopMirror(p); }
 }
 
 // The era's scope (owner ruling, 2026-08-24): how many lands this age can

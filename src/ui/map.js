@@ -2,9 +2,14 @@ import { active } from "../content/compile.js";
 import { CONFIG } from "../core/config.js";
 import { S, me, playerById, playerByKey } from "../core/state.js";
 import { availableUnits, canAfford, caps, capWord, seatIsNamed, seatName } from "../core/derived.js";
+// WHOSE SEAT IS THE VIEWER'S (2026-08-28). `world.home` is the ORIGIN the
+// frame was translated to -- which is player 0's seat and nobody else's. A
+// guest reading it saw the host's capital captioned "Your Seat". Every "is
+// this my seat?" test goes through here now.
+function mySeat() { return seatFor(me()) || (world && world.home) || null; }
 import { save } from "../core/persist.js";
 import { canBuildOn, demolishStructure, hasMarket, launchSettle, launchStructure, pendingBuild, pendingSettle, settlePlan, structureFits, structurePlan, structureUnlocked, trade, tradeRate } from "../core/actions.js";
-import { atDominionCap, capOf, dominionCap, hexPop, hexResource, hexUse, hexYield, holdings, holdsUsed, isCharted, isOwned, isSighted, isVisible, ownerOf, structureDef, terrainYield, workStamp, world } from "../map/map.js";
+import { atDominionCap, capOf, dominionCap, hexPop, hexResource, hexUse, hexYield, holdings, holdsUsed, isCharted, isOwned, isSighted, isVisible, ownerOf, seatFor, structureDef, terrainYield, workStamp, world } from "../map/map.js";
 import { armyAt, armyBand, armyById, armyRoster, armySize, canSeeArmyAt, disbandArmy, disbandRefusal, haltArmy, marchingTo, setStance } from "../sim/armies.js";
 import { STANCES, stanceById, unitHit, unitRole } from "../sim/battle.js";
 import { seatCivAt } from "../sim/bots.js";
@@ -273,7 +278,7 @@ function tipFor(p) {
       };
     }
   }
-  if (p.id === world.home) {
+  if (p.id === mySeat()) {
     return { title: seatName(),
       stat: `${hexPop(p.id)} of ${capOf(p.id)} people`,
       body: `The ${spec().tileNoun.singular} everything else is measured from.`,
@@ -657,7 +662,7 @@ export function detailHTML(p) {
   }
   const mine = isOwned(p.id);
   const noun = spec().tileNoun.singular;
-  if (p.id === world.home) {
+  if (p.id === mySeat()) {
     // A named seat says its name and then what it is; an unnamed one keeps the
     // game's original sentence exactly. The fallback is not a degraded case --
     // most runs will never name anything, and that has to read as intended
@@ -788,10 +793,10 @@ function titleFor(p) {
   const use = isOwned(p.id) ? hexUse(p.id) : null;
   if (use && use.kind === "structure") {
     const sd = structureDef(use.id);
-    const where = p.id === world.home ? seatName() : `Your ${capWord(spec().tileNoun.singular)}`;
+    const where = p.id === mySeat() ? seatName() : `Your ${capWord(spec().tileNoun.singular)}`;
     return sd ? `${sd.name} — ${where}` : where;
   }
-  if (p.id === world.home) return seatName();
+  if (p.id === mySeat()) return seatName();
   if (isOwned(p.id)) return `Your ${capWord(spec().tileNoun.singular)}`;
   if (p.minor && S.map.minors && S.map.minors[p.id]) return capWord(p.minor.name);
   return capWord(p.terrain);
@@ -1047,7 +1052,7 @@ export function renderMapStage() {
     lastBuilt = now;
     if (changed.length) changedHexes(changed);
     stage3d.setWorld(visiblePlaces(),
-      { isOwned, isVisible, isCharted, homeId: world.home, era: me().era });
+      { isOwned, isVisible, isCharted, homeId: mySeat(), era: me().era });
     stage3d.setSelected(selectedId);
     if (stage3d.setPieces) stage3d.setPieces(piecesForBoard());
     if (stage3d.setMarchPath) {

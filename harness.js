@@ -51,6 +51,8 @@ import * as mMapUi from "./src/ui/map.js";
 import * as mPalette from "./src/core/palette.js";
 import * as mJournal from "./src/core/journal.js";
 import * as mReplay from "./src/core/replay.js";
+import * as mTransport from "./src/net/transport.js";
+import * as mSession from "./src/net/session.js";
 import * as mBus from "./src/core/bus.js";
 import * as mEraClock from "./src/sim/eraclock.js";
 import fs from "node:fs";
@@ -61,7 +63,8 @@ const MODS = [mConfig, mRng, mLib, mStone, mBronze, mIron, mCompile, mIcons, mSt
   mContinents,
   mDerived, mCombat, mBattle, mArmies, mContact, mRaiders, mBots, mHex3d, mEvents, mExped, mStep, mActions, mEra, mLog, mDom,
   mPLedger, mPPeople, mPHold, mPBuy, mExpedUi, mBattleUi, mModal, mChrome, mPersist,
-  mMapModel, mMapGen, mMapCore, mMapUi, mPalette, mJournal, mReplay, mBus, mEraClock];
+  mMapModel, mMapGen, mMapCore, mMapUi, mPalette, mJournal, mReplay, mBus, mEraClock,
+  mTransport, mSession];
 
 function fakeEl() {
   const el = {
@@ -6875,6 +6878,126 @@ console.log("\n--- M0: the world can seat two humans, both of them fairly ---");
   api.ensureMap();
   check("M0: a regenerated world seats the guest on the SAME ground",
     api.seatFor(guest) === guestSeat && api.ownerOf(guestSeat) === guest.id);
+}
+
+// ---- M1a: the table, over a wire that is not a socket ----
+console.log("\n--- M1a: two humans at one table (loopback transport) ---");
+{
+  // THE WHOLE PROTOCOL, with no server and no browser. This is what the
+  // transport seam buys: the lobby handshake, the seat claim, worldgen for
+  // two, verb forwarding and the snapshot loop all run here, so the relay's
+  // job shrinks to "move messages" -- a thing that can be fifty lines and
+  // stay fifty lines.
+  const [hostWire, guestWire] = api.loopbackPair();
+
+  // The host boots an ordinary run.
+  reset(); S().seed = 777001; S().rngState = 777001; S().map = null; S().seen = {};
+  api.initAdversaries();
+
+  let lobbySeen = null, begun = null, snaps = 0;
+  const host = api.hostSession(hostWire);
+  const guest = api.guestSession(guestWire, {
+    onLobby: (m) => { lobbySeen = m; },
+    onBegin: (m) => { begun = m; },
+    onSnapshot: () => { snaps += 1; },
+  });
+
+  guest.hello();
+  check("M1a: the guest asks, and the host answers with the table's state",
+    lobbySeen && Array.isArray(lobbySeen.taken) && lobbySeen.started === false);
+
+  // COLOUR EXCLUSIVITY is the host's to enforce, because only the host knows
+  // every seat already taken -- the human's pick and all three bots'.
+  check("M1a: the lobby names every colour already worn at the table",
+    lobbySeen.taken.length === S().players.length &&
+    lobbySeen.taken.includes(api.me().color));
+
+  guest.choose("teal", "Guestholm");
+  const guestRecord = S().players[host.guestSeat];
+  check("M1a: choosing a seat creates the guest's player record ON THE HOST",
+    !!guestRecord && guestRecord.key === null && guestRecord.color === "teal" &&
+    guestRecord.seatName === "Guestholm");
+  check("M1a: ...and the guest is a HUMAN seat, so the world owes it a guarantee",
+    api.humans().length === 2);
+
+  // WORLDGEN HAPPENS AFTER THE GUEST IS SEATED -- the ordering constraint the
+  // whole lobby design hangs off, since seats are placed during generation.
+  api.ensureMap();
+  check("M1a: the world is cut for two, and both seats are guaranteed ground",
+    S().map.humanSeats === 2 && api.world.homes.length === 2 &&
+    api.seatFor(guestRecord) !== api.seatFor(api.me()));
+
+  host.begin();
+  check("M1a: begin hands the guest its seat and the whole world at once",
+    begun && begun.seat === guestRecord.id && !!begun.snap &&
+    S().me === guestRecord.id);
+  check("M1a: ...and the guest is looking through its OWN seat, not the host's",
+    api.me().seatName === "Guestholm" && api.me().id === guestRecord.id);
+  check("M1a: ...with the guest's own guaranteed trio under it",
+    api.holdCount(guestRecord.id) === 3);
+
+  // THE GUEST ISSUES AN ORDER. It applies locally (optimism) AND crosses the
+  // wire; the host -- the only simulation there is -- applies it for real.
+  // Note the state here is the GUEST's copy, so the host's truth is checked
+  // after the snapshot below.
+  api.me().res.wood = 300; api.me().res.stone = 200; api.me().res.food = 300;
+  const before = hostWire.sent;
+  api.build(api.defById("barracks"), api.me());
+  check("M1a: the guest's verb crosses the wire as a journal entry",
+    guestWire.sent > 0 && api.journal().some((e) => e.verb === "build" && e.pid === guestRecord.id));
+
+  // Only a seat's OWN orders are forwarded -- a client may never act for
+  // anybody else, and the host refuses it besides. The other seat is made
+  // GENUINELY able to act first: an order that was merely refused would make
+  // this check pass for the wrong reason (caught by mutating it, which is
+  // the standing lesson).
+  const other = S().players[0];
+  other.res.wood = 300; other.res.stone = 200; other.res.food = 300;
+  other.upgrades = {}; other.buildQueue = [];
+  const sentBefore = guestWire.sent;
+  const journalBefore = api.journal().length;
+  api.build(api.defById("barracks"), other);
+  check("M1a: a client never forwards an order that is not its own seat's",
+    api.journal().length > journalBefore &&                       // the order really happened
+    api.journal()[api.journal().length - 1].pid === other.id &&   // ...as the other seat
+    guestWire.sent === sentBefore);                               // ...and stayed off the wire
+
+  check("M1a: the host pushes state, and the guest takes it as truth", (() => {
+    snaps = 0;
+    host.pushSnapshot();
+    return snaps === 1 && S().me === guestRecord.id;
+  })());
+
+  // THE SNAPSHOT IS THE SAVE, so a field that survives a reload survives a
+  // join for the same reason -- and the size is measured rather than guessed.
+  const snapBytes = JSON.stringify(api.takeSnapshot()).length;
+  console.log(`  snapshot ${(snapBytes / 1024).toFixed(1)}KB; at ${api.SNAPSHOT_HZ}Hz ≈ ${
+    ((snapBytes * api.SNAPSHOT_HZ) / 1024).toFixed(0)}KB/s`);
+  check("M1a: a snapshot is small enough to push several times a second",
+    snapBytes < 400 * 1024);
+
+  // THE SHARED CLOCK: every player has a throttle, the world runs at the
+  // minimum, and pause is a throttle of 0 rather than a second mechanism.
+  check("M1a: the world runs at the table's MINIMUM throttle",
+    api.tableSpeed(4, 1) === 1 && api.tableSpeed(1, 4) === 1 &&
+    api.tableSpeed(1, 0) === 0 && api.tableSpeed(0, 1) === 0);
+  check("M1a: ...and one player alone is not throttled by a table of one",
+    api.tableSpeed(2, null) === 2);
+  check("M1a: versus a human the legal set is pause or 1x -- speed is an attention weapon",
+    JSON.stringify(api.MULTIPLAYER_SPEEDS) === "[0,1]");
+
+  guest.sendThrottle(0);
+  check("M1a: a throttle crosses the wire, so either seat can stop the world",
+    host.peerThrottle === 0);
+
+  // A SEAT LEAVING is a fact the other end hears, which is what lets the
+  // absent-guest pause exist at all.
+  let hostLeft = false;
+  const [w3, w4] = api.loopbackPair();
+  api.guestSession(w4, { onHostLeft: () => { hostLeft = true; } });
+  const h2 = api.hostSession(w3);
+  h2.close();
+  check("M1a: when a seat leaves, the other end is told", hostLeft);
 }
 
 console.log(`\n${fails === 0 ? "ALL CHECKS PASSED" : fails + " CHECK(S) FAILED"}`);

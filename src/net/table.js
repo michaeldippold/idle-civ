@@ -15,14 +15,35 @@ import { joinTable as relayJoin, onPaired, openTable as relayOpen } from "./tran
 // per-run with ?relay=ws://... so a local server can be tested against the
 // hosted page and vice versa. No build step, no config file, no secret.
 //
-// LOCALHOST IS THE DEFAULT ON PURPOSE, AND IT IS A SAFETY PROPERTY (2026-08-28).
-// The page is publicly hosted; this default means a stranger who clicks "Open a
-// table" reaches their OWN machine, fails, and is told so -- multiplayer is
-// inert for the public until somebody deliberately points it somewhere. Do not
-// change this to a public relay until the hardening pass is done (todo.md →
-// SECURITY: THE HARDENING PASS): the host currently trusts the shape of every
-// message a guest sends, and the relay's buffers are unbounded.
-const DEFAULT_RELAY = "ws://localhost:8787";
+// THE RELAY IS WHEREVER THIS PAGE CAME FROM, on port 8787. Deriving it from
+// the page's own host rather than hardcoding "localhost" is what makes LAN
+// play zero-configuration: you serve the game from your machine, your brother
+// opens http://192.168.x.x:8123, and his page looks for the relay at
+// 192.168.x.x too -- because that is where the page came from, which is where
+// the relay is. Hardcoding localhost would have sent him to his OWN machine,
+// where nothing is running.
+//
+// AND IT IS STILL THE SAFETY PROPERTY (2026-08-28). On the publicly hosted
+// page this resolves to the static host, which runs no relay -- and a browser
+// refuses ws:// from an https:// page anyway -- so a stranger who clicks "Open
+// a table" fails, exactly as before. Multiplayer stays inert for the public
+// until somebody deliberately points it somewhere with ?relay=. Do not ship a
+// real public relay until the hardening pass is done (todo.md → SECURITY: THE
+// HARDENING PASS): the host trusts the shape of every message a guest sends,
+// and the relay's buffers are unbounded.
+const RELAY_PORT = 8787;
+
+function derivedRelay() {
+  try {
+    const host = location.hostname || "localhost";
+    // wss from https, ws from http: a browser blocks the insecure one on a
+    // secure page, and getting this wrong looks like the relay being down.
+    const scheme = location.protocol === "https:" ? "wss" : "ws";
+    return `${scheme}://${host}:${RELAY_PORT}`;
+  } catch (e) {
+    return `ws://localhost:${RELAY_PORT}`;
+  }
+}
 
 export function relayUrl() {
   try {
@@ -31,7 +52,7 @@ export function relayUrl() {
     const saved = localStorage.getItem("idleciv.relay");
     if (saved) return saved;
   } catch (e) {}
-  return DEFAULT_RELAY;
+  return derivedRelay();
 }
 export function setRelayUrl(url) {
   try { localStorage.setItem("idleciv.relay", url); } catch (e) {}

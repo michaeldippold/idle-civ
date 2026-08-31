@@ -145,6 +145,65 @@ load-bearing rather than theoretical. What exists:
   zero-height lesson carried into the renderer: DOM assertions pass happily against a page that
   draws nothing.
 
+## The substrate — one simulation, several players *(2026-08-31, branch `substrate`)*
+
+**Status: built, not merged.** The architecture half of
+[`2026-08-28-antagonist-spec.md`](2026-08-28-antagonist-spec.md). Four facts,
+each harness-enforced, that together make a second decision-maker — a bot card
+or a remote human — an ordinary player rather than a special case:
+
+**1. The sim takes an ACTING CIV; it never asks who is watching.** Every
+function that touches a civilization's books takes the civ (or its pid) and
+defaults to `me()` for the interface's convenience:
+`rates(p)`, `caps(p)`, `holdings(pid)`, `syncCharted(p)`, `growPopulation(dt, p)`,
+`build(def, p)`. The idiom came from the military half (`armiesOf(p)`,
+`active(civ)`) and was extended over the economy. **It is a parameter, never a
+global "current player"** — a `host()` accessor would be `me()` with a new name
+and would break the moment two players act in one tick.
+
+**THE VIEWER RATCHET** is how that holds: the harness pins every sim file's
+`S.me` and `me()` count EXACTLY, so a new viewer-read cannot land unnoticed and
+a removed one must be recorded as progress. The end state is zero for
+`src/sim/`, `src/map/` and the sim half of `src/core/`; `me()` survives as the
+INTERFACE's accessor, legitimate in `ui/` and forbidden in the sim.
+
+**2. Every living civ runs the real economy.** `step()` loops `S.players`:
+gather by held ground, upkeep, era caps, the build queue, logistic growth, the
+pop mirror — identical arithmetic for the human, a guest, and a bot, whose
+ledger simply has no UI. The loop draws no dice, so a recorded seed's future is
+untouched by it. Bot hexes carry real `S.map.pop`; conquest inherits the
+standing population.
+
+**3. Every decision-maker calls the same journaled verbs.** `core/journal.js`
+records `{tick, pid, verb, args}`; `core/replay.js` re-issues them through one
+dispatcher. **HUMAN seats journal; keyed civs never do** — a bot's acts are
+drawn from the seed and the tick, so a replay re-runs them and recording them
+too would double-issue on playback. The claim *(seed + tick count + journal)
+fully determines the state* is checked bit-identically.
+
+**4. `net/` is above the sim, and the sim cannot see it.**
+
+```
+  net/
+    transport.js   send / onMessage / onClose / close -- a loopback pair for
+                   tests, a WebSocket for the browser, plus the relay handshake
+    session.js     the protocol: lobby, seats, begin, verb forwarding,
+                   snapshots, throttles -- transport-agnostic, so the whole
+                   thing is harness-tested with no server and no browser
+    table.js       the browser's view of there being a second person
+  relay/
+    server.js      the only server: pairs two sockets by code, forwards bytes,
+                   stores nothing, no dependencies, no database
+```
+
+**Host-authoritative** by ruling: the host runs the only simulation, the guest
+sends verbs and receives state, and desync stops being a problem rather than
+being solved. A snapshot IS the save (~4KB), so the wire format cannot drift
+from it. World facts that decide generation ride in state: `S.map.humanSeats`
+(how many guaranteed seats) and `S.bots` (how many rival peoples, `0` = an
+empty world), both fixed for the run because the world regenerates from the
+seed at load.
+
 ## Module Structure
 
 **Status: shipped (phase 1, 2026-08-22); reshaped 2026-08-26 by the per-player refactor.**
@@ -1274,7 +1333,21 @@ Bureau is dense administrative paper — ledger sheets, ink tab headers, monospa
 
 ## Testing Approach
 
-**Status: shipped at 791 checks, 0 failures. Phases 2 and 4 shipped; the action journal that makes replay real landed 2026-08-25 (`src/core/journal.js`), though nothing consumes the tape yet.**
+**Status: 1101 checks, 0 failures (2026-08-31, branch `substrate`). The action journal landed 2026-08-25 and `core/replay.js` finally CONSUMES the tape: a scripted sitting replays bit-identically from seed + tick + journal.**
+
+**Two commands, and the split is deliberate.** `npm test` is the harness:
+synchronous, server-free, and it never opens a socket — the whole networking
+protocol is proven over an in-memory loopback transport instead.
+`npm run test:relay` boots the real relay and drives real WebSockets through
+pairing, forwarding, a 200KB payload, refusals and rejoin. It is kept OUT of
+`npm test` because a check that binds a port fails for reasons that are not the
+game's.
+
+**And the standing lesson, restated because this arc paid for it again:** two
+live sessions found **five real bugs that 1101 checks did not**, every one of
+them "the code says *the* player where it means *a* player". The harness is
+where arithmetic is proven; a second pair of eyes on a real screen is where
+assumptions are.
 
 No test framework. Verification is `harness.js`, checked into the repo, run with `node harness.js` (or `npm test`) from the repo root. Since phase 1 it **imports the same 25 modules the game runs** (everything except `main.js`, whose body is `boot()`), stubs `document`/`localStorage`/`window` on `globalThis` — module evaluation touches neither, so static imports are safe — and exposes every export through one Proxy (`api`), whose single legal write is `api.S`, routed through `setS()`. The vm sandbox and the appended-text export hook that preceded it are gone; what `boot()` did for the harness's purposes is now two lines: `setS(freshState()); initAdversaries()`.
 

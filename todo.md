@@ -12,7 +12,98 @@
 
 ---
 
-## THE WORKING ORDER — read this first on a cold start *(owner priority, 2026-08-25)*
+## WHERE THINGS STAND — 2026-08-31. **READ THIS FIRST ON A COLD START.**
+
+*(This section replaces THE WORKING ORDER below as the entry point. That section's "START HERE"
+still describes the night of 2026-08-25 and its 4b → 4c → 4d queue, all of which shipped days
+ago; it survives as the SPEC for those items, not as a statement of what happens next.)*
+
+**Everything lives on branch `substrate` — 25 commits, 1101 checks green, working tree clean,
+pushed. NOT MERGED TO MAIN.** `main` is what GitHub Pages serves, so main is deliberately five
+days behind: merging is the act of publishing (see [`relay/DEPLOY.md`](relay/DEPLOY.md)).
+
+### What shipped in the 8/28–8/31 arc
+
+The whole of **Part I and Part II** of [`2026-08-28-antagonist-spec.md`](2026-08-28-antagonist-spec.md):
+
+- **S1** the `me()` sweep — the sim takes an acting civ; the **viewer ratchet** pins every file's
+  remaining viewer reads so none can be added unnoticed.
+- **S2** the per-player economy — every living civ keeps real books.
+- **S3** verbs all the way down — and `core/replay.js` proves *(seed + tick + journal)* replays
+  bit-identical.
+- **M0** N human-grade seats, each with the full floor guarantee, spaced apart.
+- **M1** the table: transport seam, the relay (`relay/server.js`, dependency-free), the join-code
+  lobby, host-authoritative snapshots, the shared throttle.
+- **Three army verbs** — March / Conquer / Sack — and **scouting resolved by ruling** (presence
+  is scouting; slice 6 collapses).
+- **The empty world** — `S.bots`, so a playtest can have no rivals at all.
+
+### THE TWO THINGS NOT DONE *(owner, 2026-08-31)*
+
+1. **It is not online.** No live URL yet. The game is publishable today (Pages already serves
+   `main`); the relay is not, until the hardening pass below. `PRODUCTION_RELAY` is empty on
+   purpose, so a hosted page offers single player and says so.
+2. **There has been no live multiplayer playtest.** Two browser tabs on one machine, through the
+   real relay, is as far as it has been proven. **The human-vs-human playtest era has not
+   begun** — and it is the reason the whole campaign was sequenced this way. *"Those will come as
+   I have time."*
+
+**Nothing is half-built.** Both are gated on the owner's time and one security pass, not on
+unfinished code.
+
+### THE QUEUE, as it actually stands
+
+**Next:** the **security hardening pass** (below) — it is the only thing between here and a
+public relay, and it is about an hour. **Then:** deploy (merge + Fly/Render + one constant).
+**Then:** the human-vs-human playtest era. **Then:** M2 and the brain campaign, informed by what
+the playtests say. The tech tree stays gated behind all of it.
+
+### HANGING THREADS — the complete inventory
+
+**A. Transitional scaffolding from this arc.** Deliberate, load-bearing, and each must retire on
+a named trigger. None is a bug; all four are lies-with-an-expiry-date:
+
+| thing | where | retires when |
+|---|---|---|
+| `botMint` — bot units still minted, not trained | `sim/bots.js` | **B1**: nothing queues bot training until the brain exists |
+| `botFamineExempt: true` | `core/config.js` | **B1**: the BUILD card's food self-care proves it feeds a realm |
+| `botGoldRegen` — treasury trickle standing in for their merchants | `core/config.js`, `core/step.js` | the brain can trade |
+| `PRODUCTION_RELAY = ""` | `net/table.js` | the relay is deployed |
+
+**B. The viewer ratchet's remaining distance.** The rule is *no file in `src/sim/`, `src/map/` or
+the sim half of `src/core/` reads `S.me` or calls `me()`*. Currently **12 `S.me` + ~134 `me()`**
+across those files, every count pinned by the harness. Most of the `me()` are harmless parameter
+defaults (`p || me()`) that retire as callers become explicit. The **twelve `S.me` are the real
+list**, and they are M2's contents:
+
+- `step.js:98` — `runConverters` runs for the viewer only, so **bots never convert** (no Forge
+  output). Waiting on bots that build (B1).
+- `step.js:136` — `die()` fires only for the viewer, so **a second human starving does not end
+  their run**. Needs the per-viewer ending.
+- `contact.js:158/192/307` — the **battle panel is emitted only to the viewer**, so a guest sees
+  no dice for their own war. The most visible M2 gap.
+- `contact.js:129` — `nameOf()` says "your own" from the viewer's seat.
+- `armies.js:214` — watchtower vision reads structures owned by the viewer.
+- `map.js:111` — the world's first claim, `owner: { "0,0": S.me }`.
+
+**C. M2 — per-viewer presentation** *(specced, not built)*: the items above, plus per-client fog
+rendering and the loser's ending. **And one it must not ship without: a remote seat's name is
+sanitized only by a length cap, and `titleFor()` feeds an unescaped template — the moment M2
+renders another player's name, that is a real remote XSS.** Fix at the render, before.
+
+**D. Security** — [SECURITY: THE HARDENING PASS](#security-the-hardening-pass--owed-before-the-relay-is-public-logged-2026-08-28), seven ranked
+items. Owed **before** a public relay, not after.
+
+**E. Older threads, all still recorded and none lost to this pivot** — the fortification family's
+open items (bots never build forts; walled bot seats are still passable as waypoints), real models
+per building (the debt cubes are the ledger), scenery on built hexes, bigger glyphs, the
+selected-tile panel's TLC, the interface redesign (item 6), the era re-dress (5a, parked), the map
+frame editor, armies walking on the ocean (held for boats), losability and replayability (6b), and
+the tech tree (item 8, gated).
+
+---
+
+## THE WORKING ORDER — *superseded as an entry point; kept as the spec for its items* *(owner priority, 2026-08-25)*
 
 **This is the queue. Everything else in this file is the SPEC for one of these items.**
 

@@ -11,6 +11,39 @@
 
 ---
 
+## 2026-08-31 — The arc closes: what is built, and what is honestly not
+
+**Session wrap for the 8/28–8/31 campaign.** Branch `substrate`: 25 commits, 1101 checks green,
+tree clean, pushed, **not merged** — `main` is what Pages serves, so merging is publishing.
+
+**Built:** the antagonist spec's Part I and Part II whole — the `me()` sweep and its viewer
+ratchet, the per-player economy, verbs-all-the-way-down with a replay that proves *(seed + tick +
+journal)* bit-identical, N human-grade seats, and the table (transport seam, dependency-free
+relay, join-code lobby, host-authoritative snapshots, shared throttle). Plus two rulings that came
+out of play and cost a system each: **March / Conquer / Sack**, which made annexation a choice
+instead of a side effect of walking; and **scouting resolved by ruling** — presence is scouting,
+so slice 6 collapsed to a tuning knob. And **the empty world** (`S.bots`), so a playtest can hold
+one variable still.
+
+**Not done, and not hidden:** there is **no live URL** and **no live multiplayer playtest**. Two
+tabs on one machine through the real relay is as far as it is proven; the human-vs-human era —
+the thing the whole campaign was sequenced around — has not begun. Both wait on the owner's time
+and one security pass, not on unfinished code.
+
+**The honest scoreboard on checks:** the two live sessions found **five real bugs that 1101
+harness checks did not** — the guest's blank board (fog computed for the viewer only), a table
+inheriting the host's Bronze Age save, a phantom seat persisted into the host's save, the host's
+own lobby picks ignored, and a colour substitution that never got re-tried. Every one was the same
+sentence: *the code says "the" player where it means "a" player*. That is the argument for putting
+the human game before the bot brain, made by the work rather than by the plan.
+
+`todo.md` → **WHERE THINGS STAND** is now the cold-start entry point, with the complete
+hanging-thread inventory: the four pieces of transitional scaffolding and their retirement
+triggers, the twelve remaining `S.me` reads that *are* M2's contents, the security pass, and every
+older thread confirmed still recorded.
+
+---
+
 ## 2026-08-28 (night, later) — An empty world
 
 **`S.bots`: how many rival peoples this world holds.** `null` (the default, and every save ever

@@ -22,6 +22,14 @@
 > it governs everything: **in a competitive 4X against bots, the bots are the content** —
 > *"gameplay feel is highly dependent on how good the bot sim is."*
 >
+> **STATUS, 2026-08-31: Parts I and II are BUILT on branch `substrate` (not merged). Part III,
+> the brain, is not started.** Two things the build order cannot supply and the owner has not
+> yet had time for: **there is no live URL**, and **there has been no live multiplayer
+> playtest** — two tabs on one machine through the real relay is as far as it is proven. The
+> playtest era below is therefore still ahead, which means everything in Part III is still
+> *speculative design* rather than the transcription it is supposed to be. Do not start writing
+> cards until a human has played a human. Full state: `todo.md` → WHERE THINGS STAND.
+>
 > Written to be picked up cold by a session that has read
 > [`2026-08-25-design-brief.md`](2026-08-25-design-brief.md) first. The design brief's pillar 1
 > is the sentence this whole file implements: *"a 'player' is a data structure plus a
@@ -565,8 +573,16 @@ harness sections)*:
    the relay URL is one constant in `src/net/table.js`, overridable per-run with `?relay=`
    and remembered in localStorage. The game itself stays on static hosting — only the relay
    moves.
-6. **M2 — per-viewer presentation**: viewer-keyed Chronicle, per-client fog render, loser's
-   ending.
+6. **M2 — per-viewer presentation** *(NOT BUILT; its contents are now known precisely, from the
+   live two-tab games)*: the battle panel is emitted only to the viewer, so **a guest sees no
+   dice for their own war** (`contact.js` seal/round/ended); `die()` fires only for the viewer,
+   so **a second human starving does not end their run** (`step.js`); `runConverters` runs for
+   the viewer only, so **bots never convert** (waits on B1 anyway); `nameOf()` says "your own"
+   from the viewer's seat; watchtower vision reads the viewer's structures. Plus per-client fog
+   rendering and the loser's ending.
+   **It must not ship without escaping remote seat names first** — a guest's name is sanitized
+   only by a length cap, and `titleFor()` feeds an unescaped template, so the moment M2 renders
+   another player's name it becomes a real remote XSS. See the security note.
 
 **THE HUMAN-VS-HUMAN PLAYTEST ERA** *(not a code slice; the whole point)*: milestone games
 against a second human, debrief after each, findings recorded — verbs-and-feel findings feed

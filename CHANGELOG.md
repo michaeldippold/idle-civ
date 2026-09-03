@@ -25,8 +25,8 @@ in `todo.md`. The bot brain stays behind the playtests, as the antagonist spec r
 
 Docs swept: `todo.md` gained THE 9/3 RULING as the new entry point; `tech.md`, the antagonist
 spec, `README.md` and `relay/DEPLOY.md` now say merged rather than not-merged, and the check
-count is 1101 everywhere. Merged branches `substrate` and `combat-dice` deleted; work continues
-on `main`.
+count is 1101 everywhere. Merged branches `substrate` and `combat-dice` deleted locally (the
+owner deletes them on origin); work continues on `main`.
 
 ---
 

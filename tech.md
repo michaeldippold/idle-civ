@@ -47,7 +47,7 @@ Plain HTML/CSS/JS as ES modules. No build step, no bundler, no dependencies, no 
 - `index.html` — structure/markup only (one `<script type="module" src="src/main.js">` at the end of `<body>`)
 - `styles.css` — all styling
 - `src/` — 26 modules, ~3,570 lines; see *Module Structure*
-- `harness.js` — the headless Node test harness, 791 checks, importing the same modules
+- `harness.js` — the headless Node test harness, 1101 checks, importing the same modules
 - `package.json` — `{"type": "module"}` plus `npm test`; exists so Node parses `.js` as ESM (the browser never needed it), deliberately dependency-free
 
 **The `file://` double-click era is over** — ES modules only load over http. This was already true in practice (development runs `npx http-server` via `.claude/launch.json` on port 8123; the game ships to GitHub Pages), and the promise's only remaining effect had been forcing everything into one 3,409-line `game.js`. Run it locally with any static server:
@@ -147,7 +147,9 @@ load-bearing rather than theoretical. What exists:
 
 ## The substrate — one simulation, several players *(2026-08-31, branch `substrate`)*
 
-**Status: built, not merged.** The architecture half of
+**Status: built; merged to `main` and published 2026-09-03 with no public relay configured
+(the hosted page offers single player only until the hardening pass and deploy, both paused —
+`todo.md` → THE 9/3 RULING).** The architecture half of
 [`2026-08-28-antagonist-spec.md`](2026-08-28-antagonist-spec.md). Four facts,
 each harness-enforced, that together make a second decision-maker — a bot card
 or a remote human — an ordinary player rather than a special case:

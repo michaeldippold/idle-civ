@@ -11,6 +11,25 @@
 
 ---
 
+## 2026-09-03 — Published, and the online half set down *(no code)*
+
+**`substrate` merged to `main` and pushed**, so the hosted page now serves everything from the
+8/28–8/31 arc. `PRODUCTION_RELAY` stays empty on purpose: a public visitor gets single player
+and an honest sentence, and local/LAN tables still work through `npm run relay`. The merge
+needed no hardening because every item on that list presumes a public relay, and there is none.
+
+**Owner ruling:** multiplayer's remaining work — the hardening pass, the relay deploy, and the
+human-vs-human playtests — is **paused as a unit** and picks back up when the owner has a
+testing window (~five days out). Feature design resumes in the meantime, from the open threads
+in `todo.md`. The bot brain stays behind the playtests, as the antagonist spec requires.
+
+Docs swept: `todo.md` gained THE 9/3 RULING as the new entry point; `tech.md`, the antagonist
+spec, `README.md` and `relay/DEPLOY.md` now say merged rather than not-merged, and the check
+count is 1101 everywhere. Merged branches `substrate` and `combat-dice` deleted; work continues
+on `main`.
+
+---
+
 ## 2026-08-31 — The arc closes: what is built, and what is honestly not
 
 **Session wrap for the 8/28–8/31 campaign.** Branch `substrate`: 25 commits, 1101 checks green,

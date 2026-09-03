@@ -1,5 +1,10 @@
 # Putting Idle Civ online
 
+> **Status, 2026-09-03:** step 1 is done — `main` carries the table and Pages serves it, with
+> single player only on offer. Steps 2 and 3 are **paused on purpose** behind feature design,
+> together with the hardening pass they depend on, until the owner has a window to live-test
+> (`todo.md` → THE 9/3 RULING). Nothing below has changed; it is simply not next.
+
 Two pieces, deployed separately, because they are different kinds of thing:
 
 | piece | what it is | where it goes |

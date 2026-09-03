@@ -22,13 +22,16 @@
 > it governs everything: **in a competitive 4X against bots, the bots are the content** —
 > *"gameplay feel is highly dependent on how good the bot sim is."*
 >
-> **STATUS, 2026-08-31: Parts I and II are BUILT on branch `substrate` (not merged). Part III,
-> the brain, is not started.** Two things the build order cannot supply and the owner has not
-> yet had time for: **there is no live URL**, and **there has been no live multiplayer
-> playtest** — two tabs on one machine through the real relay is as far as it is proven. The
-> playtest era below is therefore still ahead, which means everything in Part III is still
-> *speculative design* rather than the transcription it is supposed to be. Do not start writing
-> cards until a human has played a human. Full state: `todo.md` → WHERE THINGS STAND.
+> **STATUS, 2026-08-31 (branch state updated 2026-09-03): Parts I and II are BUILT and merged
+> to `main`. Part III, the brain, is not started.** Two things the build order cannot supply
+> and the owner has not yet had time for: **there is no public relay** (the hosted page is
+> single player only), and **there has been no live multiplayer playtest** — two tabs on one
+> machine through the real relay is as far as it is proven. The playtest era below is
+> therefore still ahead, which means everything in Part III is still *speculative design*
+> rather than the transcription it is supposed to be. Do not start writing cards until a human
+> has played a human. **2026-09-03: the hardening pass, the relay deploy and the playtest era
+> are PAUSED as a unit behind feature design until the owner can live-test** — `todo.md` →
+> THE 9/3 RULING.
 >
 > Written to be picked up cold by a session that has read
 > [`2026-08-25-design-brief.md`](2026-08-25-design-brief.md) first. The design brief's pillar 1

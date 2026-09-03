@@ -8,8 +8,7 @@
 
 A **competitive hex-based 4X** played as a **digital tabletop**: a lit 3D hex board in the browser
 — depth, shadows, pieces on a board, bright warm colors — real time you can pause and speed up, and
-a small cast of AI rivals advancing through the ages on their own hidden clocks *(the clock is
-designed and queued; see below)*. Inspired by *Civilization* (decisions with real opportunity
+a small cast of AI rivals advancing through the ages on their own hidden clocks. Inspired by *Civilization* (decisions with real opportunity
 cost), *Crusader Kings* and *Stellaris* (a real-time world you pause and accelerate, with
 neighbours you fight, trade with, or win over), *A Dark Room* (start with almost nothing;
 complexity is earned, never dumped on you), and the table itself — *Twilight Imperium*'s
@@ -111,7 +110,15 @@ that present a choice, wait patiently, never expire, and always carry a designed
 deliberately rather than blocked — a choice can only wait for free once the clock stops when you look
 away, so the feature had to come second.
 
-`todo.md` has the working order; its START HERE block is the authority on what happens next.
+**The simulation no longer knows who "the" player is** (2026-08-28 to 08-31): every civilization
+keeps real books, every decision goes through the same journaled verbs, and a run replays
+bit-identically from its seed and journal. On that substrate sits **the table** — two humans in
+one world through a tiny relay, which works today on one machine or a LAN (`npm run relay`, then
+*Open a table*). **It is not online yet:** the hosted page offers single player only until a
+security hardening pass and a relay deploy, both deliberately paused behind feature design as of
+2026-09-03 (`todo.md` → THE 9/3 RULING; `relay/DEPLOY.md` has the steps).
+
+`todo.md` has the working order; its top block is the authority on what happens next.
 
 ## Tuning
 
@@ -135,7 +142,7 @@ Change a number, refresh the page.
 node harness.js
 ```
 
-A headless Node harness (791 checks) that imports the game's modules directly — no browser, no
+A headless Node harness (1101 checks) that imports the game's modules directly — no browser, no
 framework, no dependencies — and exercises the simulation through its real exports.
 
 ## Docs

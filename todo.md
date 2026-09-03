@@ -12,15 +12,44 @@
 
 ---
 
-## WHERE THINGS STAND — 2026-08-31. **READ THIS FIRST ON A COLD START.**
+## THE 9/3 RULING — multiplayer takes the back seat; feature design resumes *(owner, 2026-09-03)*
+
+**`substrate` is merged to `main` and published.** The hosted page now runs the whole 8/28–8/31
+arc — the per-player substrate, the army verbs, the empty world, the table — with
+`PRODUCTION_RELAY` still empty, so a public visitor is offered **single player only, and told
+so**. Local and LAN two-human play (`npm run relay`) works exactly as before. The merge is safe
+without the hardening pass because every item on that list attacks a public relay, and there is
+none; the one dormant XSS waits on M2, which is not built.
+
+**What is paused, and why:** the **security hardening pass**, the **relay deploy**, and the
+**human-vs-human playtest era**. This is the first time real security concerns have entered the
+project, and the owner cannot live-test for about five days (earliest ~2026-09-08). Rather than
+harden a thing that cannot be exercised, the online half is set down as a unit. **Nothing is
+lost:** the hardening list is below (SECURITY: THE HARDENING PASS), the deploy steps are in
+[`relay/DEPLOY.md`](relay/DEPLOY.md), and the playtest brief is in the antagonist spec. All
+three pick up together, in that order, when the owner has a testing window.
+
+**What resumes:** feature design, from the open threads in the HANGING THREADS inventory below
+(section E) and the specs under THE WORKING ORDER. The rule that still holds from the antagonist
+spec: **the bot brain (Part III) is authored from observed human play, so it stays behind the
+playtests**; B1 (bots BUILD) is the one slice explicitly allowed to pull forward if bare bot
+boards grate. The tech tree stays gated behind all of it.
+
+**The queue now:** feature design (owner's pick) → *[when testable]* hardening → deploy →
+playtests → M2 → the brain.
+
+---
+
+## WHERE THINGS STAND — 2026-08-31. *(Still accurate on what is built; superseded on branch state and queue by THE 9/3 RULING above.)*
 
 *(This section replaces THE WORKING ORDER below as the entry point. That section's "START HERE"
 still describes the night of 2026-08-25 and its 4b → 4c → 4d queue, all of which shipped days
 ago; it survives as the SPEC for those items, not as a statement of what happens next.)*
 
 **Everything lives on branch `substrate` — 25 commits, 1101 checks green, working tree clean,
-pushed. NOT MERGED TO MAIN.** `main` is what GitHub Pages serves, so main is deliberately five
-days behind: merging is the act of publishing (see [`relay/DEPLOY.md`](relay/DEPLOY.md)).
+pushed. NOT MERGED TO MAIN** *(merged 2026-09-03 — see above)*. `main` is what GitHub Pages
+serves, so main was deliberately five days behind: merging is the act of publishing (see
+[`relay/DEPLOY.md`](relay/DEPLOY.md)).
 
 ### What shipped in the 8/28–8/31 arc
 
@@ -51,12 +80,14 @@ The whole of **Part I and Part II** of [`2026-08-28-antagonist-spec.md`](2026-08
 **Nothing is half-built.** Both are gated on the owner's time and one security pass, not on
 unfinished code.
 
-### THE QUEUE, as it actually stands
+### THE QUEUE, as it stood on 8/31 *(re-sorted 2026-09-03 — see THE 9/3 RULING)*
 
 **Next:** the **security hardening pass** (below) — it is the only thing between here and a
 public relay, and it is about an hour. **Then:** deploy (merge + Fly/Render + one constant).
 **Then:** the human-vs-human playtest era. **Then:** M2 and the brain campaign, informed by what
-the playtests say. The tech tree stays gated behind all of it.
+the playtests say. The tech tree stays gated behind all of it. *(9/3: the merge half of "deploy"
+is done; hardening, the relay deploy and the playtests are paused as a unit behind feature
+design until the owner can live-test.)*
 
 ### HANGING THREADS — the complete inventory
 
